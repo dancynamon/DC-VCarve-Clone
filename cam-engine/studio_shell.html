@@ -1,0 +1,330 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aquamentor CAD/CAM Studio</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+:root{
+  --bg-chrome:#e9eef4;   /* topbar / tools / right / status base */
+  --bg-card:#f6f9fc;     /* section card */
+  --bg-head:#dde7f1;     /* section header strip */
+  --bg-input:#ffffff;
+  --bd:#c3cfdc;          /* main border */
+  --bd-soft:#d6dfe9;
+  --ink:#2a3442;         /* primary text */
+  --ink-dim:#5c6a7c;     /* labels / muted */
+  --accent:#0f7a46;      /* brand green */
+  --accent-bright:#1f9d63;
+  --accent-soft:#e3f7ec; /* active tool bg */
+  --accent-bd:#2bbd7e;
+  --val:#1d6fb8;         /* status values / links */
+  --btn-bd:#b7c4d3;
+  --btn-hover:#dde9f5;
+}
+body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','SF Mono',monospace;font-size:12px;overflow:hidden}
+.app{display:grid;grid-template-rows:38px 1fr 24px;grid-template-columns:78px 1fr 248px;height:100vh;grid-template-areas:"top top top" "tools stage right" "status status status"}
+.topbar{grid-area:top;display:flex;align-items:center;gap:6px;padding:0 10px;background:linear-gradient(#eef2f7,#dde5ee);border-bottom:1px solid var(--bd)}
+.topbar .brand{font-weight:700;color:var(--accent);letter-spacing:1px;margin-right:8px}
+.topbar .sep{width:1px;height:20px;background:var(--bd);margin:0 4px}
+.tb{background:linear-gradient(#ffffff,#eef3f8);color:#33414f;border:1px solid var(--btn-bd);border-radius:5px;padding:4px 9px;cursor:pointer;font-family:inherit;font-size:11px;box-shadow:0 1px 1px rgba(20,40,70,.06)}
+.tb:hover{background:linear-gradient(#f0f6fc,#dbe7f4);border-color:#9fb1c6;color:#1d2733}
+.tb:active{background:#d3e1f0;box-shadow:inset 0 1px 2px rgba(20,40,70,.12)}
+.topbar label{display:flex;align-items:center;gap:4px;color:var(--ink-dim);font-size:10px;text-transform:uppercase;letter-spacing:.5px}
+.topbar input[type=number]{width:48px;background:var(--bg-input);border:1px solid var(--btn-bd);color:var(--ink);border-radius:3px;padding:2px 4px;font-family:inherit}
+.tools{grid-area:tools;background:linear-gradient(#e7ecf3,#dde4ed);border-right:1px solid var(--bd);display:flex;flex-direction:column;align-items:stretch;gap:3px;padding:5px 5px;overflow-y:auto}
+.tgrp{width:100%;display:flex;flex-direction:column;gap:3px}
+.tgrp-h{display:flex;align-items:center;justify-content:center;gap:3px;font-size:8px;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-dim);cursor:pointer;padding:3px 2px 1px;user-select:none;border-top:1px solid var(--bd-soft)}
+.tgrp:first-child .tgrp-h{border-top:none}
+.tgrp-h:hover{color:var(--ink)}
+.tgrp-h .tcaret{font-size:7px;transition:transform .12s}
+.tgrp.collapsed .tgrp-h .tcaret{transform:rotate(-90deg)}
+.tgrp-body{display:flex;flex-direction:column;align-items:center;gap:4px}
+.tgrp.collapsed .tgrp-body{display:none}
+.tool{width:100%;height:42px;background:linear-gradient(#ffffff,#eef3f8);border:1px solid var(--btn-bd);border-radius:6px;color:#3a4756;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-direction:column;line-height:1.05;gap:1px;box-shadow:0 1px 1px rgba(20,40,70,.05)}
+.tool b{font-size:15px;font-weight:400}
+.tool .tlabel{font-size:9.5px;letter-spacing:.2px}
+.tool:hover{background:linear-gradient(#f0f6fc,#dbe7f4);color:#1d2733;border-color:#9fb1c6}
+.tool.active{background:var(--accent-soft);border-color:var(--accent-bd);color:var(--accent)}
+.tool b{font-size:13px}
+.stage{grid-area:stage;position:relative;overflow:hidden}
+#cv{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair}
+#hud{position:absolute;inset:0;pointer-events:none}
+.viewtabs{position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:20;display:flex;gap:2px;background:var(--bg-card);border:1px solid var(--bd);border-radius:8px;padding:3px;box-shadow:0 2px 10px rgba(20,40,70,.22)}
+.vtab{background:none;border:none;color:var(--ink-dim);font-family:inherit;font-size:11px;padding:4px 16px;border-radius:6px;cursor:pointer;letter-spacing:.3px}
+.vtab:hover{color:var(--ink)}
+.vtab.active{background:var(--accent-soft);color:var(--accent);font-weight:700}
+.stage.preview #cv{cursor:default}
+.simctrl{position:absolute;top:8px;right:10px;z-index:20;display:none;align-items:center;gap:10px;background:var(--bg-card);border:1px solid var(--bd);border-radius:8px;padding:5px 10px;box-shadow:0 2px 10px rgba(20,40,70,.22)}
+.stage.preview .simctrl{display:flex}
+.simctrl label{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.4px}
+.simctrl select{background:var(--bg-input);border:1px solid var(--btn-bd);color:var(--ink);border-radius:3px;padding:2px 4px;font-family:inherit;font-size:11px}
+.restorebar{position:absolute;top:46px;left:50%;transform:translateX(-50%);z-index:30;display:none;align-items:center;gap:8px;background:var(--bg-head);border:1px solid var(--accent-bd);border-radius:8px;padding:6px 10px;box-shadow:0 3px 14px rgba(20,40,70,.28);font-size:11px;color:var(--ink)}
+.restorebar.show{display:flex}
+.restorebar .tb{font-size:10px;padding:3px 9px}
+.qrow .qt{flex:none;color:var(--ink-dim);font-size:9px;margin:0 3px;font-variant-numeric:tabular-nums}
+.right{grid-area:right;background:linear-gradient(#e9eef4,#e2e8f0);border-left:1px solid var(--bd);overflow-y:auto;padding:8px}
+.sectn{margin-bottom:8px;border:1px solid var(--bd);border-radius:6px;background:var(--bg-card);box-shadow:0 1px 2px rgba(20,40,70,.05);overflow:hidden}
+.sectn h3{font-size:9.5px;letter-spacing:1.2px;color:var(--accent);text-transform:uppercase;padding:7px 9px;border-bottom:1px solid var(--bd-soft);background:var(--bg-head);cursor:pointer;display:flex;align-items:center;gap:6px;user-select:none}
+.sectn h3 .caret{font-size:8px;transition:transform .12s;color:var(--ink-dim)}
+.sectn.collapsed h3{border-bottom:none}
+.sectn.collapsed h3 .caret{transform:rotate(-90deg)}
+.sectn.collapsed .body{display:none}
+.sectn .body{padding:8px 9px;display:flex;flex-wrap:wrap;gap:5px}
+.right .tb{font-size:10px;padding:4px 7px}
+.right label{display:flex;align-items:center;gap:3px;font-size:9.5px;color:var(--ink-dim);text-transform:uppercase}
+.right input[type=number],.right input[type=text],.right select{background:var(--bg-input);border:1px solid var(--btn-bd);color:var(--ink);border-radius:3px;padding:3px 4px;font-family:inherit;font-size:11px}
+.right input:focus,.right select:focus,.topbar input:focus{outline:none;border-color:var(--accent-bd)}
+.prow{font-size:11px;color:#3c4a5a;padding:1px 0;width:100%}
+.muted{color:var(--ink-dim);font-size:10px}
+.lyr{display:flex;align-items:center;gap:5px;padding:3px 4px;border-radius:3px;cursor:default;width:100%}
+.lyr.act{background:var(--accent-soft)}
+.lyr .sw{width:11px;height:11px;border-radius:2px;display:inline-block;border:1px solid rgba(20,40,70,.18)}
+.lyr .ln{cursor:pointer;color:var(--ink)}
+.pocket-only,.drill-only,.vcarve-only,.profile-pocket{display:none}
+/* shape properties modal */
+.modal-bg{position:fixed;inset:0;background:rgba(20,30,45,0.35);display:none;z-index:200}
+.modal{position:fixed;left:96px;top:70px;background:var(--bg-card);border:1px solid var(--bd);border-radius:8px;min-width:280px;max-width:340px;box-shadow:0 14px 44px rgba(20,40,70,.28)}
+.modal-h{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--bd-soft);background:var(--bg-head);border-radius:8px 8px 0 0;cursor:move;user-select:none}
+.modal-h .mt{font-size:12px;letter-spacing:1px;color:var(--accent);text-transform:uppercase;font-weight:700}
+.modal-h .mx{background:none;border:none;color:var(--ink-dim);font-size:18px;cursor:pointer;line-height:1;padding:0 2px}
+.modal-h .mx:hover{color:var(--ink)}
+.modal-body{padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.mfield{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px;color:var(--ink)}
+.mfield span{text-transform:none;letter-spacing:.2px}
+.mfield input{width:130px;background:var(--bg-input);border:1px solid var(--btn-bd);color:var(--ink);border-radius:4px;padding:5px 7px;font-family:inherit;font-size:12px}
+.mfield input:focus{outline:none;border-color:var(--accent-bd)}
+.modal-foot{display:flex;justify-content:flex-end;gap:8px;padding:10px 14px;border-top:1px solid var(--bd-soft)}
+.modal-foot .tb.primary{background:linear-gradient(var(--accent-bright),#178a54);border-color:var(--accent-bd);color:#fff}
+.modal-foot .tb.primary:hover{background:linear-gradient(#23a86a,#15804d)}
+/* hotkey reference table */
+.keys-modal{max-width:380px}
+.keys-table{width:100%;border-collapse:collapse;font-size:11px}
+.keys-table th{color:var(--accent);text-align:left;padding:4px 6px;border-bottom:1px solid var(--bd-soft);font-size:10px;text-transform:uppercase;letter-spacing:.5px}
+.keys-table td{padding:3px 6px;color:#3c4a5a;vertical-align:top}
+.keys-table td:first-child{color:var(--accent);font-family:monospace;white-space:nowrap;width:140px}
+.keys-table tr:hover td{background:#eef3f8}
+.keys-section td{padding-top:10px;color:var(--ink-dim);font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-top:1px solid var(--bd-soft)}
+/* right-click context menu */
+.ctxmenu{position:fixed;z-index:300;background:var(--bg-card);border:1px solid var(--bd);border-radius:6px;padding:4px;min-width:160px;box-shadow:0 10px 30px rgba(20,40,70,.25);font-size:11px;font-family:inherit}
+.ctxmenu .ci{padding:6px 10px;border-radius:4px;color:var(--ink);cursor:pointer;white-space:nowrap;display:flex;justify-content:space-between;align-items:center;gap:18px}
+.ctxmenu .ci:hover{background:var(--btn-hover);color:#1d2733}
+.ctxmenu .ci.disabled{color:#a9b4c2;pointer-events:none}
+.ctxmenu .ci .k{color:var(--ink-dim);font-size:10px}
+.ctxmenu .sep{height:1px;background:var(--bd-soft);margin:4px 2px}
+.ctxmenu .ttl{padding:3px 10px 5px;color:var(--accent);font-size:9.5px;letter-spacing:.6px;text-transform:uppercase}
+.cam-hint{font-size:10px;color:var(--ink-dim);width:100%;margin-top:4px}
+.jobq{width:100%;margin-top:7px;border-top:1px solid var(--bd-soft);padding-top:6px}
+.jobq-h{font-size:9px;letter-spacing:1px;color:var(--accent);text-transform:uppercase;margin-bottom:4px}
+.jobq-btns{display:flex;gap:5px;margin-bottom:5px}
+.qrow{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:10px;color:#3c4a5a;padding:3px 5px;background:#eef3f8;border:1px solid var(--bd-soft);border-radius:3px;margin-bottom:3px}
+.qrow .ql{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qrow .qbtns{display:flex;gap:1px;align-items:center;flex:none}
+.qrow .qmv{background:none;border:none;color:var(--ink-dim);cursor:pointer;font-size:11px;line-height:1;padding:0 2px}
+.qrow .qmv:hover{color:var(--ink)}
+.qrow .qx{background:none;border:none;color:var(--ink-dim);cursor:pointer;font-size:13px;line-height:1;padding:0 2px}
+.qrow .qx:hover{color:#e0524f}
+.qrow.editing{border-color:var(--accent-bd);background:var(--accent-soft)}
+.qrow .qv{flex:none;margin:0 1px 0 0;cursor:pointer}
+.qrow .ql{cursor:pointer}
+.qrow .qedit{color:var(--accent)}
+.cam-hint.warn{color:#b06a00}
+.status{grid-area:status;display:flex;align-items:center;gap:16px;padding:0 12px;background:linear-gradient(#e7ecf3,#dde4ed);border-top:1px solid var(--bd);font-size:10.5px;color:var(--ink-dim)}
+.status .v{color:var(--val)}
+#btnCamGen{border-color:var(--accent-bd);color:#fff;background:linear-gradient(var(--accent-bright),#178a54)}
+#btnCamGen:hover{background:linear-gradient(#23a86a,#15804d);color:#fff}
+
+/* hover tooltips */
+[data-tip]{position:relative}
+[data-tip]:hover::after{content:attr(data-tip);position:absolute;left:50%;top:115%;transform:translateX(-50%);background:#16243c;color:#dce8f7;border:1px solid #2c405c;padding:3px 8px;border-radius:4px;font-size:10px;line-height:1.3;white-space:nowrap;z-index:80;pointer-events:none;letter-spacing:.2px;text-transform:none;box-shadow:0 3px 10px rgba(0,0,0,.4)}
+.tools .tool[data-tip]:hover::after{left:118%;top:50%;transform:translateY(-50%)}
+</style></head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <span class="brand">AQUAMENTOR CAD/CAM</span>
+    <button class="tb" id="btnNew" data-tip="Clear the design">New</button>
+    <button class="tb" id="btnImport" data-tip="Open an .aqcam project, or import DXF / SVG / vector PDF">Open / Import</button>
+    <button class="tb" id="btnSaveProj" data-tip="Save this job as an .aqcam project file (shapes, layers, material, toolpaths)">Save job…</button>
+    <button class="tb" id="btnExpDXF" data-tip="Export design as DXF">Export DXF</button>
+    <button class="tb" id="btnExpSVG" data-tip="Export design as SVG">Export SVG</button>
+    <span class="sep"></span>
+    <button class="tb" id="btnUndo" data-tip="Undo (Ctrl+Z)">↶ Undo</button>
+    <button class="tb" id="btnRedo" data-tip="Redo (Ctrl+Y)">↷ Redo</button>
+    <button class="tb" id="btnFit" data-tip="Fit view to all (F)">Fit (F)</button>
+    <button class="tb" id="btnSelfTest" data-tip="Build a sample design and run every CAM op (Profile/Pocket/Drill/V-Carve) as a smoke test">Self-test</button>
+    <button class="tb" id="btnKeys" data-tip="Keyboard shortcuts reference">Keys?</button>
+    <span class="sep"></span>
+    <label><input type="checkbox" id="chkGrid" checked> Grid</label>
+    <label>step<input type="number" id="gridStep" value="0.5" step="0.25" min="0.0625"></label>
+    <label><input type="checkbox" id="chkSnap" checked> Grid-snap</label>
+    <label><input type="checkbox" id="chkObjSnap" checked> Obj-snap</label>
+    <input type="file" id="fileInput" accept=".aqcam,.dxf,.svg,.pdf" style="display:none">
+  </div>
+
+  <div class="tools">
+    <div class="tgrp" data-grp="Edit"><div class="tgrp-h" data-tip="Selection & node editing"><span class="tcaret">▾</span>Edit</div><div class="tgrp-body">
+      <button class="tool active" data-tool="select" data-tip="Select / move / scale / rotate — shortcut: V" title="Select (V)"><b>▤</b><span class="tlabel">Select</span></button>
+      <button class="tool" data-tool="node" data-tip="Edit nodes — drag points, dbl-click add/remove — shortcut: N" title="Node edit (N)"><b>⬩</b><span class="tlabel">Nodes</span></button>
+    </div></div>
+    <div class="tgrp" data-grp="Create Vectors"><div class="tgrp-h" data-tip="Draw new vectors"><span class="tcaret">▾</span>Create</div><div class="tgrp-body">
+      <button class="tool" data-tool="line" data-tip="Line — click start, click end — shortcut: L" title="Line (L)"><b>╱</b><span class="tlabel">Line</span></button>
+      <button class="tool" data-tool="polyline" data-tip="Polyline — click points, Enter to finish — shortcut: P" title="Polyline (P)"><b>⟋</b><span class="tlabel">Polyline</span></button>
+      <button class="tool" data-tool="bezier" data-tip="Curve — click anchors, drag to pull handles; Enter to finish, click the start to close — shortcut: B" title="Curve (B)"><b>∿</b><span class="tlabel">Curve</span></button>
+      <button class="tool" data-tool="rect" data-tip="Rectangle — drag corners — shortcut: R" title="Rectangle (R)"><b>▭</b><span class="tlabel">Rect</span></button>
+      <button class="tool" data-tool="rrect" data-tip="Rounded rectangle — corner radius in Shape params" title="Rounded rectangle"><b>▢</b><span class="tlabel">Round</span></button>
+      <button class="tool" data-tool="circle" data-tip="Circle — center then radius — shortcut: C" title="Circle (C)"><b>◯</b><span class="tlabel">Circle</span></button>
+      <button class="tool" data-tool="ellipse" data-tip="Ellipse — drag bounding box — shortcut: E" title="Ellipse (E)"><b>⬭</b><span class="tlabel">Ellipse</span></button>
+      <button class="tool" data-tool="arc" data-tip="Arc — center, start, end — shortcut: A" title="Arc (A)"><b>◜</b><span class="tlabel">Arc</span></button>
+      <button class="tool" data-tool="polygon" data-tip="Polygon — number of sides in Shape params — shortcut: G" title="Polygon (G)"><b>⬠</b><span class="tlabel">Polygon</span></button>
+      <button class="tool" data-tool="star" data-tip="Star — number of points in Shape params" title="Star"><b>★</b><span class="tlabel">Star</span></button>
+      <button class="tool" data-tool="text" data-tip="Text — single-stroke or TTF outline; type in Shape params — shortcut: T" title="Text (T)"><b>T</b><span class="tlabel">Text</span></button>
+    </div></div>
+    <div class="tgrp" data-grp="View"><div class="tgrp-h" data-tip="Measure & navigate"><span class="tcaret">▾</span>View</div><div class="tgrp-body">
+      <button class="tool" data-tool="measure" data-tip="Measure distance / dx,dy / angle — shortcut: M" title="Measure (M)"><b>↔</b><span class="tlabel">Measure</span></button>
+      <button class="tool" data-tool="pan" data-tip="Pan the view — drag (or Alt-drag with any tool)" title="Pan (Alt-drag)"><b>✋</b><span class="tlabel">Pan</span></button>
+    </div></div>
+  </div>
+
+  <div class="stage"><div class="viewtabs"><button class="vtab active" data-view="2d" data-tip="Edit vectors">2D Design</button><button class="vtab" data-view="preview" data-tip="Machining backplot of all visible toolpaths">Preview</button></div>
+    <div class="simctrl" id="simCtrl"><label data-tip="Show simulated cut material vs. line toolpaths"><input type="checkbox" id="simSolid" checked>3D cut</label><label data-tip="Simulation cell size — smaller = finer + slower">Res"<select id="simRes"><option value="0.08">0.08</option><option value="0.05" selected>0.05</option><option value="0.03">0.03</option><option value="0.02">0.02</option></select></label></div>
+    <div class="restorebar" id="restoreBar"><span id="restoreMsg">Restore last session?</span><button class="tb" id="restoreYes">Restore</button><button class="tb" id="restoreNo">Dismiss</button></div>
+    <canvas id="cv"></canvas><canvas id="hud"></canvas></div>
+
+  <div class="right">
+    <div class="sectn"><h3>Job / Material</h3><div class="body">
+      <label data-tip="Material width (X)">W"<input type="number" id="jobW" value="24" step="0.5" style="width:56px"></label>
+      <label data-tip="Material height (Y)">H"<input type="number" id="jobH" value="18" step="0.5" style="width:56px"></label>
+      <label data-tip="Material thickness (Z)">Thick"<input type="number" id="jobT" value="0.5" step="0.05" style="width:54px"></label>
+      <label data-tip="Where X0 Y0 sits on the material">Origin<select id="jobOrigin"><option value="bl">Bottom-L</option><option value="br">Bottom-R</option><option value="tl">Top-L</option><option value="tr">Top-R</option><option value="center">Center</option></select></label>
+      <label data-tip="Show/hide the material outline"><input type="checkbox" id="jobShow" checked>Show</label>
+      <button class="tb" id="btnJobSet" data-tip="Apply size and fit the view to the material">Set job</button>
+      <button class="tb" id="btnFitJob" data-tip="Zoom to the material">Fit job</button>
+    </div></div>
+    <div class="sectn"><h3>Shape params</h3><div class="body">
+      <label>Sides<input type="number" id="polyN" value="6" min="3" max="64" style="width:48px"></label>
+      <label data-tip="Corner radius for rounded rectangle">Corner r"<input type="number" id="rrectR" value="0.25" step="0.05" min="0" style="width:50px"></label>
+      <label>Text<input type="text" id="txtVal" value="AQUAMENTOR" style="width:120px"></label>
+      <label>H"<input type="number" id="txtH" value="1" step="0.1" style="width:50px"></label>
+      <label data-tip="Outline = real TTF glyph contours (closed, cuttable). Off = single-stroke engraving."><input type="checkbox" id="txtOutline">Outline (TTF)</label>
+      <button class="tb" id="btnLoadFont" data-tip="Load a .ttf/.otf font for outline text">Load font…</button>
+      <input type="file" id="fontInput" accept=".ttf,.otf,.woff" style="display:none">
+      <div class="cam-hint" id="fontHint" style="color:#5c6b80">Outline text uses the built-in stroke font until you load a .ttf/.otf.</div>
+    </div></div>
+    <div class="sectn"><h3>Edit</h3><div class="body">
+      <button class="tb" id="btnOffset" data-tip="Offset selected by a distance">Offset</button>
+      <button class="tb" id="btnUnion" data-tip="Weld — merge into one (union)">Weld ∪</button>
+      <button class="tb" id="btnDiff" data-tip="Subtract later shapes from first">Subtract</button>
+      <button class="tb" id="btnInt" data-tip="Keep only overlap (intersect)">Intersect</button>
+      <button class="tb" id="btnJoin" data-tip="Join touching vectors into contours">Join</button>
+      <button class="tb" id="btnMirrorH" data-tip="Mirror horizontally">Mirror H</button>
+      <button class="tb" id="btnMirrorV" data-tip="Mirror vertically">Mirror V</button>
+      <button class="tb" id="btnRot90" data-tip="Rotate 90 degrees">Rotate 90°</button>
+      <button class="tb" id="btnDup" data-tip="Duplicate selected">Duplicate</button>
+      <button class="tb" id="btnArray" data-tip="Grid array (rows x cols)">Array</button>
+      <button class="tb" id="btnDelete" data-tip="Delete selected (Del)">Delete</button>
+      <button class="tb" id="btnCheckVec" data-tip="Find open, duplicate, or self-intersecting vectors and select them">Check vectors</button>
+    </div></div>
+    <div class="sectn"><h3>Nest</h3><div class="body">
+      <label data-tip="Sheet width for nesting (defaults from Job)">W"<input type="number" id="nestW" value="24" step="0.5" min="1" style="width:56px"></label>
+      <label data-tip="Sheet height for nesting (defaults from Job)">H"<input type="number" id="nestH" value="18" step="0.5" min="1" style="width:56px"></label>
+      <label data-tip="Edge keep-out margin inside the sheet border">Margin"<input type="number" id="nestMargin" value="0" step="0.125" min="0" style="width:50px"></label>
+      <label data-tip="Gap between packed parts (kerf + handling)">Gap"<input type="number" id="nestSpacing" value="0.125" step="0.0625" min="0" style="width:50px"></label>
+      <label data-tip="Allow each part to rotate 90° when it fits better landscape"><input type="checkbox" id="nestRotate" checked>Rotate 90°</label>
+      <button class="tb" id="btnNest" data-tip="Pack selected shapes (or all) onto sheets, minimize material waste. Multi-sheet layouts spread left-to-right.">Nest ▣</button>
+    </div></div>
+    <div class="sectn"><h3>Align</h3><div class="body">
+      <button class="tb" id="btnAlignL" data-tip="Align left">Left</button><button class="tb" id="btnAlignHC" data-tip="Align horizontal center">H-Ctr</button><button class="tb" id="btnAlignR" data-tip="Align right">Right</button>
+      <button class="tb" id="btnAlignT" data-tip="Align top">Top</button><button class="tb" id="btnAlignVC" data-tip="Align vertical center">V-Ctr</button><button class="tb" id="btnAlignB" data-tip="Align bottom">Bottom</button>
+    </div></div>
+    <div class="sectn"><h3>Properties</h3><div class="body" id="props"><div class="muted">No selection</div></div></div>
+    <div class="sectn"><h3>Layers</h3><div class="body" id="layerList"></div></div>
+    <div class="sectn"><h3>CAM · Profile → G-code</h3><div class="body">
+      <label data-tip="Load a saved tool preset (dia, feed, plunge, RPM, op)">Tool<select id="camToolLib" style="max-width:120px"></select></label>
+      <button class="tb" id="btnToolSave" data-tip="Save current CAM settings as a tool preset">Save</button>
+      <button class="tb" id="btnToolDel" data-tip="Delete the selected preset">Del</button>
+      <label data-tip="Toolpath operation">Op<select id="camOp"><option value="profile">Profile</option><option value="pocket">Pocket</option><option value="drill">Drill</option><option value="vcarve">V-Carve</option></select></label>
+      <label>Tool#<input type="number" id="camTool" value="2" min="1" style="width:40px"></label>
+      <label>Dia"<input type="number" id="camDia" value="0.25" step="0.001" style="width:56px"></label>
+      <label class="profile-only">Side<select id="camSide"><option value="outside">Outside</option><option value="inside">Inside</option><option value="on">On line</option></select></label>
+      <label>Dir<select id="camDir"><option value="climb">Climb</option><option value="conv">Conv</option></select></label>
+      <label class="pocket-only" data-tip="Pocket stepover as % of tool diameter">Step%<input type="number" id="camStep" value="40" min="5" max="90" style="width:44px"></label>
+      <label class="pocket-only" data-tip="Pocket clearing style: concentric offset rings or horizontal raster zig-zag">Style<select id="camPocketStyle"><option value="offset">Offset</option><option value="raster">Raster</option></select></label>
+      <label class="pocket-only" data-tip="Descend to cut depth via a helical arc instead of a straight plunge"><input type="checkbox" id="camHelixEntry">Helix in</label>
+      <label class="drill-only" data-tip="Peck depth per plunge (0 = single plunge)">Peck"<input type="number" id="camPeck" value="0.1" step="0.05" min="0" style="width:46px"></label>
+      <label class="vcarve-only" data-tip="Included V-bit angle (deg)">V°<input type="number" id="camVAngle" value="90" min="1" max="179" style="width:42px"></label>
+      <label class="vcarve-only" data-tip="V-carve offset step (in) — smaller = smoother, more passes">VStep"<input type="number" id="camVStep" value="0.02" step="0.005" min="0.002" style="width:50px"></label>
+      <label class="vcarve-only" data-tip="Flatten the groove bottom at this depth (0 = full sharp V)">Flat"<input type="number" id="camVFlat" value="0" step="0.05" min="0" style="width:46px"></label>
+      <label class="vcarve-only" data-tip="Flat endmill Ø to rough-clear the flat interior first (0 = V-bit only)">Clr Ø"<input type="number" id="camVClearDia" value="0" step="0.03125" min="0" style="width:50px"></label>
+      <label class="not-drill"><input type="checkbox" id="camArcs" checked>Arcs</label>
+      <label class="profile-pocket" data-tip="Lead-in/out at the cut entry/exit (avoids plunge marks on the edge)">Lead<select id="camLead"><option value="none">None</option><option value="arc">Arc</option><option value="line">Line</option></select></label>
+      <label class="profile-pocket" data-tip="Lead-in/out length (in)">Lead"<input type="number" id="camLeadLen" value="0.25" step="0.05" min="0" style="width:46px"></label>
+      <label class="profile-pocket" data-tip="Ramp the lead-in down in Z over this distance (0 = straight plunge)">Ramp"<input type="number" id="camRampLen" value="0" step="0.05" min="0" style="width:46px"></label>
+      <label>Cut"<input type="number" id="camDepth" value="0.5" step="0.01" style="width:52px"></label>
+      <label>Pass"<input type="number" id="camPass" value="0.25" step="0.01" style="width:52px"></label>
+      <label>Feed<input type="number" id="camFeed" value="120" style="width:52px"></label>
+      <label>Plunge<input type="number" id="camPlunge" value="40" style="width:46px"></label>
+      <label>RPM<input type="number" id="camRpm" value="18000" style="width:60px"></label>
+      <label>TopZ"<input type="number" id="camTopZ" value="0" step="0.01" style="width:46px"></label>
+      <label class="profile-only">Tabs#<input type="number" id="camTabN" value="0" style="width:40px"></label>
+      <label class="profile-only">len"<input type="number" id="camTabL" value="0.4" step="0.05" style="width:46px"></label>
+      <label class="profile-only">h"<input type="number" id="camTabH" value="0.1" step="0.01" style="width:46px"></label>
+      <label>Post<select id="camPost"><option value="shopsabre">ShopSabre</option><option value="generic">Generic</option></select></label>
+      <button class="tb" id="btnCamGen" data-tip="Generate toolpath + backplot">▶ Generate</button>
+      <button class="tb" id="btnCamExport" data-tip="Generate and save .tap">⤓ Export .tap</button>
+      <button class="tb" id="btnCamClear" data-tip="Hide toolpath overlay">Clear</button>
+      <div class="cam-hint" id="camHint">Generates from selected shapes (or all visible if none selected).</div>
+      <div class="jobq"><div class="jobq-h">TOOLPATHS</div>
+        <div class="jobq-btns"><button class="tb" id="btnAddOp" data-tip="Capture the current Op + selection as a new toolpath (or ✓ Update the one being edited)">+ Toolpath</button><button class="tb" id="btnRecalcAll" data-tip="Recompute the backplot for every visible toolpath">Recalc all</button><button class="tb" id="btnPostJob" data-tip="Post all toolpaths as one .tap with tool changes">Post job ⤓</button></div>
+        <div id="opsQueue"></div></div>
+    </div></div>
+  </div>
+
+  <div class="status">
+    <span>Pos <span class="v" id="coords">0, 0 in</span></span>
+    <span><span class="v" id="zoomlbl"></span></span>
+    <span id="msg" class="v"></span>
+  </div>
+</div>
+<div class="modal-bg" id="shapeModal">
+  <div class="modal">
+    <div class="modal-h"><span class="mt" id="modalTitle">Edit shape</span><button class="mx" id="modalX" title="Close">×</button></div>
+    <div class="modal-body" id="modalFields"></div>
+    <div class="modal-foot"><button class="tb" id="modalCancel">Cancel</button><button class="tb primary" id="modalApply">Apply</button></div>
+  </div>
+</div>
+<div class="modal-bg" id="keysModal">
+  <div class="modal keys-modal">
+    <div class="modal-h"><span class="mt">Keyboard Shortcuts</span><button class="mx" id="keysClose" title="Close">×</button></div>
+    <div class="modal-body" style="padding:10px 14px">
+      <table class="keys-table">
+        <tr><th>Key</th><th>Action</th></tr>
+        <tr class="keys-section"><td colspan="2">Draw Tools</td></tr>
+        <tr><td>V</td><td>Select / move</td></tr>
+        <tr><td>N</td><td>Node edit</td></tr>
+        <tr><td>L</td><td>Line</td></tr>
+        <tr><td>P</td><td>Polyline</td></tr>
+        <tr><td>R</td><td>Rectangle</td></tr>
+        <tr><td>C</td><td>Circle</td></tr>
+        <tr><td>E</td><td>Ellipse</td></tr>
+        <tr><td>A</td><td>Arc</td></tr>
+        <tr><td>G</td><td>Polygon</td></tr>
+        <tr><td>T</td><td>Text</td></tr>
+        <tr><td>M</td><td>Measure</td></tr>
+        <tr class="keys-section"><td colspan="2">View</td></tr>
+        <tr><td>F</td><td>Fit all to view</td></tr>
+        <tr><td>Scroll</td><td>Zoom in / out</td></tr>
+        <tr><td>Middle-drag / Space-drag</td><td>Pan</td></tr>
+        <tr class="keys-section"><td colspan="2">Edit</td></tr>
+        <tr><td>Ctrl+Z</td><td>Undo</td></tr>
+        <tr><td>Ctrl+Y / Ctrl+Shift+Z</td><td>Redo</td></tr>
+        <tr><td>Delete / Backspace</td><td>Delete selected</td></tr>
+        <tr><td>Shift (while drawing)</td><td>Ortho / 15° angle snap</td></tr>
+        <tr><td>Enter (in Polyline)</td><td>Commit polyline</td></tr>
+        <tr><td>Escape</td><td>Cancel / close menu</td></tr>
+        <tr><td>Double-click shape</td><td>Edit dimensions…</td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+<!--LIBS--></body></html>
