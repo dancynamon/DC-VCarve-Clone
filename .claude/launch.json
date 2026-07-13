@@ -4,7 +4,7 @@
     {
       "name": "cadcam-studio",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8765"],
+      "runtimeArgs": ["-m", "http.server", "8765", "--directory", "/Users/dancynamon/Dropbox/DC Claude Shared/Claude Tasks and Projects/Claude Code Projects/aqsrc"],
       "port": 8765
     }
   ]

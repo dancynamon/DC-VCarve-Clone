@@ -251,6 +251,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
       <label class="pocket-only" data-tip="Pocket stepover as % of tool diameter">Step%<input type="number" id="camStep" value="40" min="5" max="90" style="width:44px"></label>
       <label class="pocket-only" data-tip="Pocket clearing style: concentric offset rings or horizontal raster zig-zag">Style<select id="camPocketStyle"><option value="offset">Offset</option><option value="raster">Raster</option></select></label>
       <label class="pocket-only" data-tip="Descend to cut depth via a helical arc instead of a straight plunge"><input type="checkbox" id="camHelixEntry">Helix in</label>
+      <label class="pocket-only" data-tip="Optional smaller finish tool Ø — rest-machines the corners the main tool couldn't reach (0 = single tool)">Finish Ø"<input type="number" id="camFinishDia" value="0" step="0.03125" min="0" style="width:50px"></label>
       <label class="drill-only" data-tip="Peck depth per plunge (0 = single plunge)">Peck"<input type="number" id="camPeck" value="0.1" step="0.05" min="0" style="width:46px"></label>
       <label class="vcarve-only" data-tip="Included V-bit angle (deg)">V°<input type="number" id="camVAngle" value="90" min="1" max="179" style="width:42px"></label>
       <label class="vcarve-only" data-tip="V-carve offset step (in) — smaller = smoother, more passes">VStep"<input type="number" id="camVStep" value="0.02" step="0.005" min="0.002" style="width:50px"></label>

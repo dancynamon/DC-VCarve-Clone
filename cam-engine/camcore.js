@@ -197,6 +197,17 @@ function offsetRegion(region, delta){
   const sol=new ClipperLib.Paths(); co.Execute(sol, delta*SCALE);
   return sol.map(fromIntPath);
 }
+// Boolean difference a − b of two even-odd regions (world-space loop arrays). Used for rest machining.
+function regionDifference(a, b){
+  if(!a || !a.length) return [];
+  if(!b || !b.length) return a.slice();
+  const c=new ClipperLib.Clipper();
+  c.AddPaths(a.map(toIntPath), ClipperLib.PolyType.ptSubject, true);
+  c.AddPaths(b.map(toIntPath), ClipperLib.PolyType.ptClip, true);
+  const sol=new ClipperLib.Paths();
+  c.Execute(ClipperLib.ClipType.ctDifference, sol, ClipperLib.PolyFillType.pftNonZero, ClipperLib.PolyFillType.pftNonZero);
+  return sol.map(fromIntPath);
+}
 // point-in-region test honoring holes: a point is inside an even-odd region when an odd number of its loops contain it.
 function pointInRegion(p, regionPaths){
   const ip=new ClipperLib.IntPoint(Math.round(p.x*SCALE), Math.round(p.y*SCALE));
@@ -254,7 +265,7 @@ function scanLineSegs(fillPaths, y, xLo, xHi){
   return segs;
 }
 function pocketOp(contours, opts){
-  const o=Object.assign({toolNum:1,toolDia:0.25,climb:true,topZ:0,cutDepth:0.25,passDepth:0.125,safeZ:0.25,feed:120,plunge:40,rpm:18000,stepover:0.4,pocketStyle:'offset',leadType:'none',leadLen:0.25,rampLen:0,rampEntry:false},opts||{});
+  const o=Object.assign({toolNum:1,toolDia:0.25,climb:true,topZ:0,cutDepth:0.25,passDepth:0.125,safeZ:0.25,feed:120,plunge:40,rpm:18000,stepover:0.4,pocketStyle:'offset',leadType:'none',leadLen:0.25,rampLen:0,rampEntry:false,finishDia:0,finishNum:2},opts||{});
   const r=o.toolDia/2, warnings=[];
   const loops=contours.filter(c=>c.closed && c.pts && c.pts.length>=3).map(c=>c.pts);
   if(!loops.length){ warnings.push('Pocket needs at least one closed contour'); return {ops:[{kind:'pocket',toolNum:o.toolNum,rpm:o.rpm,feed:o.feed,plunge:o.plunge,safeZ:o.safeZ,topZ:o.topZ,passes:[]}],warnings}; }
@@ -285,37 +296,68 @@ function pocketOp(contours, opts){
         });
       });
     });
-    return {ops:[{kind:'pocket',toolNum:o.toolNum,rpm:o.rpm,feed:o.feed,plunge:o.plunge,safeZ:o.safeZ,topZ:o.topZ,passes}],warnings};
+  } else {
+    // --- offset (concentric) style: rings from one tool-radius inside the wall, stepping inward until the region closes up ---
+    const rings=[]; let delta=-r, guard=0;
+    while(guard++<5000){
+      const off=offsetRegion(region, delta);
+      if(!off.length) break;
+      for(const lp of off) if(lp.length>=3) rings.push(lp);
+      delta-=so;
+    }
+    if(!rings.length){ warnings.push('Tool too large to enter the pocket region'); }
+    let rampEntrySkipped=false;
+    depths.forEach(depth=>{
+      rings.forEach((lp,ri)=>{ const oriented=o.climb?ensureCW(lp):ensureCCW(lp);
+        const tabbed=oriented.map(p=>({x:p.x,y:p.y,tab:false}));
+        let path=tabbed, closed=true;
+        if(ri===0 && o.rampEntry){
+          // helical descent into the outer ring at each depth level (no straight plunge); shrink radius until it fits
+          const pre=helixEntry(oriented, region, [r, so, so*0.5]);
+          if(pre){ const close0={x:tabbed[0].x,y:tabbed[0].y,tab:false};
+            path=pre.concat(tabbed, [close0]); closed=false; }
+          else rampEntrySkipped=true;       // too tight for a helix -> straight plunge for this pass
+        } else if(o.leadType && o.leadType!=='none'){
+          const interiorSign=signedArea(oriented)>0?1:-1;                 // pocket: lead into the cleared interior
+          const wl=wrapLead(oriented, tabbed, o.leadType, o.leadLen, interiorSign, o.rampLen);
+          path=wl.path; closed=wl.closed;   // small inner rings just skip the lead silently
+        }
+        passes.push({z:o.topZ-depth,tabHeight:0,closed,path}); });
+    });
+    if(rampEntrySkipped) warnings.push('Helical entry skipped on a pocket too tight for the tool — straight plunge used');
   }
-  // --- offset (concentric) style: rings from one tool-radius inside the wall, stepping inward until the region closes up ---
-  const rings=[]; let delta=-r, guard=0;
-  while(guard++<5000){
-    const off=offsetRegion(region, delta);
-    if(!off.length) break;
-    for(const lp of off) if(lp.length>=3) rings.push(lp);
-    delta-=so;
-  }
-  if(!rings.length){ warnings.push('Tool too large to enter the pocket region'); }
-  let rampEntrySkipped=false;
-  depths.forEach(depth=>{
-    rings.forEach((lp,ri)=>{ const oriented=o.climb?ensureCW(lp):ensureCCW(lp);
-      const tabbed=oriented.map(p=>({x:p.x,y:p.y,tab:false}));
-      let path=tabbed, closed=true;
-      if(ri===0 && o.rampEntry){
-        // helical descent into the outer ring at each depth level (no straight plunge); shrink radius until it fits
-        const pre=helixEntry(oriented, region, [r, so, so*0.5]);
-        if(pre){ const close0={x:tabbed[0].x,y:tabbed[0].y,tab:false};
-          path=pre.concat(tabbed, [close0]); closed=false; }
-        else rampEntrySkipped=true;       // too tight for a helix -> straight plunge for this pass
-      } else if(o.leadType && o.leadType!=='none'){
-        const interiorSign=signedArea(oriented)>0?1:-1;                 // pocket: lead into the cleared interior
-        const wl=wrapLead(oriented, tabbed, o.leadType, o.leadLen, interiorSign, o.rampLen);
-        path=wl.path; closed=wl.closed;   // small inner rings just skip the lead silently
+  // primary (rough) op; optionally add a small-tool REST-MACHINING op that only cuts what the big tool couldn't reach
+  const bigOp={kind:'pocket',toolNum:o.toolNum,rpm:o.rpm,feed:o.feed,plunge:o.plunge,safeZ:o.safeZ,topZ:o.topZ,passes,toolProfile:{type:'flat',radius:r}};
+  const ops=[bigOp];
+  if(o.finishDia>0 && o.finishDia<o.toolDia){
+    const rs=o.finishDia/2, soS=Math.max(0.001, o.finishDia*Math.min(Math.max(o.stepover,0.05),0.9));
+    // NOTE: offsetRegion takes integer Clipper paths in but returns WORLD loops out, so chained calls must re-encode
+    // world loops via toIntPath. offW() does that; regionDifference already toIntPaths its (world) inputs internally.
+    const offW=(worldLoops, delta)=>offsetRegion(worldLoops.map(toIntPath), delta).filter(lp=>lp.length>=3);
+    // Rest area in tool-CENTER space: inside inset(region, r_small) but outside inset( opening(region, r_big), r_small )
+    // = the sharp corners / narrow necks the big tool's radius rounded off. Trace it directly (boundary IS the toolpath).
+    const insetBig=offsetRegion(region, -r).filter(lp=>lp.length>=3);
+    const opened=insetBig.length?offW(insetBig, r):[];                    // morphological opening by r_big
+    const smallCenters=offsetRegion(region, -rs).filter(lp=>lp.length>=3);
+    const bigEroded=opened.length?offW(opened, -rs):[];
+    let restCenters=regionDifference(smallCenters, bigEroded).filter(lp=>lp.length>=3);
+    // despeckle: an opening (in-out by ~2x the offset arc tolerance) drops hair-thin numeric slivers/annuli left by
+    // reconstructing the morphological opening of curved walls, keeping only real corner/neck rest areas.
+    if(restCenters.length){ const cl=offW(restCenters,-0.006); restCenters=cl.length?offW(cl,0.006):[]; }
+    const restPasses=[];
+    depths.forEach(depth=>{
+      let dd=0, g2=0;
+      while(g2++<5000){
+        const off=(dd<1e-9)?restCenters:offW(restCenters, -dd);
+        if(!off.length) break;
+        for(const lp of off) if(lp.length>=3){ const oriented=o.climb?ensureCW(lp):ensureCCW(lp); restPasses.push({z:o.topZ-depth,tabHeight:0,closed:true,path:oriented.map(p=>({x:p.x,y:p.y,tab:false}))}); }
+        dd+=soS;
       }
-      passes.push({z:o.topZ-depth,tabHeight:0,closed,path}); });
-  });
-  if(rampEntrySkipped) warnings.push('Helical entry skipped on a pocket too tight for the tool — straight plunge used');
-  return {ops:[{kind:'pocket',toolNum:o.toolNum,rpm:o.rpm,feed:o.feed,plunge:o.plunge,safeZ:o.safeZ,topZ:o.topZ,passes}],warnings};
+    });
+    if(restPasses.length) ops.push({kind:'pocket',toolNum:o.finishNum,rpm:o.rpm,feed:o.feed,plunge:o.plunge,safeZ:o.safeZ,topZ:o.topZ,passes:restPasses,toolProfile:{type:'flat',radius:rs}});
+    else warnings.push('Finish tool: the big tool already cleared everything — no rest pass');
+  }
+  return {ops,warnings};
 }
 
 // ---- drill: peck-drill at the centroid of each closed contour ----

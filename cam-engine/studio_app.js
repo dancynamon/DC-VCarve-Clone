@@ -714,6 +714,9 @@ function camParams(){ const g=id=>document.getElementById(id); const tabsN=parse
     stepover:((parseFloat(g('camStep')&&g('camStep').value)||40)/100),
     pocketStyle:(g('camPocketStyle')&&g('camPocketStyle').value)||'offset',
     rampEntry:!!(g('camHelixEntry')&&g('camHelixEntry').checked),
+    finishDia:Math.abs(parseFloat(g('camFinishDia')&&g('camFinishDia').value)||0),
+    finishNum:(function(){ const fd=Math.abs(parseFloat(g('camFinishDia')&&g('camFinishDia').value)||0); const tn=parseInt(g('camTool').value,10)||1;
+      if(fd<=0) return tn===1?2:1; const m=(typeof tools!=='undefined'&&tools)?tools.find(t=>Math.abs(t.dia-fd)<0.001):null; let n=m?m.toolNum:2; if(n===tn)n=tn===1?2:1; return n; })(),
     peck:Math.abs(parseFloat(g('camPeck')&&g('camPeck').value)||0),
     bitAngle:parseFloat(g('camVAngle')&&g('camVAngle').value)||90, vstep:Math.abs(parseFloat(g('camVStep')&&g('camVStep').value)||0.02),
     flatDepth:Math.abs(parseFloat(g('camVFlat')&&g('camVFlat').value)||0),
@@ -806,7 +809,7 @@ function opCheckVectors(){
 function applyParamsToPanel(p){ if(!p)return; const g=id=>document.getElementById(id); const set=(id,v)=>{const el=g(id); if(el&&v!=null)el.value=v;}; const chk=(id,v)=>{const el=g(id); if(el)el.checked=!!v;};
   set('camOp',p.op); set('camTool',p.toolNum); set('camDia',p.toolDia); set('camSide',p.side); set('camDir',p.climb?'climb':'conv');
   set('camDepth',p.cutDepth); set('camPass',p.passDepth); set('camFeed',p.feed); set('camPlunge',p.plunge); set('camRpm',p.rpm); set('camTopZ',p.topZ);
-  if(p.stepover!=null)set('camStep',Math.round(p.stepover*100)); set('camPocketStyle',p.pocketStyle); chk('camHelixEntry',p.rampEntry);
+  if(p.stepover!=null)set('camStep',Math.round(p.stepover*100)); set('camPocketStyle',p.pocketStyle); chk('camHelixEntry',p.rampEntry); set('camFinishDia',p.finishDia);
   set('camPeck',p.peck); set('camVAngle',p.bitAngle); set('camVStep',p.vstep); set('camVFlat',p.flatDepth); set('camVClearDia',p.clearDia);
   set('camLead',p.leadType); set('camLeadLen',p.leadLen); set('camRampLen',p.rampLen);
   if(p.tabs){ set('camTabN',p.tabs.count); set('camTabL',p.tabs.length); set('camTabH',p.tabs.height); }

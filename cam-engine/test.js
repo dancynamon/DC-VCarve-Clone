@@ -247,6 +247,30 @@ console.log('\n(post-pp assertions added)');
   ok('flat: flatDepth beyond shape depth -> no endmill core', deepFlat.ops.length===1, deepFlat.ops.length);
 })();
 
+// ---- pocket large/small tool rest machining ----
+(function(){
+  const sq=CAM.assembleContours([{closed:true,pts:[{x:0,y:0},{x:4,y:0},{x:4,y:4},{x:0,y:4}]}]);
+  const single=CAM.pocketOp(sq,{toolDia:0.5,cutDepth:0.2,passDepth:0.2,stepover:0.4});
+  ok('pocket: single tool -> 1 op', single.ops.length===1, single.ops.length);
+  const rm=CAM.pocketOp(sq,{toolDia:0.5,cutDepth:0.2,passDepth:0.2,stepover:0.4,finishDia:0.125,finishNum:7});
+  ok('pocket rest: 2 ops (rough + finish)', rm.ops.length===2, rm.ops.length);
+  const rough=rm.ops[0], finish=rm.ops[1];
+  ok('pocket rest: finish uses finish tool# + flat profile r=0.0625', finish.toolNum===7 && finish.toolProfile.type==='flat' && Math.abs(finish.toolProfile.radius-0.0625)<1e-9, JSON.stringify(finish.toolProfile));
+  ok('pocket rest: finish has passes', finish.passes.length>0, finish.passes.length);
+  // rest only touches the corners the big tool rounded off — no finish point near the cleared center (2,2)
+  const fpts=finish.passes.flatMap(p=>p.path);
+  ok('pocket rest: finish stays out of the big-tool-cleared center', fpts.every(pt=>Math.hypot(pt.x-2,pt.y-2)>1.0), 'a finish pt within 1.0 of center');
+  ok('pocket rest: every finish point is near a corner', fpts.every(pt=>Math.min(Math.hypot(pt.x-0,pt.y-0),Math.hypot(pt.x-4,pt.y-0),Math.hypot(pt.x-4,pt.y-4),Math.hypot(pt.x-0,pt.y-4))<0.6), 'a finish pt far from every corner');
+  // rough DOES reach the center
+  ok('pocket rest: rough tool clears the center', rough.passes.flatMap(p=>p.path).some(pt=>Math.hypot(pt.x-2,pt.y-2)<0.6));
+  // finishDia >= toolDia -> single op (nonsensical finish tool ignored)
+  ok('pocket rest: finishDia>=toolDia -> single op', CAM.pocketOp(sq,{toolDia:0.25,cutDepth:0.2,finishDia:0.5}).ops.length===1);
+  // a fully-convex circle has no corners the big tool misses -> no rest pass
+  const circ=CAM.assembleContours([{closed:true,pts:Array.from({length:64},(_,i)=>({x:2+1.8*Math.cos(i/64*2*Math.PI),y:2+1.8*Math.sin(i/64*2*Math.PI)}))}]);
+  const cr=CAM.pocketOp(circ,{toolDia:0.5,cutDepth:0.2,stepover:0.4,finishDia:0.125,finishNum:7});
+  ok('pocket rest: smooth circle leaves no rest work (1 op)', cr.ops.length===1, cr.ops.length);
+})();
+
 // ---- 15. tool database CRUD ----
 (function(){
   const def=CAM.defaultTools();
