@@ -145,6 +145,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
     <span class="brand">AQUAMENTOR CAD/CAM</span>
     <button class="tb" id="btnNew" data-tip="Clear the design">New</button>
     <button class="tb" id="btnImport" data-tip="Open an .aqcam project, or import DXF / SVG / vector PDF">Open / Import</button>
+    <button class="tb" id="btnTraceBmp" data-tip="Import a PNG/JPG bitmap and trace it into cuttable vectors">Trace bmp</button>
     <button class="tb" id="btnSaveProj" data-tip="Save this job as an .aqcam project file (shapes, layers, material, toolpaths)">Save job…</button>
     <button class="tb" id="btnExpDXF" data-tip="Export design as DXF">Export DXF</button>
     <button class="tb" id="btnExpSVG" data-tip="Export design as SVG">Export SVG</button>
@@ -159,7 +160,8 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
     <label>step<input type="number" id="gridStep" value="0.5" step="0.25" min="0.0625"></label>
     <label><input type="checkbox" id="chkSnap" checked> Grid-snap</label>
     <label><input type="checkbox" id="chkObjSnap" checked> Obj-snap</label>
-    <input type="file" id="fileInput" accept=".aqcam,.dxf,.svg,.pdf" style="display:none">
+    <input type="file" id="fileInput" accept=".aqcam,.dxf,.svg,.pdf,.png,.jpg,.jpeg,.bmp,.gif,.webp" style="display:none">
+    <input type="file" id="bmpInput" accept=".png,.jpg,.jpeg,.bmp,.gif,.webp" style="display:none">
   </div>
 
   <div class="tools">
@@ -342,6 +344,21 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
         <tr><td>Double-click shape</td><td>Edit dimensions…</td></tr>
       </table>
     </div>
+  </div>
+</div>
+<div class="modal-bg" id="traceModal">
+  <div class="modal">
+    <div class="modal-h"><span class="mt">Trace Bitmap</span><button class="mx" id="traceX" title="Close">×</button></div>
+    <div class="modal-body">
+      <div class="mfield"><span>Source</span><span id="traceSrc" style="color:var(--val)">—</span></div>
+      <label class="mfield"><span>Threshold (0–255)</span><input type="number" id="traceThresh" value="128" min="0" max="255" step="1"></label>
+      <label class="mfield"><span>Invert (trace light areas)</span><input type="checkbox" id="traceInvert"></label>
+      <label class="mfield"><span>Resolution (px / inch)</span><input type="number" id="traceDpi" value="96" min="1" step="1"></label>
+      <label class="mfield"><span>Simplify (px)</span><input type="number" id="traceSimplify" value="1.2" min="0" step="0.2"></label>
+      <label class="mfield"><span>Min area (px²)</span><input type="number" id="traceTurd" value="12" min="0" step="1"></label>
+      <div class="muted" id="traceInfo">Dark areas are traced as cuttable outlines. Adjust and Trace again if needed.</div>
+    </div>
+    <div class="modal-foot"><button class="tb" id="traceCancel">Cancel</button><button class="tb primary" id="traceGo">Trace</button></div>
   </div>
 </div>
 <!--LIBS--></body></html>

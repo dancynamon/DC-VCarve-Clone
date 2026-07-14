@@ -685,6 +685,38 @@ function importPDF(name, buf){
   if(loops.hasLiveText) m+='  ·  WARNING: this PDF also has live text that was NOT imported — outline the fonts to cut it.';
   setMsg(m);
 }
+// ---- bitmap import + trace (raster → vector) ----
+let pendingBitmap=null;   // {gray,w,h,name} awaiting the Trace modal
+const IMG_RE=/\.(png|jpe?g|bmp|gif|webp)$/i;
+function traceImageFile(file){
+  const url=URL.createObjectURL(file); const img=new Image();
+  img.onload=()=>{ URL.revokeObjectURL(url);
+    const MAX=1400; let w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
+    const sc=Math.min(1, MAX/Math.max(w,h)); w=Math.max(1,Math.round(w*sc)); h=Math.max(1,Math.round(h*sc));
+    const c=document.createElement('canvas'); c.width=w; c.height=h; const cx=c.getContext('2d'); cx.drawImage(img,0,0,w,h);
+    let data; try{ data=cx.getImageData(0,0,w,h).data; }catch(e){ setMsg('Could not read image pixels: '+e.message); return; }
+    const gray=new Uint8ClampedArray(w*h);
+    for(let i=0,p=0;i<gray.length;i++,p+=4){ const a=data[p+3];
+      gray[i]= a<16 ? 255 : (0.299*data[p]+0.587*data[p+1]+0.114*data[p+2]); }   // transparent = white (background)
+    pendingBitmap={gray,w,h,name:file.name};
+    const s=document.getElementById('traceSrc'); if(s)s.textContent=file.name+' · '+w+'×'+h+'px';
+    const info=document.getElementById('traceInfo'); if(info)info.textContent='Dark areas are traced as cuttable outlines. Adjust and Trace again if needed.';
+    document.getElementById('traceModal').style.display='block';
+  };
+  img.onerror=()=>{ URL.revokeObjectURL(url); setMsg('Could not load image: '+file.name); };
+  img.src=url;
+}
+function runTrace(){ if(!pendingBitmap){ document.getElementById('traceModal').style.display='none'; return; }
+  const g=id=>document.getElementById(id); const dpi=Math.max(1,parseFloat(g('traceDpi').value)||96);
+  let shapes; try{ shapes=CADCORE.traceBitmap(pendingBitmap.gray, pendingBitmap.w, pendingBitmap.h, {
+    threshold:parseFloat(g('traceThresh').value)||128, invert:g('traceInvert').checked, scale:1/dpi,
+    simplify:Math.max(0,parseFloat(g('traceSimplify').value)||1), turd:Math.max(0,parseFloat(g('traceTurd').value)||0), layer:activeLayer }); }
+  catch(e){ g('traceInfo').textContent='Trace failed: '+e.message; return; }
+  if(!shapes.length){ g('traceInfo').textContent='No contours at this threshold — try adjusting Threshold / Invert.'; return; }
+  const nm=pendingBitmap.name;
+  pushHistory(); shapes.forEach(s=>s.layer=activeLayer); addShapes(shapes); sel=new Set(shapes.map(s=>s.id));
+  document.getElementById('traceModal').style.display='none'; pendingBitmap=null; fitAll(); syncPanels(); render();
+  setMsg('Traced '+shapes.length+' contour(s) from '+nm); }
 function download(name, text, type){ const b=new Blob([text],{type:type||'text/plain'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); }
 // ---- project save/load (.aqcam) ----
 const AUTOSAVE_KEY='aqcam_autosave';
@@ -1179,10 +1211,16 @@ function wire(){
       window.addEventListener('mouseup',()=>{ md=null; }); } }
   on('btnNew',()=>{ if(confirm('Clear design?')){ pushHistory(); doc.shapes=[]; sel.clear(); toolpaths=null; render(); syncPanels(); } });
   const fi=document.getElementById('fileInput'); document.getElementById('btnImport').onclick=()=>fi.click();
-  fi.onchange=e=>{ const f=e.target.files[0]; if(!f)return; const rd=new FileReader();
+  fi.onchange=e=>{ const f=e.target.files[0]; if(!f){return;} fi.value=''; if(IMG_RE.test(f.name)){ traceImageFile(f); return; } const rd=new FileReader();
     if(/\.aqcam$/i.test(f.name)){ rd.onload=ev=>openProject(ev.target.result, f.name); rd.readAsText(f); }
     else if(/\.pdf$/i.test(f.name)){ rd.onload=ev=>importPDF(f.name,ev.target.result); rd.readAsArrayBuffer(f); }
     else { rd.onload=ev=>importText(f.name,ev.target.result); rd.readAsText(f); } };
+  // bitmap trace
+  const bi=document.getElementById('bmpInput'); const tb=document.getElementById('btnTraceBmp');
+  if(tb&&bi){ tb.onclick=()=>bi.click(); bi.onchange=e=>{ const f=e.target.files[0]; if(f)traceImageFile(f); bi.value=''; }; }
+  on('traceGo',runTrace); on('traceCancel',()=>{ document.getElementById('traceModal').style.display='none'; pendingBitmap=null; });
+  on('traceX',()=>{ document.getElementById('traceModal').style.display='none'; pendingBitmap=null; });
+  const tm=document.getElementById('traceModal'); if(tm)tm.addEventListener('mousedown',e=>{ if(e.target===tm){ tm.style.display='none'; pendingBitmap=null; } });
   const gs=document.getElementById('gridStep'); if(gs)gs.onchange=e=>{grid.step=parseFloat(e.target.value)||0.5; render();};
   const gg=document.getElementById('chkGrid'); if(gg)gg.onchange=e=>{grid.on=e.target.checked;render();};
   const sn=document.getElementById('chkSnap'); if(sn)sn.onchange=e=>{grid.snap=e.target.checked;};
@@ -1195,6 +1233,7 @@ function wire(){
   document.body.addEventListener('dragover',e=>e.preventDefault());
   document.body.addEventListener('drop',e=>{ e.preventDefault(); const f=e.dataTransfer.files[0]; if(!f)return;
     if(/\.(ttf|otf|woff)$/i.test(f.name)){ loadFontFile(f); return; }
+    if(IMG_RE.test(f.name)){ traceImageFile(f); return; }
     const rd=new FileReader();
     if(/\.aqcam$/i.test(f.name)){ rd.onload=ev=>openProject(ev.target.result, f.name); rd.readAsText(f); }
     else if(/\.pdf$/i.test(f.name)){ rd.onload=ev=>importPDF(f.name,ev.target.result); rd.readAsArrayBuffer(f); }

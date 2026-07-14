@@ -757,6 +757,90 @@ function validateShapes(shapes) {
   return { open: open, duplicate: duplicate, selfIntersect: selfIntersect };
 }
 
+// ---------- bitmap trace (raster → vector) ----------
+// Pure: takes a grayscale buffer (0..255, length w*h, row-major, y-down) and returns closed CAD contours.
+// Foreground = dark (gray < threshold) by default (dark ink cuts); `invert` flips it. Marching-squares traces
+// the foreground boundary at the pixel midpoints (a padded background border guarantees closed loops), then
+// Douglas–Peucker simplifies each loop, tiny specks are dropped (`turd`, px²), and coords scale to inches
+// (`scale` = inches per pixel) with a y-flip to CAD y-up. The DOM side decodes the image to the gray buffer.
+function _msSegments(bin, W, H) {
+  const segs = [], at = (i, j) => bin[j * W + i];
+  for (let j = 0; j < H - 1; j++) for (let i = 0; i < W - 1; i++) {
+    const tl = at(i, j), tr = at(i + 1, j), br = at(i + 1, j + 1), bl = at(i, j + 1);
+    const code = (tl << 3) | (tr << 2) | (br << 1) | bl;
+    if (code === 0 || code === 15) continue;
+    const T = { x: i + 0.5, y: j }, R = { x: i + 1, y: j + 0.5 }, B = { x: i + 0.5, y: j + 1 }, L = { x: i, y: j + 0.5 };
+    const add = (p, q) => segs.push([p.x, p.y, q.x, q.y]);
+    switch (code) {
+      case 1: add(L, B); break; case 2: add(B, R); break; case 3: add(L, R); break;
+      case 4: add(T, R); break; case 5: add(T, R); add(L, B); break; case 6: add(T, B); break;
+      case 7: add(T, L); break; case 8: add(T, L); break; case 9: add(T, B); break;
+      case 10: add(T, L); add(B, R); break; case 11: add(T, R); break; case 12: add(L, R); break;
+      case 13: add(B, R); break; case 14: add(L, B); break;
+    }
+  }
+  return segs;
+}
+function _chainSegments(segs) {
+  const key = (x, y) => x.toFixed(1) + ',' + y.toFixed(1);
+  const adj = new Map();
+  const push = (a, b) => { const k = key(a.x, a.y); if (!adj.has(k)) adj.set(k, []); adj.get(k).push(b); };
+  for (const s of segs) { const a = { x: s[0], y: s[1] }, b = { x: s[2], y: s[3] }; push(a, b); push(b, a); }
+  const usedEdge = new Set();
+  const ek = (a, b) => { const ka = key(a.x, a.y), kb = key(b.x, b.y); return ka < kb ? ka + '|' + kb : kb + '|' + ka; };
+  const loops = [];
+  for (const s of segs) {
+    const a = { x: s[0], y: s[1] }, b = { x: s[2], y: s[3] };
+    if (usedEdge.has(ek(a, b))) continue;
+    usedEdge.add(ek(a, b));
+    const loop = [a]; let cur = b, guard = 0;
+    while (guard++ < 4e6) {
+      loop.push(cur);
+      if (key(cur.x, cur.y) === key(a.x, a.y)) { loop.pop(); break; }
+      const neigh = adj.get(key(cur.x, cur.y)) || []; let next = null;
+      for (const nb of neigh) { const e = ek(cur, nb); if (!usedEdge.has(e)) { next = nb; usedEdge.add(e); break; } }
+      if (!next) break;
+      cur = next;
+    }
+    if (loop.length >= 3) loops.push(loop);
+  }
+  return loops;
+}
+function _rdpOpen(pts, eps) {
+  const n = pts.length; if (n < 3) return pts.slice();
+  const keep = new Array(n).fill(false); keep[0] = keep[n - 1] = true;
+  const stack = [[0, n - 1]];
+  while (stack.length) {
+    const seg = stack.pop(), s = seg[0], e = seg[1]; let dmax = 0, idx = -1;
+    for (let i = s + 1; i < e; i++) { const d = distToSeg(pts[i], pts[s], pts[e]); if (d > dmax) { dmax = d; idx = i; } }
+    if (dmax > eps && idx > 0) { keep[idx] = true; stack.push([s, idx], [idx, e]); }
+  }
+  const out = []; for (let i = 0; i < n; i++) if (keep[i]) out.push(pts[i]); return out;
+}
+function _simplifyClosed(loop, eps) {
+  if (!(eps > 0) || loop.length < 4) return loop.slice();
+  let far = 0, fd = -1; for (let i = 1; i < loop.length; i++) { const d = Math.hypot(loop[i].x - loop[0].x, loop[i].y - loop[0].y); if (d > fd) { fd = d; far = i; } }
+  const A = loop.slice(0, far + 1), B = loop.slice(far).concat([loop[0]]);
+  const sa = _rdpOpen(A, eps), sb = _rdpOpen(B, eps);
+  return sa.slice(0, -1).concat(sb.slice(0, -1));
+}
+function _loopArea(pts) { let s = 0; for (let i = 0, n = pts.length; i < n; i++) { const a = pts[i], b = pts[(i + 1) % n]; s += a.x * b.y - b.x * a.y; } return Math.abs(s / 2); }
+function traceBitmap(gray, w, h, opts) {
+  const o = Object.assign({ threshold: 128, invert: false, turd: 8, simplify: 1.0, scale: 1 / 96, flipY: true, layer: '0' }, opts || {});
+  const W = w + 2, H = h + 2, bin = new Uint8Array(W * H);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let fg = gray[y * w + x] < o.threshold; if (o.invert) fg = !fg; bin[(y + 1) * W + (x + 1)] = fg ? 1 : 0; }
+  const loops = _chainSegments(_msSegments(bin, W, H));
+  const sc = o.scale, shapes = [];
+  for (let lp of loops) {
+    lp = _simplifyClosed(lp, o.simplify);
+    if (lp.length < 3) continue;
+    if (_loopArea(lp) < (o.turd || 0)) continue;
+    const pts = lp.map(p => ({ x: (p.x - 1) * sc, y: (o.flipY === false ? (p.y - 1) : (h - (p.y - 1))) * sc }));
+    shapes.push(mkPoly(pts, true, o.layer));
+  }
+  return shapes;
+}
+
 // ---------- doc utils ----------
 function clone(o) { return JSON.parse(JSON.stringify(o)); }
 function shapesToContoursInput(shapes) {
@@ -823,6 +907,7 @@ return {
   svgToShapes, svgPathToShapes, dxfPolysToShapes, toDXF, toSVG,
   textShapes, outlineTextShapes, FONT, clone, shapesToContoursInput,
   mkDim, dimMeasure, dimLabel, dimGeometry, dimShapes,
+  traceBitmap,
   primParams, applyPrimParams, fitShapeTo, fitPrimTo,
   projectToJSON, projectFromJSON, PROJECT_VERSION,
   validateShapes

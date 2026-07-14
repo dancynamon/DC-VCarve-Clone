@@ -320,6 +320,37 @@ ok('placeShape spreads sheets',close(bb(psp).minX,1+2*(24+6)),bb(psp).minX);
   ok('dim: auto off when omitted',!!C.mkDim({kind:'linear',sub:'aligned',a:{x:0,y:0},b:{x:4,y:0}}).dim.off);
 }
 
+// ---------- bitmap trace (raster → vector) ----------
+{
+  // helper: build a grayscale buffer with a dark (fg) filled rect
+  const mkGray=(w,h,fn)=>{ const g=new Uint8Array(w*h); for(let y=0;y<h;y++)for(let x=0;x<w;x++)g[y*w+x]=fn(x,y)?0:255; return g; };
+  const W=20,Hh=20;
+  const sq=mkGray(W,Hh,(x,y)=>x>=5&&x<15&&y>=5&&y<15);   // 10×10 dark square
+  const t1=C.traceBitmap(sq,W,Hh,{scale:1,simplify:1,turd:4});
+  ok('trace: one contour for a solid square',t1.length===1&&t1[0].closed,t1.length);
+  const tb=C.bbox(t1[0]);
+  ok('trace: square bbox ~10×10',close(tb.maxX-tb.minX,10,1.5)&&close(tb.maxY-tb.minY,10,1.5),JSON.stringify(tb));
+  ok('trace: square simplifies to few corners',t1[0].pts.length<=8,t1[0].pts.length);
+  // invert traces the light region → image frame + inner square hole = ≥2 loops
+  const t2=C.traceBitmap(sq,W,Hh,{scale:1,simplify:1,turd:1,invert:true});
+  ok('trace: invert yields frame + hole (≥2 loops)',t2.length>=2,t2.length);
+  // donut: 12×12 dark with a 4×4 light hole → outer + inner contour
+  const donut=mkGray(24,24,(x,y)=>(x>=6&&x<18&&y>=6&&y<18)&&!(x>=10&&x<14&&y>=10&&y<14));
+  const t3=C.traceBitmap(donut,24,24,{scale:1,simplify:1,turd:2});
+  ok('trace: donut yields 2 contours (outer+hole)',t3.length===2,t3.length);
+  // turd filter drops a 1px speck
+  const speck=mkGray(20,20,(x,y)=>(x===2&&y===2)||(x>=8&&x<14&&y>=8&&y<14));
+  const t4=C.traceBitmap(speck,20,20,{scale:1,simplify:1,turd:5});
+  ok('trace: turd drops the 1px speck',t4.length===1,t4.length);
+  // scale maps pixels to inches
+  const t5=C.traceBitmap(sq,W,Hh,{scale:0.1,simplify:1,turd:0.04});
+  const t5b=C.bbox(t5[0]);
+  ok('trace: scale to inches (~1")',close(t5b.maxX-t5b.minX,1,0.2),JSON.stringify(t5b));
+  // flipY (default) maps image-top to CAD-max-Y; empty image → no shapes
+  ok('trace: blank image yields nothing',C.traceBitmap(mkGray(10,10,()=>false),10,10,{scale:1}).length===0);
+  ok('trace: produced shapes are cuttable polys',t1[0].type==='path'&&t1[0].pts.length>=3);
+}
+
 // shapesToContoursInput for CAM
 let inp=C.shapesToContoursInput([r,ci]); ok('contours input closed',inp.every(c=>c.closed));
 
