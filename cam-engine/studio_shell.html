@@ -166,6 +166,9 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
     <div class="tgrp" data-grp="Edit"><div class="tgrp-h" data-tip="Selection & node editing"><span class="tcaret">▾</span>Edit</div><div class="tgrp-body">
       <button class="tool active" data-tool="select" data-tip="Select / move / scale / rotate — shortcut: V" title="Select (V)"><b>▤</b><span class="tlabel">Select</span></button>
       <button class="tool" data-tool="node" data-tip="Edit nodes — drag points, dbl-click add/remove — shortcut: N" title="Node edit (N)"><b>⬩</b><span class="tlabel">Nodes</span></button>
+      <button class="tool" data-tool="fillet" data-tip="Fillet — click a corner to round it with the Fillet r radius" title="Fillet corner"><b>◝</b><span class="tlabel">Fillet</span></button>
+      <button class="tool" data-tool="trim" data-tip="Trim — click the dangling part of an open vector to cut it back to where it crosses another vector" title="Trim"><b>✂</b><span class="tlabel">Trim</span></button>
+      <button class="tool" data-tool="extend" data-tip="Extend — click near an open vector's endpoint to stretch it to the next vector it points at" title="Extend"><b>⊢</b><span class="tlabel">Extend</span></button>
     </div></div>
     <div class="tgrp" data-grp="Create Vectors"><div class="tgrp-h" data-tip="Draw new vectors"><span class="tcaret">▾</span>Create</div><div class="tgrp-body">
       <button class="tool" data-tool="line" data-tip="Line — click start, click end — shortcut: L" title="Line (L)"><b>╱</b><span class="tlabel">Line</span></button>
@@ -204,6 +207,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
     <div class="sectn"><h3>Shape params</h3><div class="body">
       <label>Sides<input type="number" id="polyN" value="6" min="3" max="64" style="width:48px"></label>
       <label data-tip="Corner radius for rounded rectangle">Corner r"<input type="number" id="rrectR" value="0.25" step="0.05" min="0" style="width:50px"></label>
+      <label data-tip="Radius for the Fillet tool">Fillet r"<input type="number" id="filletR" value="0.25" step="0.05" min="0" style="width:50px"></label>
       <label>Text<input type="text" id="txtVal" value="AQUAMENTOR" style="width:120px"></label>
       <label>H"<input type="number" id="txtH" value="1" step="0.1" style="width:50px"></label>
       <label data-tip="Outline = real TTF glyph contours (closed, cuttable). Off = single-stroke engraving."><input type="checkbox" id="txtOutline">Outline (TTF)</label>

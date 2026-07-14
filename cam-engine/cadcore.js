@@ -549,6 +549,86 @@ function placeShape(shape, pl, spread) {
   return translate(s, pl.x - b.minX + ox, pl.y - b.minY);
 }
 
+// ---------- fillet / trim / extend (interactive vector editing) ----------
+// Proper segment intersection: returns {x,y,t,u} (t along a→b, u along c→d) within both, or null.
+function segInt(a, b, c, d) {
+  const rx = b.x - a.x, ry = b.y - a.y, sx = d.x - c.x, sy = d.y - c.y;
+  const den = rx * sy - ry * sx;
+  if (Math.abs(den) < 1e-12) return null;                 // parallel / collinear
+  const t = ((c.x - a.x) * sy - (c.y - a.y) * sx) / den;
+  const u = ((c.x - a.x) * ry - (c.y - a.y) * rx) / den;
+  if (t < -1e-9 || t > 1 + 1e-9 || u < -1e-9 || u > 1 + 1e-9) return null;
+  return { x: a.x + t * rx, y: a.y + t * ry, t: t, u: u };
+}
+function pathIntersections(A, closedA, B, closedB) {
+  const out = [], na = A.length, nb = B.length, sa = closedA ? na : na - 1, sb = closedB ? nb : nb - 1;
+  for (let i = 0; i < sa; i++) { const a = A[i], b = A[(i + 1) % na];
+    for (let j = 0; j < sb; j++) { const c = B[j], e = B[(j + 1) % nb]; const p = segInt(a, b, c, e); if (p) out.push({ x: p.x, y: p.y, i: i, t: p.t, j: j, u: p.u }); } }
+  return out;
+}
+// Round the corner at vertex `i` with a tangent arc of `radius` (clamped to the shorter adjacent edge).
+// Returns a new pts array (arc replaces the vertex), or null if not fillettable (collinear / too short / open endpoint).
+function filletPolyCorner(pts, closed, i, radius, segs) {
+  const n = pts.length; if (n < 3 || radius <= 0) return null;
+  const pi = closed ? (i - 1 + n) % n : i - 1, ni = closed ? (i + 1) % n : i + 1;
+  if (pi < 0 || ni >= n) return null;
+  const p = pts[i], a = pts[pi], b = pts[ni];
+  let u = { x: a.x - p.x, y: a.y - p.y }, v = { x: b.x - p.x, y: b.y - p.y };
+  const lu = Math.hypot(u.x, u.y), lv = Math.hypot(v.x, v.y);
+  if (lu < 1e-9 || lv < 1e-9) return null;
+  u = { x: u.x / lu, y: u.y / lu }; v = { x: v.x / lv, y: v.y / lv };
+  const theta = Math.acos(Math.max(-1, Math.min(1, u.x * v.x + u.y * v.y)));
+  if (theta < 1e-3 || Math.PI - theta < 1e-3) return null;   // collinear
+  const half = theta / 2;
+  let dd = radius / Math.tan(half), R = radius;
+  const maxd = Math.min(lu, lv) * 0.999;
+  if (dd > maxd) { dd = maxd; R = dd * Math.tan(half); }      // shrink radius to fit the edge
+  const T1 = { x: p.x + u.x * dd, y: p.y + u.y * dd }, T2 = { x: p.x + v.x * dd, y: p.y + v.y * dd };
+  let bis = { x: u.x + v.x, y: u.y + v.y }; const lb = Math.hypot(bis.x, bis.y);
+  if (lb < 1e-9) return null; bis = { x: bis.x / lb, y: bis.y / lb };
+  const C = { x: p.x + bis.x * (R / Math.sin(half)), y: p.y + bis.y * (R / Math.sin(half)) };
+  const a0 = Math.atan2(T1.y - C.y, T1.x - C.x), a1 = Math.atan2(T2.y - C.y, T2.x - C.x);
+  let da = a1 - a0; while (da > Math.PI) da -= TAU; while (da < -Math.PI) da += TAU;
+  const arc = arcPolyline(C.x, C.y, R, a0, a1, da > 0, (Math.abs(da) / (segs || 16)) || 0.2);
+  const out = [];
+  for (let k = 0; k < n; k++) { if (k === i) { for (const q of arc) out.push({ x: q.x, y: q.y }); } else out.push({ x: pts[k].x, y: pts[k].y }); }
+  return out;
+}
+function _nearestParam(pts, closed, p) {
+  const n = pts.length; let best = 0, bd = Infinity, seg = closed ? n : n - 1;
+  for (let i = 0; i < seg; i++) { const a = pts[i], b = pts[(i + 1) % n], dx = b.x - a.x, dy = b.y - a.y, L2 = dx * dx + dy * dy;
+    let t = L2 ? ((p.x - a.x) * dx + (p.y - a.y) * dy) / L2 : 0; t = Math.max(0, Math.min(1, t));
+    const qx = a.x + dx * t, qy = a.y + dy * t, d = Math.hypot(p.x - qx, p.y - qy);
+    if (d < bd) { bd = d; best = i + t; } }
+  return best;
+}
+// Trim an OPEN polyline back to the nearest crossing with any cutter, removing the piece the pick is on.
+function trimPolyline(pts, closed, cutters, pickPt) {
+  const n = pts.length; if (n < 2 || closed) return null;
+  const xs = [];
+  for (let i = 0; i < n - 1; i++) { const a = pts[i], b = pts[i + 1];
+    for (const cut of (cutters || [])) { const cn = cut.pts.length, cs = cut.closed ? cn : cn - 1;
+      for (let j = 0; j < cs; j++) { const c = cut.pts[j], d = cut.pts[(j + 1) % cn]; const p = segInt(a, b, c, d); if (p) xs.push({ param: i + p.t, x: p.x, y: p.y }); } } }
+  if (!xs.length) return null;
+  const pk = _nearestParam(pts, false, pickPt);
+  let best = xs[0], bd = Math.abs(xs[0].param - pk);
+  for (const x of xs) { const dd = Math.abs(x.param - pk); if (dd < bd) { bd = dd; best = x; } }
+  const bi = Math.floor(best.param);
+  if (pk > best.param) { const keep = []; for (let k = 0; k <= bi; k++) keep.push({ x: pts[k].x, y: pts[k].y }); keep.push({ x: best.x, y: best.y }); return keep.length >= 2 ? keep : null; }
+  const keep = [{ x: best.x, y: best.y }]; for (let k = bi + 1; k < n; k++) keep.push({ x: pts[k].x, y: pts[k].y }); return keep.length >= 2 ? keep : null;
+}
+// Extend an open polyline's endpoint along its last-segment direction to the first crossing with `target`.
+function extendPolyline(pts, whichEnd, target) {
+  const n = pts.length; if (n < 2) return null;
+  const base = whichEnd === 'start' ? pts[1] : pts[n - 2], tip = whichEnd === 'start' ? pts[0] : pts[n - 1];
+  const dx = tip.x - base.x, dy = tip.y - base.y, L = Math.hypot(dx, dy); if (L < 1e-9) return null;
+  const far = { x: tip.x + dx / L * 1e6, y: tip.y + dy / L * 1e6 };
+  let bestT = Infinity, hit = null, cn = target.pts.length, cs = target.closed ? cn : cn - 1;
+  for (let j = 0; j < cs; j++) { const c = target.pts[j], e = target.pts[(j + 1) % cn]; const p = segInt(tip, far, c, e); if (p && p.t > 1e-9 && p.t < bestT) { bestT = p.t; hit = { x: p.x, y: p.y }; } }
+  if (!hit) return null;
+  const out = pts.map(q => ({ x: q.x, y: q.y })); if (whichEnd === 'start') out[0] = hit; else out[n - 1] = hit; return out;
+}
+
 // ---------- vector validation (VCarve-style "check vectors") ----------
 function _segCross(p1, p2, p3, p4) {   // proper (non-collinear) segment intersection
   const d = (ax, ay, bx, by, cx, cy) => (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
@@ -640,6 +720,7 @@ return {
   uid, arcPolyline, dist,
   mkLine, mkPoly, mkRect, mkRoundRect, mkCircle, mkEllipse, mkArc, mkPolygon, mkStar, mkText,
   mkBezier, flattenBezier, reflowBezier, mirrorSmoothHandle,
+  segInt, pathIntersections, filletPolyCorner, trimPolyline, extendPolyline,
   flatten, bbox, bboxAll, bboxPts, hitTest, distToSeg, pointInPoly, snapPoints, rectSnapPoints,
   translate, rotate, scale, mirror,
   offsetShapes, booleanOp,

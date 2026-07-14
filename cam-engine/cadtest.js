@@ -230,6 +230,36 @@ ok('placeShape spreads sheets',close(bb(psp).minX,1+2*(24+6)),bb(psp).minX);
   ok('bezier: translate keeps bezier prim + moves node', tbz.prim.kind==='bezier' && close(tbz.prim.nodes[0].x,5) && close(tbz.prim.nodes[0].y,1), JSON.stringify(tbz.prim.nodes[0]));
 }
 
+// ---------- fillet / trim / extend ----------
+{
+  // segment intersection
+  const x=C.segInt({x:0,y:0},{x:2,y:2},{x:0,y:2},{x:2,y:0});
+  ok('segInt: crossing at (1,1)', x && close(x.x,1)&&close(x.y,1), JSON.stringify(x));
+  ok('segInt: parallel -> null', C.segInt({x:0,y:0},{x:2,y:0},{x:0,y:1},{x:2,y:1})===null);
+  ok('segInt: non-crossing -> null', C.segInt({x:0,y:0},{x:1,y:0},{x:2,y:2},{x:2,y:3})===null);
+  const ix=C.pathIntersections([{x:0,y:1},{x:4,y:1}],false,[{x:2,y:0},{x:2,y:3}],false);
+  ok('pathIntersections: one crossing at (2,1)', ix.length===1 && close(ix[0].x,2)&&close(ix[0].y,1), JSON.stringify(ix));
+  // fillet a 90deg corner, r=0.5 -> tangent points 0.5 from the corner, arc pts ~0.5 from center (1.5,0.5)
+  const L=[{x:0,y:0},{x:2,y:0},{x:2,y:2}];
+  const f=C.filletPolyCorner(L,false,1,0.5,16);
+  ok('fillet: returns a longer pts array', f && f.length>L.length, f&&f.length);
+  ok('fillet: sharp corner (2,0) removed', f.every(p=>Math.hypot(p.x-2,p.y-0)>0.05), 'corner still present');
+  ok('fillet: tangent points at (1.5,0) and (2,0.5)', f.some(p=>close(p.x,1.5,0.02)&&close(p.y,0,0.02)) && f.some(p=>close(p.x,2,0.02)&&close(p.y,0.5,0.02)));
+  ok('fillet: arc radius ~0.5 about (1.5,0.5)', f.slice(1,-1).every(p=>Math.abs(Math.hypot(p.x-1.5,p.y-0.5)-0.5)<0.02));
+  ok('fillet: collinear corner -> null', C.filletPolyCorner([{x:0,y:0},{x:1,y:0},{x:2,y:0}],false,1,0.3)===null);
+  ok('fillet: oversized radius clamps (still fillets)', !!C.filletPolyCorner(L,false,1,5,16));
+  // trim: horizontal line crossed by a vertical cutter at x=1; pick on the right -> keep left piece
+  const tr=C.trimPolyline([{x:0,y:1},{x:3,y:1}],false,[{pts:[{x:1,y:0},{x:1,y:2}],closed:false}],{x:2.5,y:1});
+  ok('trim: keeps the un-picked side, cut at x=1', tr && close(tr[0].x,0)&&close(tr[tr.length-1].x,1)&&close(tr[tr.length-1].y,1), JSON.stringify(tr));
+  const tr2=C.trimPolyline([{x:0,y:1},{x:3,y:1}],false,[{pts:[{x:1,y:0},{x:1,y:2}],closed:false}],{x:0.2,y:1});
+  ok('trim: pick left -> keep right piece [1..3]', tr2 && close(tr2[0].x,1)&&close(tr2[tr2.length-1].x,3), JSON.stringify(tr2));
+  ok('trim: no cutter crossing -> null', C.trimPolyline([{x:0,y:0},{x:1,y:0}],false,[{pts:[{x:5,y:0},{x:5,y:1}],closed:false}],{x:0.5,y:0})===null);
+  // extend: a short horizontal line reaching a vertical target at x=2 -> endpoint moves to (2,0)
+  const ex=C.extendPolyline([{x:0,y:0},{x:1,y:0}],'end',{pts:[{x:2,y:-1},{x:2,y:1}],closed:false});
+  ok('extend: endpoint reaches the target at (2,0)', ex && close(ex[1].x,2)&&close(ex[1].y,0), JSON.stringify(ex));
+  ok('extend: nothing ahead -> null', C.extendPolyline([{x:0,y:0},{x:1,y:0}],'end',{pts:[{x:0,y:-5},{x:0,y:5}],closed:false})===null);
+}
+
 // ---------- vector validator (check vectors) ----------
 {
   const rectA=C.mkRect(0,0,4,3), rectB=C.mkRect(0,0,4,3);            // duplicate of A

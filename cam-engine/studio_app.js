@@ -201,7 +201,11 @@ const TOOLMSG={ select:'Click to select · drag to move · handles to scale/rota
   line:'Click start, click end', polyline:'Click points · Enter/double-click to finish · Esc cancel',
   rect:'Click-drag opposite corners', circle:'Click center, drag radius', ellipse:'Click-drag bounding box',
   arc:'Click center, click start, click end', polygon:'Click center, drag radius (sides in panel)', star:'Click center, drag radius',
-  text:'Click placement point, type in panel', measure:'Click two points', pan:'Drag to pan' };
+  text:'Click placement point, type in panel', measure:'Click two points', pan:'Drag to pan',
+  bezier:'Click anchors, drag to shape handles · Enter to finish · click start to close',
+  fillet:'Click a corner to round it (set radius in "Fillet r")',
+  trim:'Click the part of an open vector to cut back to where it crosses another',
+  extend:'Click near an open vector endpoint to stretch it to the next vector ahead' };
 
 function evScr(e){ const r=cv.getBoundingClientRect(); return { x:e.clientX-r.left, y:e.clientY-r.top }; }
 
@@ -212,6 +216,9 @@ cv.addEventListener('mousedown', e=>{
   if(viewMode==='preview') return;   // Preview is read-only (pan/zoom only)
   if(tool==='select'){ return selectDown(scr,w,e); }
   if(tool==='node'){ return nodeDown(scr,w,e); }
+  if(tool==='fillet'){ return filletAt(w); }
+  if(tool==='trim'){ return trimAt(w); }
+  if(tool==='extend'){ return extendAt(w); }
   // drawing tools
   if(tool==='line'){ draft={kind:'line', a:w, b:w}; drag={kind:'draw'}; }
   else if(tool==='rect'){ draft={kind:'rect', a:w, b:w}; drag={kind:'draw'}; }
@@ -798,6 +805,33 @@ function recalcAll(){ const allSegs=[], allMarks=[]; let total=0;
     if(res.points) for(const pt of res.points) allMarks.push(pt); }
   toolpaths=allSegs.length?allSegs:null; drillMarks=allMarks.length?allMarks:null; if(allMarks.length)drillDia=0.25; buildQueueList(); render();
   const n=opsQueue.filter(q=>q.visible!==false).length; setMsg('Preview: '+n+'/'+opsQueue.length+' toolpath(s) · '+allSegs.length+' move(s) · est '+fmtTime(total)+' cut time'); }
+// ---- fillet / trim / extend click tools ----
+function filletAt(w){ const tol=pxTol(14); let best=null,bd=tol,bi=-1;
+  for(const s of doc.shapes){ if(s.type!=='path'||!layerVisible(s.layer))continue;
+    for(let i=0;i<s.pts.length;i++){ const dd=Math.hypot(s.pts[i].x-w.x,s.pts[i].y-w.y); if(dd<bd){bd=dd;best=s;bi=i;} } }
+  if(!best){ setMsg('Fillet: click nearer a vector corner'); return; }
+  const R=Math.abs(parseFloat((document.getElementById('filletR')||{}).value)||0.25);
+  const np=CADCORE.filletPolyCorner(best.pts, best.closed, bi, R, 16);
+  if(!np){ setMsg('Fillet: corner not fillettable (collinear, or an open endpoint)'); return; }
+  pushHistory(); best.pts=np; best.prim={kind:'poly'}; sel=new Set([best.id]); render(); syncPanels(); setMsg('Filleted corner · r='+R+'"'); }
+function trimAt(w){ const s=pickShapeAt(w);
+  if(!s||s.type!=='path'||s.closed){ setMsg('Trim: click the dangling part of an OPEN vector to remove'); return; }
+  const cutters=doc.shapes.filter(o=>o.id!==s.id && o.type==='path' && layerVisible(o.layer)).map(o=>({pts:o.pts,closed:o.closed}));
+  const np=CADCORE.trimPolyline(s.pts, s.closed, cutters, w);
+  if(!np){ setMsg('Trim: no crossing vector to trim back to'); return; }
+  pushHistory(); s.pts=np; s.prim={kind:'poly'}; sel=new Set([s.id]); render(); syncPanels(); setMsg('Trimmed to intersection'); }
+function extendAt(w){ const tol=pxTol(16); let best=null,which=null,bd=tol;
+  for(const s of doc.shapes){ if(s.type!=='path'||s.closed||!layerVisible(s.layer)||s.pts.length<2)continue;
+    const d0=Math.hypot(s.pts[0].x-w.x,s.pts[0].y-w.y), d1=Math.hypot(s.pts[s.pts.length-1].x-w.x,s.pts[s.pts.length-1].y-w.y);
+    if(d0<bd){bd=d0;best=s;which='start';} if(d1<bd){bd=d1;best=s;which='end';} }
+  if(!best){ setMsg('Extend: click near an open vector endpoint'); return; }
+  const oldTip=which==='start'?best.pts[0]:best.pts[best.pts.length-1];
+  let ext=null, extDist=Infinity;
+  for(const o of doc.shapes){ if(o.id===best.id||o.type!=='path'||!layerVisible(o.layer))continue;
+    const np=CADCORE.extendPolyline(best.pts, which, {pts:o.pts,closed:o.closed});
+    if(np){ const tip=which==='start'?np[0]:np[np.length-1]; const dd=Math.hypot(tip.x-oldTip.x,tip.y-oldTip.y); if(dd<extDist){extDist=dd;ext=np;} } }
+  if(!ext){ setMsg('Extend: no vector ahead of that endpoint to reach'); return; }
+  pushHistory(); best.pts=ext; best.prim={kind:'poly'}; sel=new Set([best.id]); render(); syncPanels(); setMsg('Extended to intersection'); }
 function opCheckVectors(){
   const shapes=doc.shapes.filter(s=>layerVisible(s.layer));
   const res=CADCORE.validateShapes(shapes);
