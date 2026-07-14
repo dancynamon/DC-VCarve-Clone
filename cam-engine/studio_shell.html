@@ -81,7 +81,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .lyr.act{background:var(--accent-soft)}
 .lyr .sw{width:11px;height:11px;border-radius:2px;display:inline-block;border:1px solid rgba(20,40,70,.18)}
 .lyr .ln{cursor:pointer;color:var(--ink)}
-.pocket-only,.drill-only,.vcarve-only,.profile-pocket{display:none}
+.pocket-only,.drill-only,.vcarve-only,.profile-pocket,.inlay-only{display:none}
 /* shape properties modal */
 .modal-bg{position:fixed;inset:0;background:rgba(20,30,45,0.35);display:none;z-index:200}
 .modal{position:fixed;left:96px;top:70px;background:var(--bg-card);border:1px solid var(--bd);border-radius:8px;min-width:280px;max-width:340px;box-shadow:0 14px 44px rgba(20,40,70,.28)}
@@ -252,7 +252,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
       <label data-tip="Load a saved tool preset (dia, feed, plunge, RPM, op)">Tool<select id="camToolLib" style="max-width:120px"></select></label>
       <button class="tb" id="btnToolSave" data-tip="Save current CAM settings as a tool preset">Save</button>
       <button class="tb" id="btnToolDel" data-tip="Delete the selected preset">Del</button>
-      <label data-tip="Toolpath operation">Op<select id="camOp"><option value="profile">Profile</option><option value="pocket">Pocket</option><option value="drill">Drill</option><option value="vcarve">V-Carve</option></select></label>
+      <label data-tip="Toolpath operation">Op<select id="camOp"><option value="profile">Profile</option><option value="pocket">Pocket</option><option value="drill">Drill</option><option value="vcarve">V-Carve</option><option value="inlay">Inlay</option></select></label>
       <label>Tool#<input type="number" id="camTool" value="2" min="1" style="width:40px"></label>
       <label>Dia"<input type="number" id="camDia" value="0.25" step="0.001" style="width:56px"></label>
       <label class="profile-only">Side<select id="camSide"><option value="outside">Outside</option><option value="inside">Inside</option><option value="on">On line</option></select></label>
@@ -266,6 +266,9 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
       <label class="vcarve-only" data-tip="V-carve offset step (in) — smaller = smoother, more passes">VStep"<input type="number" id="camVStep" value="0.02" step="0.005" min="0.002" style="width:50px"></label>
       <label class="vcarve-only" data-tip="Flatten the groove bottom at this depth (0 = full sharp V)">Flat"<input type="number" id="camVFlat" value="0" step="0.05" min="0" style="width:46px"></label>
       <label class="vcarve-only" data-tip="Flat endmill Ø to rough-clear the flat interior first (0 = V-bit only)">Clr Ø"<input type="number" id="camVClearDia" value="0" step="0.03125" min="0" style="width:50px"></label>
+      <label class="inlay-only" data-tip="Which half of the inlay to cut: female cavity (pocket), male plug (profile), or both">Part<select id="camInlayPart"><option value="both">Both</option><option value="female">Female (pocket)</option><option value="male">Male (plug)</option></select></label>
+      <label class="inlay-only" data-tip="Fit/glue gap — the male plug is undersized by this so it drops into the nominal cavity">Gap"<input type="number" id="camInlayClear" value="0.01" step="0.005" min="0" style="width:52px"></label>
+      <label class="inlay-only" data-tip="Mirror the male plug (flip the plug board over to seat it in the cavity)"><input type="checkbox" id="camInlayMirror">Mirror</label>
       <label class="not-drill"><input type="checkbox" id="camArcs" checked>Arcs</label>
       <label class="profile-pocket" data-tip="Lead-in/out at the cut entry/exit (avoids plunge marks on the edge)">Lead<select id="camLead"><option value="none">None</option><option value="arc">Arc</option><option value="line">Line</option></select></label>
       <label class="profile-pocket" data-tip="Lead-in/out length (in)">Lead"<input type="number" id="camLeadLen" value="0.25" step="0.05" min="0" style="width:46px"></label>

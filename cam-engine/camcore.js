@@ -435,6 +435,45 @@ function vcarveOp(contours, opts){
   return {ops,warnings};
 }
 
+// ---- inlay: a paired female cavity (pocket) + undersized male plug (profile) that fit with a clearance gap ----
+// The female is a pocket cleared to the nominal contour. The male is the same contour(s) undersized by
+// `clearance` (so the plug drops into the nominal cavity with `clearance` of glue/fit gap all around), cut
+// as an outside profile, optionally mirrored (you flip the plug board to seat it). part = female|male|both.
+function inlayOp(contours, opts){
+  const o=Object.assign({part:'both',clearance:0.01,mirror:false,mirrorAxis:'x',
+    toolNum:1,toolDia:0.25,climb:true,topZ:0,cutDepth:0.25,passDepth:0.125,safeZ:0.25,feed:120,plunge:40,rpm:18000,
+    stepover:0.4,pocketStyle:'offset',joinType:'round',leadType:'none',leadLen:0.25,rampLen:0},opts||{});
+  const closed=contours.filter(c=>c.closed && c.pts && c.pts.length>=3);
+  const warnings=[], ops=[];
+  if(!closed.length){ warnings.push('Inlay needs closed contour(s)'); return {ops:[{kind:'inlay',toolNum:o.toolNum,rpm:o.rpm,feed:o.feed,plunge:o.plunge,safeZ:o.safeZ,topZ:o.topZ,passes:[]}],warnings}; }
+  const wantFemale=o.part==='female'||o.part==='both';
+  const wantMale=o.part==='male'||o.part==='both';
+  if(wantFemale){
+    const fp=pocketOp(closed, Object.assign({},o));
+    for(const op of fp.ops){ if(op.passes && op.passes.length){ op.inlayRole='female'; ops.push(op); } }
+    if(fp.warnings) for(const w of fp.warnings) warnings.push('female: '+w);
+  }
+  if(wantMale){
+    let maleLoops=[];
+    for(const c of closed){
+      const base=ensureCCW(c.pts);
+      const ins=(o.clearance>0)?offsetLoop(base,-o.clearance,o.joinType):[base.slice()];
+      for(const lp of ins) if(lp.length>=3) maleLoops.push(lp);
+    }
+    if(!maleLoops.length){ warnings.push('male: clearance too large — the plug collapsed'); }
+    else{
+      if(o.mirror){ const b=boundsOf(maleLoops); const cx=(b.minX+b.maxX)/2, cy=(b.minY+b.maxY)/2;
+        maleLoops=maleLoops.map(lp=>lp.map(p=>o.mirrorAxis==='y'?{x:p.x,y:2*cy-p.y}:{x:2*cx-p.x,y:p.y})); }
+      const maleContours=maleLoops.map(lp=>({closed:true,pts:lp}));
+      const mp=profileOp(maleContours, Object.assign({},o,{side:'outside'}));
+      for(const op of mp.ops){ if(op.passes && op.passes.length){ op.inlayRole='male'; op.toolProfile={type:'flat',radius:o.toolDia/2}; ops.push(op); } }
+      if(mp.warnings) for(const w of mp.warnings) warnings.push('male: '+w);
+    }
+  }
+  if(!ops.length) ops.push({kind:'inlay',toolNum:o.toolNum,rpm:o.rpm,feed:o.feed,plunge:o.plunge,safeZ:o.safeZ,topZ:o.topZ,passes:[]});
+  return {ops,warnings};
+}
+
 // ---- arc fitting: turn a dense polyline into line + G2/G3 arc moves ----
 function circleFrom3(a,b,c){
   const ax=a.x,ay=a.y,bx=b.x,by=b.y,cx=c.x,cy=c.y;
@@ -736,5 +775,5 @@ function stockHeightAt(field, x, y) {
   return field.z[j * field.nx + i];
 }
 
-return {SCALE,TOL,dist,signedArea,isCCW,ensureCCW,ensureCW,boundsOf,assembleContours,offsetLoop,withTabs,fitArcs,profileOp,pocketOp,drillOp,vcarveOp,centroid,defaultTools,upsertTool,removeTool,slugId,orderPasses,postProcess,POSTS,simulateStock,stockHeightAt,estimateTime};
+return {SCALE,TOL,dist,signedArea,isCCW,ensureCCW,ensureCW,boundsOf,assembleContours,offsetLoop,withTabs,fitArcs,profileOp,pocketOp,drillOp,vcarveOp,inlayOp,centroid,defaultTools,upsertTool,removeTool,slugId,orderPasses,postProcess,POSTS,simulateStock,stockHeightAt,estimateTime};
 });

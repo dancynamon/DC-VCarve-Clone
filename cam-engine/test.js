@@ -454,5 +454,42 @@ console.log('\n(post-pp assertions added)');
   ok('time: distances split by kind', near(allT.plungeDist,2)&&near(allT.feedDist,10)&&near(allT.rapidDist,10), JSON.stringify(allT));
 })();
 
+// ---- inlay: female cavity (pocket) + undersized male plug (profile) ----
+(function(){
+  const near=(a,b,t)=>Math.abs(a-b)<=(t||0.01);
+  const rectI = CAM.assembleContours([{closed:true, pts:[{x:0,y:0},{x:4,y:0},{x:4,y:3},{x:0,y:3}]}]);
+  const both = CAM.inlayOp(rectI, {part:'both', clearance:0.05, toolDia:0.25, cutDepth:0.2, passDepth:0.5, stepover:0.5});
+  ok('inlay both: has female pocket + male profile', both.ops.some(o=>o.kind==='pocket'&&o.inlayRole==='female') && both.ops.some(o=>o.kind==='profile'&&o.inlayRole==='male'), JSON.stringify(both.ops.map(o=>[o.kind,o.inlayRole])));
+  const fem = CAM.inlayOp(rectI, {part:'female', toolDia:0.25, cutDepth:0.2, passDepth:0.5, stepover:0.5});
+  ok('inlay female-only: pocket only', fem.ops.every(o=>o.kind==='pocket') && fem.ops.length>=1, JSON.stringify(fem.ops.map(o=>o.kind)));
+  const male = CAM.inlayOp(rectI, {part:'male', clearance:0.05, toolDia:0.25, cutDepth:0.2, passDepth:0.5});
+  ok('inlay male-only: profile only', male.ops.length===1 && male.ops[0].kind==='profile', JSON.stringify(male.ops.map(o=>o.kind)));
+  // female pocket clears inside the nominal 4x3 (offset-ring passes stay within the walls)
+  const fb = CAM.boundsOf(fem.ops[0].passes.map(p=>p.path));
+  ok('inlay female stays inside nominal', fb.minX>=-1e-6 && fb.maxX<=4+1e-6 && fb.maxY<=3+1e-6, JSON.stringify(fb));
+  // clearance undersizes the male: a bigger gap -> smaller plug -> smaller outside-profile toolpath
+  const mSmallGap = CAM.inlayOp(rectI, {part:'male', clearance:0.02, toolDia:0.25, cutDepth:0.2, passDepth:0.5});
+  const mBigGap   = CAM.inlayOp(rectI, {part:'male', clearance:0.20, toolDia:0.25, cutDepth:0.2, passDepth:0.5});
+  const bx=j=>CAM.boundsOf(j.ops[0].passes.map(p=>p.path)).maxX;
+  ok('inlay: bigger gap -> smaller male', bx(mBigGap) < bx(mSmallGap)-1e-3, bx(mBigGap)+' vs '+bx(mSmallGap));
+  // the male finished plug (toolpath minus tool radius on the outside cut) fits within the nominal cavity
+  ok('inlay: male plug fits within nominal (gap>=clearance)', bx(mSmallGap)-0.125 <= 4-0.02+1e-3, bx(mSmallGap));
+  // mirror flips the male about its center (asymmetric right-triangle apex swaps side)
+  const triI = CAM.assembleContours([{closed:true, pts:[{x:0,y:0},{x:4,y:0},{x:0,y:3}]}]);
+  const noMir = CAM.inlayOp(triI, {part:'male', clearance:0, mirror:false, toolDia:0.125, cutDepth:0.1, passDepth:0.5});
+  const mir   = CAM.inlayOp(triI, {part:'male', clearance:0, mirror:true,  toolDia:0.125, cutDepth:0.1, passDepth:0.5});
+  const cxOf=j=>{ const b=CAM.boundsOf(j.ops[0].passes.map(p=>p.path)); return (b.minX+b.maxX)/2; };
+  // right-angle corner is at x=0; mirroring about center pushes the mass to the other side (path point set differs)
+  const pathX=j=>j.ops[0].passes[0].path.map(p=>p.x);
+  ok('inlay: mirror changes male geometry', JSON.stringify(pathX(noMir))!==JSON.stringify(pathX(mir)));
+  ok('inlay: mirror keeps bbox center', near(cxOf(noMir), cxOf(mir), 0.05), cxOf(noMir)+' vs '+cxOf(mir));
+  // empty input warns
+  const none = CAM.inlayOp([], {part:'both'});
+  ok('inlay: no contours warns', none.warnings.length>0 && none.ops[0].passes.length===0, JSON.stringify(none.warnings));
+  // whole inlay job posts to valid g-code (female + male)
+  const g = CAM.postProcess({name:'inlay', units:'inch', ops: both.ops.filter(o=>o.passes.length)}, CAM.POSTS.shopsabre);
+  ok('inlay: posts to g-code', /G90/.test(g) && /G1 /.test(g), g.slice(0,40));
+})();
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

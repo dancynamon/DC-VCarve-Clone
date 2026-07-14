@@ -15,7 +15,7 @@ open cadcam-studio.html
   select/move/scale/rotate, node edit, offset, weld/subtract/intersect, mirror, array, align, snapping, measure,
   dimension annotations (linear/radial/angular), tooltips, layers, undo/redo.
 - **Import/Export:** DXF + SVG (editable) in; DXF/SVG out.
-- **CAM:** Profile (outside/inside/on, climb/conv, multipass, tabs) → G2/G3 arcs → ShopSabre post → backplot → Export .tap.
+- **CAM:** Profile (outside/inside/on, climb/conv, multipass, tabs), Pocket, Drill, V-Carve, **Inlay** (female cavity + undersized male plug) → G2/G3 arcs → ShopSabre post → backplot → Export .tap.
 
 ## Layout
 - `cadcam-studio.html` — built app (run `npm run build` to regenerate).
