@@ -274,6 +274,52 @@ ok('placeShape spreads sheets',close(bb(psp).minX,1+2*(24+6)),bb(psp).minX);
   ok('validate: clean set reports nothing', clean.open.length===0 && clean.duplicate.length===0 && clean.selfIntersect.length===0, JSON.stringify(clean));
 }
 
+// ---------- dimension annotations ----------
+{
+  // linear horizontal: value = |dx|, prefixed unit, geometry has arrowheads (fill loops)
+  const dh=C.mkDim({kind:'linear',sub:'horizontal',a:{x:2,y:1},b:{x:8,y:3},off:{x:5,y:5}});
+  ok('dim: type is dim',dh.type==='dim');
+  ok('dim: horizontal measures dx',close(C.dimMeasure(dh),6),C.dimMeasure(dh));
+  ok('dim: horizontal label',C.dimLabel(dh)==='6.000"',C.dimLabel(dh));
+  const gh=C.dimGeometry(dh);
+  ok('dim: geometry has loops',gh.loops.length>=4,gh.loops.length);
+  ok('dim: has filled arrowheads',gh.loops.filter(l=>l.fill).length===2,gh.loops.filter(l=>l.fill).length);
+  ok('dim: dim line sits at off.y',gh.loops.some(l=>l.pts.length===2&&close(l.pts[0].y,5)&&close(l.pts[1].y,5)));
+  ok('dim: label string on geometry',gh.label.str==='6.000"');
+  // vertical: value = |dy|
+  const dv=C.mkDim({kind:'linear',sub:'vertical',a:{x:1,y:2},b:{x:3,y:9},off:{x:6,y:5}});
+  ok('dim: vertical measures dy',close(C.dimMeasure(dv),7),C.dimMeasure(dv));
+  ok('dim: vertical line at off.x',C.dimGeometry(dv).loops.some(l=>l.pts.length===2&&close(l.pts[0].x,6)&&close(l.pts[1].x,6)));
+  // aligned: value = euclidean distance
+  const da=C.mkDim({kind:'linear',sub:'aligned',a:{x:0,y:0},b:{x:3,y:4}});
+  ok('dim: aligned measures hypot',close(C.dimMeasure(da),5),C.dimMeasure(da));
+  // precision + unit options
+  const dp=C.mkDim({kind:'linear',sub:'horizontal',a:{x:0,y:0},b:{x:2.5,y:0},precision:1,unit:'mm'});
+  ok('dim: precision + unit',C.dimLabel(dp)==='2.5mm',C.dimLabel(dp));
+  // radial radius / diameter
+  const dr=C.mkDim({kind:'radial',sub:'radius',a:{x:5,y:5},b:{x:5,y:7}});
+  ok('dim: radius measures dist',close(C.dimMeasure(dr),2)&&C.dimLabel(dr)==='R2.000"',C.dimLabel(dr));
+  const dd=C.mkDim({kind:'radial',sub:'diameter',a:{x:5,y:5},b:{x:5,y:7}});
+  ok('dim: diameter is 2r',close(C.dimMeasure(dd),4)&&C.dimLabel(dd)==='⌀4.000"',C.dimLabel(dd));
+  // angular: 90° between +x and +y rays
+  const dang=C.mkDim({kind:'angular',c:{x:0,y:0},a:{x:2,y:0},b:{x:0,y:2}});
+  ok('dim: angular measures 90°',close(C.dimMeasure(dang),90),C.dimMeasure(dang));
+  ok('dim: angular label',C.dimLabel(dang)==='90.0°',C.dimLabel(dang));
+  // transforms move the anchors
+  const dt=C.translate(dh,10,5);
+  ok('dim: translate moves anchors',close(dt.dim.a.x,12)&&close(dt.dim.a.y,6)&&close(dt.dim.b.x,18),JSON.stringify(dt.dim.a));
+  ok('dim: translate preserves measure',close(C.dimMeasure(dt),6));
+  // flatten yields drawable loops; bbox covers the geometry
+  ok('dim: flatten yields loops',C.flatten(dh).length>=4);
+  const db=C.bbox(dh); ok('dim: bbox spans anchors',db.minX<=2&&db.maxX>=8&&db.maxY>=5,JSON.stringify(db));
+  // snap points expose the anchors
+  ok('dim: snap points expose anchors',C.snapPoints(dh).length>=2&&C.snapPoints(dh).every(s=>s.kind==='node'));
+  // dims are annotations — excluded from CAM contours
+  ok('dim: excluded from CAM contours',C.shapesToContoursInput([C.mkRect(0,0,2,2),dh]).length===C.shapesToContoursInput([C.mkRect(0,0,2,2)]).length);
+  // default off is auto-computed when omitted
+  ok('dim: auto off when omitted',!!C.mkDim({kind:'linear',sub:'aligned',a:{x:0,y:0},b:{x:4,y:0}}).dim.off);
+}
+
 // shapesToContoursInput for CAM
 let inp=C.shapesToContoursInput([r,ci]); ok('contours input closed',inp.every(c=>c.closed));
 

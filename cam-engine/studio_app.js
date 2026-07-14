@@ -81,6 +81,7 @@ function render(){
     if(sel.size && tool==='select') drawSelectionHandles();
     if(tool==='node' && sel.size===1) drawNodes(selectedShapes()[0]);
     if(draft) drawDraft();
+    if(dimDraft) drawDimDraft();
     if(measure) drawMeasure(measure.a, measure.b, true);
     if(snapMark) drawSnapMark(snapMark);
   }
@@ -107,6 +108,7 @@ function drawSimField(){
   ctx.restore();
 }
 function drawShape(s, selected, dim){
+  if(s.type==='dim'){ return drawDimShape(s, selected, dim); }
   const col = selected ? '#ff9a3c' : (doc.layers.get(s.layer)?.color || '#9fe7ff');
   ctx.save();
   if(dim) ctx.globalAlpha=0.28;   // Preview: faint reference outline under the toolpaths
@@ -118,8 +120,33 @@ function drawShape(s, selected, dim){
   }
   ctx.restore();
 }
+function drawDimShape(s, selected, faint){
+  const g=CADCORE.dimGeometry(s); const col=selected?'#ff9a3c':'#8fb7d6';
+  ctx.save(); if(faint)ctx.globalAlpha=0.4;
+  ctx.strokeStyle=col; ctx.fillStyle=col; ctx.lineWidth=selected?1.6:1.1;
+  for(const l of g.loops){ ctx.beginPath(); l.pts.forEach((p,i)=>{const q=W2S(p); i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y);}); if(l.closed)ctx.closePath(); if(l.fill)ctx.fill(); else ctx.stroke(); }
+  // label — drawn with the canvas font (handles °, ⌀, and stays upright)
+  const lb=g.label, q=W2S({x:lb.x,y:lb.y}); let rot=lb.rot||0; if(rot>Math.PI/2)rot-=Math.PI; if(rot<-Math.PI/2)rot+=Math.PI;
+  const px=Math.max(9, lb.h*view.ppi);
+  ctx.font=px+'px monospace'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.translate(q.x,q.y); ctx.rotate(-rot);   // screen Y is down → negate the world angle
+  const wlab=ctx.measureText(lb.str).width; ctx.fillStyle='rgba(12,15,20,0.78)'; ctx.fillRect(-wlab/2-3,-px*0.62,wlab+6,px*1.24);
+  ctx.fillStyle=col; ctx.fillText(lb.str,0,1);
+  ctx.restore();
+}
+function drawDimDraft(){ const dd=dimDraft; if(!dd)return; const cur=dd.cur; if(!cur&&!dd.pts.length)return;
+  ctx.save(); ctx.strokeStyle='#ffd27a'; ctx.setLineDash([5,3]); ctx.lineWidth=1.2;
+  let p=null;
+  if(dd.dk==='angle'){ if(dd.pts.length===2&&cur) p={kind:'angular',sub:'angle',c:dd.pts[0],a:dd.pts[1],b:cur}; }
+  else { if(dd.pts.length===2&&cur) p={kind:'linear',sub:dd.dk,a:dd.pts[0],b:dd.pts[1],off:cur}; }
+  if(p){ const g=CADCORE.dimGeometry(CADCORE.mkDim(p)); for(const l of g.loops){ ctx.beginPath(); l.pts.forEach((q,i)=>{const w=W2S(q); i?ctx.lineTo(w.x,w.y):ctx.moveTo(w.x,w.y);}); if(l.closed)ctx.closePath(); ctx.stroke(); } }
+  else if(cur&&dd.pts.length){ const a=W2S(dd.pts[dd.pts.length-1]),b=W2S(cur); ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+    if(dd.dk==='angle'&&dd.pts.length===2){ const c=W2S(dd.pts[0]); ctx.beginPath();ctx.moveTo(c.x,c.y);ctx.lineTo(b.x,b.y);ctx.stroke(); } }
+  ctx.setLineDash([]); ctx.restore();
+}
 function drawNodes(s){
   if(!s||s.type==='text')return;
+  if(s.type==='dim'){ const d=s.dim; const pts=[d.a,d.b]; if(d.c)pts.push(d.c); pts.push(d.off); ctx.fillStyle='#ffcf6b'; for(const p of pts){ const q=W2S(p); ctx.fillRect(q.x-3,q.y-3,6,6); } return; }
   if(s.prim&&s.prim.kind==='bezier'){ return drawBezierNodes(s); }
   ctx.fillStyle='#ffcf6b';
   for(const p of s.pts){ const q=W2S(p); ctx.fillRect(q.x-3,q.y-3,6,6); }
@@ -193,7 +220,8 @@ function updateCursor(scr){ const w=S2W(scr); document.getElementById('coords').
 // ---- tools / interaction ----
 let draft=null;        // in-progress geometry
 let drag=null;         // active drag state
-function setTool(t){ if(t!=='measure') measure=null; tool=t; sel=(t==='node')?sel:sel; draft=null; document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active',b.dataset.tool===t));
+let dimDraft=null;     // in-progress dimension {dk, pts:[], cur}
+function setTool(t){ if(t!=='measure') measure=null; tool=t; sel=(t==='node')?sel:sel; draft=null; dimDraft=null; document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active',b.dataset.tool===t));
   const active=document.querySelector('.tool[data-tool="'+t+'"]'); if(active){ const grp=active.closest('.tgrp'); if(grp)grp.classList.remove('collapsed'); }   // keep the active tool visible
   setMsg(TOOLMSG[t]||''); render(); }
 const TOOLMSG={ select:'Click to select · drag to move · handles to scale/rotate · marquee to box-select',
@@ -202,6 +230,7 @@ const TOOLMSG={ select:'Click to select · drag to move · handles to scale/rota
   rect:'Click-drag opposite corners', circle:'Click center, drag radius', ellipse:'Click-drag bounding box',
   arc:'Click center, click start, click end', polygon:'Click center, drag radius (sides in panel)', star:'Click center, drag radius',
   text:'Click placement point, type in panel', measure:'Click two points', pan:'Drag to pan',
+  dim:'Dimension — Aligned/H/V: click 2 points then the offset · Angle: click vertex, then 2 rays · Radius/Ø: click a circle (kind in Shape params)',
   bezier:'Click anchors, drag to shape handles · Enter to finish · click start to close',
   fillet:'Click a corner to round it (set radius in "Fillet r")',
   trim:'Click the part of an open vector to cut back to where it crosses another',
@@ -236,6 +265,7 @@ cv.addEventListener('mousedown', e=>{
   }
   else if(tool==='arc'){ if(!draft){draft={kind:'arc',c:w,p1:null,p2:null};} else if(!draft.p1){draft.p1=w;} else {draft.p2=w; commitArc();} }
   else if(tool==='text'){ placeText(w); }
+  else if(tool==='dim'){ dimClick(w); }
   else if(tool==='measure'){ if(!draft){ measure=null; draft={kind:'measure',a:w,b:w}; } else { measure={a:draft.a,b:w}; draft=null; } }
   render();
 });
@@ -255,14 +285,16 @@ cv.addEventListener('mousemove', e=>{
       else if(drag.part==='out'){ nd.hx1=w.x;nd.hy1=w.y; if(nd.type==='smooth')CADCORE.mirrorSmoothHandle(nd,'out'); }
       else { nd.hx0=w.x;nd.hy0=w.y; if(nd.type==='smooth')CADCORE.mirrorSmoothHandle(nd,'in'); }
       CADCORE.reflowBezier(s); } render(); return; }
+  if(drag&&drag.kind==='dimnode'){ const s=shapeById(drag.id); if(s&&s.type==='dim'){ s.dim[drag.key]={x:w.x,y:w.y}; } render(); return; }
   if(drag&&drag.kind==='nodemove'){ const s=shapeById(drag.id); if(s){ s.pts[drag.idx]={x:w.x,y:w.y}; s.prim={kind:'poly'}; } render(); return; }
+  if(dimDraft){ dimDraft.cur=w; render(); return; }
   if(draft){ updateDraft(w, e.shiftKey); render(); }
   else if(snapMark) render();
 });
 window.addEventListener('mouseup', e=>{
   if(drag&&drag.kind==='draw'){ commitDraft(); }
   if(drag&&drag.kind==='marquee'){ marqueeSelect(drag.a,drag.b,e.shiftKey); }
-  if(drag&&['move','scale','rotate','nodemove','bznode'].includes(drag.kind)){ /* already mutated; history pushed on down */ syncPanels(); }
+  if(drag&&['move','scale','rotate','nodemove','bznode','dimnode'].includes(drag.kind)){ /* already mutated; history pushed on down */ syncPanels(); }
   drag=null; render();
 });
 cv.addEventListener('contextmenu', shapeContextMenu);
@@ -303,7 +335,7 @@ const MODAL_SPECS={
   generic:[['x','X',0.05],['y','Y',0.05],['w','Width',0.05],['h','Height',0.05],['rotDeg','Rotation°',1]]
 };
 let modalShape=null, modalOrig=null;   // modalOrig = pristine clone (live-preview baseline / revert target)
-function openShapeModal(shape){ if(!shape)return; modalShape=shape; modalOrig=CADCORE.clone(shape);
+function openShapeModal(shape){ if(!shape)return; if(shape.type==='dim'){ setMsg('Dimensions update automatically — move an endpoint with Select/Node, or delete and redraw.'); return; } modalShape=shape; modalOrig=CADCORE.clone(shape);
   let p=CADCORE.primParams(shape), kind;
   if(p){ kind=p.kind; } else { const b=CADCORE.bbox(shape); p={x:b.minX,y:b.minY,w:b.maxX-b.minX,h:b.maxY-b.minY}; kind='generic'; }
   const host=document.getElementById('modalFields'); host.innerHTML=''; host.dataset.kind=kind;
@@ -450,6 +482,8 @@ function marqueeSelect(a,b,add){ const w0=S2W({x:Math.min(a.x,b.x),y:Math.max(a.
 // ---- node edit ----
 function nodeDown(scr,w,e){ if(sel.size!==1){ const tol=pxTol(6); for(let i=doc.shapes.length-1;i>=0;i--){ if(CADCORE.hitTest(doc.shapes[i],w,tol)){ sel=new Set([doc.shapes[i].id]); break; } } syncPanels(); render(); return; }
   const s=selectedShapes()[0]; if(s.type==='text')return; const tol=pxTol(8);
+  if(s.type==='dim'){ const d=s.dim; const pts=[['a',d.a],['b',d.b]]; if(d.c)pts.push(['c',d.c]); pts.push(['off',d.off]);
+    for(const [key,pt] of pts){ if(Math.hypot(pt.x-w.x,pt.y-w.y)<=tol){ pushHistory(); drag={kind:'dimnode',id:s.id,key}; return; } } return; }
   if(s.prim&&s.prim.kind==='bezier'){ return bezierNodeDown(s,w,tol); }
   for(let i=0;i<s.pts.length;i++){ if(Math.hypot(s.pts[i].x-w.x,s.pts[i].y-w.y)<=tol){ pushHistory(); drag={kind:'nodemove',id:s.id,idx:i}; return; } } }
 function bezierNodeDown(s,w,tol){ const nodes=s.prim.nodes;
@@ -537,6 +571,37 @@ function placeText(w){
     if(textOutline && !ttFont) setMsg('No font loaded — placed single-stroke text. Use "Load font…" for TTF outlines.');
     pushHistory(); const t=CADCORE.mkText(w.x,w.y,h,str,activeLayer); addShapes([t]); sel=new Set([t.id]); render(); syncPanels();
   }
+}
+// ---- dimension annotations ----
+function currentDimKind(){ const el=document.getElementById('dimKind'); return el?el.value:'aligned'; }
+function currentDimH(){ return Math.abs(parseFloat((document.getElementById('dimH')||{}).value)||0.25)||0.25; }
+function dimClick(w){
+  const dk=currentDimKind();
+  if(!dimDraft || dimDraft.dk!==dk){
+    if(dk==='radius'||dk==='diameter'){                 // radial: click a circle/arc → auto-dimension it
+      const s=pickShapeAt(w);
+      if(s&&s.prim&&(s.prim.kind==='circle'||s.prim.kind==='arc')){ commitDimRadial(s,dk,w); return; }
+      setMsg('Radius/Ø: click on a circle or arc to dimension it'); dimDraft=null; render(); return;
+    }
+    dimDraft={dk,pts:[w],cur:w}; setMsg(dk==='angle'?'Angle: click the second ray point':'Click the second point'); render(); return;
+  }
+  dimDraft.pts.push(w);
+  if(dimDraft.pts.length>=3) commitDim(dimDraft);   // linear: p1,p2,off · angle: vertex,ray1,ray2
+  else setMsg(dk==='angle'?'Angle: click the second ray point':'Click a point to place the dimension line');
+  render();
+}
+function commitDim(dd){
+  let p; const dk=dd.dk, H=currentDimH();
+  if(dk==='angle') p={kind:'angular',sub:'angle',c:dd.pts[0],a:dd.pts[1],b:dd.pts[2],textH:H};
+  else p={kind:'linear',sub:dk,a:dd.pts[0],b:dd.pts[1],off:dd.pts[2],textH:H};
+  pushHistory(); const s=CADCORE.mkDim(p,activeLayer); addShapes([s]); sel=new Set([s.id]);
+  dimDraft=null; render(); syncPanels(); setMsg('Dimension: '+CADCORE.dimLabel(s));
+}
+function commitDimRadial(shape,dk,w){ const pr=shape.prim; const c={x:pr.cx,y:pr.cy}, r=pr.r;
+  const ang=Math.atan2(w.y-c.y,w.x-c.x), b={x:c.x+Math.cos(ang)*r,y:c.y+Math.sin(ang)*r};
+  const off={x:c.x+Math.cos(ang)*(r+0.6),y:c.y+Math.sin(ang)*(r+0.6)};
+  pushHistory(); const s=CADCORE.mkDim({kind:'radial',sub:dk,a:c,b,off,textH:currentDimH()},activeLayer);
+  addShapes([s]); sel=new Set([s.id]); dimDraft=null; render(); syncPanels(); setMsg('Dimension: '+CADCORE.dimLabel(s));
 }
 function loadFontFile(file){
   const rd=new FileReader();
@@ -980,7 +1045,9 @@ function buildLayers(){ const el=document.getElementById('layerList'); if(!el)re
 function buildProps(){ const el=document.getElementById('props'); if(!el)return; const sh=selectedShapes();
   if(!sh.length){ el.innerHTML='<div class="muted">No selection</div>'; return; }
   if(sh.length>1){ const b=CADCORE.bboxAll(sh); el.innerHTML='<div class="muted">'+sh.length+' selected</div><div class="prow">W '+(b.maxX-b.minX).toFixed(3)+'"  H '+(b.maxY-b.minY).toFixed(3)+'"</div>'; return; }
-  const s=sh[0]; const b=CADCORE.bbox(s); let h='<div class="prow">type: '+(s.prim?s.prim.kind:s.type)+'</div>';
+  const s=sh[0];
+  if(s.type==='dim'){ el.innerHTML='<div class="prow">dimension: '+s.dim.kind+' ('+s.dim.sub+')</div><div class="prow">value: '+CADCORE.dimLabel(s)+'</div><div class="muted">Move an endpoint (Node tool) to update.</div>'; return; }
+  const b=CADCORE.bbox(s); let h='<div class="prow">type: '+(s.prim?s.prim.kind:s.type)+'</div>';
   h+='<div class="prow">X '+b.minX.toFixed(3)+'  Y '+b.minY.toFixed(3)+'</div>';
   h+='<div class="prow">W '+(b.maxX-b.minX).toFixed(3)+'"  H '+(b.maxY-b.minY).toFixed(3)+'"</div>';
   h+='<div class="prow">closed: '+(s.closed?'yes':'no')+(s.type==='text'?(' · "'+s.text+'"'):'')+'</div>';
@@ -994,10 +1061,10 @@ window.addEventListener('keydown', e=>{
   if((e.ctrlKey||e.metaKey)&&e.key==='z'){ e.preventDefault(); undo(); return; }
   if((e.ctrlKey||e.metaKey)&&(e.key==='y'||(e.shiftKey&&e.key==='z'))){ e.preventDefault(); redo(); return; }
   if(e.key==='Delete'||e.key==='Backspace'){ e.preventDefault(); deleteSelected(); return; }
-  if(e.key==='Escape'){ hideCtxMenu(); draft=null; render(); return; }
+  if(e.key==='Escape'){ hideCtxMenu(); draft=null; dimDraft=null; render(); return; }
   if(e.key==='Enter'&&tool==='polyline'&&draft){ commitPolyline(); return; }
   if(e.key==='Enter'&&tool==='bezier'&&draft){ commitBezier(false); return; }
-  const map={v:'select',n:'node',l:'line',p:'polyline',b:'bezier',r:'rect',c:'circle',e:'ellipse',a:'arc',g:'polygon',t:'text',m:'measure'};
+  const map={v:'select',n:'node',l:'line',p:'polyline',b:'bezier',r:'rect',c:'circle',e:'ellipse',a:'arc',g:'polygon',t:'text',m:'measure',d:'dim'};
   if(map[e.key]){ setTool(map[e.key]); }
   if(e.key==='f'){ fitAll(); }
 });

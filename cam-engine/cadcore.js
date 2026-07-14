@@ -111,11 +111,16 @@ function mirrorSmoothHandle(node, movedSide) {
 // ---------- bbox / flatten ----------
 function flatten(shape) {
   if (shape.type === 'text') return textShapes(shape).flatMap(flatten);
+  if (shape.type === 'dim') return dimShapes(shape).map(l => ({ pts: l.pts.map(p => ({ x: p.x, y: p.y })), closed: !!l.closed }));
   const pts = shape.pts.slice();
   if (shape.closed && pts.length && dist(pts[0], pts[pts.length - 1]) > 1e-9) pts.push({ x: pts[0].x, y: pts[0].y });
   return [{ pts, closed: shape.closed }];
 }
-function bbox(shape) { return bboxPts(shape.type === 'text' ? textShapes(shape).flatMap(s => s.pts) : shape.pts); }
+function bbox(shape) {
+  if (shape.type === 'text') return bboxPts(textShapes(shape).flatMap(s => s.pts));
+  if (shape.type === 'dim') { const g = dimGeometry(shape); const pts = g.loops.flatMap(l => l.pts); pts.push({ x: g.label.x, y: g.label.y }); return bboxPts(pts); }
+  return bboxPts(shape.pts);
+}
 function bboxPts(pts) {
   let b = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
   for (const p of pts) { if (p.x < b.minX) b.minX = p.x; if (p.y < b.minY) b.minY = p.y; if (p.x > b.maxX) b.maxX = p.x; if (p.y > b.maxY) b.maxY = p.y; }
@@ -156,6 +161,7 @@ function hitTest(shape, p, tol) {
 function snapPoints(shape) {
   const out = [];
   if (shape.type === 'text') { const b = bbox(shape); out.push({ x: b.minX, y: b.minY, kind: 'corner' }); return out; }
+  if (shape.type === 'dim') { const d = shape.dim; out.push({ x: d.a.x, y: d.a.y, kind: 'node' }, { x: d.b.x, y: d.b.y, kind: 'node' }); if (d.c) out.push({ x: d.c.x, y: d.c.y, kind: 'node' }); return out; }
   const pts = shape.pts;
   for (const p of pts) out.push({ x: p.x, y: p.y, kind: 'node' });
   for (let i = 0; i + 1 < pts.length; i++) out.push({ x: (pts[i].x + pts[i + 1].x) / 2, y: (pts[i].y + pts[i + 1].y) / 2, kind: 'mid' });
@@ -180,6 +186,7 @@ function rectSnapPoints(x0, y0, x1, y1) {
 function applyToShape(shape, fn, keepPrim) {
   const s = clone(shape);
   if (s.type === 'text') { const a = fn({ x: s.x, y: s.y }); s.x = a.x; s.y = a.y; return s; }
+  if (s.type === 'dim') { const d = s.dim; d.a = fn(d.a); d.b = fn(d.b); if (d.c) d.c = fn(d.c); if (d.off) d.off = fn(d.off); return s; }
   s.pts = s.pts.map(fn);
   if (!keepPrim) s.prim = { kind: 'poly' };
   else if (s.prim && s.prim.kind === 'bezier' && Array.isArray(s.prim.nodes)) {   // keep curve editable: move handles too
@@ -208,7 +215,7 @@ function scale(shape, cx, cy, sx, sy) {
 function mirror(shape, axis, at) {
   // axis 'x' = flip horizontally about vertical line x=at; 'y' = flip vertically about y=at
   const s = applyToShape(shape, p => axis === 'x' ? { x: 2 * at - p.x, y: p.y } : { x: p.x, y: 2 * at - p.y });
-  s.pts.reverse(); // keep winding sane
+  if (Array.isArray(s.pts)) s.pts.reverse(); // keep winding sane
   return s;
 }
 
@@ -501,6 +508,94 @@ function outlineTextShapes(pathData, x, y, h, layer) {
   return shapes;
 }
 
+// ---------- dimension annotations (pure) ----------
+// A dimension is an annotation (type:'dim'), never sent to CAM. It carries anchor points and derives
+// its measured value + drawable geometry (extension lines, dimension line, arrowheads, a text label).
+//   linear  : sub 'aligned' | 'horizontal' | 'vertical' — a,b measured points; off = a point on the dim line.
+//   radial  : sub 'radius'  | 'diameter'  — a = center, b = point on the circle; off = leader/text point.
+//   angular : sub 'angle'   — c = vertex, a & b = ray points; off sets the arc radius / text position.
+function _perp(u) { return { x: -u.y, y: u.x }; }
+function _subv(a, b) { return { x: a.x - b.x, y: a.y - b.y }; }
+function _dotv(a, b) { return a.x * b.x + a.y * b.y; }
+function _unitv(v) { const m = Math.hypot(v.x, v.y) || 1; return { x: v.x / m, y: v.y / m }; }
+function _arrowLoop(tip, back, size) {
+  // back = unit vector pointing away from the tip, along the dimension line into the shaft
+  const ang = 0.26, ca = Math.cos(ang), sa = Math.sin(ang);
+  const w1 = { x: back.x * ca - back.y * sa, y: back.x * sa + back.y * ca };
+  const w2 = { x: back.x * ca + back.y * sa, y: -back.x * sa + back.y * ca };
+  return { pts: [{ x: tip.x, y: tip.y }, { x: tip.x + w1.x * size, y: tip.y + w1.y * size }, { x: tip.x + w2.x * size, y: tip.y + w2.y * size }], closed: true, fill: true };
+}
+function _defaultDimOff(kind, sub, a, b, c) {
+  if (kind === 'radial') { const u = _unitv(_subv(b, a)); return { x: b.x + u.x * 0.6, y: b.y + u.y * 0.6 }; }
+  if (kind === 'angular') { const va = Math.atan2(a.y - c.y, a.x - c.x), vb = Math.atan2(b.y - c.y, b.x - c.x); const r = (Math.max(dist(c, a), dist(c, b)) * 0.7) || 0.5; const m = (va + vb) / 2; return { x: c.x + Math.cos(m) * r, y: c.y + Math.sin(m) * r }; }
+  if (sub === 'horizontal') return { x: (a.x + b.x) / 2, y: Math.max(a.y, b.y) + 0.5 };
+  if (sub === 'vertical') return { x: Math.max(a.x, b.x) + 0.5, y: (a.y + b.y) / 2 };
+  const u = _unitv(_subv(b, a)), n = _perp(u); return { x: (a.x + b.x) / 2 + n.x * 0.5, y: (a.y + b.y) / 2 + n.y * 0.5 };
+}
+function mkDim(p, layer) {
+  p = p || {};
+  const kind = p.kind || 'linear';
+  const sub = p.sub || (kind === 'radial' ? 'radius' : kind === 'angular' ? 'angle' : 'aligned');
+  const a = p.a ? { x: p.a.x, y: p.a.y } : { x: 0, y: 0 };
+  const b = p.b ? { x: p.b.x, y: p.b.y } : { x: 0, y: 0 };
+  const c = p.c ? { x: p.c.x, y: p.c.y } : null;
+  const off = p.off ? { x: p.off.x, y: p.off.y } : _defaultDimOff(kind, sub, a, b, c || a);
+  return { id: uid(), type: 'dim', layer: layer || '0',
+    dim: { kind, sub, a, b, c, off, textH: p.textH || 0.25, precision: (p.precision == null ? 3 : p.precision), unit: (p.unit == null ? '"' : p.unit) } };
+}
+function dimMeasure(dim) {
+  const d = dim.dim || dim;
+  if (d.kind === 'angular') { if (!d.c) return 0; const va = Math.atan2(d.a.y - d.c.y, d.a.x - d.c.x), vb = Math.atan2(d.b.y - d.c.y, d.b.x - d.c.x); let s = vb - va; while (s > Math.PI) s -= TAU; while (s < -Math.PI) s += TAU; return Math.abs(s) * 180 / Math.PI; }
+  if (d.kind === 'radial') { const r = dist(d.a, d.b); return d.sub === 'diameter' ? 2 * r : r; }
+  if (d.sub === 'horizontal') return Math.abs(d.b.x - d.a.x);
+  if (d.sub === 'vertical') return Math.abs(d.b.y - d.a.y);
+  return dist(d.a, d.b);
+}
+function dimLabel(dim) {
+  const d = dim.dim || dim, v = dimMeasure(dim);
+  if (d.kind === 'angular') return v.toFixed(1) + '°';
+  let prefix = ''; if (d.kind === 'radial') prefix = d.sub === 'diameter' ? '⌀' : 'R';
+  const dp = (d.precision == null ? 3 : d.precision);
+  return prefix + v.toFixed(dp) + (d.unit == null ? '"' : d.unit);
+}
+// Return { loops:[{pts,closed,fill}], label:{str,x,y,rot,h} } for drawing/bbox. rot is the line angle (radians).
+function dimGeometry(dim) {
+  const d = dim.dim || dim, loops = [], arrow = Math.max(0.08, (d.textH || 0.25) * 0.55);
+  let labelPt = { x: 0, y: 0 }, labelRot = 0;
+  if (d.kind === 'linear') {
+    const a = d.a, b = d.b, off = d.off; let Da, Db;
+    if (d.sub === 'horizontal') { Da = { x: a.x, y: off.y }; Db = { x: b.x, y: off.y }; }
+    else if (d.sub === 'vertical') { Da = { x: off.x, y: a.y }; Db = { x: off.x, y: b.y }; }
+    else { const u = _unitv(_subv(b, a)), n = _perp(u), dd = _dotv(_subv(off, a), n); Da = { x: a.x + n.x * dd, y: a.y + n.y * dd }; Db = { x: b.x + n.x * dd, y: b.y + n.y * dd }; }
+    loops.push({ pts: [{ x: a.x, y: a.y }, Da], closed: false }, { pts: [{ x: b.x, y: b.y }, Db], closed: false });
+    loops.push({ pts: [Da, Db], closed: false });
+    const ud = _unitv(_subv(Db, Da));
+    loops.push(_arrowLoop(Da, ud, arrow), _arrowLoop(Db, { x: -ud.x, y: -ud.y }, arrow));
+    const mid = { x: (Da.x + Db.x) / 2, y: (Da.y + Db.y) / 2 }, perp = { x: -ud.y, y: ud.x };
+    const sgn = _dotv(perp, _subv(a, mid)) > 0 ? -1 : 1;
+    labelPt = { x: mid.x + perp.x * sgn * (d.textH || 0.25) * 0.9, y: mid.y + perp.y * sgn * (d.textH || 0.25) * 0.9 };
+    labelRot = Math.atan2(Db.y - Da.y, Db.x - Da.x);
+  } else if (d.kind === 'radial') {
+    const a = d.a, b = d.b, u = _unitv(_subv(b, a));
+    if (d.sub === 'diameter') { const b2 = { x: 2 * a.x - b.x, y: 2 * a.y - b.y }; loops.push({ pts: [b2, b], closed: false }, _arrowLoop(b, { x: -u.x, y: -u.y }, arrow), _arrowLoop(b2, u, arrow)); }
+    else { loops.push({ pts: [{ x: a.x, y: a.y }, b], closed: false }, _arrowLoop(b, { x: -u.x, y: -u.y }, arrow)); }
+    loops.push({ pts: [{ x: b.x, y: b.y }, { x: d.off.x, y: d.off.y }], closed: false });
+    labelPt = { x: d.off.x, y: d.off.y };
+  } else if (d.kind === 'angular' && d.c) {
+    const c = d.c, a = d.a, b = d.b, R = dist(c, d.off) || 0.5;
+    let va = Math.atan2(a.y - c.y, a.x - c.x), vb = Math.atan2(b.y - c.y, b.x - c.x), s = vb - va;
+    while (s > Math.PI) s -= TAU; while (s < -Math.PI) s += TAU;
+    loops.push({ pts: [{ x: c.x, y: c.y }, { x: c.x + Math.cos(va) * R, y: c.y + Math.sin(va) * R }], closed: false });
+    loops.push({ pts: [{ x: c.x, y: c.y }, { x: c.x + Math.cos(vb) * R, y: c.y + Math.sin(vb) * R }], closed: false });
+    const arc = arcPolyline(c.x, c.y, R, va, vb, s > 0, 0.15); loops.push({ pts: arc, closed: false });
+    if (arc.length >= 2) { const p0 = arc[0], p1 = arc[1], pn = arc[arc.length - 1], pm = arc[arc.length - 2];
+      loops.push(_arrowLoop(p0, _unitv(_subv(p1, p0)), arrow), _arrowLoop(pn, _unitv(_subv(pm, pn)), arrow)); }
+    const ma = va + s / 2; labelPt = { x: c.x + Math.cos(ma) * (R + (d.textH || 0.25) * 0.7), y: c.y + Math.sin(ma) * (R + (d.textH || 0.25) * 0.7) };
+  }
+  return { loops, label: { str: dimLabel(dim), x: labelPt.x, y: labelPt.y, rot: labelRot, h: d.textH || 0.25 } };
+}
+function dimShapes(dim) { return dimGeometry(dim).loops; }
+
 // ---------- nesting (sheet layout) ----------
 // First-cut bin-packer: shelf / next-fit-decreasing-height, multi-sheet, optional 90° rotation.
 // Packs each shape's bounding box onto sheets of (sheetW x sheetH). Returns placements that the
@@ -667,7 +762,7 @@ function clone(o) { return JSON.parse(JSON.stringify(o)); }
 function shapesToContoursInput(shapes) {
   // flatten all shapes into {pts,closed} for CAM.assembleContours
   const out = [];
-  for (const s of shapes) for (const loop of flatten(s)) out.push({ pts: loop.pts, closed: loop.closed });
+  for (const s of shapes) { if (s.type === 'dim') continue; for (const loop of flatten(s)) out.push({ pts: loop.pts, closed: loop.closed }); }
   return out;
 }
 
@@ -727,6 +822,7 @@ return {
   nestShapes, placeShape,
   svgToShapes, svgPathToShapes, dxfPolysToShapes, toDXF, toSVG,
   textShapes, outlineTextShapes, FONT, clone, shapesToContoursInput,
+  mkDim, dimMeasure, dimLabel, dimGeometry, dimShapes,
   primParams, applyPrimParams, fitShapeTo, fitPrimTo,
   projectToJSON, projectFromJSON, PROJECT_VERSION,
   validateShapes

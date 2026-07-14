@@ -12,7 +12,8 @@ open cadcam-studio.html
 
 ## What it does
 - **CAD editor:** job/material setup, draw line/polyline/rect/rounded-rect/circle/ellipse/arc/polygon/star/text,
-  select/move/scale/rotate, node edit, offset, weld/subtract/intersect, mirror, array, align, snapping, measure, tooltips, layers, undo/redo.
+  select/move/scale/rotate, node edit, offset, weld/subtract/intersect, mirror, array, align, snapping, measure,
+  dimension annotations (linear/radial/angular), tooltips, layers, undo/redo.
 - **Import/Export:** DXF + SVG (editable) in; DXF/SVG out.
 - **CAM:** Profile (outside/inside/on, climb/conv, multipass, tabs) → G2/G3 arcs → ShopSabre post → backplot → Export .tap.
 
