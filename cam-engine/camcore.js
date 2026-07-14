@@ -179,6 +179,23 @@ function upsertTool(list, t){ const out=(list||[]).filter(x=>x.id!==t.id); out.p
 function removeTool(list, id){ return (list||[]).filter(x=>x.id!==id); }
 function slugId(name){ return String(name||'tool').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')||'tool'; }
 
+// ---- toolpath templates (named full-op recipes) ----
+// A template captures a complete CAM parameter recipe (op + strategy + feeds/depths) under a name, so a
+// proven "Cutout 1/4 + tabs" or "V-carve sign" recipe can be re-applied to any selection in one click.
+// Unlike a tool preset (just the cutter), a template is the whole toolpath strategy. `applyTemplate` layers
+// the template's params over a base (current panel values) so unspecified fields keep their current value.
+function defaultTemplates(){ return [
+  {id:'cutout-quarter', name:'Cutout · 1/4" outside + tabs', params:{op:'profile',side:'outside',climb:true,toolDia:0.25,cutDepth:0.5,passDepth:0.125,feed:120,plunge:40,rpm:18000,leadType:'arc',leadLen:0.25,tabs:{count:4,length:0.4,height:0.1}}},
+  {id:'pocket-eighth', name:'Pocket · 1/8" clear 40%',      params:{op:'pocket',toolDia:0.125,cutDepth:0.25,passDepth:0.1,feed:90,plunge:30,rpm:18000,stepover:0.4,pocketStyle:'offset'}},
+  {id:'vcarve-sign-90', name:'V-carve · 90° sign',          params:{op:'vcarve',toolDia:0.5,bitAngle:90,cutDepth:0.25,vstep:0.02,feed:80,plunge:25,rpm:18000}},
+  {id:'inlay-both', name:'Inlay · both, 0.01" gap',         params:{op:'inlay',part:'both',clearance:0.01,toolDia:0.25,cutDepth:0.25,passDepth:0.125,feed:120,plunge:40,rpm:18000,stepover:0.4}}
+]; }
+function templateFromParams(name, params){ return { id:slugId(name), name:String(name||'Template'), params:JSON.parse(JSON.stringify(params||{})) }; }
+function upsertTemplate(list, t){ const out=(list||[]).filter(x=>x.id!==t.id); out.push(t); return out; }
+function removeTemplate(list, id){ return (list||[]).filter(x=>x.id!==id); }
+// Merge a template's recipe over base params (template wins), returning a NEW object (base untouched).
+function applyTemplate(tpl, base){ return Object.assign({}, base||{}, JSON.parse(JSON.stringify((tpl&&tpl.params)||{}))); }
+
 // ---- pocket: clear a closed region with concentric offset stepover passes ----
 function toIntPath(pts){ return pts.map(p=>new ClipperLib.IntPoint(Math.round(p.x*SCALE),Math.round(p.y*SCALE))); }
 function fromIntPath(path){ return path.map(pt=>({x:pt.X/SCALE,y:pt.Y/SCALE})); }
@@ -775,5 +792,5 @@ function stockHeightAt(field, x, y) {
   return field.z[j * field.nx + i];
 }
 
-return {SCALE,TOL,dist,signedArea,isCCW,ensureCCW,ensureCW,boundsOf,assembleContours,offsetLoop,withTabs,fitArcs,profileOp,pocketOp,drillOp,vcarveOp,inlayOp,centroid,defaultTools,upsertTool,removeTool,slugId,orderPasses,postProcess,POSTS,simulateStock,stockHeightAt,estimateTime};
+return {SCALE,TOL,dist,signedArea,isCCW,ensureCCW,ensureCW,boundsOf,assembleContours,offsetLoop,withTabs,fitArcs,profileOp,pocketOp,drillOp,vcarveOp,inlayOp,centroid,defaultTools,upsertTool,removeTool,slugId,defaultTemplates,templateFromParams,upsertTemplate,removeTemplate,applyTemplate,orderPasses,postProcess,POSTS,simulateStock,stockHeightAt,estimateTime};
 });

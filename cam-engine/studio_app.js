@@ -984,6 +984,22 @@ function saveTool(){ const g=k=>document.getElementById(k); const name=prompt('S
 function delTool(){ const el=document.getElementById('camToolLib'); if(!el||!el.value)return; const t=tools.find(x=>x.id===el.value);
   if(t&&!confirm('Delete preset "'+t.name+'"?'))return; tools=CAM.removeTool(tools,el.value); if(!tools.length)tools=CAM.defaultTools(); persistTools(); buildToolLib(); setMsg('Deleted preset'); }
 
+// ---- toolpath templates (named full-op recipes, persisted to localStorage) ----
+const TPL_KEY='aq_templates';
+let templates=[];
+function loadTemplates(){ try{ const s=localStorage.getItem(TPL_KEY); templates=s?JSON.parse(s):CAM.defaultTemplates(); }catch(e){ templates=CAM.defaultTemplates(); }
+  if(!Array.isArray(templates)||!templates.length) templates=CAM.defaultTemplates(); }
+function persistTemplates(){ try{ localStorage.setItem(TPL_KEY, JSON.stringify(templates)); }catch(e){} }
+function buildTemplateLib(selId){ const el=document.getElementById('camTplLib'); if(!el)return; el.innerHTML='<option value="">— templates —</option>';
+  for(const t of templates){ const o=document.createElement('option'); o.value=t.id; o.textContent=t.name; el.appendChild(o); } el.value=selId||''; }
+function applyTemplateSel(id){ if(!id)return; const t=templates.find(x=>x.id===id); if(!t)return;
+  const merged=CAM.applyTemplate(t, camParams());   // layer the recipe over current panel values
+  applyParamsToPanel(merged); setMsg('Applied template: '+t.name+' — adjust + Generate, or "+ Toolpath"'); render(); }
+function saveTemplate(){ const name=prompt('Save toolpath template as:', autoOpName(camParams())+' template'); if(!name)return;
+  const t=CAM.templateFromParams(name, camParams()); templates=CAM.upsertTemplate(templates,t); persistTemplates(); buildTemplateLib(t.id); setMsg('Saved template: '+name); }
+function delTemplate(){ const el=document.getElementById('camTplLib'); if(!el||!el.value)return; const t=templates.find(x=>x.id===el.value);
+  if(t&&!confirm('Delete template "'+t.name+'"?'))return; templates=CAM.removeTemplate(templates,el.value); if(!templates.length)templates=CAM.defaultTemplates(); persistTemplates(); buildTemplateLib(); setMsg('Deleted template'); }
+
 // ---- job / material ----
 function jobRect(){ const {w,h,origin}=job; let x0=0,y0=0;
   if(origin==='br'){x0=-w;} else if(origin==='tl'){y0=-h;} else if(origin==='tr'){x0=-w;y0=-h;} else if(origin==='center'){x0=-w/2;y0=-h/2;}
@@ -1146,6 +1162,10 @@ function wire(){
   loadTools(); buildToolLib();
   const tl=document.getElementById('camToolLib'); if(tl)tl.onchange=()=>applyTool(tl.value);
   on('btnToolSave',saveTool); on('btnToolDel',delTool);
+  // toolpath templates
+  loadTemplates(); buildTemplateLib();
+  const tpl=document.getElementById('camTplLib'); if(tpl)tpl.onchange=()=>applyTemplateSel(tpl.value);
+  on('btnTplSave',saveTemplate); on('btnTplDel',delTemplate);
   // shape properties modal
   on('modalApply',applyShapeModal); on('modalCancel',closeShapeModal); on('modalX',closeShapeModal);
   const mb=document.getElementById('shapeModal');

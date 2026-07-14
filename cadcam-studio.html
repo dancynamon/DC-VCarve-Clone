@@ -252,6 +252,9 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
       <label data-tip="Load a saved tool preset (dia, feed, plunge, RPM, op)">Tool<select id="camToolLib" style="max-width:120px"></select></label>
       <button class="tb" id="btnToolSave" data-tip="Save current CAM settings as a tool preset">Save</button>
       <button class="tb" id="btnToolDel" data-tip="Delete the selected preset">Del</button>
+      <label data-tip="Apply a saved toolpath template — a full op recipe (strategy + feeds + depths), applied to the current selection">Tpl<select id="camTplLib" style="max-width:118px"><option value="">— templates —</option></select></label>
+      <button class="tb" id="btnTplSave" data-tip="Save the current CAM settings as a named toolpath template">Save tpl</button>
+      <button class="tb" id="btnTplDel" data-tip="Delete the selected template">Del tpl</button>
       <label data-tip="Toolpath operation">Op<select id="camOp"><option value="profile">Profile</option><option value="pocket">Pocket</option><option value="drill">Drill</option><option value="vcarve">V-Carve</option><option value="inlay">Inlay</option></select></label>
       <label>Tool#<input type="number" id="camTool" value="2" min="1" style="width:40px"></label>
       <label>Dia"<input type="number" id="camDia" value="0.25" step="0.001" style="width:56px"></label>
@@ -8159,6 +8162,23 @@ function upsertTool(list, t){ const out=(list||[]).filter(x=>x.id!==t.id); out.p
 function removeTool(list, id){ return (list||[]).filter(x=>x.id!==id); }
 function slugId(name){ return String(name||'tool').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'')||'tool'; }
 
+// ---- toolpath templates (named full-op recipes) ----
+// A template captures a complete CAM parameter recipe (op + strategy + feeds/depths) under a name, so a
+// proven "Cutout 1/4 + tabs" or "V-carve sign" recipe can be re-applied to any selection in one click.
+// Unlike a tool preset (just the cutter), a template is the whole toolpath strategy. `applyTemplate` layers
+// the template's params over a base (current panel values) so unspecified fields keep their current value.
+function defaultTemplates(){ return [
+  {id:'cutout-quarter', name:'Cutout · 1/4" outside + tabs', params:{op:'profile',side:'outside',climb:true,toolDia:0.25,cutDepth:0.5,passDepth:0.125,feed:120,plunge:40,rpm:18000,leadType:'arc',leadLen:0.25,tabs:{count:4,length:0.4,height:0.1}}},
+  {id:'pocket-eighth', name:'Pocket · 1/8" clear 40%',      params:{op:'pocket',toolDia:0.125,cutDepth:0.25,passDepth:0.1,feed:90,plunge:30,rpm:18000,stepover:0.4,pocketStyle:'offset'}},
+  {id:'vcarve-sign-90', name:'V-carve · 90° sign',          params:{op:'vcarve',toolDia:0.5,bitAngle:90,cutDepth:0.25,vstep:0.02,feed:80,plunge:25,rpm:18000}},
+  {id:'inlay-both', name:'Inlay · both, 0.01" gap',         params:{op:'inlay',part:'both',clearance:0.01,toolDia:0.25,cutDepth:0.25,passDepth:0.125,feed:120,plunge:40,rpm:18000,stepover:0.4}}
+]; }
+function templateFromParams(name, params){ return { id:slugId(name), name:String(name||'Template'), params:JSON.parse(JSON.stringify(params||{})) }; }
+function upsertTemplate(list, t){ const out=(list||[]).filter(x=>x.id!==t.id); out.push(t); return out; }
+function removeTemplate(list, id){ return (list||[]).filter(x=>x.id!==id); }
+// Merge a template's recipe over base params (template wins), returning a NEW object (base untouched).
+function applyTemplate(tpl, base){ return Object.assign({}, base||{}, JSON.parse(JSON.stringify((tpl&&tpl.params)||{}))); }
+
 // ---- pocket: clear a closed region with concentric offset stepover passes ----
 function toIntPath(pts){ return pts.map(p=>new ClipperLib.IntPoint(Math.round(p.x*SCALE),Math.round(p.y*SCALE))); }
 function fromIntPath(path){ return path.map(pt=>({x:pt.X/SCALE,y:pt.Y/SCALE})); }
@@ -8755,7 +8775,7 @@ function stockHeightAt(field, x, y) {
   return field.z[j * field.nx + i];
 }
 
-return {SCALE,TOL,dist,signedArea,isCCW,ensureCCW,ensureCW,boundsOf,assembleContours,offsetLoop,withTabs,fitArcs,profileOp,pocketOp,drillOp,vcarveOp,inlayOp,centroid,defaultTools,upsertTool,removeTool,slugId,orderPasses,postProcess,POSTS,simulateStock,stockHeightAt,estimateTime};
+return {SCALE,TOL,dist,signedArea,isCCW,ensureCCW,ensureCW,boundsOf,assembleContours,offsetLoop,withTabs,fitArcs,profileOp,pocketOp,drillOp,vcarveOp,inlayOp,centroid,defaultTools,upsertTool,removeTool,slugId,defaultTemplates,templateFromParams,upsertTemplate,removeTemplate,applyTemplate,orderPasses,postProcess,POSTS,simulateStock,stockHeightAt,estimateTime};
 });
 
 </script>
@@ -11403,6 +11423,22 @@ function saveTool(){ const g=k=>document.getElementById(k); const name=prompt('S
 function delTool(){ const el=document.getElementById('camToolLib'); if(!el||!el.value)return; const t=tools.find(x=>x.id===el.value);
   if(t&&!confirm('Delete preset "'+t.name+'"?'))return; tools=CAM.removeTool(tools,el.value); if(!tools.length)tools=CAM.defaultTools(); persistTools(); buildToolLib(); setMsg('Deleted preset'); }
 
+// ---- toolpath templates (named full-op recipes, persisted to localStorage) ----
+const TPL_KEY='aq_templates';
+let templates=[];
+function loadTemplates(){ try{ const s=localStorage.getItem(TPL_KEY); templates=s?JSON.parse(s):CAM.defaultTemplates(); }catch(e){ templates=CAM.defaultTemplates(); }
+  if(!Array.isArray(templates)||!templates.length) templates=CAM.defaultTemplates(); }
+function persistTemplates(){ try{ localStorage.setItem(TPL_KEY, JSON.stringify(templates)); }catch(e){} }
+function buildTemplateLib(selId){ const el=document.getElementById('camTplLib'); if(!el)return; el.innerHTML='<option value="">— templates —</option>';
+  for(const t of templates){ const o=document.createElement('option'); o.value=t.id; o.textContent=t.name; el.appendChild(o); } el.value=selId||''; }
+function applyTemplateSel(id){ if(!id)return; const t=templates.find(x=>x.id===id); if(!t)return;
+  const merged=CAM.applyTemplate(t, camParams());   // layer the recipe over current panel values
+  applyParamsToPanel(merged); setMsg('Applied template: '+t.name+' — adjust + Generate, or "+ Toolpath"'); render(); }
+function saveTemplate(){ const name=prompt('Save toolpath template as:', autoOpName(camParams())+' template'); if(!name)return;
+  const t=CAM.templateFromParams(name, camParams()); templates=CAM.upsertTemplate(templates,t); persistTemplates(); buildTemplateLib(t.id); setMsg('Saved template: '+name); }
+function delTemplate(){ const el=document.getElementById('camTplLib'); if(!el||!el.value)return; const t=templates.find(x=>x.id===el.value);
+  if(t&&!confirm('Delete template "'+t.name+'"?'))return; templates=CAM.removeTemplate(templates,el.value); if(!templates.length)templates=CAM.defaultTemplates(); persistTemplates(); buildTemplateLib(); setMsg('Deleted template'); }
+
 // ---- job / material ----
 function jobRect(){ const {w,h,origin}=job; let x0=0,y0=0;
   if(origin==='br'){x0=-w;} else if(origin==='tl'){y0=-h;} else if(origin==='tr'){x0=-w;y0=-h;} else if(origin==='center'){x0=-w/2;y0=-h/2;}
@@ -11565,6 +11601,10 @@ function wire(){
   loadTools(); buildToolLib();
   const tl=document.getElementById('camToolLib'); if(tl)tl.onchange=()=>applyTool(tl.value);
   on('btnToolSave',saveTool); on('btnToolDel',delTool);
+  // toolpath templates
+  loadTemplates(); buildTemplateLib();
+  const tpl=document.getElementById('camTplLib'); if(tpl)tpl.onchange=()=>applyTemplateSel(tpl.value);
+  on('btnTplSave',saveTemplate); on('btnTplDel',delTemplate);
   // shape properties modal
   on('modalApply',applyShapeModal); on('modalCancel',closeShapeModal); on('modalX',closeShapeModal);
   const mb=document.getElementById('shapeModal');

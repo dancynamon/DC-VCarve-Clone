@@ -491,5 +491,35 @@ console.log('\n(post-pp assertions added)');
   ok('inlay: posts to g-code', /G90/.test(g) && /G1 /.test(g), g.slice(0,40));
 })();
 
+// ---- toolpath templates (named full-op recipes) ----
+(function(){
+  const defs = CAM.defaultTemplates();
+  ok('tpl: defaults exist', defs.length>=3 && defs.every(t=>t.id && t.name && t.params && t.params.op), JSON.stringify(defs.map(t=>t.id)));
+  // build a template from panel-style params
+  const t = CAM.templateFromParams('My Cutout', {op:'profile',side:'inside',toolDia:0.375,cutDepth:0.75});
+  ok('tpl: fromParams slug + name', t.id==='my-cutout' && t.name==='My Cutout', JSON.stringify(t));
+  ok('tpl: fromParams deep-copies params', t.params.op==='profile' && t.params.toolDia===0.375);
+  // upsert replaces by id, remove drops it
+  let list = CAM.upsertTemplate(defs.slice(), t);
+  ok('tpl: upsert appends', list.length===defs.length+1 && list.some(x=>x.id==='my-cutout'));
+  const t2 = CAM.templateFromParams('My Cutout', {op:'pocket',toolDia:0.25});
+  list = CAM.upsertTemplate(list, t2);
+  ok('tpl: upsert replaces same id', list.filter(x=>x.id==='my-cutout').length===1 && list.find(x=>x.id==='my-cutout').params.op==='pocket');
+  list = CAM.removeTemplate(list, 'my-cutout');
+  ok('tpl: remove drops it', !list.some(x=>x.id==='my-cutout'));
+  // applyTemplate layers recipe over base (template wins, base fields survive, base untouched)
+  const base = {op:'profile', toolNum:7, toolDia:0.25, feed:100, rpm:16000};
+  const merged = CAM.applyTemplate({params:{op:'pocket', feed:90, stepover:0.4}}, base);
+  ok('tpl: apply overrides matching keys', merged.op==='pocket' && merged.feed===90 && merged.stepover===0.4);
+  ok('tpl: apply keeps base-only keys', merged.toolNum===7 && merged.toolDia===0.25 && merged.rpm===16000, JSON.stringify(merged));
+  ok('tpl: apply does not mutate base', base.op==='profile' && base.feed===100);
+  ok('tpl: apply returns a new object', merged!==base);
+  // a default template applied to real contours produces cuttable passes
+  const rectT = CAM.assembleContours([{closed:true, pts:[{x:0,y:0},{x:6,y:0},{x:6,y:4},{x:0,y:4}]}]);
+  const recipe = CAM.applyTemplate(defs.find(d=>d.id==='pocket-eighth'), {toolNum:2, safeZ:0.25, topZ:0});
+  const rp = CAM.pocketOp(rectT, recipe);
+  ok('tpl: default recipe yields passes', rp.ops[0].passes.length>0, rp.ops[0].passes.length);
+})();
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);
