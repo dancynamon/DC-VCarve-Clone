@@ -27,6 +27,15 @@ function fmtTime(s){ s=Math.round(s||0); if(s<=0)return '—'; if(s<60)return s+
 let ttFont = null;        // loaded opentype.js font (for TTF outline text)
 let textOutline = false;  // text tool mode: true=TTF outline contours, false=single-stroke
 
+// ---- UI size (magnify the chrome for readability) ----
+const UI_KEY='aq_ui_scale', UI_STEPS=[1,1.15,1.3,1.5,1.75,2];
+let uiScale=1, spaceDown=false;
+function applyUiScale(){ document.documentElement.style.setProperty('--uis', String(uiScale));
+  const l=document.getElementById('uiScaleLbl'); if(l)l.textContent=Math.round(uiScale*100)+'%';
+  try{ localStorage.setItem(UI_KEY, String(uiScale)); }catch(e){} resize(); }
+function loadUiScale(){ try{ const v=parseFloat(localStorage.getItem(UI_KEY)); if(v>=1&&v<=2) uiScale=v; }catch(e){} }
+function bumpUi(dir){ let i=UI_STEPS.indexOf(uiScale); if(i<0)i=0; i=Math.max(0,Math.min(UI_STEPS.length-1,i+dir)); uiScale=UI_STEPS[i]; applyUiScale(); setMsg('UI size '+Math.round(uiScale*100)+'%'); }
+
 // ---- transforms ----
 function W2S(p){ return { x: view.ox + p.x*view.ppi, y: view.oy - p.y*view.ppi }; }
 function S2W(p){ return { x: (p.x - view.ox)/view.ppi, y: (view.oy - p.y)/view.ppi }; }
@@ -241,7 +250,7 @@ function evScr(e){ const r=cv.getBoundingClientRect(); return { x:e.clientX-r.le
 cv.addEventListener('mousedown', e=>{
   if(e.button===2) return;   // right-click handled by contextmenu
   const scr=evScr(e); const snap=snapWorld(scr); const w={x:snap.x,y:snap.y};
-  if(e.button===1 || tool==='pan' || e.altKey){ drag={kind:'pan', sx:scr.x, sy:scr.y, ox:view.ox, oy:view.oy}; return; }
+  if(e.button===1 || tool==='pan' || e.altKey || spaceDown){ drag={kind:'pan', sx:scr.x, sy:scr.y, ox:view.ox, oy:view.oy}; return; }
   if(viewMode==='preview') return;   // Preview is read-only (pan/zoom only)
   if(tool==='select'){ return selectDown(scr,w,e); }
   if(tool==='node'){ return nodeDown(scr,w,e); }
@@ -312,6 +321,19 @@ cv.addEventListener('wheel', e=>{ e.preventDefault(); const scr=evScr(e); const 
   const after=S2W(scr); view.ox += (after.x-before.x)*0 + (scr.x-(view.ox+before.x*view.ppi)); // recompute properly below
   // recompute offset so 'before' world stays under cursor
   view.ox = scr.x - before.x*view.ppi; view.oy = scr.y + before.y*view.ppi; render(); }, {passive:false});
+
+// ---- touch: two-finger pinch-zoom + pan (one finger falls through to the active tool) ----
+let touchState=null;
+function twoFingerState(e){ const r=cv.getBoundingClientRect();
+  const a={x:e.touches[0].clientX-r.left, y:e.touches[0].clientY-r.top}, b={x:e.touches[1].clientX-r.left, y:e.touches[1].clientY-r.top};
+  return { dist:Math.hypot(a.x-b.x,a.y-b.y)||1, mid:{x:(a.x+b.x)/2, y:(a.y+b.y)/2} }; }
+cv.addEventListener('touchstart', e=>{ if(e.touches.length===2){ e.preventDefault(); drag=null; draft=null; dimDraft=null; touchState=twoFingerState(e); } }, {passive:false});
+cv.addEventListener('touchmove', e=>{ if(e.touches.length===2 && touchState){ e.preventDefault();
+  const s=twoFingerState(e); const f=s.dist/touchState.dist; const before=S2W(touchState.mid);   // world point under the old midpoint (old ppi)
+  view.ppi=Math.max(2,Math.min(800, view.ppi*f));
+  view.ox=s.mid.x-before.x*view.ppi; view.oy=s.mid.y+before.y*view.ppi;                          // anchor it under the new midpoint -> combined zoom + pan
+  touchState=s; render(); } }, {passive:false});
+cv.addEventListener('touchend', e=>{ if(e.touches.length<2) touchState=null; });
 
 // ---- select tool helpers ----
 function shapeInside(s,w){ for(const loop of CADCORE.flatten(s)){ if(loop.pts.length>=3 && CADCORE.pointInPoly(w,loop.pts)) return true; } return false; }
@@ -1128,8 +1150,12 @@ function buildProps(){ const el=document.getElementById('props'); if(!el)return;
   const eb=document.getElementById('btnEditShape'); if(eb)eb.onclick=()=>openShapeModal(s); }
 
 // ---- keyboard ----
+window.addEventListener('keyup', e=>{ if(e.code==='Space'){ spaceDown=false; if(!drag) document.body.style.cursor=''; } });
 window.addEventListener('keydown', e=>{
   if(/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))return;
+  if(e.code==='Space'){ if(!spaceDown){ spaceDown=true; document.body.style.cursor='grab'; } e.preventDefault(); return; }   // hold Space to pan
+  if((e.ctrlKey||e.metaKey)&&(e.key==='+'||e.key==='=')){ e.preventDefault(); bumpUi(1); return; }
+  if((e.ctrlKey||e.metaKey)&&(e.key==='-'||e.key==='_')){ e.preventDefault(); bumpUi(-1); return; }
   if((e.ctrlKey||e.metaKey)&&e.key==='z'){ e.preventDefault(); undo(); return; }
   if((e.ctrlKey||e.metaKey)&&(e.key==='y'||(e.shiftKey&&e.key==='z'))){ e.preventDefault(); redo(); return; }
   if(e.key==='Delete'||e.key==='Backspace'){ e.preventDefault(); deleteSelected(); return; }
@@ -1177,6 +1203,12 @@ function wire(){
   if(simRes)simRes.onchange=()=>{ if(viewMode==='preview'&&simSolid&&simSolid.checked) runSim(); };
   initCollapsibles();
   const on=(id,fn)=>{const el=document.getElementById(id); if(el)el.onclick=fn;};
+  // UI size (magnify chrome) + on-canvas gesture guide
+  loadUiScale(); applyUiScale();
+  on('btnUiUp',()=>bumpUi(1)); on('btnUiDown',()=>bumpUi(-1));
+  const gh=document.getElementById('gestureHint'), ghx=document.getElementById('gestureHintX');
+  try{ if(gh && localStorage.getItem('aq_hint_dismissed')==='1') gh.classList.add('hidden'); }catch(e){}
+  if(ghx) ghx.onclick=()=>{ if(gh)gh.classList.add('hidden'); try{localStorage.setItem('aq_hint_dismissed','1');}catch(e){} };
   on('btnUndo',undo); on('btnRedo',redo); on('btnFit',fitAll); on('btnDelete',deleteSelected);
   on('btnSelfTest',runSelfTest);
   on('btnKeys',()=>{ document.getElementById('keysModal').style.display='block'; });

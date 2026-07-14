@@ -14,6 +14,7 @@ open cadcam-studio.html
 - **CAD editor:** job/material setup, draw line/polyline/rect/rounded-rect/circle/ellipse/arc/polygon/star/text,
   select/move/scale/rotate, node edit, offset, weld/subtract/intersect, mirror, array, align, snapping, measure,
   dimension annotations (linear/radial/angular), clipart shape library, tooltips, layers, undo/redo.
+- **Readability:** an **A− / A+ UI-size** control (top bar, Ctrl/Cmd +/−) magnifies the panels & text 100–200% without touching the canvas; an on-canvas guide shows the pan/zoom gestures (scroll or pinch = zoom · Alt-drag / Space-drag / two-finger = pan).
 - **Import/Export:** DXF + SVG + vector PDF (editable) in; **bitmap trace** (PNG/JPG → cuttable vectors); DXF/SVG out.
 - **CAM:** Profile (outside/inside/on, climb/conv, multipass, tabs), Pocket, Drill, V-Carve, **Inlay** (female cavity + undersized male plug) → G2/G3 arcs → ShopSabre post → backplot → Export .tap.
 
