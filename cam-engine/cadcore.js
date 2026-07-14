@@ -841,6 +841,95 @@ function traceBitmap(gray, w, h, opts) {
   return shapes;
 }
 
+// ---------- clipart / shape library (parametric closed contours) ----------
+// Each generator returns closed CAD contour(s) sized to fit a `size`×`size` box centered near the origin,
+// then placed by the caller. Pure + deterministic — the UI lays them out in a gallery and drops them in.
+function _poly(pts, layer) { return mkPoly(pts, true, layer); }
+function _heart(size, layer) {
+  const n = 60, pts = [], s = size / 2;
+  for (let i = 0; i < n; i++) { const t = Math.PI - (i / n) * TAU;   // param from Weierstrass heart
+    const x = 16 * Math.pow(Math.sin(t), 3);
+    const y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+    pts.push({ x: x / 16 * s, y: y / 16 * s }); }
+  return [_poly(pts, layer)];
+}
+function _gear(size, teeth, layer) {
+  teeth = Math.max(4, Math.round(teeth || 12)); const rO = size / 2, rI = rO * 0.78, rHub = rO * 0.35;
+  const pts = [], steps = teeth * 4;
+  for (let i = 0; i < steps; i++) { const a = i / steps * TAU; const phase = (i % 4); const r = (phase === 0 || phase === 1) ? rO : rI;
+    pts.push({ x: r * Math.cos(a), y: r * Math.sin(a) }); }
+  const outer = _poly(pts, layer);
+  const hub = mkCircle({ x: 0, y: 0 }, rHub, layer);
+  return [outer, hub];
+}
+function _arrow(size, layer) {
+  const s = size / 2, t = s * 0.42;   // shaft half-thickness
+  const pts = [ { x: -s, y: t }, { x: 0.15 * s, y: t }, { x: 0.15 * s, y: s }, { x: s, y: 0 }, { x: 0.15 * s, y: -s }, { x: 0.15 * s, y: -t }, { x: -s, y: -t } ];
+  return [_poly(pts, layer)];
+}
+function _cross(size, layer) {
+  const s = size / 2, a = s * 0.36;   // arm half-width
+  const pts = [ {x:-a,y:s},{x:a,y:s},{x:a,y:a},{x:s,y:a},{x:s,y:-a},{x:a,y:-a},{x:a,y:-s},{x:-a,y:-s},{x:-a,y:-a},{x:-s,y:-a},{x:-s,y:a},{x:-a,y:a} ];
+  return [_poly(pts, layer)];
+}
+function _frame(size, layer) {   // a rounded rectangle plaque with an inset border (2 contours)
+  const s = size / 2, r = size * 0.14, inset = size * 0.1;
+  const outer = mkRoundRect(-s, -s, size, size, r, layer);
+  const inner = mkRoundRect(-s + inset, -s + inset, size - 2 * inset, size - 2 * inset, Math.max(0, r - inset), layer);
+  return [outer, inner];
+}
+function _shield(size, layer) {
+  const s = size / 2, pts = [ { x: -s, y: s }, { x: s, y: s }, { x: s, y: -s * 0.15 } ];
+  const n = 24; for (let i = 1; i <= n; i++) { const t = i / n; const x = s * (1 - t), y = -s * 0.15 - (s * 0.85) * Math.sin(t * Math.PI / 2); pts.push({ x: x, y: y }); }
+  for (let i = n - 1; i >= 0; i--) { const t = i / n; const x = -s * (1 - t), y = -s * 0.15 - (s * 0.85) * Math.sin(t * Math.PI / 2); pts.push({ x: x, y: y }); }
+  return [_poly(pts, layer)];
+}
+function _teardrop(size, layer) {
+  const s = size / 2, pts = [], n = 48;
+  for (let i = 0; i <= n; i++) { const t = i / n * TAU; const r = s * (1 - Math.sin(t)) ; pts.push({ x: r * Math.cos(t) * 0.7, y: r * Math.sin(t) + s * 0.1 }); }
+  return [_poly(pts, layer)];
+}
+function _speechBubble(size, layer) {
+  const s = size / 2, r = size * 0.2, body = mkRoundRect(-s, -s * 0.55, size, size * 1.1, r, layer);
+  // add a little tail by welding a triangle (kept as a 2nd contour for simple placement)
+  const tail = _poly([ { x: -s * 0.2, y: -s * 0.5 }, { x: -s * 0.5, y: -s }, { x: s * 0.15, y: -s * 0.5 } ], layer);
+  return [booleanOp([body], [tail], 'union')[0] || body];
+}
+function _lightning(size, layer) {
+  const s = size / 2;
+  const pts = [ {x:0.1*s,y:s},{x:-0.5*s,y:0.05*s},{x:-0.05*s,y:0.05*s},{x:-0.2*s,y:-s},{x:0.5*s,y:-0.02*s},{x:0.02*s,y:-0.02*s} ];
+  return [_poly(pts, layer)];
+}
+function _starN(size, points, layer) {
+  points = Math.max(3, Math.round(points || 5));
+  return [mkStar({ x: 0, y: 0 }, size / 2, size / 2 * 0.45, points, -Math.PI / 2, layer)];
+}
+// Catalog: id → { name, make(size, layer), param? }.  `param` = an optional integer knob (teeth / points).
+const CLIPART = [
+  { id: 'heart',    name: 'Heart',        make: (s, l) => _heart(s, l) },
+  { id: 'star5',    name: 'Star (5)',     make: (s, l, p) => _starN(s, p || 5, l), param: { label: 'Points', def: 5, min: 3, max: 20 } },
+  { id: 'gear',     name: 'Gear',         make: (s, l, p) => _gear(s, p || 12, l), param: { label: 'Teeth', def: 12, min: 6, max: 40 } },
+  { id: 'arrow',    name: 'Arrow',        make: (s, l) => _arrow(s, l) },
+  { id: 'cross',    name: 'Cross',        make: (s, l) => _cross(s, l) },
+  { id: 'shield',   name: 'Shield',       make: (s, l) => _shield(s, l) },
+  { id: 'frame',    name: 'Frame',        make: (s, l) => _frame(s, l) },
+  { id: 'teardrop', name: 'Teardrop',     make: (s, l) => _teardrop(s, l) },
+  { id: 'bubble',   name: 'Speech bubble',make: (s, l) => _speechBubble(s, l) },
+  { id: 'bolt',     name: 'Lightning',    make: (s, l) => _lightning(s, l) }
+];
+function clipartList() { return CLIPART.map(c => ({ id: c.id, name: c.name, param: c.param || null })); }
+// Build a clipart item: returns closed contour shapes centered at (0,0), fitting a `size`×`size` box.
+// cx/cy (optional) translate the result; param overrides the integer knob (teeth/points).
+function makeClipart(id, opts) {
+  opts = opts || {};
+  const item = CLIPART.find(c => c.id === id); if (!item) return [];
+  const size = opts.size || 2, layer = opts.layer || '0';
+  let shapes = item.make(size, layer, opts.param);
+  if (opts.cx || opts.cy) shapes = shapes.map(s => translate(s, opts.cx || 0, opts.cy || 0));
+  for (const s of shapes) s.layer = layer;
+  return shapes;
+}
+
 // ---------- doc utils ----------
 function clone(o) { return JSON.parse(JSON.stringify(o)); }
 function shapesToContoursInput(shapes) {
@@ -908,6 +997,7 @@ return {
   textShapes, outlineTextShapes, FONT, clone, shapesToContoursInput,
   mkDim, dimMeasure, dimLabel, dimGeometry, dimShapes,
   traceBitmap,
+  clipartList, makeClipart,
   primParams, applyPrimParams, fitShapeTo, fitPrimTo,
   projectToJSON, projectFromJSON, PROJECT_VERSION,
   validateShapes

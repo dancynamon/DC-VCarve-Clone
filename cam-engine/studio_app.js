@@ -1087,6 +1087,27 @@ function drawMeasure(a,b,persist){ ctx.save(); ctx.strokeStyle=persist?'#7fd0ff'
   ctx.restore();
 }
 
+// ---- clipart / shape library ----
+function clipartThumbSVG(id, px){
+  const shapes=CADCORE.makeClipart(id,{size:100}); if(!shapes.length)return '';
+  const b=CADCORE.bboxAll(shapes); const w=(b.maxX-b.minX)||1, h=(b.maxY-b.minY)||1, s=(px-8)/Math.max(w,h);
+  const paths=shapes.map(sh=>{ const d=sh.pts.map((p,i)=>{ const x=(p.x-b.minX)*s+4, y=px-((p.y-b.minY)*s+4); return (i?'L':'M')+x.toFixed(1)+','+y.toFixed(1); }).join(' ')+' Z';
+    return '<path d="'+d+'" fill="none" stroke="#2a3442" stroke-width="1.5"/>'; }).join('');
+  return '<svg width="'+px+'" height="'+px+'" viewBox="0 0 '+px+' '+px+'">'+paths+'</svg>';
+}
+function buildClipart(){ const grid=document.getElementById('clipartGrid'); if(!grid)return; grid.innerHTML='';
+  for(const c of CADCORE.clipartList()){ const b=document.createElement('button'); b.className='clipbtn'; b.title=c.name+(c.param?(' · '+c.param.label+' from Detail'):''); b.setAttribute('data-tip',c.name);
+    b.innerHTML=clipartThumbSVG(c.id,42); b.onclick=()=>placeClipart(c.id); grid.appendChild(b); } }
+function placeClipart(id){ const g=k=>document.getElementById(k);
+  const size=Math.abs(parseFloat(g('clipSize').value)||2)||2;
+  const param=parseInt((g('clipDetail')||{}).value,10)||undefined;
+  const r=jobRect(); const cx=(r.x0+r.x1)/2, cy=(r.y0+r.y1)/2;
+  const shapes=CADCORE.makeClipart(id,{size,layer:activeLayer,param,cx,cy});
+  if(!shapes.length){ setMsg('Could not build clipart: '+id); return; }
+  pushHistory(); addShapes(shapes); sel=new Set(shapes.map(s=>s.id)); render(); syncPanels();
+  const name=(CADCORE.clipartList().find(c=>c.id===id)||{}).name||id;
+  setMsg('Placed clipart: '+name+' ('+shapes.length+' contour'+(shapes.length!==1?'s':'')+')'); }
+
 // ---- panels ----
 function syncPanels(){ buildLayers(); buildProps(); }
 function buildLayers(){ const el=document.getElementById('layerList'); if(!el)return; el.innerHTML='';
@@ -1168,6 +1189,7 @@ function wire(){
   on('btnOffset',opOffset); on('btnUnion',()=>opBool('union')); on('btnDiff',()=>opBool('diff')); on('btnInt',()=>opBool('intersect'));
   on('btnMirrorH',()=>opMirror('x')); on('btnMirrorV',()=>opMirror('y')); on('btnDup',opDuplicate); on('btnArray',opArray); on('btnRot90',opRotate90); on('btnJoin',opJoin);
   on('btnCheckVec',opCheckVectors);
+  buildClipart();
   on('restoreYes',()=>dismissRestore(true)); on('restoreNo',()=>dismissRestore(false));
   on('btnAlignL',()=>opAlign('left')); on('btnAlignR',()=>opAlign('right')); on('btnAlignT',()=>opAlign('top')); on('btnAlignB',()=>opAlign('bottom')); on('btnAlignHC',()=>opAlign('hcenter')); on('btnAlignVC',()=>opAlign('vcenter'));
   on('btnSaveProj',saveProject); on('btnExpDXF',exportDXF); on('btnExpSVG',exportSVG);

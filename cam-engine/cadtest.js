@@ -351,6 +351,38 @@ ok('placeShape spreads sheets',close(bb(psp).minX,1+2*(24+6)),bb(psp).minX);
   ok('trace: produced shapes are cuttable polys',t1[0].type==='path'&&t1[0].pts.length>=3);
 }
 
+// ---------- clipart / shape library ----------
+{
+  const list=C.clipartList();
+  ok('clipart: catalog has entries',list.length>=8&&list.every(c=>c.id&&c.name),list.length);
+  ok('clipart: some items expose a param knob',list.some(c=>c.param&&c.param.def),JSON.stringify(list.filter(c=>c.param).map(c=>c.id)));
+  // heart: one closed contour fitting ~size box, centered near origin
+  const heart=C.makeClipart('heart',{size:2});
+  ok('clipart: heart is closed shape(s)',heart.length>=1&&heart.every(s=>s.closed&&s.type==='path'),heart.length);
+  const hb=C.bboxAll(heart);
+  ok('clipart: heart fits ~2" box',(hb.maxX-hb.minX)<=2.2&&(hb.maxY-hb.minY)<=2.4&&(hb.maxX-hb.minX)>1,JSON.stringify(hb));
+  ok('clipart: heart centered near origin',close((hb.minX+hb.maxX)/2,0,0.3),JSON.stringify(hb));
+  // gear teeth param changes the vertex count
+  const g12=C.makeClipart('gear',{size:2,param:12}), g20=C.makeClipart('gear',{size:2,param:20});
+  ok('clipart: gear has outer + hub',g12.length===2,g12.length);
+  ok('clipart: more teeth -> more outer vertices',g20[0].pts.length>g12[0].pts.length,g20[0].pts.length+' vs '+g12[0].pts.length);
+  // star points param
+  const s7=C.makeClipart('star5',{size:2,param:7});
+  ok('clipart: star honors points param',s7[0].prim&&s7[0].prim.kind==='star'&&s7[0].prim.n===7,JSON.stringify(s7[0].prim&&s7[0].prim.n));
+  // cx/cy places the item
+  const placed=C.makeClipart('cross',{size:2,cx:10,cy:5});
+  const pb=C.bboxAll(placed);
+  ok('clipart: cx/cy translates',close((pb.minX+pb.maxX)/2,10,0.01)&&close((pb.minY+pb.maxY)/2,5,0.01),JSON.stringify(pb));
+  // every catalog item builds valid closed geometry
+  let allGood=true; for(const c of list){ const sh=C.makeClipart(c.id,{size:3}); if(!sh.length||!sh.every(s=>s.closed&&s.pts&&s.pts.length>=3)){ allGood=false; break; } }
+  ok('clipart: every item builds closed geometry',allGood);
+  // unknown id -> []
+  ok('clipart: unknown id yields []',C.makeClipart('nope',{size:2}).length===0);
+  // size scales the item
+  const big=C.makeClipart('heart',{size:6}); const bb2=C.bboxAll(big);
+  ok('clipart: size scales the shape',(bb2.maxX-bb2.minX)>2.5,JSON.stringify(bb2));
+}
+
 // shapesToContoursInput for CAM
 let inp=C.shapesToContoursInput([r,ci]); ok('contours input closed',inp.every(c=>c.closed));
 

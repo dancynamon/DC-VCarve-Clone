@@ -114,6 +114,9 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .ctxmenu .sep{height:1px;background:var(--bd-soft);margin:4px 2px}
 .ctxmenu .ttl{padding:3px 10px 5px;color:var(--accent);font-size:9.5px;letter-spacing:.6px;text-transform:uppercase}
 .cam-hint{font-size:10px;color:var(--ink-dim);width:100%;margin-top:4px}
+.clipbtn{width:46px;height:46px;background:var(--bg-input);border:1px solid var(--btn-bd);border-radius:5px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.clipbtn:hover{border-color:var(--accent-bd);background:var(--accent-soft)}
+.clipbtn svg{display:block}
 .jobq{width:100%;margin-top:7px;border-top:1px solid var(--bd-soft);padding-top:6px}
 .jobq-h{font-size:9px;letter-spacing:1px;color:var(--accent);text-transform:uppercase;margin-bottom:4px}
 .jobq-btns{display:flex;gap:5px;margin-bottom:5px}
@@ -247,6 +250,12 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
     <div class="sectn"><h3>Align</h3><div class="body">
       <button class="tb" id="btnAlignL" data-tip="Align left">Left</button><button class="tb" id="btnAlignHC" data-tip="Align horizontal center">H-Ctr</button><button class="tb" id="btnAlignR" data-tip="Align right">Right</button>
       <button class="tb" id="btnAlignT" data-tip="Align top">Top</button><button class="tb" id="btnAlignVC" data-tip="Align vertical center">V-Ctr</button><button class="tb" id="btnAlignB" data-tip="Align bottom">Bottom</button>
+    </div></div>
+    <div class="sectn"><h3>Clipart</h3><div class="body">
+      <label data-tip="Size of the placed shape (fits a size×size box)">Size"<input type="number" id="clipSize" value="2" step="0.25" min="0.25" style="width:52px"></label>
+      <label data-tip="Detail knob — gear teeth / star points (for shapes that use it)">Detail<input type="number" id="clipDetail" value="12" min="3" max="40" style="width:46px"></label>
+      <div id="clipartGrid" style="display:flex;flex-wrap:wrap;gap:5px;width:100%;margin-top:4px"></div>
+      <div class="cam-hint">Click a shape to drop it at the material center — then move / scale / edit like any vector.</div>
     </div></div>
     <div class="sectn"><h3>Properties</h3><div class="body" id="props"><div class="muted">No selection</div></div></div>
     <div class="sectn"><h3>Layers</h3><div class="body" id="layerList"></div></div>
