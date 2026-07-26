@@ -5,7 +5,7 @@ Single self-contained HTML — no install, offline, posts G-code for ShopSabre (
 
 ## Quick start
 ```
-npm test      # 372 checks: CAM 140 · arc-fit 9 · CAD 132 · smoke 8 · import 25 · PDF 30 · parity 28
+npm test      # 380 checks: CAM 140 · arc-fit 9 · CAD 132 · smoke 8 · import 25 · PDF 30 · parity 36
 npm run parity # G-code parity vs real VCarve output (see below)
 npm run build # regenerates cadcam-studio.html from cam-engine/ sources
 open cadcam-studio.html

@@ -287,6 +287,21 @@ function parseDxf(text) {
 }
 
 // --- DXF geometry helpers ---
+// Chord error (sagitta) grows with radius, so choosing a step count from the included
+// angle alone chords large arcs coarsely: a 90 deg arc always got 8 segments whether it
+// spanned 0.1" or 30". At r=2.875 that left the polyline 0.014" inside the true arc --
+// visible in cut parts and far outside any sane parity tolerance. Pick the step count so
+// the sagitta stays under ARC_SAG regardless of arc size.
+const ARC_SAG = 0.001;
+function arcStepCount(angle, r, sag) {
+  if (!(r > 0) || !(angle > 0)) return 8;
+  sag = sag || ARC_SAG;
+  if (sag >= r) return 8;
+  const maxStep = 2 * Math.acos(1 - sag / r);      // the step angle whose sagitta == sag
+  if (!(maxStep > 1e-12)) return 512;
+  return Math.max(8, Math.min(512, Math.ceil(angle / maxStep)));
+}
+
 function bulgeArcPts(p1, p2, bulge, steps) {
   if (Math.abs(bulge) < 1e-9) return [p1, p2];
   const dx = p2.x - p1.x, dy = p2.y - p1.y;
@@ -303,7 +318,7 @@ function bulgeArcPts(p1, p2, bulge, steps) {
   let ea = Math.atan2(p2.y - cy, p2.x - cx);
   if (bulge > 0) { if (ea < sa) ea += 2 * Math.PI; }
   else { if (ea > sa) ea -= 2 * Math.PI; }
-  steps = steps || Math.max(8, Math.min(64, Math.ceil(a / (Math.PI / 16))));
+  steps = steps || arcStepCount(a, r);
   const pts = [];
   for (let i = 0; i <= steps; i++) {
     const t = i / steps;
@@ -317,7 +332,7 @@ function arcPts(cx, cy, r, sDeg, eDeg, steps) {
   let sa = sDeg * Math.PI / 180, ea = eDeg * Math.PI / 180;
   if (ea < sa) ea += 2 * Math.PI;
   const span = ea - sa;
-  steps = steps || Math.max(12, Math.ceil(span / (Math.PI / 32)));
+  steps = steps || arcStepCount(span, r);
   const pts = [];
   for (let i = 0; i <= steps; i++) {
     const a = sa + span * (i / steps);

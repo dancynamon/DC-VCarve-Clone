@@ -14,6 +14,35 @@ function isCCW(pts){return signedArea(pts)>0;}
 function reversed(pts){return pts.slice().reverse();}
 function ensureCCW(pts){return isCCW(pts)?pts.slice():reversed(pts);}
 function ensureCW(pts){return isCCW(pts)?reversed(pts):pts.slice();}
+// Clipper's offset output begins at an arbitrary vertex, so without this the entry
+// point - and with it the plunge, the lead-in and the tab phase - lands somewhere
+// unrelated to the vector the operator actually drew. Rotate a closed loop to start
+// at the point nearest `ref`, which is what Vectric does and what the operator expects.
+// Snapping to the nearest existing vertex cannot land on the true entry point: the
+// offset loop is a chorded approximation, so its vertices straddle it. Project onto the
+// nearest SEGMENT and insert that point, so we enter where Vectric does rather than up
+// to half a chord away.
+function rotateLoopTo(loop, ref){
+  if(!loop || loop.length<2 || !ref) return loop;
+  const n=loop.length;
+  let bi=0, bt=0, bd=Infinity;
+  for(let i=0;i<n;i++){
+    const a=loop[i], b=loop[(i+1)%n];
+    const dx=b.x-a.x, dy=b.y-a.y, L2=dx*dx+dy*dy;
+    let t = L2>1e-18 ? ((ref.x-a.x)*dx+(ref.y-a.y)*dy)/L2 : 0;
+    t = t<0?0:(t>1?1:t);
+    const px=a.x+dx*t-ref.x, py=a.y+dy*t-ref.y, d=px*px+py*py;
+    if(d<bd){ bd=d; bi=i; bt=t; }
+  }
+  const a=loop[bi], b=loop[(bi+1)%n];
+  const P={x:a.x+(b.x-a.x)*bt, y:a.y+(b.y-a.y)*bt};
+  const out=[P];
+  for(let k=1;k<=n;k++){                      // loop[bi+1] .. loop[bi], wrapping
+    const p=loop[(bi+k)%n];
+    if(Math.hypot(p.x-P.x,p.y-P.y)>1e-9) out.push(p);
+  }
+  return out;
+}
 function boundsOf(loops){let b={minX:Infinity,minY:Infinity,maxX:-Infinity,maxY:-Infinity};for(const lp of loops)for(const p of (lp.pts||lp)){if(p.x<b.minX)b.minX=p.x;if(p.y<b.minY)b.minY=p.y;if(p.x>b.maxX)b.maxX=p.x;if(p.y>b.maxY)b.maxY=p.y;}return b;}
 
 function assembleContours(polys, tol){
@@ -57,7 +86,7 @@ function assembleContours(polys, tol){
 }
 
 function offsetLoop(loop, delta, joinType){
-  const co=new ClipperLib.ClipperOffset(2, 0.003*SCALE);
+  const co=new ClipperLib.ClipperOffset(2, 0.0005*SCALE);
   const path=loop.map(p=>new ClipperLib.IntPoint(Math.round(p.x*SCALE),Math.round(p.y*SCALE)));
   const jt = joinType==='miter'?ClipperLib.JoinType.jtMiter : joinType==='square'?ClipperLib.JoinType.jtSquare : ClipperLib.JoinType.jtRound;
   co.AddPath(path, jt, ClipperLib.EndType.etClosedPolygon);
@@ -92,34 +121,62 @@ function withTabs(loop, count, tabLen){
 // ---- lead-in / lead-out (tangential arc or line) for closed cut loops ----
 function _unit(v){ const m=Math.hypot(v.x,v.y)||1; return {x:v.x/m,y:v.y/m}; }
 function _rot(v,a){ const c=Math.cos(a),s=Math.sin(a); return {x:v.x*c-v.y*s, y:v.x*s+v.y*c}; }
+// Walk forward along a closed loop from index 0 by `dist`, returning the points crossed
+// (excluding the start) and the travel direction where it stops. Used for the lead-out
+// overcut: Vectric carries on past the contour start before departing, so the entry mark
+// is machined away by the finish of the same pass.
+function walkLoop(loop, dist){
+  const n=loop.length, pts=[]; let acc=0;
+  for(let k=0;k<n;k++){
+    const a=loop[k%n], b=loop[(k+1)%n];
+    const L=Math.hypot(b.x-a.x,b.y-a.y);
+    if(L<1e-12) continue;
+    if(acc+L>=dist-1e-12){
+      const t=(dist-acc)/L;
+      pts.push({x:a.x+(b.x-a.x)*t, y:a.y+(b.y-a.y)*t});
+      return {pts, dir:_unit({x:b.x-a.x,y:b.y-a.y})};
+    }
+    acc+=L; pts.push({x:b.x,y:b.y});
+  }
+  const a=loop[0], b=loop[1%n];
+  return {pts, dir:_unit({x:b.x-a.x,y:b.y-a.y})};
+}
 // loop: ordered closed-loop points (no repeated closing pt). sideSign +1=left of travel, -1=right.
-// returns {pre:[pts before loop start], post:[pts after loop close]} or null if it won't fit / type none.
-function leadFor(loop, type, len, sideSign){
+// angleDeg tilts a LINE lead off the tangent (Vectric's linear leads come in at 15 deg, not
+// collinear); overcut carries the cut past the start before the lead-out departs.
+// returns {pre:[pts before loop start], over:[pts past the close], post:[pts after]} or null.
+function leadFor(loop, type, len, sideSign, angleDeg, overcut){
   if(type==='none' || !(len>0) || !loop || loop.length<3) return null;
   const bb=boundsOf([loop]); if(Math.min(bb.maxX-bb.minX, bb.maxY-bb.minY) < 2*len) return null;  // too small
   const P0=loop[0], P1=loop[1], Pn=loop[loop.length-1];
   const dirIn=_unit({x:P1.x-P0.x,y:P1.y-P0.y});      // cut direction leaving the start
   const dirOut=_unit({x:P0.x-Pn.x,y:P0.y-Pn.y});     // cut direction arriving back at the start
   const pre=[], post=[], N=10, Q=Math.PI/2;
+  // carry the cut past the start, then depart from wherever that lands
+  let over=[], exit=P0, exitDir=dirOut;
+  if(overcut>0){ const w=walkLoop(loop, overcut); over=w.pts; if(over.length){ exit=over[over.length-1]; exitDir=w.dir; } }
   if(type==='line'){
-    pre.push({x:P0.x-dirIn.x*len, y:P0.y-dirIn.y*len});      // tangential approach, collinear with first edge
-    post.push({x:P0.x+dirOut.x*len, y:P0.y+dirOut.y*len});   // tangential departure
+    const th=(angleDeg||0)*Math.PI/180;
+    // tilt away from the material: -sideSign keeps the lead on the non-gouging side
+    const aIn=_rot(dirIn, -sideSign*th), aOut=_rot(exitDir, sideSign*th);
+    pre.push({x:P0.x-aIn.x*len, y:P0.y-aIn.y*len});
+    post.push({x:exit.x+aOut.x*len, y:exit.y+aOut.y*len});
   } else {  // arc: quarter circle tangent to the path, curving to side sideSign
     const nIn=_rot(dirIn, sideSign*Q), C=({x:P0.x+nIn.x*len, y:P0.y+nIn.y*len});
     const aEnd=Math.atan2(P0.y-C.y,P0.x-C.x), aStart=aEnd-sideSign*Q;
     for(let i=0;i<N;i++){ const a=aStart+sideSign*Q*(i/N); pre.push({x:C.x+len*Math.cos(a), y:C.y+len*Math.sin(a)}); }
-    const nOut=_rot(dirOut, sideSign*Q), C2=({x:P0.x+nOut.x*len, y:P0.y+nOut.y*len});
-    const a0=Math.atan2(P0.y-C2.y,P0.x-C2.x);
+    const nOut=_rot(exitDir, sideSign*Q), C2=({x:exit.x+nOut.x*len, y:exit.y+nOut.y*len});
+    const a0=Math.atan2(exit.y-C2.y,exit.x-C2.x);
     for(let i=1;i<=N;i++){ const a=a0+sideSign*Q*(i/N); post.push({x:C2.x+len*Math.cos(a), y:C2.y+len*Math.sin(a)}); }
   }
-  return {pre, post};
+  return {pre, over, post};
 }
 // wrap a tabbed closed loop with leads. sideSign chosen by caller (non-gouging side).
 // rampLen>0 tags lead-in points with a ramp fraction (0=clearZ .. 1=cutZ) for a Z ramp-in (postProcess interpolates).
 // Returns {path, closed, skipped}.
-function wrapLead(orientedLoop, tabbedPts, type, len, sideSign, rampLen){
+function wrapLead(orientedLoop, tabbedPts, type, len, sideSign, rampLen, angleDeg, overcut){
   if(type==='none' || !(len>0)) return {path:tabbedPts, closed:true};
-  const lead=leadFor(orientedLoop, type, len, sideSign);
+  const lead=leadFor(orientedLoop, type, len, sideSign, angleDeg, overcut);
   if(!lead) return {path:tabbedPts, closed:true, skipped:true};
   const tag=p=>({x:p.x,y:p.y,tab:false});
   let pre;
@@ -129,12 +186,13 @@ function wrapLead(orientedLoop, tabbedPts, type, len, sideSign, rampLen){
     const cum=[0]; for(let i=1;i<lead.pre.length;i++) cum[i]=cum[i-1]+Math.hypot(lead.pre[i].x-lead.pre[i-1].x, lead.pre[i].y-lead.pre[i-1].y);
     pre = lead.pre.map((p,i)=>({x:p.x,y:p.y,tab:false, ramp:Math.min(1, cum[i]/rampLen)}));
   } else pre=lead.pre.map(tag);
-  const close0={x:tabbedPts[0].x, y:tabbedPts[0].y, tab:tabbedPts[0].tab};   // re-close the loop, then lead out
-  return {path: pre.concat(tabbedPts, [close0], lead.post.map(tag)), closed:false};
+  const close0={x:tabbedPts[0].x, y:tabbedPts[0].y, tab:tabbedPts[0].tab};   // re-close the loop
+  const over=(lead.over||[]).map(tag);                                       // carry past the start
+  return {path: pre.concat(tabbedPts, [close0], over, lead.post.map(tag)), closed:false};
 }
 
 function profileOp(contours, opts){
-  const o=Object.assign({toolNum:1,toolDia:0.25,side:'outside',climb:true,topZ:0,cutDepth:0.25,passDepth:0.125,safeZ:0.25,feed:120,plunge:40,rpm:18000,tabs:{count:0,length:0.4,height:0.06},joinType:'round',leadType:'none',leadLen:0.25,rampLen:0},opts||{});
+  const o=Object.assign({toolNum:1,toolDia:0.25,side:'outside',climb:true,topZ:0,cutDepth:0.25,passDepth:0.125,safeZ:0.25,feed:120,plunge:40,rpm:18000,tabs:{count:0,length:0.4,height:0.06},joinType:'round',leadType:'none',leadLen:0.25,rampLen:0,leadAngle:0,overcut:0},opts||{});
   const r=o.toolDia/2, warnings=[], passesAll=[]; let leadSkipped=false;
   const depths=[]; let d=Math.min(o.passDepth,o.cutDepth);
   while(d<o.cutDepth-1e-9){depths.push(d);d+=o.passDepth;} depths.push(o.cutDepth);
@@ -151,13 +209,14 @@ function profileOp(contours, opts){
       if(c.closed && o.side!=='on'){
         const wantCCW=(o.side==='outside')?!o.climb:o.climb;
         lp=wantCCW?ensureCCW(lp):ensureCW(lp);
+        lp=rotateLoopTo(lp,c.pts[0]);   // enter where the source vector starts, not where Clipper did
       }
       const tabbed=(c.closed && o.tabs && o.tabs.count>0)?withTabs(lp,o.tabs.count,o.tabs.length):lp.map(p=>({x:p.x,y:p.y,tab:false}));
       let path=tabbed, closed=c.closed&&o.side!=='on';
       if(closed && o.leadType && o.leadType!=='none'){
         const interiorSign=signedArea(lp)>0?1:-1;                       // left normal = interior when CCW
         const sideSign=(o.side==='outside')?-interiorSign:interiorSign; // outside profile leads away from part; inside leads into the hole
-        const wl=wrapLead(lp,tabbed,o.leadType,o.leadLen,sideSign,o.rampLen);
+        const wl=wrapLead(lp,tabbed,o.leadType,o.leadLen,sideSign,o.rampLen,o.leadAngle,o.overcut);
         path=wl.path; closed=wl.closed; if(wl.skipped) leadSkipped=true;
       }
       depths.forEach(depth=>passesAll.push({z:o.topZ-depth,tabHeight:(o.tabs&&o.tabs.height)||0,closed,path}));
@@ -192,7 +251,7 @@ function regionFromLoops(loops){
 }
 // offset an oriented region (IntPoint paths) by delta inches; returns array of point-loops
 function offsetRegion(region, delta){
-  const co=new ClipperLib.ClipperOffset(2, 0.003*SCALE);
+  const co=new ClipperLib.ClipperOffset(2, 0.0005*SCALE);
   for(const path of region) co.AddPath(path, ClipperLib.JoinType.jtRound, ClipperLib.EndType.etClosedPolygon);
   const sol=new ClipperLib.Paths(); co.Execute(sol, delta*SCALE);
   return sol.map(fromIntPath);
@@ -488,6 +547,33 @@ function fitSingleArc(P, i, j, tol){
   if(Math.abs(arcSweep(P,i,j,arc))>270*Math.PI/180) return null;
   return arc;
 }
+// A straight run of points fits an enormous circle through every sample while bowing far
+// off course BETWEEN them: a flat edge posted as `G3 ... J794.4170`, a radius-794" arc
+// that cut 0.3" wide of the line Vectric (and any sane post) emits as G1. Testing the
+// fitted circle is the wrong question - ask whether the POINTS are collinear. If they are,
+// the run is a line no matter what circle happens to pass through them.
+function runIsStraight(P,i,j,tol){
+  const ax=P[i].x, ay=P[i].y, dx=P[j].x-ax, dy=P[j].y-ay;
+  const L=Math.hypot(dx,dy);
+  if(L<1e-12) return false;
+  for(let k=i+1;k<j;k++){
+    if(Math.abs((P[k].x-ax)*dy-(P[k].y-ay)*dx)/L > tol) return false;   // off the chord -> real curve
+  }
+  return true;
+}
+// An arc can pass through every sample and still bow far off course between them when the
+// samples are sparse: a 43" gap on a 795" radius bows 0.3". Bound the sagitta of each
+// sample-to-sample chord. Kept out of arcCovers on purpose - fitSingleArc shares that and
+// fits deliberately coarse helical entries, where the arc, not the polyline, is the truth.
+function arcFollowsPolyline(P,i,j,arc,tol){
+  const r=Math.hypot(P[i].x-arc.cx, P[i].y-arc.cy);
+  if(!(r>0)) return false;
+  for(let k=i+1;k<=j;k++){
+    const c=Math.hypot(P[k].x-P[k-1].x, P[k].y-P[k-1].y);
+    if(c*c/(8*r) > tol) return false;
+  }
+  return true;
+}
 // P: array of {x,y}. Emits moves from P[0] to P[n-1]: {type:'line',x,y} | {type:'arc',x,y,cx,cy,cw}
 function fitArcs(P, tol){
   tol = tol||0.0015;
@@ -498,8 +584,14 @@ function fitArcs(P, tol){
       // limit arc sweep to < 350deg to stay unambiguous
       const arc=circleFrom3(P[i],P[Math.floor((i+j)/2)],P[j]);
       if(!arc){ break; }
-      if(arcCovers(P,i,j,arc,tol) && Math.abs(arcSweep(P,i,j,arc))<=(270*Math.PI/180)){ bestJ=j; bestArc=arc; }
-      else break;
+      if(!(arcCovers(P,i,j,arc,tol) && Math.abs(arcSweep(P,i,j,arc))<=(270*Math.PI/180))) break;
+      // Too short a span cannot tell an arc from a line, so keep growing rather than
+      // bailing - only a run that stays flat all the way out is really a line.
+      if(runIsStraight(P,i,j,tol)) continue;
+      // Samples this far apart let the arc wander off the polyline BETWEEN them, which is
+      // how a straight edge became a radius-794" arc once the span reached the next corner.
+      if(!arcFollowsPolyline(P,i,j,arc,tol)) break;
+      bestJ=j; bestArc=arc;
     }
     if(bestArc && bestJ>=i+3){
       moves.push({type:'arc', x:P[bestJ].x, y:P[bestJ].y, cx:bestArc.cx, cy:bestArc.cy, cw:arcIsCW(P,i,bestJ,bestArc)});

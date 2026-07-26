@@ -168,7 +168,7 @@ if (!fixtures.length) {
     let ours = null;
     if (fs.existsSync(path.join(dir, 'ours.tap'))) ours = fs.readFileSync(path.join(dir, 'ours.tap'), 'utf8');
     else if (fs.existsSync(path.join(dir, 'job.js'))) {
-      try { ours = require(path.join(dir, 'job.js'))({ CAM, C }); }
+      try { ours = require(path.join(dir, 'job.js'))({ CAM, C, parseDxf, entityToPolys, dir, fs, path }); }
       catch (e) { ok(`fixture ${name}: job.js runs`, false, e.message); continue; }
     }
     // A reference with no `ours` side yet is QUEUED WORK, not a regression. Failing

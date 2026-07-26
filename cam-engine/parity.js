@@ -26,6 +26,26 @@ function moveLen(m, from) {
   return m.type === 'arc' ? arcLen(m, from) : Math.hypot(m.x - from.x, m.y - from.y);
 }
 
+// An arc bulges beyond its own endpoints, so sampling endpoints alone understates the
+// envelope - and worse, reports a false difference whenever two programs split the same
+// geometry into arcs differently (Vectric emits two 90 deg arcs where we emit one 177 deg
+// arc over identical metal). Include the axis extremes the sweep actually crosses.
+function arcExtremes(m, from) {
+  const r = Math.hypot(from.x - m.cx, from.y - m.cy);
+  const a0 = Math.atan2(from.y - m.cy, from.x - m.cx);
+  const a1 = Math.atan2(m.y - m.cy, m.x - m.cx);
+  let sweep = m.cw ? a0 - a1 : a1 - a0;
+  while (sweep <= 1e-9) sweep += Math.PI * 2;
+  const out = [];
+  for (let k = 0; k < 4; k++) {
+    const ang = k * Math.PI / 2;
+    let d = m.cw ? a0 - ang : ang - a0;          // how far into the sweep this axis angle sits
+    d = ((d % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    if (d <= sweep) out.push({ x: m.cx + r * Math.cos(ang), y: m.cy + r * Math.sin(ang) });
+  }
+  return out;
+}
+
 /* normalize(parsed) -> comparable facts about the program */
 function normalize(parsed) {
   const passes = [];
@@ -37,11 +57,11 @@ function normalize(parsed) {
     if (m.type === 'rapid') {
       if (cur) { passes.push(cur); cur = null; }        // retract closes the pass
     } else {
-      if (!cur) cur = { start: { x: pos.x, y: pos.y }, entryZ: pos.z, moves: [], arcs: [], minZ: Infinity, maxZ: -Infinity, len: 0, lifts: 0 };
+      if (!cur) cur = { start: { x: pos.x, y: pos.y }, entryZ: pos.z, moves: [], arcs: [], minZ: Infinity, maxZ: -Infinity, len: 0, lifts: 0, extremes: [] };
       const L = moveLen(m, pos);
       cur.len += L; cutLength += L;
       cur.moves.push(m);
-      if (m.type === 'arc') cur.arcs.push(m.cw ? 'cw' : 'ccw');
+      if (m.type === 'arc') { cur.arcs.push(m.cw ? 'cw' : 'ccw'); cur.extremes.push(...arcExtremes(m, pos)); }
       if (m.z < cur.minZ) cur.minZ = m.z;
       if (m.z > cur.maxZ) cur.maxZ = m.z;
       // a Z rise mid-pass without a retract is a holding tab (or a bridge)
@@ -53,7 +73,7 @@ function normalize(parsed) {
   if (cur) passes.push(cur);
 
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  for (const p of passes) for (const m of p.moves) {
+  for (const p of passes) for (const m of p.moves.concat(p.extremes)) {
     if (m.x < minX) minX = m.x; if (m.x > maxX) maxX = m.x;
     if (m.y < minY) minY = m.y; if (m.y > maxY) maxY = m.y;
   }
@@ -104,12 +124,20 @@ function compare(a, b, opts) {
   add('cut order', orderBad < 0, orderBad < 0 ? '' :
     `pass ${orderBad + 1} starts ref (${f4(a.passes[orderBad].start.x)},${f4(a.passes[orderBad].start.y)}) vs ours (${f4(b.passes[orderBad].start.x)},${f4(b.passes[orderBad].start.y)})`);
 
-  // arc direction sequence per pass - catches a climb/conventional flip
+  // Arc direction sequence per pass - this exists to catch a climb/conventional flip.
+  // Compare RUNS, not raw counts: posts legitimately split the same curve differently
+  // (Vectric emits two 90 deg arcs where we emit one 180 deg arc over identical metal),
+  // and failing on that reports a difference in representation as a difference in cutting.
+  // Collapsing runs still catches a flip, which is the thing that actually matters.
+  const runs = arr => arr.filter((v, i) => i === 0 || v !== arr[i - 1]);
   let arcBad = -1, arcDetail = '';
   for (let i = 0; i < n; i++) {
-    const aa = a.passes[i].arcs, bb = b.passes[i].arcs;
+    const aa = runs(a.passes[i].arcs), bb = runs(b.passes[i].arcs);
     if (aa.length !== bb.length || aa.some((v, j) => v !== bb[j])) {
-      arcBad = i; arcDetail = `pass ${i + 1} ref [${aa}] vs ours [${bb}]`; break;
+      arcBad = i;
+      arcDetail = `pass ${i + 1} ref [${aa}] vs ours [${bb}]` +
+        ` (raw ${a.passes[i].arcs.length} vs ${b.passes[i].arcs.length} arcs)`;
+      break;
     }
   }
   add('arc directions', arcBad < 0, arcDetail);
