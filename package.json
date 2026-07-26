@@ -5,6 +5,7 @@
   "description": "Aquamentor 2D CAD/CAM — browser CAD editor + CAM (ShopSabre/WinCNC post).",
   "scripts": {
     "build": "node cam-engine/build.js",
-    "test": "node cam-engine/test.js && node cam-engine/arctest.js && node cam-engine/cadtest.js && node cam-engine/smoketest.js && node cam-engine/importtest.js && node cam-engine/pdftest.js"
+    "parity": "node cam-engine/paritytest.js",
+    "test": "node cam-engine/test.js && node cam-engine/arctest.js && node cam-engine/cadtest.js && node cam-engine/smoketest.js && node cam-engine/importtest.js && node cam-engine/pdftest.js && node cam-engine/paritytest.js"
   }
 }
