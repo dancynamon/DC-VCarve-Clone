@@ -8,21 +8,31 @@ passes here is one you have evidence the clone cuts the same way VCarve does.
 
 | Fixture | Geometry | Ops | Status |
 |---|---|---|---|
-| `xrt-50` | `source.dxf` (16 polylines, bulge arcs) | 1 tool, outside profile, 16-up, Ø0.25", Z-1.5 | **READY** — build `ours` first |
-| `print-jig-20-piece-foam` | `source.dxf` (21 polylines, 15,524 verts) | 1 tool, outside profile, Ø0.25", Z-0.75 | **READY** — do second |
-| `lgc-50-board-1` | `source.crv3d` only | 2 toolchanges, 4 depths, tabs | **BLOCKED** — export DXF |
-| `lgc-50-board-2` | `source.crv3d` only | 2 toolchanges, 4 depths, tabs | **BLOCKED** — export DXF |
-| `lgc-50-board-3` | `source.crv3d` only | 4 toolchanges, 5+ depths, tabs | **BLOCKED** — export DXF |
-| `lgc-50-board-4` | `source.crv3d` only | 6 toolchanges, 5 tools, tabs | **BLOCKED** — export DXF |
-| `lgc-50-board-5` | `source.crv3d` only | 2 toolchanges, 4 depths, tabs | **BLOCKED** — export DXF |
+All seven have DXF geometry and import cleanly through `dxfparse.js`.
+
+| Fixture | Geometry | Ops | Order |
+|---|---|---|---|
+| `xrt-50` | 16 shapes, all closed, 736 pts | 1 tool, outside profile, 16-up, Ø0.25", Z-1.5, arc leads | **1st** — simplest |
+| `print-jig-20-piece-foam` | 21 shapes, all closed, 15,545 pts | 1 tool, outside profile, Ø0.25", Z-0.75 | **2nd** — dense freeform |
+| `lgc-50-board-5` | 27 shapes (23 closed), 3,911 pts | 2 toolchanges, 4 depths, 4 tabs, 20 passes | **3rd** — smallest multi-tool |
+| `lgc-50-board-1` | 32 shapes (28 closed), 3,771 pts | 2 toolchanges, 4 depths, 4 tabs, 24 passes | 4th |
+| `lgc-50-board-2` | 32 shapes (28 closed), 3,771 pts | identical to board 1 | 5th |
+| `lgc-50-board-3` | 28 shapes (23 closed), 2,396 pts | 4 toolchanges, 3 tools, 8 tabs, 33 passes | 6th |
+| `lgc-50-board-4` | 36 shapes (29 closed), 3,497 pts | 6 toolchanges, 5 tools, 9 tabs, 43 passes | **last** — hardest |
+
+Suggested order is easiest-first on purpose: the first fixture surfaces most of
+the shared bugs (offset direction, arc fitting, depth stepping), and fixing those
+against the simplest possible job is far cheaper than debugging them inside a
+6-toolchange program.
 
 A fixture with a `reference.tap` but no `ours.tap`/`job.js` reports as **PENDING**,
 not as a failure — banking a job must never turn `npm test` red, or the incentive
 runs backwards. See each fixture's `notes.md` for parameters derived from the pair.
 
 `.crv` / `.crv3d` cannot be read by anything in this repo and there is no plan to
-change that. To unblock one, open it in VCarve/Aspire and export the vectors as
-DXF into the same folder as `source.dxf`.
+change that. The `lgc-*` folders keep theirs as the source of record only; the
+DXF exports supersede them. To add a new fixture from a VCarve job, export the
+vectors as DXF alongside the posted `.tap`.
 
 ## What to put here
 

@@ -11,11 +11,19 @@
           and would green-light a program that cuts the wrong part.
    2. FIXTURE MODE (runs when cam-engine/fixtures/parity/<job>/ exists). Compares
       a real Vectric-posted reference.tap against ours for the same job. */
-const fs = require('fs'), path = require('path');
+const fs = require('fs'), path = require('path'), vm = require('vm');
 const CAM = require('./camcore.js');
 const C = require('./cadcore.js');
 const GP = require('./gcodeparse.js');
 const P = require('./parity.js');
+
+// dxfparse.js is a browser-concatenated script (no module.exports) - same vm trick importtest.js uses
+let parseDxf, entityToPolys;
+try {
+  const ctx = {}; vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, 'dxfparse.js'), 'utf8'), ctx);
+  parseDxf = ctx.parseDxf; entityToPolys = ctx.entityToPolys;
+} catch (e) { /* leave undefined -> the per-fixture check below fails clearly */ }
 
 let pass = 0, fail = 0;
 function ok(name, cond, extra) { if (cond) pass++; else { fail++; console.log('  FAIL', name, extra || ''); } }
@@ -138,6 +146,25 @@ if (!fixtures.length) {
     const refPath = path.join(dir, 'reference.tap');
     if (!fs.existsSync(refPath)) { ok(`fixture ${name}: reference.tap present`, false, 'missing reference.tap'); continue; }
     const ref = fs.readFileSync(refPath, 'utf8');
+
+    // Every fixture's source geometry must stay importable. This is the cheapest
+    // possible early warning: if dxfparse regresses, the parity fixtures go
+    // unbuildable, and we want to hear about it here rather than mid-diff.
+    const dxfPath = path.join(dir, 'source.dxf');
+    if (fs.existsSync(dxfPath)) {
+      try {
+        const ents = parseDxf(fs.readFileSync(dxfPath, 'utf8'));
+        const polys = []; for (const e of ents) for (const q of entityToPolys(e)) polys.push(q);
+        const shapes = C.dxfPolysToShapes(polys);
+        const contours = CAM.assembleContours(C.shapesToContoursInput(shapes));
+        const closed = contours.filter(c => c.closed).length;
+        ok(`fixture ${name}: source.dxf imports to closed contours`,
+          shapes.length > 0 && closed > 0, `shapes=${shapes.length} closed=${closed}`);
+      } catch (e) {
+        ok(`fixture ${name}: source.dxf imports to closed contours`, false, e.message);
+      }
+    }
+
     let ours = null;
     if (fs.existsSync(path.join(dir, 'ours.tap'))) ours = fs.readFileSync(path.join(dir, 'ours.tap'), 'utf8');
     else if (fs.existsSync(path.join(dir, 'job.js'))) {

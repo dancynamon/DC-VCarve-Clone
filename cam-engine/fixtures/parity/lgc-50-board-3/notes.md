@@ -1,14 +1,16 @@
 # LGC 50 — Job 1, Board 3
 
-**Status: BLOCKED — no readable geometry.**
+**Status: READY** — DXF geometry present, an `ours` side can be built.
 
 ## Files
-- `reference.tap` — usable ground truth, posted from VCarve.
-- `source.crv3d` — Vectric Aspire project. **Binary, proprietary, undocumented.**
-  Nothing in this repo can read it, and building a reader is the Phase 2 work we
-  deliberately dropped as poor value. It is kept here so the pair stays together.
+- `reference.tap` — ground truth, posted from VCarve with the ShopSabre ATC post.
+- `source.dxf` — vectors exported from Aspire. **28 shapes** (23 closed, 5 open), 2396 points.
+  Verified to import cleanly through `dxfparse.js` → `dxfPolysToShapes` →
+  `assembleContours`; bbox `[0.00, 0.00] → [3.52, 97.00]` matches the DXF header extents.
+- `source.crv3d` — the original Aspire project. Unreadable binary, kept as the
+  source of record only; the DXF supersedes it for parity purposes.
 
-## What the .tap alone tells us
+## What the reference .tap contains
 | | |
 |---|---|
 | Cutting passes | 33 |
@@ -19,17 +21,22 @@
 | XY envelope | -0.141, 0.819 → 3.684, 88.888 |
 | Total cut length | 131.9" |
 
-## To unblock this fixture
-Open the .crv3d in Aspire and **export the vectors as DXF** into this folder as
-`source.dxf`. That is a couple of minutes of your time and turns this into a
-first-class fixture — far cheaper than teaching this codebase to read .crv3d.
+## Deriving the tool diameters — harder here, and worth knowing why
+On the single-tool fixtures (`xrt-50`, `print-jig-20-piece-foam`) the tool
+diameter falls straight out of the extents: the toolpath sits a uniform radius
+proud of the part all the way round.
 
-This is a **multi-tool** job (4 tool changes), so it also exercises the
-TOOLCHANGE block and pass ordering across tools — coverage neither DXF fixture has.
-Worth unblocking at least one of the five for that reason alone.
+That shortcut does **not** work on this job. It is multi-tool (4 changes across
+tools 8, 3, 9), so different contours are cut by different diameters, and the
+overall envelope only reflects whichever tool cut the outermost feature. The DXF
+extents here are the **board stock** (0,0 → 3.52, 97.00), not a part outline, so
+comparing extents to envelope is meaningless.
 
-## Meanwhile
-Even blocked this is not dead weight: it is real ShopSabre output that the G-code
-parser is exercised against, which is how we know the parser handles multi-tool
-programs, several distinct feeds and tab lifts from a real post rather than only
-from our own.
+The diameters have to be recovered **per contour**: group the passes by the tool
+in effect, match each pass to its nearest source contour, and measure the
+perpendicular offset between them. That is a job for the parity run itself.
+
+## Why this fixture matters
+Neither DXF fixture exercises TOOLCHANGE blocks, multiple tools in one program,
+multipass depth stepping, or holding tabs. This one exercises all four. Board 4 is
+the most demanding of the five.
