@@ -132,6 +132,7 @@ if (!fixtures.length) {
   console.log(`   see fixtures/parity/README.md. Self-verification above still proves the differ.)`);
 } else {
   console.log('');
+  const pending = [];
   for (const name of fixtures) {
     const dir = path.join(FIX, name);
     const refPath = path.join(dir, 'reference.tap');
@@ -143,10 +144,22 @@ if (!fixtures.length) {
       try { ours = require(path.join(dir, 'job.js'))({ CAM, C }); }
       catch (e) { ok(`fixture ${name}: job.js runs`, false, e.message); continue; }
     }
-    if (ours == null) { ok(`fixture ${name}: has ours.tap or job.js`, false, 'nothing to compare against'); continue; }
+    // A reference with no `ours` side yet is QUEUED WORK, not a regression. Failing
+    // here would make `npm test` red just for banking a job, which would push us
+    // toward not banking them - exactly backwards.
+    if (ours == null) {
+      const geom = fs.readdirSync(dir).filter(f => /\.(dxf|svg)$/i.test(f));
+      const opaque = fs.readdirSync(dir).filter(f => /\.(crv|crv3d)$/i.test(f));
+      pending.push({ name, why: geom.length ? `geometry: ${geom.join(', ')}` : (opaque.length ? `NO READABLE GEOMETRY (${opaque.join(', ')})` : 'no geometry') });
+      continue;
+    }
     const r = cmp(ref, ours);
     console.log(P.report(r, `fixture: ${name}`));
     ok(`fixture ${name}: parity with Vectric`, r.equivalent);
+  }
+  if (pending.length) {
+    console.log(`\n  PENDING - reference banked, no 'ours' side built yet (not a failure):`);
+    for (const p of pending) console.log(`    - ${p.name.padEnd(26)} ${p.why}`);
   }
 }
 

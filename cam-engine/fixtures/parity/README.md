@@ -4,6 +4,26 @@ Everything else in `npm test` grades this codebase against its own intentions.
 These fixtures grade it against **Vectric**. That is the whole point: a job that
 passes here is one you have evidence the clone cuts the same way VCarve does.
 
+## Current inventory
+
+| Fixture | Geometry | Ops | Status |
+|---|---|---|---|
+| `xrt-50` | `source.dxf` (16 polylines, bulge arcs) | 1 tool, outside profile, 16-up, Ø0.25", Z-1.5 | **READY** — build `ours` first |
+| `print-jig-20-piece-foam` | `source.dxf` (21 polylines, 15,524 verts) | 1 tool, outside profile, Ø0.25", Z-0.75 | **READY** — do second |
+| `lgc-50-board-1` | `source.crv3d` only | 2 toolchanges, 4 depths, tabs | **BLOCKED** — export DXF |
+| `lgc-50-board-2` | `source.crv3d` only | 2 toolchanges, 4 depths, tabs | **BLOCKED** — export DXF |
+| `lgc-50-board-3` | `source.crv3d` only | 4 toolchanges, 5+ depths, tabs | **BLOCKED** — export DXF |
+| `lgc-50-board-4` | `source.crv3d` only | 6 toolchanges, 5 tools, tabs | **BLOCKED** — export DXF |
+| `lgc-50-board-5` | `source.crv3d` only | 2 toolchanges, 4 depths, tabs | **BLOCKED** — export DXF |
+
+A fixture with a `reference.tap` but no `ours.tap`/`job.js` reports as **PENDING**,
+not as a failure — banking a job must never turn `npm test` red, or the incentive
+runs backwards. See each fixture's `notes.md` for parameters derived from the pair.
+
+`.crv` / `.crv3d` cannot be read by anything in this repo and there is no plan to
+change that. To unblock one, open it in VCarve/Aspire and export the vectors as
+DXF into the same folder as `source.dxf`.
+
 ## What to put here
 
 One directory per job, named after the real job:
