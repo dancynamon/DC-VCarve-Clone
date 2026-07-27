@@ -8262,7 +8262,7 @@ function profileOp(contours, opts){
   const depths=[]; let d=Math.min(o.passDepth,o.cutDepth);
   while(d<o.cutDepth-1e-9){depths.push(d);d+=o.passDepth;} depths.push(o.cutDepth);
   const seq = o.order==='optimize' ? orderContours(contours, o.orderStart) : contours;
-  let prevEntry = o.orderStart || {x:0,y:0};   // entry:'nearest' chains each entry to the last one
+  let prevEntry = o.orderStart || {x:0,y:0}, prevDir = null;   // entry:'nearest' chains each entry to the last one
   for(const c of seq){
     let loops;
     if(!c.closed){
@@ -8272,12 +8272,21 @@ function profileOp(contours, opts){
       // is exactly what Vectric does. Direction also decides which side the offset lands,
       // since the offset is always to the RIGHT of travel.
       let src = c.pts;
-      if(o.entry==='nearest'){
+      if(o.entry==='serpentine' && prevDir){
+        // Successive parallel cuts alternate direction, so each starts where the last
+        // ended. Strict nearest-end agrees almost always but flips on a near-tie (89.53"
+        // vs 89.71" on lgc-50-board-1's last cut); alternation is the actual strategy and
+        // matches 8/8 across boards 1 and 5.
+        const a=src[0], b=src[src.length-1];
+        const d={x:b.x-a.x, y:b.y-a.y};
+        if(d.x*prevDir.x + d.y*prevDir.y > 0) src=reversed(src);
+      } else if(o.entry==='nearest' || o.entry==='serpentine'){
         const a=src[0], b=src[src.length-1];
         const da=(a.x-prevEntry.x)*(a.x-prevEntry.x)+(a.y-prevEntry.y)*(a.y-prevEntry.y);
         const db=(b.x-prevEntry.x)*(b.x-prevEntry.x)+(b.y-prevEntry.y)*(b.y-prevEntry.y);
         if(db<da) src=reversed(src);
       } else if(o.reverseOpen) src=reversed(src);
+      prevDir={x:src[src.length-1].x-src[0].x, y:src[src.length-1].y-src[0].y};
       const s = o.openSide==='right' ? +r : o.openSide==='left' ? -r : 0;
       const off = s ? offsetOpenPath(src, s) : src.map(p=>({x:p.x,y:p.y}));
       prevEntry={x:off[off.length-1].x, y:off[off.length-1].y};   // an open cut ends at its far end
@@ -8526,7 +8535,23 @@ function centroid(pts){
 }
 function drillOp(contours, opts){
   const o=Object.assign({toolNum:1,toolDia:0.25,topZ:0,cutDepth:0.25,peck:0,safeZ:0.25,feed:120,plunge:40,rpm:18000},opts||{});
-  const points=contours.filter(c=>c.closed && c.pts && c.pts.length>=3).map(c=>centroid(c.pts));
+  let points=contours.filter(c=>c.closed && c.pts && c.pts.length>=3).map(c=>centroid(c.pts));
+  // order:'optimize' visits holes nearest-neighbour from orderStart. Which corner the tour
+  // begins at is a real property of the job, not a free choice: lgc-50-board-1 matches
+  // Vectric exactly from the origin, lgc-50-board-5 from the park position (0,115).
+  if(o.order==='optimize' && points.length){
+    const pool=points.slice(), tour=[];
+    let cur=o.orderStart||{x:0,y:0};
+    while(pool.length){
+      let bi=0, bd=Infinity;
+      for(let i=0;i<pool.length;i++){
+        const d=(pool[i].x-cur.x)*(pool[i].x-cur.x)+(pool[i].y-cur.y)*(pool[i].y-cur.y);
+        if(d<bd){ bd=d; bi=i; }
+      }
+      cur=pool.splice(bi,1)[0]; tour.push(cur);
+    }
+    points=tour;
+  }
   const warnings=[]; if(!points.length) warnings.push('Drill needs closed contour(s) — drills one hole at each centroid');
   const depths=[];
   if(o.peck&&o.peck>0){ let d=Math.min(o.peck,o.cutDepth); while(d<o.cutDepth-1e-9){depths.push(d); d+=o.peck;} depths.push(o.cutDepth); }

@@ -1,6 +1,20 @@
 # LGC 50 — Job 1, Board 1
 
-**Status: READY** — DXF geometry present, an `ours` side can be built.
+**Status: PARITY** — `job.js` reproduces this program exactly.
+
+Same recipe as board 5: `T8` drills the Ø0.375 holes, `T3` makes the cross-cuts in four
+0.375" depth steps with one holding tab each, offset a tool radius to the right of travel.
+Board 1 has 8 holes rather than 4. Boards 1 and 2 are identical jobs.
+
+Two ordering parameters had to be supplied, and it is worth being clear that these were
+**inferred from the reference, not derived from the geometry**:
+- the drill tour is nearest-neighbour from `(0, 0)` (board 5's runs from the park position
+  `(0, 115)` instead);
+- the cross-cut tour starts at `(3.5, 48.5)` — the right edge, mid-board.
+
+`orderStart` is a genuine parameter (where the tool begins), but we have not established
+*why* Vectric starts where it does. If a future fixture disagrees, this is the first thing
+to re-examine.
 
 ## Files
 - `reference.tap` — ground truth, posted from VCarve with the ShopSabre ATC post.

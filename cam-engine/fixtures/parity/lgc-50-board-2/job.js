@@ -1,4 +1,4 @@
-/* LGC 50 — Job 1, Board 5. First multi-tool fixture.
+/* LGC 50 — Job 1, Board 2. First multi-tool fixture.
 
    Two ops, two tools, posted as one program:
      T8  drill 4 holes on the board centreline (plain plunge, no peck)
@@ -27,7 +27,7 @@ module.exports = function ({ CAM, C, parseDxf, entityToPolys, dir, fs, path }) {
   const drill = CAM.drillOp(holes, {
     toolNum: 8, toolDia: 0.375, topZ: 0, cutDepth: 1.5, peck: 0,
     feed: 62.5, plunge: 20, rpm: 18000,
-    order: 'optimize', orderStart: { x: 0, y: 115 },   // this job's tour starts at the park position
+    order: 'optimize', orderStart: { x: 0, y: 0 },     // this job's drill tour starts at the origin
   });
   const cross = CAM.profileOp(cuts, {
     toolNum: 3, toolDia: 0.375, topZ: 0, cutDepth: 1.5, passDepth: 0.375,
@@ -40,5 +40,5 @@ module.exports = function ({ CAM, C, parseDxf, entityToPolys, dir, fs, path }) {
 
   const ops = drill.ops.concat(cross.ops);
   ops.forEach(op => { op.clearZ = 0.8; });
-  return CAM.postProcess({ name: 'LGC-50-board-5', units: 'inch', ops }, CAM.POSTS.shopsabre);
+  return CAM.postProcess({ name: 'LGC-50-board-2', units: 'inch', ops }, CAM.POSTS.shopsabre);
 };
