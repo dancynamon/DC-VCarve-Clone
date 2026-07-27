@@ -11,7 +11,7 @@
      would emit a spurious TOOLCHANGE.
 
    There are also no leads: each pass closes exactly on its own start point (0.0000). */
-module.exports = function ({ CAM, C, parseDxf, entityToPolys, dir, fs, path }) {
+module.exports = function ({ CAM, C, parseDxf, entityToPolys, tool, toolOpts, dir, fs, path }) {
   const ents = parseDxf(fs.readFileSync(path.join(dir, 'source.dxf'), 'utf8'));
   const polys = [];
   for (const e of ents) for (const q of entityToPolys(e)) polys.push(q);
@@ -23,12 +23,17 @@ module.exports = function ({ CAM, C, parseDxf, entityToPolys, dir, fs, path }) {
   const sheet = contours[sheetIdx];
   const pieces = contours.filter((_, i) => i !== sheetIdx);
 
-  const common = {
-    toolNum: 2, toolDia: 0.25, topZ: 0, cutDepth: 0.75, passDepth: 0.75,
-    feed: 80, plunge: 30, rpm: 20000,
+  // The database has five entries on tool 2. This one matches the reference on diameter,
+  // feed and plunge; only the spindle differs (the tool is defined at 24000, the job ran it
+  // at 20000 - foam, so slower is what you would expect).
+  const T2 = tool(2, 'T2a - F80 Vortex 4135');
+
+  const common = Object.assign(toolOpts(T2), {
+    topZ: 0, cutDepth: 0.75, passDepth: 0.75,
+    rpm: 20000,              // toolpath override: the tool is defined at S24000
     tabs: { count: 0, length: 0, height: 0 },
     leadType: 'none', rampLen: 0,
-  };
+  });
 
   // pieces first (cavities), toured nearest-neighbour; then the outline frees the panel
   const inner = CAM.profileOp(pieces, Object.assign({ side: 'inside', climb: true, order: 'optimize', entry: 'nearest' }, common));

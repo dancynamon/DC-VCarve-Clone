@@ -86,6 +86,7 @@ mm, CRLF, decimal padding. What is compared is what the spindle does:
 | arc directions | climb vs conventional flipped, G2/G3 wrong |
 | cut length | missing geometry, wrong offset radius |
 | feed rates | wrong feed/plunge |
+| spindle speeds | wrong RPM (burnt tools, melted foam) |
 | tool changes | missing toolchange blocks |
 | tab lifts | wrong tab count or missing tabs |
 
@@ -105,3 +106,29 @@ A `DIFF` is not automatically a bug in the clone. It is a **question to answer**
 either the clone is wrong, or VCarve makes a different-but-valid choice and you
 write that difference down as intentional. Both outcomes are progress; an
 unexamined `DIFF` is not.
+
+## Tools come from the database, not from the fixture
+
+`fixtures/tooldb/aquamentor-2026-07-27.tool` is the real exported Vectric tool database.
+Fixtures reference a tool instead of hardcoding its geometry:
+
+```js
+const T8 = tool(8, 'T8 - Drill (0.375")');
+const drill = CAM.drillOp(holes, Object.assign(toolOpts(T8), { topZ: 0, cutDepth: 1.5 }));
+```
+
+`tool(num, name)` takes **both** the number the post writes as `T<n>` and the database name,
+because tool numbers are not unique — this database has eleven entries on number 9 alone.
+The number is the machine's slot, the name picks the entry, and the lookup asserts the two
+agree, so a fixture cannot reference a tool that would not actually be loaded in that slot.
+`toolOpts(t)` yields the subset a toolpath inherits: `toolNum`, `toolDia`, `feed`, `plunge`,
+`rpm`. Depth and stepover stay with the toolpath, where Vectric puts them.
+
+Where a job overrides a tool's default — Vectric allows it and these jobs use it — the
+override is commented at the line, so you can see what came from the tool and what the
+operator changed.
+
+This mattered immediately. `lgc-50-board-5` had `rpm: 18000` hardcoded for the drill where
+the reference says `S10000`, **and parity passed anyway**, because the differ was not
+comparing the S word at all. The fix was to add the `spindle speeds` check first and let it
+fail, then correct the fixture from the database — not to quietly change the number.

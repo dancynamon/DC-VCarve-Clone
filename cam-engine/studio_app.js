@@ -919,6 +919,30 @@ function saveTool(){ const g=k=>document.getElementById(k); const name=prompt('S
 function delTool(){ const el=document.getElementById('camToolLib'); if(!el||!el.value)return; const t=tools.find(x=>x.id===el.value);
   if(t&&!confirm('Delete preset "'+t.name+'"?'))return; tools=CAM.removeTool(tools,el.value); if(!tools.length)tools=CAM.defaultTools(); persistTools(); buildToolLib(); setMsg('Deleted preset'); }
 
+// ---- import a Vectric tool database (.tool) ----
+// Merge rather than replace: an import should not silently discard presets the operator
+// built here. Same-id tools are overwritten, which is what "re-import after editing in
+// Vectric" should do. `op` and `angle` are inferred from the tool NAME (the record's class
+// is not recoverable from the file — see tooldbparse.js), so check them before cutting.
+function pickToolDb(){ const f=document.getElementById('toolDbFile'); if(f)f.click(); }
+function importToolDb(file){
+  const r=new FileReader();
+  r.onload=()=>{ let res;
+    try{ res=ToolDb.parseToolDb(new Uint8Array(r.result)); }
+    catch(e){ setMsg('Tool import failed: '+e.message); return; }
+    const lib=ToolDb.toolsToLibrary(res.tools);
+    if(!lib.length){ setMsg('No tools found in '+file.name+' — is it a Vectric .tool export?'); return; }
+    let added=0, replaced=0;
+    for(const t of lib){ if(tools.some(x=>x.id===t.id))replaced++; else added++; tools=CAM.upsertTool(tools,t); }
+    persistTools(); buildToolLib(lib[0].id);
+    setMsg('Imported '+lib.length+' tools from '+file.name+' ('+added+' new, '+replaced+' updated)'
+      +(res.warnings.length?' · '+res.warnings.length+' warning(s): '+res.warnings[0]:'')
+      +' · op/angle are guessed from the name — check before cutting');
+  };
+  r.onerror=()=>setMsg('Could not read '+file.name);
+  r.readAsArrayBuffer(file);
+}
+
 // ---- job / material ----
 function jobRect(){ const {w,h,origin}=job; let x0=0,y0=0;
   if(origin==='br'){x0=-w;} else if(origin==='tl'){y0=-h;} else if(origin==='tr'){x0=-w;y0=-h;} else if(origin==='center'){x0=-w/2;y0=-h/2;}
@@ -1077,7 +1101,8 @@ function wire(){
   // tool library
   loadTools(); buildToolLib();
   const tl=document.getElementById('camToolLib'); if(tl)tl.onchange=()=>applyTool(tl.value);
-  on('btnToolSave',saveTool); on('btnToolDel',delTool);
+  on('btnToolSave',saveTool); on('btnToolDel',delTool); on('btnToolImport',pickToolDb);
+  { const f=document.getElementById('toolDbFile'); if(f) f.addEventListener('change',e=>{ const file=e.target.files&&e.target.files[0]; if(file)importToolDb(file); e.target.value=''; }); }
   // shape properties modal
   on('modalApply',applyShapeModal); on('modalCancel',closeShapeModal); on('modalX',closeShapeModal);
   const mb=document.getElementById('shapeModal');

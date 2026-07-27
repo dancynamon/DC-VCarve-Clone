@@ -34,17 +34,24 @@ Ops 3–6 are the same recipe as board 3 and reuse its `job.js` structure direct
 tour for op 1 is nearest-neighbour from the origin — verified against the reference:
 (0.751, 71.089) → (2.751, 71.089) → (2.751, 81.611) → (0.751, 81.611).
 
-## The one thing that needs a decision
+## Settled: T5's diameter, twice over
 
-**T5's tool diameter is not recoverable from the pair.** Its toolpath starts at
-x = 3.6712, which is 0.17" beyond the 3.5" board edge, so the cut is offset outward from
-contour 33 — but the offset distance depends on a diameter that appears nowhere in the
-`.tap` (G-code carries no tool geometry) and cannot be read off the DXF. Deriving it the way
-the single-tool fixtures did needs a contour whose offset is unambiguous, and this one's
-endpoints move both along and across the path.
+This section used to say T5's diameter "is not recoverable from the pair" and listed two
+ways to settle it. Both have since happened, and they agree:
 
-Two ways to settle it: read the diameter off the tool list in Vectric for tool 5, or accept
-it as a fitted parameter the way `orderStart` already is.
+1. **Measured from the path.** Mid-path the offset is a clean perpendicular (only the
+   *endpoints* move both along and across the path, which is what the original claim was
+   based on). 0.1900" ± 0.0001 over 78 samples ⇒ Ø0.380.
+2. **Read from the tool database.** `T5e - Amana 49706 Roundover 0.380` — Ø0.380, S20000,
+   F100, plunge 25, tool number 5. The fixture now references it by number and name via
+   `tool(5, ...)` rather than carrying the measured value, so nothing here is fitted.
+
+It is a genuine Ø0.380 cutter, not a Ø0.375 with a 0.0025" allowance, which was the
+alternative hypothesis.
+
+Everything else in this fixture's parameters now comes from that same database (see
+`job.js`); the only per-toolpath overrides are the two the operator actually changed, and
+both are commented at the line.
 
 ## Expected outcome once built
 

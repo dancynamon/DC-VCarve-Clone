@@ -45,5 +45,20 @@ for (const key of ['clearZ', 'leadAngle', 'overcut']) {
   ok('camParams emits ' + key, new RegExp('\\b' + key + ':').test(app));
 }
 
+// ---- .tool import wiring: same dead-control risk. The importer is useless if the button
+// is not in the markup, the file input is not listened to, or tooldbparse.js never makes it
+// into the built page.
+ok('shell defines #btnToolImport', /id="btnToolImport"/.test(shell));
+ok('shell defines #toolDbFile', /id="toolDbFile"/.test(shell));
+ok('app wires btnToolImport', app.includes("'btnToolImport'"));
+ok('app listens to toolDbFile', app.includes("'toolDbFile'"));
+ok('app calls ToolDb.parseToolDb', app.includes('ToolDb.parseToolDb'));
+ok('app calls ToolDb.toolsToLibrary', app.includes('ToolDb.toolsToLibrary'));
+const build = fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8');
+ok('build bundles tooldbparse.js', build.includes('tooldbparse.js'));
+// ...and it must be bundled BEFORE studio_app.js or ToolDb is undefined at call time
+ok('tooldbparse.js bundled before studio_app.js',
+  build.indexOf('tooldbparse.js') < build.indexOf('studio_app.js'));
+
 console.log(`\n${pass}/${pass + fail} smoke checks passed`);
 process.exit(fail ? 1 : 0);

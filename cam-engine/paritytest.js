@@ -16,6 +16,35 @@ const CAM = require('./camcore.js');
 const C = require('./cadcore.js');
 const GP = require('./gcodeparse.js');
 const P = require('./parity.js');
+const TDB = require('./tooldbparse.js');
+
+/* Vectric's exported tool database, so fixtures reference a tool instead of hardcoding its
+   geometry and speeds. `tool(5, 'T5e - Amana 49706 Roundover 0.380')` takes BOTH the number
+   the post writes as T<n> and the database name, because tool numbers are not unique - this
+   database has eleven entries on number 9 alone. The number is the machine's slot, the name
+   picks the entry, and the lookup asserts they agree, so a fixture cannot quietly reference
+   a tool that would not actually be loaded in that slot.
+
+   A job may still override feed, plunge or pass depth per-toolpath - Vectric allows that and
+   these jobs use it. Where a fixture overrides, it says so at the line, which is the whole
+   point: you can see what came from the tool and what the operator changed. */
+const TOOLDB_PATH = path.join(__dirname, 'fixtures', 'tooldb', 'aquamentor-2026-07-27.tool');
+let toolDb = [], toolDbErr = null;
+try {
+  if (fs.existsSync(TOOLDB_PATH)) toolDb = TDB.parseToolDb(fs.readFileSync(TOOLDB_PATH)).tools;
+  else toolDbErr = 'tool database not found at ' + TOOLDB_PATH;
+} catch (e) { toolDbErr = 'tool database unreadable: ' + e.message; }
+const tool = (num, name) => {
+  if (toolDbErr) throw new Error(toolDbErr);
+  const hits = toolDb.filter(x => x.name === name);
+  if (!hits.length) throw new Error('tool not in database: "' + name + '"');
+  if (hits.length > 1) throw new Error('tool name is ambiguous in the database: "' + name + '"');
+  const t = hits[0];
+  if (t.toolNum !== num) throw new Error('"' + name + '" is T' + t.toolNum + ' in the database, fixture asked for T' + num);
+  return t;
+};
+// the subset a toolpath inherits from the tool itself; depth/stepover stay with the toolpath
+const toolOpts = t => ({ toolNum: t.toolNum, toolDia: t.dia, feed: t.feed, plunge: t.plunge, rpm: t.rpm });
 
 // dxfparse.js is a browser-concatenated script (no module.exports) - same vm trick importtest.js uses
 let parseDxf, entityToPolys;
@@ -168,7 +197,7 @@ if (!fixtures.length) {
     let ours = null;
     if (fs.existsSync(path.join(dir, 'ours.tap'))) ours = fs.readFileSync(path.join(dir, 'ours.tap'), 'utf8');
     else if (fs.existsSync(path.join(dir, 'job.js'))) {
-      try { ours = require(path.join(dir, 'job.js'))({ CAM, C, parseDxf, entityToPolys, dir, fs, path }); }
+      try { ours = require(path.join(dir, 'job.js'))({ CAM, C, parseDxf, entityToPolys, tool, toolOpts, dir, fs, path }); }
       catch (e) { ok(`fixture ${name}: job.js runs`, false, e.message); continue; }
     }
     // A reference with no `ours` side yet is QUEUED WORK, not a regression. Failing

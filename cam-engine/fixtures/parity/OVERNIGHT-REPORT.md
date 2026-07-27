@@ -15,7 +15,7 @@ Phase 1c (expose the parity-critical parameters in the studio UI).
 | `lgc-50-board-3` | **KNOWN DIFF** — built; drills + finish pass exact, cut order not |
 | `lgc-50-board-4` | **KNOWN DIFF** — built; 7/7 cross-cuts, only T5's entry differs |
 
-**Phase 1c: done.** `npm test` is green at **398 checks**.
+**Phase 1c: done.** `npm test` is green at **435 checks**.
 
 ### Final tally
 4 fixtures at parity, 3 as documented known differences. **15 defects found and fixed** —
@@ -168,3 +168,57 @@ wrong.
 
 Check `/cost`. My estimate for the remaining work was 12–19% of the weekly budget for
 1b + 1c; 1c is done and five of seven fixtures are resolved, with the two hardest left.
+
+## Follow-up: the tool database is now the source of truth
+
+Your exported Vectric tool database is in `fixtures/tooldb/aquamentor-2026-07-27.tool`, and
+`cam-engine/tooldbparse.js` reads it: **71 tools**.
+
+The format is MFC `CArchive` serialisation, which means the class markers (`mcEndMillTool`,
+`mcDrillTool`, ...) appear **exactly once each** no matter how many tools there are — each
+class is named on first use and referenced by index afterwards. So records cannot be found
+by class; they are anchored on the tool name, and every numeric field sits at a fixed
+negative offset from it. The layout is written out at the top of `tooldbparse.js`.
+
+The derivation is only as good as its ground truth, so it is pinned to yours: your Tool
+Database screenshot of `T5e - Amana 49706 Roundover 0.380`. All seven fields read back
+exactly — Ø0.380, pass depth 0.750, stepover 0.304 (80%), S20000, F100.0, plunge 25.0, tool
+number 5 — and `importtest.js` asserts each of them, so a wrong offset shows up as a test
+failure rather than as a wrong toolpath.
+
+### It found a defect in the differ on its first use
+
+`lgc-50-board-5`'s fixture ran T8 at **18000 rpm where the reference says S10000** — and
+parity passed. The differ was not comparing the S word at all. Wrong spindle speed is
+behaviourally real (burnt tools, melted foam), so that was a hole in the comparison, not
+just a wrong number in a fixture.
+
+`parity.js` now checks **spindle speeds**. Adding it turned boards 1, 2 and 5 red
+immediately; correcting them from the database turned them green again. That ordering
+matters: the check went in first and was allowed to fail.
+
+### What changed
+
+- All seven fixtures reference tools via `tool(num, name)` + `toolOpts(t)` instead of
+  hardcoding diameters, feeds, plunges and speeds. Per-toolpath overrides are commented at
+  the line.
+- **The database confirmed the reverse-engineering.** Nothing moved: every fixture landed
+  on exactly the status it had before. `xrt-50`'s Ø0.25/F100/plunge 30/S24000 is `T1 -
+  Vortex Custom Tool for Rescue Tubes` with nothing overridden. Board 4's T5 — the diameter
+  I said could not be derived, then measured at 0.1900" ± 0.0001 — is `T5e - Amana 49706
+  Roundover 0.380`, Ø0.380 exactly.
+- The studio can import a `.tool` file: **CAM panel → Import .tool**. It merges rather than
+  replaces, so presets you built in the app survive a re-import.
+
+### Two things to check, not take on trust
+
+**`op` and `angle` are guessed from the tool NAME.** The record's class is what says whether
+a tool drills or V-carves, and as above, the class is not recoverable per record — the name
+is the only signal left. Anything unrecognised imports as `profile`, which is the safe
+default (cuts a contour rather than plunging or carving). The import message says so. Both
+fields are editable in the tool panel; correct them there before cutting.
+
+**`T8 - Drill (0.375")` stores its feed as 62.46, not 62.5.** Vectric's dialog rounds it to
+62.5 and so does the post, so the G-code matches the reference exactly — but the stored value
+is 62.46. Most likely it was originally entered in metric (1586.5 mm/min). Harmless, worth
+knowing.

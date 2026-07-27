@@ -87,6 +87,18 @@ function normalize(parsed) {
     depths: depths.slice().sort((a, b) => a - b),
     feeds: Array.from(feeds).sort((a, b) => a - b),
     cutLength,
+    // Spindle speed per tool. Omitting this was a real hole: lgc-50-board-5's fixture ran
+    // T8 at 18000 where the reference says 10000, and parity passed anyway. Wrong RPM
+    // burns tools and melts foam - it belongs in the comparison.
+    spindles: (function(){
+      const out = [], seen = new Set();
+      for (const e of parsed.events) {
+        if (e.type !== 'spindle' || !e.on || e.rpm == null) continue;
+        const k = String(e.rpm);
+        if (!seen.has(k)) { seen.add(k); out.push(e.rpm); }
+      }
+      return out.sort((a, b) => a - b);
+    })(),
     toolChanges: parsed.events.filter(e => e.type === 'toolchange').length,
     tabLifts: passes.reduce((s, p) => s + p.lifts, 0),
   };
@@ -148,6 +160,9 @@ function compare(a, b, opts) {
 
   const fBad = a.feeds.length !== b.feeds.length || a.feeds.some((v, i) => Math.abs(v - b.feeds[i]) > t.feedTol);
   add('feed rates', !fBad, `ref [${a.feeds}] vs ours [${b.feeds}]`);
+
+  const sBad = a.spindles.length !== b.spindles.length || a.spindles.some((v, i) => v !== b.spindles[i]);
+  add('spindle speeds', !sBad, `ref [${a.spindles}] vs ours [${b.spindles}]`);
 
   add('tool changes', a.toolChanges === b.toolChanges, `ref ${a.toolChanges} vs ours ${b.toolChanges}`);
   add('tab lifts', a.tabLifts === b.tabLifts, `ref ${a.tabLifts} vs ours ${b.tabLifts}`);
