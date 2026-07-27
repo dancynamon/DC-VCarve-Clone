@@ -336,9 +336,17 @@ function profileOp(contours, opts){
         lp=rotateLoopTo(lp, o.entry==='nearest' ? prevEntry : entryTarget(c.pts, o.side==='outside'?r:-r));
         prevEntry={x:lp[0].x,y:lp[0].y};
       }
-      const hasTabs=!!(o.tabs && o.tabs.count>0), tabH=(o.tabs&&o.tabs.height)||0;
+      // tabs.spacing (VCarve's "constant spacing") sizes the count from the path length
+      // instead of fixing it. lgc-50-board-3 uses it: cuts of 3.5/3.6/3.6/5.8/9.0" carry
+      // 1/1/1/2/3 tabs, which is round(length / 3").
+      let tabCount=(o.tabs&&o.tabs.count)||0;
+      if(o.tabs && o.tabs.spacing>0){
+        let L=0; for(let i=0;i<lp.length-(c.closed?0:1);i++){const a=lp[i],b=lp[(i+1)%lp.length];L+=Math.hypot(b.x-a.x,b.y-a.y);}
+        tabCount=Math.max(1, Math.round(L/o.tabs.spacing));
+      }
+      const hasTabs=tabCount>0, tabH=(o.tabs&&o.tabs.height)||0;
       const plainPts=lp.map(p=>({x:p.x,y:p.y,tab:false}));
-      const tabbed=hasTabs?withTabs(lp,o.tabs.count,o.tabs.length,!c.closed):plainPts;
+      const tabbed=hasTabs?withTabs(lp,tabCount,o.tabs.length,!c.closed):plainPts;
       let pathTab=tabbed, pathPlain=plainPts, closed=c.closed&&o.side!=='on';
       if(closed && o.leadType && o.leadType!=='none'){
         const interiorSign=signedArea(lp)>0?1:-1;                       // left normal = interior when CCW

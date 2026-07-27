@@ -462,3 +462,25 @@ console.log('\n(post-pp assertions added)');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);
+// ---- tabs by constant SPACING (VCarve's alternative to a fixed count) ----
+// lgc-50-board-3 uses it: cuts of 3.5 / 3.6 / 5.8 / 9.0" carry 1 / 1 / 2 / 3 tabs,
+// i.e. round(length / 3"). Guarded here because no fixture reaches parity on it yet.
+(function(){
+  const mk = L => CAM.assembleContours([{closed:false, pts:[{x:0,y:0},{x:L,y:0}]}]);
+  const count = L => {
+    const res = CAM.profileOp(mk(L), {toolDia:0.375, openSide:'right', topZ:0,
+      cutDepth:1.5, passDepth:1.5, tabs:{spacing:3, length:0.5, height:0.1}});
+    const p = res.ops[0].passes[res.ops[0].passes.length-1].path;
+    let runs=0; for(let i=1;i<p.length;i++) if(p[i].tab && !p[i-1].tab) runs++;
+    return runs + (p[0] && p[0].tab ? 1 : 0);
+  };
+  ok('tab spacing: 3.5" -> 1 tab', count(3.5)===1, count(3.5));
+  ok('tab spacing: 5.8" -> 2 tabs', count(5.8)===2, count(5.8));
+  ok('tab spacing: 9.0" -> 3 tabs', count(9.0)===3, count(9.0));
+  // an explicit count still wins when no spacing is given
+  const fixed = CAM.profileOp(mk(9), {toolDia:0.375, openSide:'right', topZ:0,
+    cutDepth:1.5, passDepth:1.5, tabs:{count:4, length:0.5, height:0.1}});
+  const fp = fixed.ops[0].passes[0].path;
+  let fr=0; for(let i=1;i<fp.length;i++) if(fp[i].tab && !fp[i-1].tab) fr++;
+  ok('explicit tab count still honoured', fr===4, fr);
+})();
