@@ -8226,6 +8226,20 @@ function pointInLoop(pt, loop){
 // perimeter first would free the whole panel and every part with it - and then tours what
 // is left nearest-neighbour to cut rapid travel. We did neither: passes came out in raw
 // DXF order, which on the 20-piece jig put the outer boundary first.
+// Vectric orders a set of parallel cuts as an ASCENDING SWEEP that wraps: sort by the
+// cut's Y, start at one of them, run to the top, then wrap to the bottom and continue.
+// Verified against all five LGC boards (4, 4, 5, 7 and 4 cuts). Nearest-neighbour was
+// wrong in principle and only coincided on the 4-cut boards, where a mid-board start
+// happens to tour the same way; with 5 and 7 cuts it diverges immediately.
+// Only the wrap point is a free parameter - everything after it is determined.
+function sweepContours(contours, start){
+  const y0=(start&&start.y)||0;
+  const keyed=contours.map((c,i)=>({c, y:centroid(c.pts).y, i}));
+  keyed.sort((a,b)=>a.y-b.y || a.i-b.i);
+  let k=0, bd=Infinity;
+  for(let j=0;j<keyed.length;j++){ const d=Math.abs(keyed[j].y-y0); if(d<bd){ bd=d; k=j; } }
+  return keyed.slice(k).concat(keyed.slice(0,k)).map(o=>o.c);
+}
 function orderContours(contours, start){
   const n=contours.length;
   const bb=contours.map(c=>boundsOf([c.pts]));
@@ -8264,8 +8278,13 @@ function profileOp(contours, opts){
   const r=o.toolDia/2, warnings=[], passesAll=[]; let leadSkipped=false;
   const depths=[]; let d=Math.min(o.passDepth,o.cutDepth);
   while(d<o.cutDepth-1e-9){depths.push(d);d+=o.passDepth;} depths.push(o.cutDepth);
-  const seq = o.order==='optimize' ? orderContours(contours, o.orderStart) : contours;
-  let prevEntry = o.orderStart || {x:0,y:0}, prevDir = null;   // entry:'nearest' chains each entry to the last one
+  const seq = o.order==='sweep' ? sweepContours(contours, o.orderStart)
+            : o.order==='optimize' ? orderContours(contours, o.orderStart) : contours;
+  let prevEntry = o.orderStart || {x:0,y:0}, prevDir = null;
+  // which side the first open cut starts from; later cuts alternate
+  let openIdx = 0;
+  const bbAll = boundsOf(contours.map(c=>c.pts));
+  const seedRight = ((o.orderStart&&o.orderStart.x)!=null ? o.orderStart.x : bbAll.maxX) >= (bbAll.minX+bbAll.maxX)/2;   // entry:'nearest' chains each entry to the last one
   for(const c of seq){
     let loops;
     if(!c.closed){
@@ -8275,15 +8294,19 @@ function profileOp(contours, opts){
       // is exactly what Vectric does. Direction also decides which side the offset lands,
       // since the offset is always to the RIGHT of travel.
       let src = c.pts;
-      if(o.entry==='serpentine' && prevDir){
-        // Successive parallel cuts alternate direction, so each starts where the last
-        // ended. Strict nearest-end agrees almost always but flips on a near-tie (89.53"
-        // vs 89.71" on lgc-50-board-1's last cut); alternation is the actual strategy and
-        // matches 8/8 across boards 1 and 5.
+      if(o.entry==='serpentine'){
+        // Successive parallel cuts start from alternating sides of the sweep. Comparing
+        // travel VECTORS (the earlier approach) breaks when a contour is curved enough
+        // that both its endpoints sit on the same side - lgc-50-board-4's first cut has
+        // both ends at x~3.46, making the direction vector nearly perpendicular to the
+        // others and the comparison meaningless. Alternating the SIDE is stable for that
+        // case: a curve simply starts at whichever of its ends is furthest that way.
         const a=src[0], b=src[src.length-1];
-        const d={x:b.x-a.x, y:b.y-a.y};
-        if(d.x*prevDir.x + d.y*prevDir.y > 0) src=reversed(src);
-      } else if(o.entry==='nearest' || o.entry==='serpentine'){
+        const wantRight = (openIdx % 2) === 0 ? seedRight : !seedRight;
+        const startIsRight = a.x >= b.x;
+        if(startIsRight !== wantRight) src=reversed(src);
+        openIdx++;
+      } else if(o.entry==='nearest'){
         const a=src[0], b=src[src.length-1];
         const da=(a.x-prevEntry.x)*(a.x-prevEntry.x)+(a.y-prevEntry.y)*(a.y-prevEntry.y);
         const db=(b.x-prevEntry.x)*(b.x-prevEntry.x)+(b.y-prevEntry.y)*(b.y-prevEntry.y);
@@ -8981,7 +9004,7 @@ function stockHeightAt(field, x, y) {
   return field.z[j * field.nx + i];
 }
 
-return {SCALE,TOL,dist,signedArea,isCCW,ensureCCW,ensureCW,boundsOf,assembleContours,offsetLoop,withTabs,fitArcs,profileOp,pocketOp,drillOp,vcarveOp,centroid,defaultTools,upsertTool,removeTool,slugId,orderPasses,postProcess,POSTS,simulateStock,stockHeightAt,estimateTime};
+return {SCALE,TOL,dist,signedArea,sweepContours,offsetOpenPath,isCCW,ensureCCW,ensureCW,boundsOf,assembleContours,offsetLoop,withTabs,fitArcs,profileOp,pocketOp,drillOp,vcarveOp,centroid,defaultTools,upsertTool,removeTool,slugId,orderPasses,postProcess,POSTS,simulateStock,stockHeightAt,estimateTime};
 });
 
 </script>

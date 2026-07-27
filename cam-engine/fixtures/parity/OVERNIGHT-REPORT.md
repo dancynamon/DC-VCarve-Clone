@@ -13,14 +13,30 @@ Phase 1c (expose the parity-critical parameters in the studio UI).
 | `lgc-50-board-5` | **PARITY** |
 | `print-jig-20-piece-foam` | **KNOWN DIFF** — understood, documented, marked |
 | `lgc-50-board-3` | **KNOWN DIFF** — built; drills + finish pass exact, cut order not |
-| `lgc-50-board-4` | **DECODED, NOT BUILT** — one unknown, see its notes.md |
+| `lgc-50-board-4` | **KNOWN DIFF** — built; 7/7 cross-cuts, only T5's entry differs |
 
 **Phase 1c: done.** `npm test` is green at **398 checks**.
 
 ### Final tally
-4 fixtures at parity, 2 as documented known differences, 1 decoded but not built.
-**14 defects found and fixed** — several of which produced wrong metal, not just
-mismatched text.
+4 fixtures at parity, 3 as documented known differences. **15 defects found and fixed** —
+several of which produced wrong metal, not just mismatched text.
+
+### Follow-up session: the ordering rule was wrong in principle
+
+Board 4 got built, and it overturned two earlier conclusions:
+
+- **T5's diameter was derivable after all.** Measured 0.1900" +/- 0.0001 over 78 mid-path
+  samples. The earlier "cannot be derived" was based on endpoint behaviour and did not
+  consider that mid-path the offset is a clean perpendicular.
+- **Cut ordering is an ascending-Y sweep that wraps, not nearest-neighbour.** Verified
+  against all five LGC boards (4, 4, 5, 7 and 4 cuts). NN only *coincided* on the four-cut
+  boards, where a mid-board start tours the same way; at 5 and 7 cuts it diverges
+  immediately. The rule shipped overnight was wrong in principle, not merely
+  mis-parameterised — and the three boards that passed with it passed for the wrong reason.
+- **Direction is side-alternation, not vector comparison.** Comparing travel vectors breaks
+  when a contour curves enough that both endpoints sit on the same side, which is exactly
+  board 4's first cut. Alternating the side is stable there and reproduces boards 1, 2, 4
+  and 5 (7/7 on board 4). Board 3 is the lone counter-example.
 
 ## Fourteen defects found and fixed
 

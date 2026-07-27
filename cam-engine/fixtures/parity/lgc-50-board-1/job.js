@@ -32,7 +32,7 @@ module.exports = function ({ CAM, C, parseDxf, entityToPolys, dir, fs, path }) {
   const cross = CAM.profileOp(cuts, {
     toolNum: 3, toolDia: 0.375, topZ: 0, cutDepth: 1.5, passDepth: 0.375,
     feed: 60, plunge: 20, rpm: 18000,
-    openSide: 'right', entry: 'serpentine', order: 'optimize',
+    openSide: 'right', entry: 'serpentine', order: 'sweep',
     orderStart: { x: 3.5, y: 48.5 },                // tour begins at the right edge, mid-board
     tabs: { count: 1, length: 0.875, height: 0.1 },
     leadType: 'none', rampLen: 0,

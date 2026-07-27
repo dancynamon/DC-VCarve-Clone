@@ -1,7 +1,19 @@
 # LGC 50 — Job 1, Board 4
 
-**Status: DECODED, NOT BUILT.** The job is fully mapped below — building it is mostly
-mechanical from here. Stopped deliberately rather than guess at one unknown unattended.
+**Status: KNOWN DIFF** — built. All six ops reproduce except two narrow differences on the
+T5 op; see `known-diff.txt`. All 7 cross-cuts match, including sweep order and directions.
+
+## T5's diameter WAS derivable — an earlier note here said otherwise
+
+It was measured, not guessed: **0.1900" +/- 0.0001 over 78 mid-path samples** across both
+T5 passes. The earlier claim that it "cannot be derived from the pair" was wrong — it was
+based on the path's ENDPOINTS moving both along and across the contour, which is true, but
+at any MID-path point the offset is a clean perpendicular and reads straight off.
+
+0.1900 does not decompose to a standard tool: it is 0.1875 + 0.0025, so most likely a
+Ø0.375 cutter carrying a 0.0025" allowance (Vectric's "allowance offset"), or a Ø0.38
+cutter. The effective offset is what reproduces the path; the decomposition is ambiguous
+and does not matter for parity.
 
 ## The job — six ops, five tools
 
