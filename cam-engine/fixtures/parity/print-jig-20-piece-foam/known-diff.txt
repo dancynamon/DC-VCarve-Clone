@@ -1,0 +1,12 @@
+Entry point ~0.012" out and arc segmentation differs (ref fits 8 arcs, we fit 16) on
+freeform curves. The RULE is matched -- both pick the nearest point on the offset loop to
+the previous exit -- but on a 776-point freeform curve our offset polyline and Vectric's
+put the same minimum in marginally different places.
+
+Not behavioural: cut length agrees within 0.5%, and envelope, depths, feeds, tool changes
+and tab lifts all match. Settling it properly means cutting the jig from both programs and
+comparing the parts.
+
+See notes.md. Do NOT remove this marker to make the suite green -- removing it should only
+happen when the fixture actually reaches parity, or when Dan decides the freeform tolerance
+question.
