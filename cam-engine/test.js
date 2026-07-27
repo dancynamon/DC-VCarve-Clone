@@ -483,5 +483,49 @@ console.log('\n(post-pp assertions added)');
   ok('explicit tab count still honoured', fr===4, fr);
 })();
 
+// ---- serpentine cut direction (entry:'serpentine') ----
+// The rule, measured across all 21 cross-cuts of the five LGC-50 boards: the bottom-most
+// cut runs left-to-right and each cut UP THE BOARD reverses. The alternation is by position
+// on the board, not by the order the cuts are made in - and since the kerf is always to the
+// right of travel, getting it backwards puts the cut a full tool-width out of position.
+{
+  const mk = (y, x0, x1) => ({ pts: [{x:x0,y}, {x:x1,y}], closed:false, area:0 });
+  // drawn directions deliberately mixed, so a rule that just follows the source fails
+  const cuts = [mk(10, 0, 5), mk(20, 5, 0), mk(30, 5, 0), mk(40, 0, 5)];
+  const dirOf = op => op.ops[0].passes.map(p => {
+    const a = p.path[0], b = p.path[p.path.length-1]; return b.x >= a.x ? +1 : -1;
+  });
+  const common = { toolDia:0.5, cutDepth:0.1, passDepth:0.1, openSide:'right',
+    entry:'serpentine', tabs:{count:0,length:0,height:0}, leadType:'none', rampLen:0 };
+
+  // in source order, and again in a shuffled order: the DIRECTIONS must not change
+  const d1 = dirOf(CAM.profileOp(cuts, Object.assign({}, common)));
+  ok('serpentine alternates bottom-to-top', JSON.stringify(d1)==='[1,-1,1,-1]', JSON.stringify(d1));
+
+  const shuffled = [cuts[2], cuts[0], cuts[3], cuts[1]];
+  const d2 = dirOf(CAM.profileOp(shuffled, Object.assign({}, common)));
+  ok('serpentine direction follows position, not cut order', JSON.stringify(d2)==='[1,1,-1,-1]', JSON.stringify(d2));
+
+  // a lengthwise contour is not a cross-cut: it must not consume an alternation slot
+  const lengthwise = { pts:[{x:2.5,y:12},{x:2.5,y:38}], closed:false, area:0 };
+  const withLong = [cuts[0], lengthwise, cuts[1], cuts[2], cuts[3]];
+  const longOp = CAM.profileOp(withLong, Object.assign({}, common));
+  const d3 = dirOf(longOp);
+  const lp = longOp.ops[0].passes[1].path;              // x is degenerate here - measure Y
+  ok('lengthwise cut runs down the board', lp[lp.length-1].y < lp[0].y, lp[0].y + ' -> ' + lp[lp.length-1].y);
+  ok('lengthwise cut does not shift the serpentine',
+    JSON.stringify([d3[0],d3[2],d3[3],d3[4]])===JSON.stringify(d1), JSON.stringify(d3));
+
+  // ranking over the whole drawing: a second toolpath cutting a SUBSET keeps the same
+  // directions it would have had in the full job (lgc-50-board-4's T5 vs T3)
+  const subset = [cuts[1], cuts[2]];
+  const dSub = dirOf(CAM.profileOp(subset, Object.assign({}, common, { serpentineOver: cuts })));
+  ok('serpentineOver keeps a subset consistent with the full drawing',
+    JSON.stringify(dSub)==='[-1,1]', JSON.stringify(dSub));
+  const dNo = dirOf(CAM.profileOp(subset, Object.assign({}, common)));
+  ok('without serpentineOver a subset re-ranks (guards the option is load-bearing)',
+    JSON.stringify(dNo)==='[1,-1]', JSON.stringify(dNo));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

@@ -299,18 +299,57 @@ function orderContours(contours, start){
   return out;
 }
 
+/* serpentineDirs(contours) -> Map<contour, +1 | -1 | 0>
+
+   Which way each open cut travels: +1 left-to-right, -1 right-to-left, 0 lengthwise
+   (down the board). The kerf is always to the RIGHT of travel, so this also decides which
+   side of the line the offset lands on - get it backwards and the cut is a full tool-width
+   out of position.
+
+   Measured across all 21 cross-cuts of the five LGC-50 boards, the rule is:
+
+     the bottom-most cut runs LEFT TO RIGHT, and each successive cut UP THE BOARD reverses.
+
+   The alternation is by POSITION UP THE BOARD, not by the order the cuts are made in.
+   That distinction is the whole thing. The tour is an ascending-Y sweep that starts
+   mid-board and wraps (see sweepContours), so cut order and bottom-to-top order are not the
+   same list - and alternating in cut order gets boards 1, 2, 4 and 5 right by coincidence
+   (their wraps happen to fall where the parity works out) while getting board 3's first two
+   cuts backwards. Alternating by position is right on all five.
+
+   A LENGTHWISE contour - one whose ends differ more in Y than in X - is not part of the
+   serpentine at all. It is not a cross-cut, it has no left or right, and letting it consume
+   an alternation slot shifts the parity of everything after it.
+
+   Rank over the WHOLE DRAWING, not one toolpath's contours (`serpentineOver`). Direction
+   belongs to where a cut sits on the board, not to which tool makes it: on lgc-50-board-4
+   the shallow T5 op and the through-cutting T3 op both cut contours 4 and 5, and both run
+   them right-to-left. Ranking within the T5 op alone would make its lower cut the
+   bottom-most one and send it left-to-right - a cut a full tool-width off position. */
+function serpentineDirs(contours){
+  const dir = new Map();
+  const ends = c => [c.pts[0], c.pts[c.pts.length-1]];
+  const cross = [];
+  for(const c of contours||[]){
+    if(c.closed) continue;
+    const [a,b]=ends(c);
+    if(Math.abs(b.x-a.x) >= Math.abs(b.y-a.y)) cross.push(c); else dir.set(c,0);
+  }
+  const midY = c => { const bb=boundsOf([c.pts]); return (bb.minY+bb.maxY)/2; };
+  cross.sort((u,v)=>midY(u)-midY(v));
+  cross.forEach((c,i)=>dir.set(c, i%2===0 ? +1 : -1));
+  return dir;
+}
+
 function profileOp(contours, opts){
-  const o=Object.assign({toolNum:1,toolDia:0.25,side:'outside',climb:true,topZ:0,cutDepth:0.25,passDepth:0.125,safeZ:0.25,feed:120,plunge:40,rpm:18000,tabs:{count:0,length:0.4,height:0.06},joinType:'round',leadType:'none',leadLen:0.25,rampLen:0,leadAngle:0,overcut:0,order:'source',entry:'source',openSide:'on',reverseOpen:false},opts||{});
+  const o=Object.assign({toolNum:1,toolDia:0.25,side:'outside',climb:true,topZ:0,cutDepth:0.25,passDepth:0.125,safeZ:0.25,feed:120,plunge:40,rpm:18000,tabs:{count:0,length:0.4,height:0.06},joinType:'round',leadType:'none',leadLen:0.25,rampLen:0,leadAngle:0,overcut:0,order:'source',entry:'source',openSide:'on',reverseOpen:false,serpentineOver:null},opts||{});
   const r=o.toolDia/2, warnings=[], passesAll=[]; let leadSkipped=false;
   const depths=[]; let d=Math.min(o.passDepth,o.cutDepth);
   while(d<o.cutDepth-1e-9){depths.push(d);d+=o.passDepth;} depths.push(o.cutDepth);
   const seq = o.order==='sweep' ? sweepContours(contours, o.orderStart)
             : o.order==='optimize' ? orderContours(contours, o.orderStart) : contours;
   let prevEntry = o.orderStart || {x:0,y:0}, prevDir = null;
-  // which side the first open cut starts from; later cuts alternate
-  let openIdx = 0;
-  const bbAll = boundsOf(contours.map(c=>c.pts));
-  const seedRight = ((o.orderStart&&o.orderStart.x)!=null ? o.orderStart.x : bbAll.maxX) >= (bbAll.minX+bbAll.maxX)/2;   // entry:'nearest' chains each entry to the last one
+  const serpDir = o.entry==='serpentine' ? serpentineDirs(o.serpentineOver||contours) : null;
   for(const c of seq){
     let loops;
     if(!c.closed){
@@ -321,17 +360,9 @@ function profileOp(contours, opts){
       // since the offset is always to the RIGHT of travel.
       let src = c.pts;
       if(o.entry==='serpentine'){
-        // Successive parallel cuts start from alternating sides of the sweep. Comparing
-        // travel VECTORS (the earlier approach) breaks when a contour is curved enough
-        // that both its endpoints sit on the same side - lgc-50-board-4's first cut has
-        // both ends at x~3.46, making the direction vector nearly perpendicular to the
-        // others and the comparison meaningless. Alternating the SIDE is stable for that
-        // case: a curve simply starts at whichever of its ends is furthest that way.
-        const a=src[0], b=src[src.length-1];
-        const wantRight = (openIdx % 2) === 0 ? seedRight : !seedRight;
-        const startIsRight = a.x >= b.x;
-        if(startIsRight !== wantRight) src=reversed(src);
-        openIdx++;
+        const a=src[0], b=src[src.length-1], want=serpDir.get(c);
+        if(want===0){ if(b.y>a.y) src=reversed(src); }            // lengthwise cut: runs down the board
+        else if((b.x>=a.x) !== (want>0)) src=reversed(src);
       } else if(o.entry==='nearest'){
         const a=src[0], b=src[src.length-1];
         const da=(a.x-prevEntry.x)*(a.x-prevEntry.x)+(a.y-prevEntry.y)*(a.y-prevEntry.y);

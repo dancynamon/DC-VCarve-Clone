@@ -45,6 +45,7 @@ module.exports = function ({ CAM, C, parseDxf, entityToPolys, tool, toolOpts, di
   const t5 = CAM.profileOp(shallow, Object.assign(toolOpts(T5), {
     topZ: 0, cutDepth: 0.1, passDepth: 0.1,
     openSide: 'right', entry: 'serpentine', order: 'sweep',
+    serpentineOver: open,    // direction is set by the board layout, not by this op's subset
     orderStart: { x: 3.5, y: 48.5 },
     tabs: { count: 0, length: 0, height: 0 }, leadType: 'none', rampLen: 0,
   }));
