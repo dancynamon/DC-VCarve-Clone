@@ -10,10 +10,14 @@ T5 passes. The earlier claim that it "cannot be derived from the pair" was wrong
 based on the path's ENDPOINTS moving both along and across the contour, which is true, but
 at any MID-path point the offset is a clean perpendicular and reads straight off.
 
-0.1900 does not decompose to a standard tool: it is 0.1875 + 0.0025, so most likely a
-Ø0.375 cutter carrying a 0.0025" allowance (Vectric's "allowance offset"), or a Ø0.38
-cutter. The effective offset is what reproduces the path; the decomposition is ambiguous
-and does not matter for parity.
+**Confirmed against Vectric's tool database:** the tool is `T5e - Amana 49706 Roundover
+0.380`, diameter **0.380"**, spindle 20000, feed 100.0, plunge 25.0, tool number 5. So it
+is a genuine Ø0.380 cutter — not a Ø0.375 with an allowance, which was the alternative
+hypothesis. The measured radius of 0.1900" is exactly half of it.
+
+Worth recording that the measurement technique was validated: reading the offset off
+mid-path samples gave the right answer to four decimal places, and every other T5 parameter
+derived from the `.tap` (feed, plunge, RPM, tool number) matched the database too.
 
 ## The job — six ops, five tools
 

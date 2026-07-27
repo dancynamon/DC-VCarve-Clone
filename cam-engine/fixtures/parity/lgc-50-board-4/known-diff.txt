@@ -1,7 +1,8 @@
 Two narrow differences on the T5 op only:
 
 1. Entry point 0.0018" out — ref (3.6712, 72.2940) vs ours (3.6720, 72.2924). The offset
-   DISTANCE is right (0.1900", measured to +/-0.0001 over 78 mid-path samples); the
+   DISTANCE is confirmed correct (Ø0.380 exactly, per Vectric's tool database: T5e - Amana
+   49706 Roundover 0.380, which matches the 0.1900" radius measured from the path); the
    residual is a ~0.0016" Y difference at the path ENDPOINT, where offsetOpenPath uses the
    first segment's normal and Vectric evidently does something slightly different. Sweeping
    the diameter does not move it, which is how we know it is endpoint treatment and not radius.
