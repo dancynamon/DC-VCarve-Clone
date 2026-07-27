@@ -1,16 +1,21 @@
-Two narrow differences on the T5 op only:
+Two differences remain, both on the T5 op only, both understood.
 
-1. Entry point 0.0018" out — ref (3.6712, 72.2940) vs ours (3.6720, 72.2924). The offset
-   DISTANCE is confirmed correct (Ø0.380 exactly, per Vectric's tool database: T5e - Amana
-   49706 Roundover 0.380, which matches the 0.1900" radius measured from the path); the
-   residual is a ~0.0016" Y difference at the path ENDPOINT, where offsetOpenPath uses the
-   first segment's normal and Vectric evidently does something slightly different. Sweeping
-   the diameter does not move it, which is how we know it is endpoint treatment and not radius.
+1. Entry point 0.0018" out - ref (3.6712, 72.2940) vs ours (3.6720, 72.2924). Decomposed
+   against the source's first segment, the reference entry sits 0.18996" PERPENDICULAR to the
+   path (the tool radius, 0.1900, exactly right - confirmed independently by the tool database:
+   T5e - Amana 49706 Roundover 0.380) and 0.00176" FORWARD along the tangent. So the offset
+   distance is correct and the residual is purely where along the path Vectric's offset
+   polyline starts. Its first chord direction implies a tangent of 116.42 deg where the
+   source's first chord is 115.90 deg and a second-order one-sided estimate gives 115.38 -
+   Vectric is evidently using the underlying spline, which the DXF does not give us.
+   1.8 thou, on an entry into air, with a 0.380" cutter.
 
-2. Arc segmentation — ref emits that path as pure G1, we fit 4 arcs to it.
+2. Arc segmentation - the reference emits that 130-point flattened spline as pure G1, we fit
+   4 arcs to it. This is the general arc-fitting gap; see ARC-FITTING.md, which records two
+   fixes that were measured and both make it worse. Cut length agrees to within 0.01%.
 
-Everything else matches: all 4 T10 drills, all 6 T8 drills (after de-duplicating the
-DXF's coincident circles), the pocket, the T9 finishing pass, and ALL 7 CROSS-CUTS
-including their sweep order and alternating directions.
+Everything else matches: all 4 T10 drills, all 6 T8 drills (after de-duplicating the DXF's
+coincident circles), the pocket (entry, ring radii, spacing and representation), the T9
+finishing pass, and ALL 7 CROSS-CUTS including their sweep order and directions.
 
 See notes.md. Do NOT remove this marker to make the suite green.

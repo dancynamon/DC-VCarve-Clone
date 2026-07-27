@@ -12,8 +12,8 @@ Phase 1c (expose the parity-critical parameters in the studio UI).
 | `lgc-50-board-2` | **PARITY** |
 | `lgc-50-board-5` | **PARITY** |
 | `print-jig-20-piece-foam` | **KNOWN DIFF** — understood, documented, marked |
-| `lgc-50-board-3` | **KNOWN DIFF** — built; drills + finish pass exact, cut order not |
-| `lgc-50-board-4` | **KNOWN DIFF** — built; 7/7 cross-cuts, only T5's entry differs |
+| `lgc-50-board-3` | **KNOWN DIFF** — one pass's start angle, nothing else |
+| `lgc-50-board-4` | **KNOWN DIFF** — T5 entry 0.0018" out + arc representation |
 
 **Phase 1c: done.** `npm test` is green at **435 checks**.
 
@@ -222,3 +222,86 @@ fields are editable in the tool panel; correct them there before cutting.
 62.5 and so does the post, so the G-code matches the reference exactly — but the stored value
 is 62.46. Most likely it was originally entered in metric (1586.5 mm/min). Harmless, worth
 knowing.
+
+## Follow-up: boards 3 and 4
+
+Both are down to narrow, understood residuals. Five defects came out of it, three of which
+produced wrong metal.
+
+### The serpentine rule was wrong in principle
+
+Board 3's two backwards cross-cuts were not an outlier. Measured across **all 21 cross-cuts
+of the five boards**: the bottom-most cut runs left to right, and each cut UP THE BOARD
+reverses. The alternation is by **position on the board**, not by the order the cuts are
+made in — and those are different lists, because the tour is an ascending-Y sweep that starts
+mid-board and wraps. On boards 1, 2, 4 and 5 the wrap happened to fall where both readings
+agree; on board 3 it does not. Since the kerf is always to the right of travel, a reversed
+cut is a **full tool-width out of position**.
+
+This is the second time an ordering rule has been right on four boards for the wrong reason.
+The lesson both times: a rule that fits every sample can still be wrong, and the way to tell
+is to state it in physical terms and check the statement, not the outcome.
+
+Two riders, from the same measurement:
+
+- A **lengthwise** contour is not part of the serpentine. It has no left or right, and
+  letting it consume an alternation slot shifts the parity of every cut after it.
+- Direction belongs to where a cut sits on the **drawing**, not to which toolpath makes it.
+  Board 4's shallow T5 op and its through-cutting T3 op both cut contours 4 and 5, both
+  right-to-left. Hence `serpentineOver`.
+
+The fitted `seedRight` heuristic is gone. Nothing about the direction rule is fitted now.
+
+### Open-path corners were mitred where Vectric fillets
+
+On the outside of a turn the two offset segments pull apart and the tool sweeps an arc about
+the vertex. We ran it out to a sharp mitre point the cutter never traces — board 3's first
+cross-cut came out **5.9236" long where the reference is 5.8446"**, and the reference emits
+that corner as a G3. Closed contours already got round joins from Clipper; open ones now
+match.
+
+### The pocket, measured properly
+
+Six rings, least-squares circle fit, **identical on boards 3 and 4 to five decimals**. Three
+separate things were wrong:
+
+- **Entry.** Every reference ring starts on the same ray as the source circle's own first
+  vertex, so the links between rings are radial. We entered each ring nearest to where the
+  last one finished, which walks the entry around the pocket.
+- **Allowance.** The outermost ring sits 0.19385" from the wall where the tool radius is
+  0.1875 — Vectric leaves **0.00635" of stock** for the T9 finishing pass, which itself takes
+  the full radius. `pocketOp` now has an `allowance` option.
+- **Representation.** Vectric emits the rings as ~100 G1 segments per revolution, not G2/G3.
+
+The 0.09384" ring spacing and the 0.00635" allowance are **measured off the reference, not
+read from a dialog** — the same status `orderStart` has. Neither is a round number (25% of
+the 0.375 tool would be 0.09375), so both are worth confirming against the Vectric job file.
+The mechanism is a real Vectric feature; only the values are fitted.
+
+### Arc fitting: two dead ends, written down
+
+The remaining representation gap has its own file, `ARC-FITTING.md`, because two obvious
+fixes were measured and **both make it worse**:
+
+- Tightening `arcTol` chops a spline into *more* arcs (4 → 8 as tol went 0.0015 → 0.0001)
+  while genuine arcs on `xrt-50` and the print jig drop out entirely.
+- A second, tighter "is this really a circle" threshold fails too — a densely sampled smooth
+  curve is locally circular to any precision you ask for, so the fit just shortens.
+
+The real difference is that Vectric knows an arc's *identity* (carried from import, or
+constructed as a round join) where we only see sampled points. Fixing it properly means
+tracking arc provenance through the geometry pipeline, which is a real change, not tuning.
+Until then it is a representation difference, not a metal difference: cut lengths agree to
+within 0.01%.
+
+### What is left
+
+- **board 3** — one pass, one number: the T9 finishing profile enters at 148.23° round the
+  circle, we enter at 0°. Same circle, same length, plunging into already-cleared pocket. Not
+  the source start, not nearest to the previous pass, not nearest to park, not the antipode;
+  board 4's identical circle does the same thing, so it is deterministic — most likely just
+  where Vectric's offsetter begins its output polygon.
+- **board 4** — T5's entry 0.0018" out. Decomposed, the perpendicular offset is exactly right
+  (0.18996" against a 0.1900" tool radius); the residual is 0.00176" of *along-path* position
+  at the endpoint, where Vectric is evidently using the underlying spline tangent that the
+  DXF does not give us. Plus the arc-representation gap above.

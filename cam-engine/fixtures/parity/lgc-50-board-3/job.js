@@ -35,12 +35,21 @@ module.exports = function ({ CAM, C, parseDxf, entityToPolys, tool, toolOpts, di
   }));
   const pocket = CAM.pocketOp(pocketCirc, Object.assign(toolOpts(T3), {
     topZ: 0, cutDepth: 0.5, passDepth: 0.25,
-    stepover: 0.25, linkRings: true, climb: true,
+    linkRings: true, climb: true,
     feed: 60,                // toolpath override: the tool's default feed is 80
+    // MEASURED off the reference (least-squares circle fit per ring, identical on boards 3
+    // and 4 to five decimals), not read from a dialog - see notes.md:
+    stepoverIn: 0.09384,     //   ring spacing; 25% of the tool would be 0.09375
+    allowance: 0.00635,      //   stock left on the wall for the T9 finishing pass
+    arcs: false,             //   Vectric tessellates pocket rings into G1, ~100 per circle
   }));
   const finish = CAM.profileOp(pocketCirc, Object.assign(toolOpts(T9), {
     side: 'inside', topZ: 0, cutDepth: 0.5, passDepth: 0.5,
     plunge: 30,              // toolpath override: the tool's default plunge is 25
+    // Vectric tessellates this circle into 100 G1 segments rather than emitting G2/G3 -
+    // same as its pocket rings on the identical circle, on both boards 3 and 4 (four
+    // independent samples). Why circles specifically, we do not know; see ARC-FITTING.md.
+    arcs: false,
     leadType: 'none', rampLen: 0,
     tabs: { count: 0, length: 0, height: 0 },
   }));

@@ -53,13 +53,17 @@ Everything else in this fixture's parameters now comes from that same database (
 `job.js`); the only per-toolpath overrides are the two the operator actually changed, and
 both are commented at the line.
 
-## Expected outcome once built
+## Outcome (this section used to be a prediction, and the prediction was wrong)
 
-Ops 1 and 3–5 should match. Op 6 will almost certainly land as a **KNOWN DIFF** on cut
-order, for the same reason board 3 does: `orderStart` is fitted rather than derived, and the
-value that reproduces boards 1, 2 and 5 does not reproduce board 3. Board 4 is the fixture
-that would tell us whether board 3 is the outlier or the rule itself is wrong — which is
-the main reason it is worth building.
+It said op 6 would "almost certainly" land as a KNOWN DIFF on cut order, because
+`orderStart` was fitted and board 3 disagreed with boards 1, 2 and 5. Building it answered
+the question it was built to answer, and the answer was the uncomfortable one: **board 3 was
+not the outlier — the rule was wrong.** Ordering is an ascending-Y sweep, not
+nearest-neighbour, and direction alternates by position on the board, not by cut order. All
+7 cross-cuts here match, order and direction, and so do all 5 of board 3's.
+
+Ops 1 and 3–5 match. What is left is two narrow differences on op 2 (T5); see
+`known-diff.txt`.
 
 ## Files
 - `reference.tap` — ground truth, posted from VCarve with the ShopSabre ATC post.
@@ -99,3 +103,16 @@ perpendicular offset between them. That is a job for the parity run itself.
 Neither DXF fixture exercises TOOLCHANGE blocks, multiple tools in one program,
 multipass depth stepping, or holding tabs. This one exercises all four. Board 4 is
 the most demanding of the five.
+
+## Cut direction is a property of the board, not of the toolpath
+
+Board 4 is what proved this. Contours 4 and 5 are cut by BOTH the shallow T5 op and the
+through-cutting T3 op, and both ops run them right-to-left. Ranking the serpentine within the
+T5 op alone would make its lower contour the bottom-most one and send it left-to-right - a cut
+a full tool-width off position. `profileOp` therefore takes `serpentineOver`, and this
+fixture passes the whole drawing's open contours to the T5 op.
+
+The rule itself, measured over all 21 cross-cuts of the five boards: the bottom-most cut runs
+left to right, and each successive cut UP THE BOARD reverses. Lengthwise contours (ends
+differing more in Y than in X) sit outside the serpentine entirely - contour 6 here is one,
+and letting it take an alternation slot shifts the parity of everything after it.

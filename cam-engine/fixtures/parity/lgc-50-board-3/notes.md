@@ -85,3 +85,35 @@ perpendicular offset between them. That is a job for the parity run itself.
 Neither DXF fixture exercises TOOLCHANGE blocks, multiple tools in one program,
 multipass depth stepping, or holding tabs. This one exercises all four. Board 4 is
 the most demanding of the five.
+
+## The pocket, measured
+
+The Ø1.5 pocket is cut as six concentric rings, innermost first, stepping outward, linked by
+radial moves. Every ring starts on the SAME ray as the source circle's own first vertex
+(0 deg), which is how the links come out radial. Least-squares circle fit per ring, identical
+on boards 3 and 4 to five decimals:
+
+| ring | r |
+|---|---|
+| 1 (innermost) | 0.08693 |
+| 2 | 0.18077 |
+| 3 | 0.27462 |
+| 4 | 0.36846 |
+| 5 | 0.46231 |
+| 6 (outermost) | 0.55615 |
+
+Spacing 0.09384" throughout. The outermost ring implies an offset from the wall of 0.19385",
+where the tool radius alone is 0.1875 - so the pocket leaves **0.00635" of stock on the wall**
+for the T9 finishing pass, which itself takes the full radius (fitted r 0.68747 = 0.75 -
+0.0625, no allowance). That is Vectric's pocket "allowance offset", and `pocketOp` now has an
+`allowance` option for it.
+
+Both numbers - the 0.09384 spacing and the 0.00635 allowance - are **measured off the
+reference, not read from a dialog**, the same way `orderStart` is. 0.09384 is not 25% of the
+0.375 tool (that is 0.09375) and 0.00635 is not a round number in inches or mm, so both are
+worth confirming against the real Vectric job file if you still have it. The MECHANISM is a
+genuine Vectric feature; only the values are fitted.
+
+Vectric emits the rings as ~100 straight segments per revolution rather than G2/G3, and does
+the same for the T9 finishing profile on the identical circle. Modelled with `arcs: false`;
+see ARC-FITTING.md for why that is a flag rather than a rule.

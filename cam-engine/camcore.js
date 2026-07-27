@@ -103,24 +103,41 @@ function offsetLoop(loop, delta, joinType){
 function offsetOpenPath(pts, delta){
   const n=pts.length;
   if(n<2 || !delta) return pts.map(p=>({x:p.x,y:p.y}));
-  const seg=[];
+  const seg=[], dir=[];
   for(let i=0;i<n-1;i++){
     const dx=pts[i+1].x-pts[i].x, dy=pts[i+1].y-pts[i].y, L=Math.hypot(dx,dy)||1;
+    dir.push({x:dx/L, y:dy/L});
     seg.push({x:dy/L, y:-dx/L});                     // right-hand normal of this segment
   }
+  const r=Math.abs(delta);
+  // sagitta-limited step for the round joins below, so fitArcs can recover them as one arc
+  const step=r>0.0005 ? 2*Math.acos(Math.max(-1,Math.min(1,1-0.0005/r))) : Math.PI;
   const out=[];
-  for(let i=0;i<n;i++){
-    let nx, ny;
-    if(i===0){ nx=seg[0].x; ny=seg[0].y; }
-    else if(i===n-1){ nx=seg[n-2].x; ny=seg[n-2].y; }
-    else {
-      const a=seg[i-1], b=seg[i];
+  out.push({x:pts[0].x+seg[0].x*delta, y:pts[0].y+seg[0].y*delta});
+  for(let i=1;i<n-1;i++){
+    const a=seg[i-1], b=seg[i];
+    // On the OUTSIDE of a turn the two offset segments pull apart, and the tool sweeps an arc
+    // about the vertex to get from one to the other. Mitring instead runs the tool out to a
+    // sharp point the cutter never actually traces - lgc-50-board-3's first cross-cut came out
+    // 5.92" long where Vectric's is 5.84", and Vectric emits that corner as a G3. Closed
+    // contours already get round joins (Clipper joinType 'round'); this matches open ones.
+    const cross=dir[i-1].x*dir[i].y - dir[i-1].y*dir[i].x;
+    const outward = delta>0 ? cross>1e-12 : cross<-1e-12;
+    if(outward){
+      const a0=Math.atan2(a.y*delta, a.x*delta), a1=Math.atan2(b.y*delta, b.x*delta);
+      let sweep=a1-a0;
+      while(sweep>Math.PI) sweep-=2*Math.PI;
+      while(sweep<-Math.PI) sweep+=2*Math.PI;
+      const k=Math.max(1, Math.ceil(Math.abs(sweep)/step));
+      for(let q=0;q<=k;q++){ const t=a0+sweep*q/k;
+        out.push({x:pts[i].x+r*Math.cos(t), y:pts[i].y+r*Math.sin(t)}); }
+    } else {
       const sx=a.x+b.x, sy=a.y+b.y, L2=sx*sx+sy*sy;
-      if(L2<1e-12){ nx=b.x; ny=b.y; }                // 180 deg reversal: no usable bisector
-      else { nx=2*sx/L2; ny=2*sy/L2; }               // mitre: |m| = 1/cos(half-angle)
+      if(L2<1e-12) out.push({x:pts[i].x+b.x*delta, y:pts[i].y+b.y*delta});   // 180 deg reversal
+      else out.push({x:pts[i].x+2*sx/L2*delta, y:pts[i].y+2*sy/L2*delta});   // mitre on the inside
     }
-    out.push({x:pts[i].x+nx*delta, y:pts[i].y+ny*delta});
   }
+  out.push({x:pts[n-1].x+seg[n-2].x*delta, y:pts[n-1].y+seg[n-2].y*delta});
   return out;
 }
 
@@ -342,7 +359,7 @@ function serpentineDirs(contours){
 }
 
 function profileOp(contours, opts){
-  const o=Object.assign({toolNum:1,toolDia:0.25,side:'outside',climb:true,topZ:0,cutDepth:0.25,passDepth:0.125,safeZ:0.25,feed:120,plunge:40,rpm:18000,tabs:{count:0,length:0.4,height:0.06},joinType:'round',leadType:'none',leadLen:0.25,rampLen:0,leadAngle:0,overcut:0,order:'source',entry:'source',openSide:'on',reverseOpen:false,serpentineOver:null},opts||{});
+  const o=Object.assign({toolNum:1,toolDia:0.25,side:'outside',climb:true,topZ:0,cutDepth:0.25,passDepth:0.125,safeZ:0.25,feed:120,plunge:40,rpm:18000,tabs:{count:0,length:0.4,height:0.06},joinType:'round',leadType:'none',leadLen:0.25,rampLen:0,leadAngle:0,overcut:0,order:'source',entry:'source',openSide:'on',reverseOpen:false,serpentineOver:null,arcs:null},opts||{});
   const r=o.toolDia/2, warnings=[], passesAll=[]; let leadSkipped=false;
   const depths=[]; let d=Math.min(o.passDepth,o.cutDepth);
   while(d<o.cutDepth-1e-9){depths.push(d);d+=o.passDepth;} depths.push(o.cutDepth);
@@ -422,7 +439,9 @@ function profileOp(contours, opts){
     }
   }
   if(leadSkipped) warnings.push('Lead-in/out skipped on a contour too small for the lead length');
-  return {ops:[{kind:'profile',toolNum:o.toolNum,rpm:o.rpm,feed:o.feed,plunge:o.plunge,safeZ:o.safeZ,topZ:o.topZ,passes:passesAll}],warnings};
+  const profOp={kind:'profile',toolNum:o.toolNum,rpm:o.rpm,feed:o.feed,plunge:o.plunge,safeZ:o.safeZ,topZ:o.topZ,passes:passesAll};
+  if(o.arcs!=null) profOp.arcs=o.arcs;
+  return {ops:[profOp],warnings};
 }
 
 // ---- tool database (presets) ----
@@ -523,12 +542,15 @@ function scanLineSegs(fillPaths, y, xLo, xHi){
   return segs;
 }
 function pocketOp(contours, opts){
-  const o=Object.assign({toolNum:1,toolDia:0.25,climb:true,topZ:0,cutDepth:0.25,passDepth:0.125,safeZ:0.25,feed:120,plunge:40,rpm:18000,stepover:0.4,pocketStyle:'offset',leadType:'none',leadLen:0.25,rampLen:0,rampEntry:false,finishDia:0,finishNum:2},opts||{});
+  const o=Object.assign({toolNum:1,toolDia:0.25,climb:true,topZ:0,cutDepth:0.25,passDepth:0.125,safeZ:0.25,feed:120,plunge:40,rpm:18000,stepover:0.4,stepoverIn:0,allowance:0,arcs:null,pocketStyle:'offset',leadType:'none',leadLen:0.25,rampLen:0,rampEntry:false,finishDia:0,finishNum:2},opts||{});
   const r=o.toolDia/2, warnings=[];
   const loops=contours.filter(c=>c.closed && c.pts && c.pts.length>=3).map(c=>c.pts);
   if(!loops.length){ warnings.push('Pocket needs at least one closed contour'); return {ops:[{kind:'pocket',toolNum:o.toolNum,rpm:o.rpm,feed:o.feed,plunge:o.plunge,safeZ:o.safeZ,topZ:o.topZ,passes:[]}],warnings}; }
-  // stepover as fraction of dia (clamp 5%..90%) -> inches
-  const so=Math.max(0.001, o.toolDia*Math.min(Math.max(o.stepover,0.05),0.9));
+  // stepover as fraction of dia (clamp 5%..90%) -> inches, or given directly in inches
+  const so=o.stepoverIn>0 ? o.stepoverIn : Math.max(0.001, o.toolDia*Math.min(Math.max(o.stepover,0.05),0.9));
+  // allowance: stock deliberately left on the pocket wall for a later finishing pass, so the
+  // first ring sits allowance further in than the tool radius alone would put it
+  const wallOff = r + Math.max(0, o.allowance);
   const region=regionFromLoops(loops);
   const depths=[]; let d=Math.min(o.passDepth,o.cutDepth);
   while(d<o.cutDepth-1e-9){depths.push(d);d+=o.passDepth;} depths.push(o.cutDepth);
@@ -556,7 +578,7 @@ function pocketOp(contours, opts){
     });
   } else {
     // --- offset (concentric) style: rings from one tool-radius inside the wall, stepping inward until the region closes up ---
-    const rings=[]; let delta=-r, guard=0;
+    const rings=[]; let delta=-wallOff, guard=0;
     while(guard++<5000){
       const off=offsetRegion(region, delta);
       if(!off.length) break;
@@ -573,10 +595,15 @@ function pocketOp(contours, opts){
       // 2 passes where we produced 12.
       depths.forEach(depth=>{
         const path=[];
+        const srcStart=loops[0][0];
         for(let i=rings.length-1;i>=0;i--){
           const oriented=o.climb?ensureCW(rings[i]):ensureCCW(rings[i]);
-          // enter each ring nearest where the last one finished, so the link move is short
-          const lp=path.length?rotateLoopTo(oriented,path[path.length-1]):oriented;
+          // Every ring starts on the SAME ray as the source contour's own start point, so the
+          // link between rings is a clean radial step. Measured on lgc-50-board-3 and -4: all
+          // six rings of the reference start at exactly the circle's first vertex angle, and
+          // each link move is purely radial. Entering "nearest to where the last ring ended"
+          // (the previous behaviour) drifts the entry round the pocket instead.
+          const lp=rotateLoopTo(oriented,srcStart);
           for(const p of lp) path.push({x:p.x,y:p.y,tab:false});
           path.push({x:lp[0].x,y:lp[0].y,tab:false});      // close this ring before stepping out
         }
@@ -604,6 +631,7 @@ function pocketOp(contours, opts){
   }
   // primary (rough) op; optionally add a small-tool REST-MACHINING op that only cuts what the big tool couldn't reach
   const bigOp={kind:'pocket',toolNum:o.toolNum,rpm:o.rpm,feed:o.feed,plunge:o.plunge,safeZ:o.safeZ,topZ:o.topZ,passes,toolProfile:{type:'flat',radius:r}};
+  if(o.arcs!=null) bigOp.arcs=o.arcs;
   const ops=[bigOp];
   if(o.finishDia>0 && o.finishDia<o.toolDia){
     const rs=o.finishDia/2, soS=Math.max(0.001, o.finishDia*Math.min(Math.max(o.stepover,0.05),0.9));
@@ -807,6 +835,13 @@ function arcFollowsPolyline(P,i,j,arc,tol){
   }
   return true;
 }
+/* WE ARC-FIT THE TOOLPATH; VECTRIC APPEARS NOT TO. See fixtures/parity/ARC-FITTING.md - two
+   plausible ways to close the gap were measured and both are dead ends, so do not re-run
+   them: tightening `tol` makes it WORSE (a spline gets chopped into more, shorter arcs:
+   4 -> 8 on lgc-50-board-4 as tol went 0.0015 -> 0.0001) while genuine arcs on xrt-50 and the
+   print jig start dropping out; and a second, tighter "is it really a circle" threshold fails
+   too, because a densely sampled spline IS locally circular to any precision you ask for -
+   the fit just shortens. The difference is not tolerance and not fit quality. */
 // P: array of {x,y}. Emits moves from P[0] to P[n-1]: {type:'line',x,y} | {type:'arc',x,y,cx,cy,cw}
 function fitArcs(P, tol){
   tol = tol||0.0015;
@@ -874,10 +909,14 @@ function postProcess(job, post){
   const dp=P.decimals;
   const X=v=>P.axisFmt('X',v,dp), Y=v=>P.axisFmt('Y',v,dp), Z=v=>P.axisFmt('Z',v,dp);
   const arcTol = P.arcTol!=null?P.arcTol:0.0015;
-  const useArcs = !!P.arcs;
+  const postArcs = !!P.arcs;
   const L=[];
   P.header(L,job,P);
   job.ops.forEach((op,oi)=>{
+    // A post that can emit arcs still may not for every op: Vectric tessellates its pocket
+    // clearing paths into short G1 runs (~100 segments round a full circle) while keeping
+    // real G2/G3 on profiles. `op.arcs===false` reproduces that per-op.
+    const useArcs = postArcs && op.arcs!==false;
     const clear = op.clearZ!=null?op.clearZ:0.25;
     P.opStart(L, op, P, oi===0);
     op.passes.forEach(pass=>{

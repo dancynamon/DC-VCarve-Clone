@@ -527,5 +527,60 @@ console.log('\n(post-pp assertions added)');
     JSON.stringify(dNo)==='[1,-1]', JSON.stringify(dNo));
 }
 
+// ---- open-path offset: ROUND joins on the outside of a turn ----
+// Mitring runs the tool out to a sharp point it never actually traces. lgc-50-board-3's first
+// cross-cut came out 5.9236" long where Vectric's is 5.8446", and Vectric emits that corner as
+// a G3. Closed contours already get round joins; open ones must match.
+{
+  const L = 1, d = 0.25;
+  const corner = [{x:0,y:0}, {x:L,y:0}, {x:L,y:L}];       // right-angle, turning LEFT
+  const right = CAM.offsetOpenPath(corner, d);            // right of travel = OUTSIDE of a left turn
+  const left  = CAM.offsetOpenPath(corner, -d);           // ... and inside on the other side
+  // the invariant: the tool centre never strays further from the drawn path than its own
+  // radius. A mitre spike at a 90 deg turn sits d*sqrt(2) = 1.41x out; a fillet sits at d.
+  const distToPath = q => Math.min(...corner.slice(0, -1).map((a, i) => {
+    const b = corner[i+1], vx = b.x-a.x, vy = b.y-a.y, L2 = vx*vx+vy*vy;
+    let t = L2 ? ((q.x-a.x)*vx + (q.y-a.y)*vy) / L2 : 0; t = Math.max(0, Math.min(1, t));
+    return Math.hypot(q.x - (a.x+t*vx), q.y - (a.y+t*vy));
+  }));
+  const worst = pts => Math.max(...pts.map(distToPath));
+  ok('open offset: outside corner is filleted, not mitred', worst(right) <= d + 1e-6, worst(right));
+  // the inside of the turn must still MITRE - one point on the bisector at d/cos(45 deg).
+  // Filleting there would round off a corner the tool can cut square.
+  ok('open offset: inside corner still mitres', left.length === corner.length, left.length);
+  ok('open offset: inside mitre sits on the bisector',
+    Math.abs(Math.hypot(left[1].x - L, left[1].y) - d * Math.SQRT2) < 1e-9, Math.hypot(left[1].x - L, left[1].y));
+  ok('open offset: fillet adds points', right.length > corner.length, right.length);
+  // every filleted point sits exactly one offset-radius from the vertex
+  const onArc = right.filter(p => Math.abs(Math.hypot(p.x-L, p.y-0) - d) < 1e-9);
+  ok('open offset: fillet points lie on the tool radius', onArc.length >= 2, onArc.length);
+  // and finely enough that the arc fitter recovers it as ONE arc
+  const arcs = CAM.fitArcs(right, 0.0015).filter(m => m.type === 'arc');
+  ok('open offset: fillet recovers as a single arc', arcs.length === 1, arcs.length);
+  // endpoints stay exactly one radius off, perpendicular to the first/last segment
+  ok('open offset: start is perpendicular at the tool radius',
+    Math.abs(right[0].x - 0) < 1e-9 && Math.abs(right[0].y + d) < 1e-9, JSON.stringify(right[0]));
+  // a straight path is unaffected by any of this
+  const str = CAM.offsetOpenPath([{x:0,y:0},{x:2,y:0}], d);
+  ok('open offset: straight path unchanged in shape', str.length === 2 && Math.abs(str[0].y + d) < 1e-9);
+}
+
+// ---- pocket: allowance and source-start ring entry ----
+{
+  const circ = []; for (let i = 0; i < 200; i++) { const a = i/200*2*Math.PI; circ.push({x: Math.cos(a), y: Math.sin(a)}); }
+  const cc = CAM.assembleContours([{closed:true, pts:circ}]);        // r=1, first vertex at angle 0
+  const base = {toolDia:0.5, cutDepth:0.1, passDepth:0.5, stepoverIn:0.2, linkRings:true, climb:true};
+  const rOf = p => Math.hypot(p.x, p.y);
+  const p0 = CAM.pocketOp(cc, Object.assign({}, base)).ops[0].passes[0].path;
+  const p1 = CAM.pocketOp(cc, Object.assign({allowance:0.05}, base)).ops[0].passes[0].path;
+  const outer0 = Math.max(...p0.map(rOf)), outer1 = Math.max(...p1.map(rOf));
+  ok('pocket outer ring sits one tool-radius inside the wall', Math.abs(outer0 - 0.75) < 5e-3, outer0);
+  ok('pocket allowance moves every ring in by that much', Math.abs((outer0 - outer1) - 0.05) < 5e-3, outer0 - outer1);
+  // rings start on the source contour's own start ray, so links between them are radial
+  ok('pocket rings enter on the source start ray', Math.abs(p0[0].y) < 5e-3 && p0[0].x > 0, JSON.stringify(p0[0]));
+  ok('pocket stepoverIn overrides the percentage form',
+    Math.abs(CAM.pocketOp(cc, Object.assign({}, base, {stepover:0.9})).ops[0].passes[0].path.length - p0.length) === 0);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);
