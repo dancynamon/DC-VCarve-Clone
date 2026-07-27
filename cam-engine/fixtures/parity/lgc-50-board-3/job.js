@@ -1,0 +1,55 @@
+/* LGC 50 — Job 1, Board 3. Four ops, four tools, posted as one program:
+
+     T8  drill 10 holes (Ø0.375 and one Ø0.25) at -1.5, S10000
+     T3  pocket the Ø1.5 circle at (1.296, 86.693), 2 depth steps, rings linked
+     T9  Ø0.125 inside-profile finishing pass around that same circle at -0.5
+     T3  5 cross-cuts, 4 depth steps each, tabs by constant 3" spacing
+
+   The DXF carries DUPLICATE circles — six coincident pairs — so the hole selection has to
+   dedupe by centroid or it drills 16 holes instead of 10. */
+module.exports = function ({ CAM, C, parseDxf, entityToPolys, dir, fs, path }) {
+  const ents = parseDxf(fs.readFileSync(path.join(dir, 'source.dxf'), 'utf8'));
+  const polys = [];
+  for (const e of ents) for (const q of entityToPolys(e)) polys.push(q);
+  const contours = CAM.assembleContours(C.shapesToContoursInput(C.dxfPolysToShapes(polys)));
+
+  const size = c => { const b = CAM.boundsOf([c.pts]); return { w: b.maxX - b.minX, h: b.maxY - b.minY }; };
+  const isRound = (c, d) => { const s = size(c); return c.closed && Math.abs(s.w - d) < 0.01 && Math.abs(s.h - d) < 0.01; };
+
+  // drill holes: round, Ø0.25 or Ø0.375, deduped by centroid
+  const seen = new Set();
+  const holes = contours.filter(c => isRound(c, 0.375) || isRound(c, 0.25)).filter(c => {
+    const k = CAM.centroid(c.pts); const key = k.x.toFixed(3) + ',' + k.y.toFixed(3);
+    if (seen.has(key)) return false; seen.add(key); return true;
+  });
+  const pocketCirc = contours.filter(c => isRound(c, 1.5));
+  const cuts = contours.filter(c => !c.closed);
+
+  const drill = CAM.drillOp(holes, {
+    toolNum: 8, toolDia: 0.375, topZ: 0, cutDepth: 1.5, peck: 0,
+    feed: 62.5, plunge: 20, rpm: 10000,
+    order: 'optimize', orderStart: { x: 0, y: 0 },
+  });
+  const pocket = CAM.pocketOp(pocketCirc, {
+    toolNum: 3, toolDia: 0.375, topZ: 0, cutDepth: 0.5, passDepth: 0.25,
+    stepover: 0.25, linkRings: true, climb: true,
+    feed: 60, plunge: 20, rpm: 18000,
+  });
+  const finish = CAM.profileOp(pocketCirc, {
+    toolNum: 9, toolDia: 0.125, side: 'inside', topZ: 0, cutDepth: 0.5, passDepth: 0.5,
+    feed: 100, plunge: 30, rpm: 18000, leadType: 'none', rampLen: 0,
+    tabs: { count: 0, length: 0, height: 0 },
+  });
+  const cross = CAM.profileOp(cuts, {
+    toolNum: 3, toolDia: 0.375, topZ: 0, cutDepth: 1.5, passDepth: 0.375,
+    feed: 60, plunge: 20, rpm: 18000,
+    openSide: 'right', entry: 'serpentine', order: 'optimize',
+    orderStart: { x: 3.5, y: 48.5 },        // same start as boards 1/2/5, not re-tuned here
+    tabs: { spacing: 3, length: 0.875, height: 0.1 },
+    leadType: 'none', rampLen: 0,
+  });
+
+  const ops = drill.ops.concat(pocket.ops, finish.ops, cross.ops);
+  ops.forEach(op => { op.clearZ = 0.8; });
+  return CAM.postProcess({ name: 'LGC-50-board-3', units: 'inch', ops }, CAM.POSTS.shopsabre);
+};

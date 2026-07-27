@@ -1,0 +1,16 @@
+Cross-cut ORDER differs, and under serpentine that one root cause cascades: direction
+decides which side the offset lands, so the wrong order also moves the envelope and the cut
+length. Ref cuts lengths 5.845 / 3.500 / 9.000 / 3.623 / 3.642; we cut 3.642 / 5.924 /
+3.500 / 8.057 / 3.623.
+
+The tour start (3.5, 48.5) that reproduces boards 1, 2 and 5 does not reproduce this board.
+Rather than tune a third value per fixture -- orderStart is already fitted rather than
+derived, and tuning it further would compound that -- this is left visible.
+
+Correct here: all 10 drill positions and their order, the T9 finishing pass length (4.319"
+exactly), and the pocket's structure (2 linked passes, 6 rings, 0.09375" stepover).
+
+Still open: the pocket's ring radii sit ~0.006" outside Vectric's (Clipper's offset of a
+64-gon vs Vectric's), and we arc-fit the rings where Vectric emits G1.
+
+See notes.md. Do NOT remove this marker to make the suite green.

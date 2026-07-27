@@ -511,6 +511,24 @@ function pocketOp(contours, opts){
     }
     if(!rings.length){ warnings.push('Tool too large to enter the pocket region'); }
     let rampEntrySkipped=false;
+    if(o.linkRings){
+      // Vectric cuts a concentric pocket as ONE continuous pass per depth: innermost ring
+      // first, stepping outward, with a short connecting move between rings. Emitting each
+      // ring as its own pass (the previous behaviour) retracts and re-plunges between every
+      // ring - slow, and it leaves an entry mark on each one. lgc-50-board-3's reference has
+      // 2 passes where we produced 12.
+      depths.forEach(depth=>{
+        const path=[];
+        for(let i=rings.length-1;i>=0;i--){
+          const oriented=o.climb?ensureCW(rings[i]):ensureCCW(rings[i]);
+          // enter each ring nearest where the last one finished, so the link move is short
+          const lp=path.length?rotateLoopTo(oriented,path[path.length-1]):oriented;
+          for(const p of lp) path.push({x:p.x,y:p.y,tab:false});
+          path.push({x:lp[0].x,y:lp[0].y,tab:false});      // close this ring before stepping out
+        }
+        if(path.length) passes.push({z:o.topZ-depth,tabHeight:0,closed:false,path});
+      });
+    } else
     depths.forEach(depth=>{
       rings.forEach((lp,ri)=>{ const oriented=o.climb?ensureCW(lp):ensureCCW(lp);
         const tabbed=oriented.map(p=>({x:p.x,y:p.y,tab:false}));
