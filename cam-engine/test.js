@@ -379,7 +379,13 @@ console.log('\n(post-pp assertions added)');
   ok('job: T2 first (header, Z2 follows)', t2i<t1i && lines[t2i+1]==='Z2', lines[t2i+1]);
   ok('job: T1 toolchange (no Z2, S follows)', lines[t1i+1]!=='Z2' && /^S\d/.test(lines[t1i+1]||''), lines[t1i+1]);
   ok('job: single program (one G90, ends m51, no M30)', (g.match(/^G90$/gm)||[]).length===1 && /m51\s*$/.test(g) && !/M30/.test(g));
-  ok('job: profile tabs present (T1 op cut)', profile.ops[0].passes[0].path.some(p=>p.tab));
+  // Tabs live on the FINAL pass, not every pass: a tab 0.06" above the floor only exists on
+  // the pass that reaches the floor. This used to tab all passes, which put a spurious Z
+  // lift on each shallow one. lgc-50-board-5's reference program confirms it -- four depth
+  // passes per cut, a Z lift on the deepest only.
+  const pp=profile.ops[0].passes;
+  ok('job: profile tabs present on final pass (T1 op cut)', pp[pp.length-1].path.some(p=>p.tab));
+  ok('job: no tabs on shallow passes', !pp[0].path.some(p=>p.tab));
 })();
 
 // 14. toolpath ordering (nearest-neighbor minimizes rapids)
