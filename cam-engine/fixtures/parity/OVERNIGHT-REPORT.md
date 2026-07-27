@@ -12,10 +12,15 @@ Phase 1c (expose the parity-critical parameters in the studio UI).
 | `lgc-50-board-2` | **PARITY** |
 | `lgc-50-board-5` | **PARITY** |
 | `print-jig-20-piece-foam` | **KNOWN DIFF** — understood, documented, marked |
-| `lgc-50-board-3` | not built — fully decoded, see below |
-| `lgc-50-board-4` | not built — fully decoded, see below |
+| `lgc-50-board-3` | **KNOWN DIFF** — built; drills + finish pass exact, cut order not |
+| `lgc-50-board-4` | **DECODED, NOT BUILT** — one unknown, see its notes.md |
 
-**Phase 1c: done.** `npm test` is green: 145 + 9 + 132 + 17 + 25 + 30 + 40 = **398 checks**.
+**Phase 1c: done.** `npm test` is green at **398 checks**.
+
+### Final tally
+4 fixtures at parity, 2 as documented known differences, 1 decoded but not built.
+**14 defects found and fixed** — several of which produced wrong metal, not just
+mismatched text.
 
 ## Twelve defects found and fixed
 
@@ -109,19 +114,31 @@ in slightly different places. Cut length agrees within 0.5%. **Settling this nee
 cut**: make the jig from both programs and see whether the parts are interchangeable. If
 they are, the right change is a documented freeform tolerance — your call, not mine.
 
-**`lgc-50-board-3`** — decoded, not built. Four ops: `T8` drills 10 holes (note the DXF has
+**`lgc-50-board-3`** — BUILT, known diff. All 10 drill positions and their order match
+exactly, as does the T9 finishing pass length (4.319"). Cross-cut *order* does not, and
+under `entry:'serpentine'` that single root cause cascades into the envelope and cut-length
+checks too, since travel direction decides which side the offset lands. Two defects came out
+of it: pocket rings were emitted as separate passes (12 where the reference has 2,
+retracting and re-plunging between every ring — now `linkRings`), and the source DXF carries
+**duplicate circles**, six coincident pairs, so hole selection must dedupe or it drills 16
+instead of 10. Original decode: `T8` drills 10 holes (note the DXF has
 **duplicate circles** — six coincident pairs — and one Ø0.25 hole among the Ø0.375s, so the
 selection needs dedup); `T3` pockets a Ø1.5 circle at (1.296, 86.693) in 2 depth steps,
 rings spiralling **outward** from the centre; `T9` is a Ø0.125 inside-profile finishing pass
 at -0.5; then `T3` cuts 5 contours in 4 depth steps with **constant-spacing tabs** (1/1/1/2/3
 tabs for lengths 3.5/3.6/3.6/5.8/9.0 = round(L/3")).
 
-**`lgc-50-board-4`** — decoded, not built. Six ops, five tools: `T10` 4 drills at -0.5,
-`T5` 2 passes at -0.1, `T8` 6 drills at -1.5, `T3` 2 passes at -0.25/-0.5, `T9` 1 pass at
--0.5, then `T3` 28 passes (7 contours × 4 depths, 9 tabs).
+**`lgc-50-board-4`** — decoded in full, not built; see its `notes.md` for the complete op
+table. Ops 3–6 reuse board 3's recipe directly and its T10 drill tour is verified as
+nearest-neighbour from the origin. **One thing genuinely cannot be derived**: T5's tool
+diameter. Its path starts 0.17" beyond the board edge so the cut is offset outward, but
+G-code carries no tool geometry and the DXF cannot supply it. Either read it off Vectric's
+tool list for tool 5, or accept it as fitted the way `orderStart` already is. I stopped
+rather than guess unattended.
 
-Both need pocket-op parameter matching (stepover, ring direction) which no fixture has
-exercised yet. I stopped rather than guess at them unattended.
+Board 4 is worth building for one specific reason: it is the fixture that would tell us
+whether board 3's ordering mismatch is an outlier or whether the `orderStart` rule itself is
+wrong.
 
 ## Cost
 
