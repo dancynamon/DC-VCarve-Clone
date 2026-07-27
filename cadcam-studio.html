@@ -8162,12 +8162,75 @@ function wrapLead(orientedLoop, tabbedPts, type, len, sideSign, rampLen, angleDe
   return {path: pre.concat(tabbedPts, [close0], over, lead.post.map(tag)), closed:false};
 }
 
+// Where the offset loop should be entered, given the source vector's start vertex.
+// At a convex corner the offset is an arc centred on that vertex, so EVERY point of it is
+// exactly one tool-radius away and "nearest point" is degenerate - picking by distance
+// alone lands somewhere arbitrary on the arc. Vectric enters along the corner's outward
+// bisector, which is also the plain normal on a smooth span, so this covers both.
+function entryTarget(pts, delta){
+  const n=pts.length; if(n<3) return pts[0];
+  const v=pts[0], p=pts[n-1], q=pts[1];
+  const d1=_unit({x:v.x-p.x,y:v.y-p.y}), d2=_unit({x:q.x-v.x,y:q.y-v.y});
+  const ccw=signedArea(pts)>0;
+  const nrm=d=>ccw?{x:d.y,y:-d.x}:{x:-d.y,y:d.x};      // outward = right of travel when CCW
+  const s={x:nrm(d1).x+nrm(d2).x, y:nrm(d1).y+nrm(d2).y};
+  if(Math.hypot(s.x,s.y)<1e-9) return v;               // 180 deg reversal: no meaningful bisector
+  const b=_unit(s);
+  return {x:v.x+b.x*delta, y:v.y+b.y*delta};
+}
+function pointInLoop(pt, loop){
+  let inside=false;
+  for(let i=0,j=loop.length-1;i<loop.length;j=i++){
+    const a=loop[i], b=loop[j];
+    if(((a.y>pt.y)!==(b.y>pt.y)) && (pt.x < (b.x-a.x)*(pt.y-a.y)/((b.y-a.y)||1e-18)+a.x)) inside=!inside;
+  }
+  return inside;
+}
+// Vectric cuts contained contours BEFORE the contour that holds them - cutting the sheet
+// perimeter first would free the whole panel and every part with it - and then tours what
+// is left nearest-neighbour to cut rapid travel. We did neither: passes came out in raw
+// DXF order, which on the 20-piece jig put the outer boundary first.
+function orderContours(contours, start){
+  const n=contours.length;
+  const bb=contours.map(c=>boundsOf([c.pts]));
+  const inside=(i,j)=>{
+    if(i===j || !contours[j].closed) return false;
+    const a=bb[i], b=bb[j];
+    if(!(a.minX>=b.minX && a.maxX<=b.maxX && a.minY>=b.minY && a.maxY<=b.maxY)) return false;
+    return pointInLoop(contours[i].pts[0], contours[j].pts);
+  };
+  const depth=[];
+  for(let i=0;i<n;i++){ let d=0; for(let j=0;j<n;j++) if(inside(i,j)) d++; depth.push(d); }
+  const out=[]; let cur=start||{x:0,y:0};
+  for(const L of [...new Set(depth)].sort((a,b)=>b-a)){        // innermost first
+    const pool=[]; for(let i=0;i<n;i++) if(depth[i]===L) pool.push(i);
+    // Greedy nearest-neighbour, measured to the NEAREST POINT of each candidate contour
+    // rather than to its first vertex - the entry point is free to be anywhere on the
+    // loop, so first-vertex distance ranks candidates wrongly and ties break arbitrarily.
+    while(pool.length){
+      let bi=0, bd=Infinity, bp=null;
+      for(let k=0;k<pool.length;k++){
+        const pts=contours[pool[k]].pts;
+        for(const p of pts){
+          const d=(p.x-cur.x)*(p.x-cur.x)+(p.y-cur.y)*(p.y-cur.y);
+          if(d<bd){ bd=d; bi=k; bp=p; }
+        }
+      }
+      const pick=pool.splice(bi,1)[0];
+      out.push(contours[pick]); if(bp) cur={x:bp.x,y:bp.y};
+    }
+  }
+  return out;
+}
+
 function profileOp(contours, opts){
-  const o=Object.assign({toolNum:1,toolDia:0.25,side:'outside',climb:true,topZ:0,cutDepth:0.25,passDepth:0.125,safeZ:0.25,feed:120,plunge:40,rpm:18000,tabs:{count:0,length:0.4,height:0.06},joinType:'round',leadType:'none',leadLen:0.25,rampLen:0,leadAngle:0,overcut:0},opts||{});
+  const o=Object.assign({toolNum:1,toolDia:0.25,side:'outside',climb:true,topZ:0,cutDepth:0.25,passDepth:0.125,safeZ:0.25,feed:120,plunge:40,rpm:18000,tabs:{count:0,length:0.4,height:0.06},joinType:'round',leadType:'none',leadLen:0.25,rampLen:0,leadAngle:0,overcut:0,order:'source',entry:'source'},opts||{});
   const r=o.toolDia/2, warnings=[], passesAll=[]; let leadSkipped=false;
   const depths=[]; let d=Math.min(o.passDepth,o.cutDepth);
   while(d<o.cutDepth-1e-9){depths.push(d);d+=o.passDepth;} depths.push(o.cutDepth);
-  for(const c of contours){
+  const seq = o.order==='optimize' ? orderContours(contours, o.orderStart) : contours;
+  let prevEntry = o.orderStart || {x:0,y:0};   // entry:'nearest' chains each entry to the last one
+  for(const c of seq){
     let loops;
     if(o.side==='on'||!c.closed) loops=[c.pts];
     else{
@@ -8180,7 +8243,9 @@ function profileOp(contours, opts){
       if(c.closed && o.side!=='on'){
         const wantCCW=(o.side==='outside')?!o.climb:o.climb;
         lp=wantCCW?ensureCCW(lp):ensureCW(lp);
-        lp=rotateLoopTo(lp,c.pts[0]);   // enter where the source vector starts, not where Clipper did
+        // enter where the source vector starts, not where Clipper happened to begin
+        lp=rotateLoopTo(lp, o.entry==='nearest' ? prevEntry : entryTarget(c.pts, o.side==='outside'?r:-r));
+        prevEntry={x:lp[0].x,y:lp[0].y};
       }
       const tabbed=(c.closed && o.tabs && o.tabs.count>0)?withTabs(lp,o.tabs.count,o.tabs.length):lp.map(p=>({x:p.x,y:p.y,tab:false}));
       let path=tabbed, closed=c.closed&&o.side!=='on';

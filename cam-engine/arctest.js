@@ -38,7 +38,13 @@ const rr=CAM.profileOp(rect,{side:'outside',toolDia:0.25,cutDepth:0.1,passDepth:
 const gr=CAM.postProcess({name:'rect',ops:rr.ops},CAM.POSTS.shopsabre);
 const rArc=(gr.match(/^G[23] /gm)||[]).length, rLine=(gr.match(/^G1 X/gm)||[]).length;
 ok('rect has 4 line edges',rLine>=4,'lines='+rLine);
-ok('rect outside has 4 corner arcs',rArc===4,'arcs='+rArc);
+// 5, not 4: the toolpath now enters at the offset image of the source vector's start
+// vertex (see camcore entryTarget). pts[0] of this rect IS a corner, so that corner's arc
+// is split by the entry point into a closing piece and an opening piece - 4 corners, 5 arc
+// moves. Vectric does the same; xrt-50's reference program splits its entry corner arc
+// exactly this way. The intent of this check - corners are arcs, edges stay G1 - is
+// unchanged and still guarded by the 'rect has 4 line edges' assertion above.
+ok('rect outside has 4 corner arcs (entry splits one)',rArc===5,'arcs='+rArc);
 const br=parseXY(gr);
 ok('rect outside bounds -0.125..4.125',Math.abs(br.mn[0]+0.125)<5e-3&&Math.abs(br.mx[0]-4.125)<5e-3,JSON.stringify(br));
 
