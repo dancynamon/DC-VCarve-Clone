@@ -11,9 +11,9 @@ Phase 1c (expose the parity-critical parameters in the studio UI).
 | `lgc-50-board-1` | **PARITY** |
 | `lgc-50-board-2` | **PARITY** |
 | `lgc-50-board-5` | **PARITY** |
-| `print-jig-20-piece-foam` | **KNOWN DIFF** — understood, documented, marked |
+| `print-jig-20-piece-foam` | **KNOWN DIFF** — cut order only, and it is not in the DXF |
 | `lgc-50-board-3` | **KNOWN DIFF** — one pass's start angle, nothing else |
-| `lgc-50-board-4` | **KNOWN DIFF** — T5 entry 0.0018" out + arc representation |
+| `lgc-50-board-4` | **KNOWN DIFF** — T5 entry 0.0018" out |
 
 **Phase 1c: done.** `npm test` is green at **435 checks**.
 
@@ -305,3 +305,77 @@ within 0.01%.
   (0.18996" against a 0.1900" tool radius); the residual is 0.00176" of *along-path* position
   at the endpoint, where Vectric is evidently using the underlying spline tangent that the
   DXF does not give us. Plus the arc-representation gap above.
+
+## Follow-up: the print jig, and arc fitting solved
+
+All three remaining fixtures are now down to **one failing check each**, and all three are
+entry-point or ordering, not geometry.
+
+### Arc fitting: solved, by tracking provenance instead of recovering it
+
+The print jig is what made the rule legible. Each of its 20 pieces is a 776-point flattened
+spline with **no arcs in the source**, and it plainly contains circular lobes at r = 0.500 and
+r ≈ 0.125. Vectric emits exactly **8 arcs, every one of radius 0.1250 — the tool radius** —
+and posts the r = 0.500 lobes as 96 straight segments each. It is not recognising circles in
+the polyline at all. It is emitting the fillets its own offsetter built, and nothing else.
+
+So Vectric emits an arc only where it already knows the geometry is one: a round join at
+`|delta|`, or a source arc offset to `R ± |delta|`. We were arc-fitting the finished polyline,
+inventing arcs it never emits.
+
+`arcR` now rides on the points from wherever the arc was created — `dxfparse` tags flattened
+bulges, `cadcore` tags drawn circles and rounded corners — and `allowedArcRadii` turns that
+into the set of radii a toolpath may legitimately contain. Anything outside it posts as lines.
+
+| | before | after | reference |
+|---|---|---|---|
+| `print-jig` | 16 arcs | **8** | 8 |
+| `lgc-50-board-4` T5 | 4 arcs | **0** | 0 |
+| `xrt-50` | arcs | unchanged, still PARITY | arcs |
+
+There is a deliberate three-way distinction here, and the third case is the safety catch:
+`arcR: 2` means "an arc of radius 2", `arcR: 0` means "known not to be an arc", and **no tag
+at all means no filtering** — because a raw point array carries no provenance, and treating
+that as "not an arc" would silently post a drawn circle as 161 line moves.
+
+**Two earlier attempts are recorded in `ARC-FITTING.md` so nobody repeats them.** Tightening
+`arcTol` makes it worse (a spline gets chopped into more, shorter arcs — 4 → 8 — while genuine
+arcs drop out). A tighter "is it really a circle" residual test fails too, because a densely
+sampled smooth curve is locally circular to any precision you ask for; the fit just shortens.
+Neither tolerance nor fit quality separates the cases. Only provenance does.
+
+### The print jig's cavities were being cut the wrong way round
+
+All 8 of the reference's corner arcs run counter-clockwise where ours ran clockwise: the
+cavities are **conventional**, not climb. On a 20-cavity foam jig that is tool loading and
+wall finish, not a G-code detail. It was invisible until the arc count matched.
+
+### What is left on the print jig, and why it stays left
+
+The order the 20 pieces are cut in. Matched piece-for-piece by bounding box and ignoring
+program order, **all 21 passes agree**: worst piece-size difference 0.0000", worst cut-length
+difference 0.0042" (0.017%), worst arc-count difference 0. Every piece is cut identically;
+only the sequence differs.
+
+And the sequence is not in the DXF. It is not DXF order (that is plain row-major), not
+nearest-neighbour (at step 3 the NN choice is 5.17" away and the reference takes one 7.18"
+away), not travel-minimising (**our tour is 19% shorter in rapid travel than Vectric's**), and
+not encoded in layers — all 20 pieces sit on one layer with no per-piece attributes. It comes
+from the Aspire project's nesting order, which the DXF export flattens away.
+
+That is a different kind of "unresolved" from the others: not a rule we have failed to find,
+but information the input does not contain.
+
+## Where all seven stand
+
+| Fixture | Status | What differs |
+|---|---|---|
+| `xrt-50` | **PARITY** | — |
+| `lgc-50-board-1` | **PARITY** | — |
+| `lgc-50-board-2` | **PARITY** | — |
+| `lgc-50-board-5` | **PARITY** | — |
+| `lgc-50-board-3` | KNOWN DIFF | one pass's start angle on a circle |
+| `lgc-50-board-4` | KNOWN DIFF | one entry point, 0.0018" |
+| `print-jig` | KNOWN DIFF | the order 20 identical cuts are made in |
+
+No fixture has a geometry difference left.

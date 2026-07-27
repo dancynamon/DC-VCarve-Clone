@@ -582,5 +582,42 @@ console.log('\n(post-pp assertions added)');
     Math.abs(CAM.pocketOp(cc, Object.assign({}, base, {stepover:0.9})).ops[0].passes[0].path.length - p0.length) === 0);
 }
 
+// ---- arc provenance: the post may only emit arcs the geometry can actually produce ----
+// We used to arc-fit anything locally circular, which turned flattened splines into strings
+// of G2/G3 that Vectric emits as plain G1 (lgc-50-board-4's T5, and half the print jig's).
+{
+  const A = CAM.allowedArcRadii;
+  ok('untagged points: no filtering at all', A([{x:0,y:0},{x:1,y:1}], 0.125) === null);
+  const flat = [{x:0,y:0,arcR:0},{x:1,y:1,arcR:0}];
+  ok('known-not-an-arc: only the round join at |delta|',
+    JSON.stringify(A(flat, 0.125)) === '[0.125]', JSON.stringify(A(flat, 0.125)));
+  const arced = [{x:0,y:0,arcR:0},{x:1,y:1,arcR:2}];
+  const set = A(arced, 0.125).sort((a,b)=>a-b);
+  ok('source arc of radius R allows R, R-|delta| and R+|delta|',
+    JSON.stringify(set) === '[0.125,1.875,2,2.125]', JSON.stringify(set));
+  ok('cutting ON the line allows only the source radius',
+    JSON.stringify(A(arced, 0).sort((a,b)=>a-b)) === '[2]', JSON.stringify(A(arced, 0)));
+  ok('lead radius is allowed through', A(flat, 0.125, [0.4]).includes(0.4));
+
+  // end to end: the same curve, with and without provenance
+  const wiggle = []; for (let k = 0; k <= 60; k++) { const t = k/60;
+    wiggle.push({x: 4*t, y: 0.4*Math.sin(t*Math.PI*1.6)}); }
+  const nArcs = pts => {
+    const op = CAM.profileOp([{pts, closed:false, area:0}], {toolDia:0.25, cutDepth:0.1,
+      passDepth:0.1, openSide:'right', tabs:{count:0,length:0,height:0}, leadType:'none', rampLen:0});
+    const g = CAM.postProcess({name:'x', units:'inch', ops:op.ops}, CAM.POSTS.shopsabre);
+    return (g.match(/^G[23] /gm) || []).length;
+  };
+  ok('a spline known not to be arcs posts as lines',
+    nArcs(wiggle.map(p => ({...p, arcR: 0}))) === 0, nArcs(wiggle.map(p => ({...p, arcR: 0}))));
+  ok('the same spline with no provenance keeps the old behaviour',
+    nArcs(wiggle) > 0, nArcs(wiggle));
+
+  // a real arc still posts as an arc, which is the whole point of not just switching it off
+  const bow = []; for (let k = 0; k <= 40; k++) { const a = -Math.PI/3 + k/40*(2*Math.PI/3);
+    bow.push({x: 2*Math.cos(a), y: 2*Math.sin(a), arcR: 2}); }
+  ok('a tagged arc still posts as an arc', nArcs(bow) > 0, nArcs(bow));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

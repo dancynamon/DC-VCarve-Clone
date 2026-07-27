@@ -1,85 +1,83 @@
-# Arc fitting: what Vectric does, what we do, and two dead ends
+# Arc fitting: how Vectric decides, and how we now match it
 
-This is the one substantive difference left across the parity fixtures, and it is worth
-writing down properly because two obvious fixes have been measured and **both make it worse**.
-Do not re-run them.
+**Status: solved, except for full circles.** This file used to record an unsolved gap and two
+dead ends. The dead ends are still worth keeping — they are the reason the fix looks the way
+it does — but the gap itself is closed.
 
-## The observation
+## What Vectric actually does
 
-We arc-fit the finished toolpath: `fitArcs` walks the offset polyline and emits `G2`/`G3`
-wherever a run of points lies on a circle within `arcTol` (0.0015"). Vectric evidently does
-not do this. Its arcs come from geometry it already knows to be circular.
+Vectric does not arc-fit the toolpath. It emits `G2`/`G3` only where it already *knows* the
+geometry is an arc, which happens two ways:
 
-Where the two agree and disagree, across every fixture:
+1. **Round joins.** The offsetter builds an arc at a corner, of radius exactly the offset
+   distance.
+2. **Source arcs.** Geometry that was an arc in the drawing, offset to radius `R ± |delta|`.
 
-| Source geometry | Reference | Ours | Agree? |
+The print jig is the clean proof. Each of its 20 pieces is a 776-point flattened spline with
+**no arcs at all in the source**, and it contains two obviously circular lobes (r = 0.500 and
+r ≈ 0.125). Vectric emits exactly **8 arcs, all of radius 0.1250 — the tool radius** — and
+posts the r = 0.500 lobes as **96 straight segments each**. It is not recognising circles in
+the polyline; it is emitting the fillets it built itself, and nothing else.
+
+We were arc-fitting the finished polyline instead, which turned sampled curves into arcs
+Vectric never emits: 16 arcs where it emits 8 on the print jig, 4 on `lgc-50-board-4`'s T5
+where it emits none.
+
+## The fix: track provenance, do not try to recover it
+
+`arcR` now rides on the points. `dxfparse.bulgeArcPts` tags points flattened from a real
+bulge with their radius; `cadcore`'s `arcPolyline` and `mkRoundRect` do the same for shapes
+drawn in the app; `mkPoly` carries the tag through import; `shapesToContoursInput` marks
+everything *else* it sees with `arcR: 0`, meaning "known not to be an arc".
+
+`camcore.allowedArcRadii` then turns a contour's tags into the set of radii its offset can
+legitimately contain — `|delta|` for round joins, and `R`, `R±|delta|` for each source arc —
+and `fitArcs` rejects any circle outside that set.
+
+The three-way distinction matters and is tested:
+
+| point tag | meaning | effect |
+|---|---|---|
+| `arcR: 2` | this is an arc of radius 2 | allows 2, 2±\|delta\| |
+| `arcR: 0` | this is *not* an arc | allows only \|delta\| |
+| absent | nothing is known | **no filtering at all** |
+
+That last row is the safety catch. A raw point array handed straight to `assembleContours`
+carries no provenance, and treating "untagged" as "not an arc" would silently post a drawn
+circle as 161 line moves. Absence of evidence is only evidence of absence when the source is
+known to record it.
+
+## Result
+
+| fixture | before | after | reference |
 |---|---|---|---|
-| `xrt-50` — closed polyline, 5 bulge arcs of 7 vertices | arcs | arcs | **yes** |
-| `lgc-50-board-3` cross-cut, 2-point line | no arcs | no arcs | **yes** |
-| `lgc-50-board-3` cross-cut, 3 points, one corner, offset outward | 1 arc | 1 arc | **yes** (round join) |
-| `lgc-50-board-3` lengthwise cut, 5 points with 2 bulges | 2 arcs | 2 arcs | **yes** |
-| `lgc-50-board-4` T5 — 130-point flattened spline, no bulges | **no arcs** | 4 arcs | no |
-| `print-jig` piece — 776-point closed polyline, no bulges | **8 arcs** | 16 arcs | no |
-| `lgc-50-board-3/4` Ø1.5 circle (pocket rings **and** finish profile) | **no arcs** | arcs | no |
+| `print-jig` | 16 arcs | **8** | 8 |
+| `lgc-50-board-4` T5 | 4 arcs | **0** | 0 |
+| `xrt-50` | arcs | arcs (unchanged, still PARITY) | arcs |
+| `lgc-50-board-3` cross-cuts | 1 + 2 arcs | unchanged | 1 + 2 |
 
-Two things fall out of the table:
+## The two dead ends — do not re-run these
 
-- Vectric is not simply "carrying source bulges through". The print-jig pieces have **no**
-  bulges at all — they are 776-point flattened splines — and Vectric still emits 8 arcs. It
-  recognises the exactly-circular lobes inside that polyline (r = 0.500 and r ≈ 0.125).
-- Vectric is not simply "arc-fitting everything circular" either, or the Ø1.5 circle would
-  come out as arcs. It comes out as **100 straight segments**, in the pocket rings and in the
-  T9 finishing profile alike — four independent samples across two boards.
+Both were measured across all seven fixtures before the provenance fix, and both make things
+*worse*. They are recorded because each is the obvious next idea.
 
-The circle case is the odd one and we have no explanation for it. It is modelled with the
-per-op `arcs: false` flag rather than guessed at in the engine, and the fixtures say so at
-the line.
+**Tightening `arcTol`.** At 0.0015 / 0.0008 / 0.0004 / 0.0002 / 0.0001, board 4's spline went
+**4 → 4 → 5 → 6 → 8** arcs — the fitter never gives up and emits a line, it just chops the
+curve smaller. Meanwhile `xrt-50` lost all 6 of its genuine arcs below 0.0015 and dropped from
+PARITY to DIFF. The knob moves both cases the wrong way at once.
 
-## Dead end 1: tightening `arcTol`
+**A second, tighter "is it really a circle" residual threshold.** The intuition is sound — a
+genuine arc fits to 1e-16, a spline only to ~1e-3 — but it fails for a subtle reason: **a
+densely sampled smooth curve is locally circular to any precision you ask for.** Tighten the
+threshold and the fit shortens rather than failing. Board 4 went 4 → 6 arcs, the print jig
+16 → 20.
 
-The intuition is that our fitter is too permissive, so tighten it. Measured across all seven
-fixtures at 0.0015 / 0.0008 / 0.0004 / 0.0002 / 0.0001:
+Neither tolerance nor fit quality separates the cases. Only provenance does.
 
-- `lgc-50-board-4`'s spline went **4 → 4 → 5 → 6 → 8** arcs. Tightening makes the fitter chop
-  the curve into *more*, shorter arcs — it never gives up and emits a line.
-- `xrt-50` lost all 6 of its genuine arcs below 0.0015 and went from PARITY to DIFF.
-- `print-jig` lost its arcs too, at 0.0004.
+## The one thing still unexplained
 
-So the knob moves both cases the wrong way at once. There is no setting where genuine arcs
-survive and spline-fitted ones do not.
-
-## Dead end 2: a second, tighter "is it really a circle" threshold
-
-The better intuition: a run that really came from an arc lies on its circle to floating-point
-noise (measured: 1e-16 on a synthetic exact circle, 1e-5 on Clipper's integer grid), while a
-spline only lies on one to within whatever `arcTol` allowed (measured: ~1e-3). So accept an
-arc only when the residual is tiny.
-
-This fails, and the reason is worth understanding: **a densely sampled smooth curve is
-locally circular to any precision you ask for.** Tighten the residual threshold and the
-fitter does not reject the arc, it just shortens the span until the residual fits. Board 4
-went 4 → 6 arcs and the print jig 16 → 20.
-
-The difference between the two cases is not tolerance and it is not fit quality. It is that
-Vectric knows the arc's *identity* — carried from import, or constructed as a round join —
-where we only ever see sampled points.
-
-## What would actually fix it
-
-Track arc provenance instead of recovering it: keep an arc as an arc through DXF import,
-through offsetting, and out to the post, rather than flattening to a polyline and fitting
-circles back out of it. That is a real change to the geometry pipeline, not a tuning
-exercise, and it would fix `lgc-50-board-4`, the print jig, and the extra split arcs all at
-once.
-
-Until then this is a **representation** difference, not a metal difference: our arcs follow
-the reference polyline within 0.0015", and the parity harness's cut-length check confirms the
-paths agree (board 4 within 0.01%).
-
-## One thing that is already fixed
-
-Our fitter used to split a single circular lobe into two `G2`s. The print jig's r=0.500 lobe
-came out as 210.8° + 67.4°. That is *not* a greedy-restart bug that merging can fix — the two
-fitted circles differ by 0.0025" in centre and radius, because the underlying offset polyline
-is only circular to about that, so merging them would move the path further than `arcTol`
-allows. It is the same provenance problem in a smaller costume.
+A **full circle** comes out of Vectric as ~100 straight segments, in a pocket's rings and in a
+profile alike — four independent samples across boards 3 and 4, on the same Ø1.5 circle. Under
+the rule above it should post as arcs, and under our implementation it does. The fixtures
+model it with the per-op `arcs: false` flag and say so at the line, rather than inventing an
+engine rule from one piece of geometry.

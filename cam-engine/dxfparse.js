@@ -323,7 +323,10 @@ function bulgeArcPts(p1, p2, bulge, steps) {
   for (let i = 0; i <= steps; i++) {
     const t = i / steps;
     const ang = sa + (ea - sa) * t;
-    pts.push({ x: cx + r * Math.cos(ang), y: cy + r * Math.sin(ang) });
+    // `arcR` marks these points as having come from a real ARC, not from a sampled curve.
+    // The CAM side uses the SET of source radii to decide which arcs the post is allowed to
+    // emit - see camcore.js allowedArcRadii. Nothing else reads it.
+    pts.push({ x: cx + r * Math.cos(ang), y: cy + r * Math.sin(ang), arcR: r });
   }
   return pts;
 }

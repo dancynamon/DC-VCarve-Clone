@@ -369,6 +369,10 @@ function profileOp(contours, opts){
   const serpDir = o.entry==='serpentine' ? serpentineDirs(o.serpentineOver||contours) : null;
   for(const c of seq){
     let loops;
+    // Which arc radii the offset of THIS contour can legitimately contain. Per-contour, not
+    // per-job: a job's drill circles must not license arcs in a cross-cut.
+    const offMag = c.closed ? (o.side==='on' ? 0 : r) : (o.openSide==='on' ? 0 : r);
+    const arcRadii = allowedArcRadii(c.pts, offMag, o.leadType==='arc' ? [o.leadLen] : null);
     if(!c.closed){
       // Open contour: cut on the line, or offset to one side by the tool radius.
       // With entry:'nearest', travel runs from whichever END is closer to where the tool
@@ -434,7 +438,7 @@ function profileOp(contours, opts){
       depths.forEach(depth=>{
         const z=o.topZ-depth;
         const useTabs=hasTabs && z < tabTopZ-1e-9;
-        passesAll.push({z,tabHeight:useTabs?tabH:0,closed,path:useTabs?pathTab:pathPlain});
+        passesAll.push({z,tabHeight:useTabs?tabH:0,closed,path:useTabs?pathTab:pathPlain,arcRadii});
       });
     }
   }
@@ -835,6 +839,31 @@ function arcFollowsPolyline(P,i,j,arc,tol){
   }
   return true;
 }
+/* allowedArcRadii(contour, delta, extra) -> [radius, ...] | null
+
+   Which arc radii this toolpath can legitimately contain. Only three things put a genuine
+   arc in an offset path:
+
+     - a ROUND JOIN the offsetter built at a corner, whose radius is exactly |delta|;
+     - a SOURCE arc, which offsets to radius R+|delta| or R-|delta| (or R if delta is 0);
+     - a lead-in arc, whose radius the caller passes in `extra`.
+
+   Anything else the fitter finds is a circle it invented to approximate a sampled curve, and
+   that is the whole difference between our output and Vectric's. Returns null when the source
+   carries no arc information at all, which means "do not filter" - the fixtures that predate
+   `arcR` tagging, and any geometry built in the app rather than imported. */
+function allowedArcRadii(pts, delta, extra){
+  let tagged=false; const src=new Set();
+  for(const p of pts||[]) if(p.arcR!=null){ tagged=true; if(p.arcR>0) src.add(p.arcR); }
+  if(!tagged) return null;                     // no provenance: do not second-guess the fitter
+  const d=Math.abs(delta||0);
+  const out=new Set();
+  if(d>1e-9) out.add(d);                       // round joins at corners
+  for(const R of src){ out.add(R); if(d>1e-9){ out.add(R+d); if(R-d>1e-9) out.add(R-d); } }
+  for(const e of extra||[]) if(e>1e-9) out.add(e);
+  return Array.from(out);
+}
+
 /* WE ARC-FIT THE TOOLPATH; VECTRIC APPEARS NOT TO. See fixtures/parity/ARC-FITTING.md - two
    plausible ways to close the gap were measured and both are dead ends, so do not re-run
    them: tightening `tol` makes it WORSE (a spline gets chopped into more, shorter arcs:
@@ -843,8 +872,11 @@ function arcFollowsPolyline(P,i,j,arc,tol){
    too, because a densely sampled spline IS locally circular to any precision you ask for -
    the fit just shortens. The difference is not tolerance and not fit quality. */
 // P: array of {x,y}. Emits moves from P[0] to P[n-1]: {type:'line',x,y} | {type:'arc',x,y,cx,cy,cw}
-function fitArcs(P, tol){
+function fitArcs(P, tol, radii){
   tol = tol||0.0015;
+  // radii: see allowedArcRadii. A fitted circle whose radius is not one the geometry can
+  // produce is an invention, and gets emitted as lines instead.
+  const rOK = !radii || !radii.length ? null : (rr => radii.some(a => Math.abs(a-rr) <= Math.max(0.002, a*0.01)));
   const moves=[]; const n=P.length; let i=0;
   while(i<n-1){
     let bestJ=-1, bestArc=null;
@@ -861,7 +893,7 @@ function fitArcs(P, tol){
       if(!arcFollowsPolyline(P,i,j,arc,tol)) break;
       bestJ=j; bestArc=arc;
     }
-    if(bestArc && bestJ>=i+3){
+    if(bestArc && bestJ>=i+3 && (!rOK || rOK(Math.hypot(P[i].x-bestArc.cx, P[i].y-bestArc.cy)))){
       moves.push({type:'arc', x:P[bestJ].x, y:P[bestJ].y, cx:bestArc.cx, cy:bestArc.cy, cw:arcIsCW(P,i,bestJ,bestArc)});
       i=bestJ;
     } else {
@@ -933,7 +965,7 @@ function postProcess(job, post){
         // emit moves cur->pts[b] over pts[a..b] (a==current position index)
         const seg=pts.slice(a,b+1).map(p=>({x:p.x,y:p.y}));
         if(seg.length<2) return;
-        const moves = useArcs ? fitArcs(seg, arcTol) : seg.slice(1).map(p=>({type:'line',x:p.x,y:p.y}));
+        const moves = useArcs ? fitArcs(seg, arcTol, pass.arcRadii) : seg.slice(1).map(p=>({type:'line',x:p.x,y:p.y}));
         for(const m of moves){
           const f = firstFeed ? ` F${fmtF(op.feed,P.feedDecimals)}` : '';
           if(m.type==='arc'){
@@ -1100,5 +1132,5 @@ function stockHeightAt(field, x, y) {
   return field.z[j * field.nx + i];
 }
 
-return {SCALE,TOL,dist,signedArea,sweepContours,offsetOpenPath,isCCW,ensureCCW,ensureCW,boundsOf,assembleContours,offsetLoop,withTabs,fitArcs,profileOp,pocketOp,drillOp,vcarveOp,centroid,defaultTools,upsertTool,removeTool,slugId,orderPasses,postProcess,POSTS,simulateStock,stockHeightAt,estimateTime};
+return {SCALE,TOL,dist,signedArea,sweepContours,offsetOpenPath,allowedArcRadii,isCCW,ensureCCW,ensureCW,boundsOf,assembleContours,offsetLoop,withTabs,fitArcs,profileOp,pocketOp,drillOp,vcarveOp,centroid,defaultTools,upsertTool,removeTool,slugId,orderPasses,postProcess,POSTS,simulateStock,stockHeightAt,estimateTime};
 });

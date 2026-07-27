@@ -36,7 +36,7 @@ module.exports = function ({ CAM, C, parseDxf, entityToPolys, tool, toolOpts, di
   });
 
   // pieces first (cavities), toured nearest-neighbour; then the outline frees the panel
-  const inner = CAM.profileOp(pieces, Object.assign({ side: 'inside', climb: true, order: 'optimize', entry: 'nearest' }, common));
+  const inner = CAM.profileOp(pieces, Object.assign({ side: 'inside', climb: false, order: 'optimize', entry: 'nearest' }, common));
   const outer = CAM.profileOp([sheet], Object.assign({ side: 'outside', climb: false }, common));
 
   const op = Object.assign({}, inner.ops[0], {

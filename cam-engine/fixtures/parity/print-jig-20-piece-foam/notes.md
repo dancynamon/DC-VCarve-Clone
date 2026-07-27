@@ -63,3 +63,22 @@ same part by the same strategy, and differs from Vectric only in how the path is
 **What would settle it:** cut this jig from both programs and measure. If the parts are
 interchangeable, the right change is a documented per-fixture tolerance for freeform jobs —
 which is a decision for Dan, not something to quietly adjust.
+
+## Two defects and one dead end, found by building this fixture
+
+**The cavities were cut climb; the reference cuts them conventional.** All 8 of the
+reference's corner arcs run counter-clockwise where ours ran clockwise. On a 20-cavity foam
+jig that is tool loading and wall finish, not a G-code detail.
+
+**We arc-fitted curves Vectric leaves as lines.** This fixture is what made the rule legible.
+Each piece is a 776-point flattened spline with *no arcs in the source*, yet it plainly
+contains circular lobes at r = 0.500 and r ≈ 0.125. Vectric emits exactly 8 arcs, every one of
+radius 0.1250 — the **tool radius** — and posts the r = 0.500 lobes as 96 straight segments
+each. So it is not recognising circles in the polyline at all; it is emitting the fillets its
+own offsetter built. That observation is what `allowedArcRadii` encodes. See
+`ARC-FITTING.md`, which also records the two fixes that were measured and made things worse.
+
+**The cut order is not in the file.** Not DXF order, not nearest-neighbour, not
+travel-minimising (ours is 19% shorter), and not encoded in layers — all 20 pieces are on one
+layer with no per-piece attributes. It comes from the Aspire project's nesting order, which
+the DXF export does not carry. Details and numbers in `known-diff.txt`.

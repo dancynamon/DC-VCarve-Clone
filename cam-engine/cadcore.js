@@ -21,7 +21,10 @@ function arcPolyline(cx, cy, r, a0, a1, ccw, maxSeg) {
   if (!ccw && span > 0) span -= TAU;
   const n = Math.max(2, Math.ceil(Math.abs(span) / (maxSeg || 0.20)));
   const out = [];
-  for (let i = 0; i <= n; i++) out.push({ x: cx + r * Math.cos(a0 + span * i / n), y: cy + r * Math.sin(a0 + span * i / n) });
+  // `arcR` records that these points ARE an arc of this radius, not a sampled curve that
+  // happens to look like one. CAM uses it to decide which arcs the post may emit; without it
+  // a drawn circle would post as a polyline. dxfparse tags flattened bulges the same way.
+  for (let i = 0; i <= n; i++) out.push({ x: cx + r * Math.cos(a0 + span * i / n), y: cy + r * Math.sin(a0 + span * i / n), arcR: r });
   return out;
 }
 function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
@@ -29,7 +32,10 @@ function lerp(a, b, t) { return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y)
 
 // ---------- shape constructors (all produce {type:'path', pts, closed, prim}) ----------
 function mkLine(a, b, layer) { return { id: uid(), type: 'path', layer: layer || '0', closed: false, pts: [{ x: a.x, y: a.y }, { x: b.x, y: b.y }], prim: { kind: 'line' } }; }
-function mkPoly(pts, closed, layer) { return { id: uid(), type: 'path', layer: layer || '0', closed: !!closed, pts: pts.map(p => ({ x: p.x, y: p.y })), prim: { kind: 'poly' } }; }
+// `arcR` (set by dxfparse on points flattened from a real ARC/bulge) is carried through, so
+// CAM can tell geometry that WAS an arc from geometry that merely looks like one. Everything
+// else about a point is still just x,y.
+function mkPoly(pts, closed, layer) { return { id: uid(), type: 'path', layer: layer || '0', closed: !!closed, pts: pts.map(p => (p.arcR != null ? { x: p.x, y: p.y, arcR: p.arcR } : { x: p.x, y: p.y })), prim: { kind: 'poly' } }; }
 function mkRect(x, y, w, h, layer) {
   return { id: uid(), type: 'path', layer: layer || '0', closed: true,
     pts: [{ x, y }, { x: x + w, y }, { x: x + w, y: y + h }, { x, y: y + h }], prim: { kind: 'rect', x, y, w, h } };
@@ -51,7 +57,7 @@ function mkArc(c, r, a0, a1, ccw, layer) {
 }
 function mkRoundRect(x,y,w,h,r,layer){
   r=Math.max(0,Math.min(r, Math.min(w,h)/2)); const pts=[]; const seg=10;
-  const corner=(cx,cy,a0)=>{ for(let i=0;i<=seg;i++){const a=a0+i/seg*(Math.PI/2); pts.push({x:cx+r*Math.cos(a),y:cy+r*Math.sin(a)});} };
+  const corner=(cx,cy,a0)=>{ for(let i=0;i<=seg;i++){const a=a0+i/seg*(Math.PI/2); pts.push({x:cx+r*Math.cos(a),y:cy+r*Math.sin(a),arcR:r});} };
   if(r<1e-6){ return mkRect(x,y,w,h,layer); }
   corner(x+w-r, y+r, -Math.PI/2);
   corner(x+w-r, y+h-r, 0);
@@ -667,7 +673,16 @@ function clone(o) { return JSON.parse(JSON.stringify(o)); }
 function shapesToContoursInput(shapes) {
   // flatten all shapes into {pts,closed} for CAM.assembleContours
   const out = [];
-  for (const s of shapes) for (const loop of flatten(s)) out.push({ pts: loop.pts, closed: loop.closed });
+  for (const s of shapes) for (const loop of flatten(s)) {
+    // Everything that reaches here came from a shape constructor or from mkPoly (the DXF
+    // importer), both of which tag genuine arc points with `arcR`. So an untagged point here
+    // is known NOT to be an arc - mark it 0 to say so. That distinction is load-bearing in
+    // CAM: "this curve was never an arc" licenses posting it as lines, while "this geometry
+    // carries no arc information at all" (a raw point array handed straight to
+    // assembleContours) does not, and must be left alone.
+    const pts = loop.pts.map(p => (p.arcR != null ? p : { x: p.x, y: p.y, arcR: 0 }));
+    out.push({ pts, closed: loop.closed });
+  }
   return out;
 }
 

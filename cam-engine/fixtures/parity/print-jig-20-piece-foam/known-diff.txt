@@ -1,12 +1,41 @@
-Entry point ~0.012" out and arc segmentation differs (ref fits 8 arcs, we fit 16) on
-freeform curves. The RULE is matched -- both pick the nearest point on the offset loop to
-the previous exit -- but on a 776-point freeform curve our offset polyline and Vectric's
-put the same minimum in marginally different places.
+ONE difference remains: the ORDER the 20 pieces are cut in. It is not in the DXF.
 
-Not behavioural: cut length agrees within 0.5%, and envelope, depths, feeds, tool changes
-and tab lifts all match. Settling it properly means cutting the jig from both programs and
-comparing the parts.
+Matched piece-for-piece by bounding box, ignoring program order, all 21 passes agree:
 
-See notes.md. Do NOT remove this marker to make the suite green -- removing it should only
-happen when the fixture actually reaches parity, or when Dan decides the freeform tolerance
-question.
+  worst piece-size difference    0.0000"
+  worst cut-length difference    0.0042"  (0.017%)
+  worst arc-count difference     0
+
+So every piece is cut identically - same path, same 8 arcs, same direction, same entry rule.
+Only the sequence differs, and because entry:'nearest' chains each entry to where the last cut
+finished, a different sequence moves every entry point with it. That is why the harness reports
+this as a cut-order failure on pass 2 rather than 20 separate ones.
+
+WHY IT IS NOT DERIVABLE. The reference tour is:
+
+  (0,0) (0,1) (0,2) (0,3) (1,3) (2,3) (2,2) (2,1) (1,1) (1,2) (1,0) (2,0) (3,0) (3,1) (3,2)
+  (3,3) (4,3) (4,2) (4,1) (4,0)                      [(col,row) on the 5x4 grid]
+
+It is none of the things we can compute from the file:
+
+  - not DXF order, which is plain row-major: (0,0) (1,0) (2,0) ... (4,3)
+  - not nearest-neighbour. At step 3 the tool is at (4.17, 8.48); piece (1,1)'s nearest point
+    is 5.17" away and piece (0,2)'s is 7.18". NN takes (1,1); the reference takes (0,2).
+  - not a travel optimiser either. Total rapid travel between passes: reference 153.22",
+    ours 124.83". Our nearest-neighbour tour is 19% SHORTER than Vectric's.
+  - not recoverable from layers or handles: all 20 pieces sit on one layer, MALE, with no
+    per-piece attributes, listed row-major.
+
+The order almost certainly comes from the Aspire project - the sequence the pieces were nested
+or created in - which the DXF export flattens away. source.crv3d is unreadable binary. Short of
+reading the .crv3d, there is nothing in our inputs that could produce this sequence, and no
+rule worth inventing from it.
+
+NOW FIXED, previously listed here:
+  - Arc segmentation. We emitted 16 arcs where the reference emits 8. The reference's 8 are
+    ALL radius 0.1250 - exactly the tool radius - i.e. offset round joins, while the r=0.500
+    lobes are posted as 96 line segments each. See ARC-FITTING.md.
+  - Cut DIRECTION. The cavities were being cut climb; the reference cuts them conventional.
+    Real: it changes tool loading and wall finish, not just the G-code.
+
+See notes.md. Do NOT remove this marker to make the suite green.
