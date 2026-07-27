@@ -22,7 +22,7 @@ Phase 1c (expose the parity-critical parameters in the studio UI).
 **14 defects found and fixed** — several of which produced wrong metal, not just
 mismatched text.
 
-## Twelve defects found and fixed
+## Fourteen defects found and fixed
 
 Every one of these needed a real Vectric program to find. None was visible from inside the
 codebase, and several produced *wrong metal*, not just mismatched text.
@@ -61,15 +61,23 @@ codebase, and several produced *wrong metal*, not just mismatched text.
    that reaches the floor; we emitted a spurious Z lift on all four passes of every cut —
    16 where the reference has 4.
 
+10. **Pocket rings emitted as separate passes** — we retracted and re-plunged between every
+    concentric ring, 12 passes where board 3's reference has 2. Slow, and it leaves an entry
+    mark on each ring. `pocketOp` now takes `linkRings`, cutting innermost-first and
+    stepping outward as one continuous pass per depth.
+11. **Offset tolerance was coarser than the arc-fit tolerance** — Clipper ran at 0.003"
+    while arc fitting demanded 0.0015", so corner arcs could never be recovered and posted
+    as strings of G1. Offset now runs at 0.0005".
+
 **Could not be set at all**
 
-10. **`safeZ` was dead.** `postProcess` reads `op.clearZ` and falls back to 0.25"; every op
+12. **`safeZ` was dead.** `postProcess` reads `op.clearZ` and falls back to 0.25"; every op
     builder set a `safeZ` that nothing read, and `studio_app` hardcoded `clearZ:0.25`.
     Cutting 1.5" foam with a quarter-inch retract is a real snag. Now settable (Phase 1c).
-11. **Lead angle and overcut were engine-only.** Vectric's linear leads sit exactly 15.00°
+13. **Lead angle and overcut were engine-only.** Vectric's linear leads sit exactly 15.00°
     off tangent and carry 0.25" past the contour start; both were implemented but
     unreachable from the app. Now on the CAM panel.
-12. **My own tab-spacing tests were dead code** — appended below `process.exit()`, so they
+14. **My own tab-spacing tests were dead code** — appended below `process.exit()`, so they
     never ran and the suite reported a false green on the feature they guarded. This is the
     exact failure mode the parity harness exists to prevent, reproduced inside the
     harness's own test file. Fixed; count went 141 → 145.
