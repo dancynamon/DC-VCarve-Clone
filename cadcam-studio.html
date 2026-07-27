@@ -265,12 +265,15 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
       <label class="profile-pocket" data-tip="Lead-in/out at the cut entry/exit (avoids plunge marks on the edge)">Lead<select id="camLead"><option value="none">None</option><option value="arc">Arc</option><option value="line">Line</option></select></label>
       <label class="profile-pocket" data-tip="Lead-in/out length (in)">Lead"<input type="number" id="camLeadLen" value="0.25" step="0.05" min="0" style="width:46px"></label>
       <label class="profile-pocket" data-tip="Ramp the lead-in down in Z over this distance (0 = straight plunge)">Ramp"<input type="number" id="camRampLen" value="0" step="0.05" min="0" style="width:46px"></label>
+      <label class="profile-pocket" data-tip="Angle a LINE lead off the tangent. Vectric uses 15&deg;; 0 = collinear with the edge">Lead&deg;<input type="number" id="camLeadAngle" value="0" step="5" min="0" max="90" style="width:46px"></label>
+      <label class="profile-only" data-tip="Carry the cut this far past the contour start before leading out, so the entry mark is machined away">Over"<input type="number" id="camOvercut" value="0" step="0.05" min="0" style="width:46px"></label>
       <label>Cut"<input type="number" id="camDepth" value="0.5" step="0.01" style="width:52px"></label>
       <label>Pass"<input type="number" id="camPass" value="0.25" step="0.01" style="width:52px"></label>
       <label>Feed<input type="number" id="camFeed" value="120" style="width:52px"></label>
       <label>Plunge<input type="number" id="camPlunge" value="40" style="width:46px"></label>
       <label>RPM<input type="number" id="camRpm" value="18000" style="width:60px"></label>
       <label>TopZ"<input type="number" id="camTopZ" value="0" step="0.01" style="width:46px"></label>
+      <label data-tip="Retract height for rapids between cuts. Raise it if the stock bows or clamps are proud.">Clear"<input type="number" id="camClearZ" value="0.25" step="0.05" min="0" style="width:46px"></label>
       <label class="profile-only">Tabs#<input type="number" id="camTabN" value="0" style="width:40px"></label>
       <label class="profile-only">len"<input type="number" id="camTabL" value="0.4" step="0.05" style="width:46px"></label>
       <label class="profile-only">h"<input type="number" id="camTabH" value="0.1" step="0.01" style="width:46px"></label>
@@ -11260,7 +11263,7 @@ function buildOpRes(p, contours){
 function camParams(){ const g=id=>document.getElementById(id); const tabsN=parseInt(g('camTabN').value,10)||0;
   return { op:(g('camOp')&&g('camOp').value)||'profile', toolNum:parseInt(g('camTool').value,10)||1, toolDia:parseFloat(g('camDia').value)||0.25, side:g('camSide').value, climb:g('camDir').value==='climb',
     cutDepth:Math.abs(parseFloat(g('camDepth').value)||0.25), passDepth:Math.abs(parseFloat(g('camPass').value)||0.125), feed:parseFloat(g('camFeed').value)||120,
-    plunge:parseFloat(g('camPlunge').value)||40, rpm:parseFloat(g('camRpm').value)||18000, topZ:parseFloat(g('camTopZ').value)||0, clearZ:0.25,
+    plunge:parseFloat(g('camPlunge').value)||40, rpm:parseFloat(g('camRpm').value)||18000, topZ:parseFloat(g('camTopZ').value)||0, clearZ:Math.abs(parseFloat(g('camClearZ')&&g('camClearZ').value)||0.25),
     stepover:((parseFloat(g('camStep')&&g('camStep').value)||40)/100),
     pocketStyle:(g('camPocketStyle')&&g('camPocketStyle').value)||'offset',
     rampEntry:!!(g('camHelixEntry')&&g('camHelixEntry').checked),
@@ -11275,6 +11278,8 @@ function camParams(){ const g=id=>document.getElementById(id); const tabsN=parse
       if(cd<=0) return vn===1?2:1; const m=(typeof tools!=='undefined'&&tools)?tools.find(t=>Math.abs(t.dia-cd)<0.001):null; let n=m?m.toolNum:2; if(n===vn)n=vn===1?2:1; return n; })(),
     leadType:(g('camLead')&&g('camLead').value)||'none', leadLen:Math.abs(parseFloat(g('camLeadLen')&&g('camLeadLen').value)||0.25),
     rampLen:Math.abs(parseFloat(g('camRampLen')&&g('camRampLen').value)||0),
+    leadAngle:Math.abs(parseFloat(g('camLeadAngle')&&g('camLeadAngle').value)||0),
+    overcut:Math.abs(parseFloat(g('camOvercut')&&g('camOvercut').value)||0),
     tabs:{count:tabsN,length:parseFloat(g('camTabL').value)||0.4,height:parseFloat(g('camTabH').value)||0.1} }; }
 function camBuild(){ const contours=camContours(); const closedN=contours.filter(c=>c.closed).length; const p=camParams();
   const res=buildOpRes(p, contours);
@@ -11389,6 +11394,7 @@ function applyParamsToPanel(p){ if(!p)return; const g=id=>document.getElementByI
   if(p.stepover!=null)set('camStep',Math.round(p.stepover*100)); set('camPocketStyle',p.pocketStyle); chk('camHelixEntry',p.rampEntry); set('camFinishDia',p.finishDia);
   set('camPeck',p.peck); set('camVAngle',p.bitAngle); set('camVStep',p.vstep); set('camVFlat',p.flatDepth); set('camVClearDia',p.clearDia);
   set('camLead',p.leadType); set('camLeadLen',p.leadLen); set('camRampLen',p.rampLen);
+  set('camLeadAngle',p.leadAngle); set('camOvercut',p.overcut); set('camClearZ',p.clearZ);
   if(p.tabs){ set('camTabN',p.tabs.count); set('camTabL',p.tabs.length); set('camTabH',p.tabs.height); }
   const op=g('camOp'); if(op)op.dispatchEvent(new Event('change',{bubbles:true})); }
 function postJob(){ if(!opsQueue.length){ setMsg('Job queue empty — "Add op" first.'); return; }

@@ -265,12 +265,15 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
       <label class="profile-pocket" data-tip="Lead-in/out at the cut entry/exit (avoids plunge marks on the edge)">Lead<select id="camLead"><option value="none">None</option><option value="arc">Arc</option><option value="line">Line</option></select></label>
       <label class="profile-pocket" data-tip="Lead-in/out length (in)">Lead"<input type="number" id="camLeadLen" value="0.25" step="0.05" min="0" style="width:46px"></label>
       <label class="profile-pocket" data-tip="Ramp the lead-in down in Z over this distance (0 = straight plunge)">Ramp"<input type="number" id="camRampLen" value="0" step="0.05" min="0" style="width:46px"></label>
+      <label class="profile-pocket" data-tip="Angle a LINE lead off the tangent. Vectric uses 15&deg;; 0 = collinear with the edge">Lead&deg;<input type="number" id="camLeadAngle" value="0" step="5" min="0" max="90" style="width:46px"></label>
+      <label class="profile-only" data-tip="Carry the cut this far past the contour start before leading out, so the entry mark is machined away">Over"<input type="number" id="camOvercut" value="0" step="0.05" min="0" style="width:46px"></label>
       <label>Cut"<input type="number" id="camDepth" value="0.5" step="0.01" style="width:52px"></label>
       <label>Pass"<input type="number" id="camPass" value="0.25" step="0.01" style="width:52px"></label>
       <label>Feed<input type="number" id="camFeed" value="120" style="width:52px"></label>
       <label>Plunge<input type="number" id="camPlunge" value="40" style="width:46px"></label>
       <label>RPM<input type="number" id="camRpm" value="18000" style="width:60px"></label>
       <label>TopZ"<input type="number" id="camTopZ" value="0" step="0.01" style="width:46px"></label>
+      <label data-tip="Retract height for rapids between cuts. Raise it if the stock bows or clamps are proud.">Clear"<input type="number" id="camClearZ" value="0.25" step="0.05" min="0" style="width:46px"></label>
       <label class="profile-only">Tabs#<input type="number" id="camTabN" value="0" style="width:40px"></label>
       <label class="profile-only">len"<input type="number" id="camTabL" value="0.4" step="0.05" style="width:46px"></label>
       <label class="profile-only">h"<input type="number" id="camTabH" value="0.1" step="0.01" style="width:46px"></label>

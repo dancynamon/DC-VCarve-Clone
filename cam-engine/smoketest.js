@@ -28,5 +28,22 @@ for (const opName of Object.keys(ops)) {
   }
 }
 
+
+// ---- CAM panel wiring: a control that exists in the markup but is never read (or is read
+// but does not exist) is silently dead. These three were exactly that until Phase 1c:
+// profileOp/postProcess honoured leadAngle, overcut and clearZ, but the studio could not
+// set any of them, so the app could not reproduce a job the engine could.
+const fs = require('fs'), path = require('path');
+const shell = fs.readFileSync(path.join(__dirname, 'studio_shell.html'), 'utf8');
+const app = fs.readFileSync(path.join(__dirname, 'studio_app.js'), 'utf8');
+for (const id of ['camClearZ', 'camLeadAngle', 'camOvercut']) {
+  ok('shell defines #' + id, new RegExp('id="' + id + '"').test(shell));
+  ok('app reads #' + id, app.includes("'" + id + "'"));
+}
+// and the params they feed must actually reach the engine
+for (const key of ['clearZ', 'leadAngle', 'overcut']) {
+  ok('camParams emits ' + key, new RegExp('\\b' + key + ':').test(app));
+}
+
 console.log(`\n${pass}/${pass + fail} smoke checks passed`);
 process.exit(fail ? 1 : 0);

@@ -717,7 +717,7 @@ function buildOpRes(p, contours){
 function camParams(){ const g=id=>document.getElementById(id); const tabsN=parseInt(g('camTabN').value,10)||0;
   return { op:(g('camOp')&&g('camOp').value)||'profile', toolNum:parseInt(g('camTool').value,10)||1, toolDia:parseFloat(g('camDia').value)||0.25, side:g('camSide').value, climb:g('camDir').value==='climb',
     cutDepth:Math.abs(parseFloat(g('camDepth').value)||0.25), passDepth:Math.abs(parseFloat(g('camPass').value)||0.125), feed:parseFloat(g('camFeed').value)||120,
-    plunge:parseFloat(g('camPlunge').value)||40, rpm:parseFloat(g('camRpm').value)||18000, topZ:parseFloat(g('camTopZ').value)||0, clearZ:0.25,
+    plunge:parseFloat(g('camPlunge').value)||40, rpm:parseFloat(g('camRpm').value)||18000, topZ:parseFloat(g('camTopZ').value)||0, clearZ:Math.abs(parseFloat(g('camClearZ')&&g('camClearZ').value)||0.25),
     stepover:((parseFloat(g('camStep')&&g('camStep').value)||40)/100),
     pocketStyle:(g('camPocketStyle')&&g('camPocketStyle').value)||'offset',
     rampEntry:!!(g('camHelixEntry')&&g('camHelixEntry').checked),
@@ -732,6 +732,8 @@ function camParams(){ const g=id=>document.getElementById(id); const tabsN=parse
       if(cd<=0) return vn===1?2:1; const m=(typeof tools!=='undefined'&&tools)?tools.find(t=>Math.abs(t.dia-cd)<0.001):null; let n=m?m.toolNum:2; if(n===vn)n=vn===1?2:1; return n; })(),
     leadType:(g('camLead')&&g('camLead').value)||'none', leadLen:Math.abs(parseFloat(g('camLeadLen')&&g('camLeadLen').value)||0.25),
     rampLen:Math.abs(parseFloat(g('camRampLen')&&g('camRampLen').value)||0),
+    leadAngle:Math.abs(parseFloat(g('camLeadAngle')&&g('camLeadAngle').value)||0),
+    overcut:Math.abs(parseFloat(g('camOvercut')&&g('camOvercut').value)||0),
     tabs:{count:tabsN,length:parseFloat(g('camTabL').value)||0.4,height:parseFloat(g('camTabH').value)||0.1} }; }
 function camBuild(){ const contours=camContours(); const closedN=contours.filter(c=>c.closed).length; const p=camParams();
   const res=buildOpRes(p, contours);
@@ -846,6 +848,7 @@ function applyParamsToPanel(p){ if(!p)return; const g=id=>document.getElementByI
   if(p.stepover!=null)set('camStep',Math.round(p.stepover*100)); set('camPocketStyle',p.pocketStyle); chk('camHelixEntry',p.rampEntry); set('camFinishDia',p.finishDia);
   set('camPeck',p.peck); set('camVAngle',p.bitAngle); set('camVStep',p.vstep); set('camVFlat',p.flatDepth); set('camVClearDia',p.clearDia);
   set('camLead',p.leadType); set('camLeadLen',p.leadLen); set('camRampLen',p.rampLen);
+  set('camLeadAngle',p.leadAngle); set('camOvercut',p.overcut); set('camClearZ',p.clearZ);
   if(p.tabs){ set('camTabN',p.tabs.count); set('camTabL',p.tabs.length); set('camTabH',p.tabs.height); }
   const op=g('camOp'); if(op)op.dispatchEvent(new Event('change',{bubbles:true})); }
 function postJob(){ if(!opsQueue.length){ setMsg('Job queue empty — "Add op" first.'); return; }
