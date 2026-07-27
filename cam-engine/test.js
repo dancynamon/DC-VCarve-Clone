@@ -460,8 +460,6 @@ console.log('\n(post-pp assertions added)');
   ok('time: distances split by kind', near(allT.plungeDist,2)&&near(allT.feedDist,10)&&near(allT.rapidDist,10), JSON.stringify(allT));
 })();
 
-console.log(`\n${pass} passed, ${fail} failed`);
-process.exit(fail?1:0);
 // ---- tabs by constant SPACING (VCarve's alternative to a fixed count) ----
 // lgc-50-board-3 uses it: cuts of 3.5 / 3.6 / 5.8 / 9.0" carry 1 / 1 / 2 / 3 tabs,
 // i.e. round(length / 3"). Guarded here because no fixture reaches parity on it yet.
@@ -484,3 +482,6 @@ process.exit(fail?1:0);
   let fr=0; for(let i=1;i<fp.length;i++) if(fp[i].tab && !fp[i-1].tab) fr++;
   ok('explicit tab count still honoured', fr===4, fr);
 })();
+
+console.log(`\n${pass} passed, ${fail} failed`);
+process.exit(fail?1:0);
