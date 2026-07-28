@@ -115,5 +115,14 @@ worth confirming against the real Vectric job file if you still have it. The MEC
 genuine Vectric feature; only the values are fitted.
 
 Vectric emits the rings as ~100 straight segments per revolution rather than G2/G3, and does
-the same for the T9 finishing profile on the identical circle. Modelled with `arcs: false`;
-see ARC-FITTING.md for why that is a flag rather than a rule.
+the same for the T9 finishing profile on the identical circle. That is now **explained**: the
+tessellation's angular steps are smallest at 0/90/180/270 and largest at the diagonals, 25 per
+quadrant, which identifies a rational quadratic NURBS circle flattened at uniform parameter —
+predicted vs measured agree to 0.008 deg element-wise. A NURBS circle is not an arc, and the
+offset of a NURBS is a NURBS, so there is nothing to emit as G2/G3. See ARC-FITTING.md.
+
+**One ambiguity this fixture cannot settle.** `pocketOp` now rotates every ring to the SOURCE
+contour's start point. The reference is equally consistent with "start every ring on the +x ray
+from the pocket centre", because this circle's source start happens to be at 0 deg. A pocket
+whose boundary starts somewhere other than +x would tell the two apart; none of the seven
+fixtures has one.

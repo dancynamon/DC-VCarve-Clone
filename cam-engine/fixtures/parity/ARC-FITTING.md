@@ -1,8 +1,8 @@
 # Arc fitting: how Vectric decides, and how we now match it
 
-**Status: solved, except for full circles.** This file used to record an unsolved gap and two
-dead ends. The dead ends are still worth keeping — they are the reason the fix looks the way
-it does — but the gap itself is closed.
+**Status: solved.** This file used to record an unsolved gap and two dead ends. The dead ends
+are still worth keeping — they are the reason the fix looks the way it does — but the gap
+itself is closed, including the full-circle case at the bottom.
 
 ## What Vectric actually does
 
@@ -74,10 +74,36 @@ threshold and the fit shortens rather than failing. Board 4 went 4 → 6 arcs, t
 
 Neither tolerance nor fit quality separates the cases. Only provenance does.
 
-## The one thing still unexplained
+## Why a full circle posts as 100 straight lines — solved
 
-A **full circle** comes out of Vectric as ~100 straight segments, in a pocket's rings and in a
-profile alike — four independent samples across boards 3 and 4, on the same Ø1.5 circle. Under
-the rule above it should post as arcs, and under our implementation it does. The fixtures
-model it with the per-op `arcs: false` flag and say so at the line, rather than inventing an
-engine rule from one piece of geometry.
+This was the one case the provenance rule did not explain: a Ø1.5 circle comes out of Vectric
+as ~100 `G1` moves, in a pocket's rings and in a finishing profile alike, four independent
+samples across boards 3 and 4. Under the rule above it should post as arcs.
+
+Measuring the tessellation answers it. The angular steps are **not uniform**: they are smallest
+(3.277°) exactly at 0/90/180/270° and largest (3.799°) at the diagonals, with 25 steps per
+quadrant. That is the fingerprint of a **rational quadratic NURBS circle** — four quarter
+segments with control weights 1, cos 45°, 1 — flattened at uniform parameter steps.
+
+Predicted against measured, one quadrant, element-wise:
+
+```
+measured : 3.277 3.355 3.420 3.484 3.551 3.603 3.655 3.694 3.734 3.752 3.781 3.798 3.796 ...
+predicted: 3.279 3.352 3.421 3.487 3.548 3.603 3.653 3.695 3.731 3.760 3.780 3.793 3.797 ...
+worst element-wise difference: 0.008 deg
+```
+
+(A cubic Bezier circle approximation predicts the opposite pattern — largest steps at the
+segment ends — so this is not just "some curve", it identifies the representation.)
+
+So Vectric's circle is not an arc internally. It is a NURBS curve, the offset of a NURBS curve
+is another NURBS curve, and there is no arc left to emit. The 100 segments are simply that
+curve flattened. The provenance rule was right all along; a Vectric circle has no arc
+provenance to carry.
+
+**This is a place where matching Vectric would make our output worse.** Two `G2` moves
+describe a circle exactly, in two lines; 100 `G1` moves approximate it in a hundred. The
+fixtures model Vectric's behaviour with the per-op `arcs: false` flag so the comparison is
+honest, and the engine keeps emitting arcs by default. Whether the app should ever imitate the
+NURBS flattening is a judgement call, not a defect — worth a deliberate decision rather than a
+silent one.

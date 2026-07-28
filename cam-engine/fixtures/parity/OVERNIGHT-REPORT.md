@@ -379,3 +379,82 @@ but information the input does not contain.
 | `print-jig` | KNOWN DIFF | the order 20 identical cuts are made in |
 
 No fixture has a geometry difference left.
+
+## Follow-up: boards 3 and 4, and why a Vectric circle is not an arc
+
+Both remaining differences were attacked directly. Neither yielded, and in both cases the
+reason is now specific rather than vague — but the investigation solved a *different* open
+question outright.
+
+### Solved: why Vectric posts a circle as ~100 straight lines
+
+`ARC-FITTING.md` had one case the provenance rule could not explain. Measuring the
+tessellation answers it. The angular steps are **not uniform** — smallest (3.277°) exactly at
+0/90/180/270° and largest (3.799°) at the diagonals, 25 steps per quadrant. That is the
+fingerprint of a **rational quadratic NURBS circle**: four quarter segments with control
+weights 1, cos 45°, 1, flattened at uniform parameter steps.
+
+```
+measured : 3.277 3.355 3.420 3.484 3.551 3.603 3.655 3.694 3.734 3.752 3.781 3.798 3.796 ...
+predicted: 3.279 3.352 3.421 3.487 3.548 3.603 3.653 3.695 3.731 3.760 3.780 3.793 3.797 ...
+worst element-wise difference: 0.008 deg, over all 25
+```
+
+A cubic Bezier circle predicts the *opposite* pattern, so this identifies the representation
+rather than merely fitting a curve. **Vectric's circle is not an arc internally.** It is a
+NURBS curve; the offset of a NURBS curve is another NURBS curve; there is no arc left to emit.
+The provenance rule was right all along — a Vectric circle has no arc provenance to carry.
+
+**Your call on one thing.** Matching this would make our output worse: two `G2` moves describe
+a circle exactly, a hundred `G1` moves approximate it. The fixtures model Vectric's behaviour
+with the per-op `arcs: false` flag so the comparison stays honest, and the engine still emits
+arcs by default. Imitating the NURBS flattening app-wide is a deliberate decision, not a
+defect to fix.
+
+### board 3 — the T9 start angle, and why it is probably not in the file
+
+The reference enters the finishing circle at **148.2336°** (board 4: 148.2307° on the same
+part — deterministic, not noise). It is tessellation vertex 9 of 25 inside the 180→90°
+quadrant, not on a segment boundary.
+
+Every candidate rule was tested and ruled out: not the source contour's start (0°, which is
+where we enter and which reproduces *every* other closed profile in the fixtures — xrt-50 at
+full parity, and all six pocket rings on this same circle); not nearest to the previous tool
+position (the tool retracts in place at 0° and there is no park move before the toolchange);
+not the antipode, not nearest to park, not nearest to the origin, not any drill position.
+
+Vectric's Profile toolpath carries a **per-contour start point the operator can place by
+hand**, stored in the `.crv3d`. A DXF export re-emits a circle in canonical form starting at
++x — and `source.dxf`'s four bulge vertices sit at 0/90/180/270° to five decimals, so any start
+point the project carried was normalised away on export. Same class as the print jig's cut
+order: information the input does not contain.
+
+### board 4 — 0.0018", and ours is already the better of the two options
+
+The residual decomposes cleanly: the perpendicular offset is **exact** (0.18996" against a
+0.1900" tool radius) and the difference is 0.00176" of *along-path* position at the endpoint.
+
+Both principled endpoint tangents were tried. The first-chord normal (what we use) lands
+0.0018" out; a second-order one-sided estimate lands **0.0034" out** — it moves the wrong way,
+because the chord directions increase along the path (115.90 → 116.95 → 118.00°), so the true
+tangent at the endpoint is *below* the first chord while Vectric's is *above* it. Flattening
+error does not explain the gap either: at the local radius of ~1.09" a 0.020" chord sits
+0.00005" off the true spline — thirty times too small.
+
+The likely reading is board 3's again: Vectric offset the real spline in the `.crv3d`, and the
+DXF hands us a sampled polyline of it. 1.8 thou, on an entry into air, with a 0.380" cutter.
+
+### Honest summary
+
+Three fixtures are still KNOWN DIFF, and all three now fail on **exactly one check each**,
+none of which is a geometry difference:
+
+| Fixture | What differs | Why it stays |
+|---|---|---|
+| `lgc-50-board-3` | one pass's start angle on a circle | per-contour start point, lives in the .crv3d |
+| `lgc-50-board-4` | one entry point, 0.0018" | spline tangent, lives in the .crv3d |
+| `print-jig` | order of 20 identical cuts | nesting order, lives in the .crv3d |
+
+That is a pattern, not a coincidence: what is left in all three cases is information the DXF
+export does not carry. Reading a `.crv3d` directly is the only thing that would settle them,
+and it is a much larger piece of work than anything done so far.

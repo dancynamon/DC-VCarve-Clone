@@ -10,9 +10,18 @@ Two differences remain, both on the T5 op only, both understood.
    Vectric is evidently using the underlying spline, which the DXF does not give us.
    1.8 thou, on an entry into air, with a 0.380" cutter.
 
-2. Arc segmentation - the reference emits that 130-point flattened spline as pure G1, we fit
-   4 arcs to it. This is the general arc-fitting gap; see ARC-FITTING.md, which records two
-   fixes that were measured and both make it worse. Cut length agrees to within 0.01%.
+   Both principled options were tried and ours is the better one: the first-chord normal
+   lands 0.0018" out, a second-order one-sided (3-point) tangent estimate lands 0.0034" out -
+   it moves the wrong way, because the chord directions increase along the path (115.90,
+   116.95, 118.00 deg) so the true tangent at the endpoint is BELOW the first chord while
+   Vectric's is above it. Flattening error does not explain the gap either: at the local
+   radius of ~1.09" a 0.020" chord sits 0.00005" off the true spline, thirty times too small.
+   The most likely reading is the same one as board 3's entry angle - Vectric offset the real
+   spline in the .crv3d, and the DXF gives us a sampled polyline of it.
+
+NOW FIXED, previously listed here: arc segmentation. The reference emits that 130-point
+flattened spline as pure G1 and we fitted 4 arcs to it. Solved by tracking arc PROVENANCE
+rather than trying to recover it - see ARC-FITTING.md. We now emit 0 arcs there, matching.
 
 Everything else matches: all 4 T10 drills, all 6 T8 drills (after de-duplicating the DXF's
 coincident circles), the pocket (entry, ring radii, spacing and representation), the T9
