@@ -155,5 +155,59 @@ if (!fs.existsSync(dbPath)) {
   ok('tooldb: junk input warns', junk.warnings.length > 0);
 }
 
+// --- Vectric .crv3d project import ----------------------------------------------------
+// The decoder's claims are anchored on the same ground truth as everything else here: the
+// posted .tap for the same job. Board 3's T9 finishing pass enters at (0.7117, 87.0545) -
+// the start angle that was undiscoverable from the DXF - and board 4's T5 starts at
+// (3.6712, 72.2940). If the container reader or the segment-record layout is ever wrong,
+// these read back garbage.
+const Crv3d = require('./crv3dparse.js');
+const crvPath = path.join(__dirname, 'fixtures', 'parity', 'lgc-50-board-3', 'source.crv3d');
+if (!fs.existsSync(crvPath)) {
+  ok('crv3d: fixture project present', false, crvPath);
+} else {
+  const r3 = Crv3d.parseCrv3d(fs.readFileSync(crvPath));
+  const paths = r3.streams.filter(s => s.type === 2).map(s => s.path);
+  ok('crv3d: 9 streams', paths.length === 9, paths.length);
+  for (const want of ['Toolpaths/ToolpathData', 'VectorData/2dDataV2', 'PreviewData/Preview2D_GIF'])
+    ok('crv3d: has ' + want, paths.includes(want));
+  ok('crv3d: preview is a GIF', r3.previewGif && r3.previewGif[0] === 0x47 && r3.previewGif[1] === 0x49 && r3.previewGif[2] === 0x46);
+
+  // toolpath tool records: same layout as the .tool database, one per toolpath, in
+  // toolpath order, with the operator's per-toolpath overrides baked in
+  ok('crv3d: 6 toolpath tool records', r3.tools.length === 6, r3.tools.length);
+  ok('crv3d: toolpath order', r3.tools.map(t => t.toolNum).join(',') === '10,5,8,3,9,3', r3.tools.map(t => t.toolNum).join(','));
+  const t3 = r3.tools.filter(t => t.toolNum === 3);
+  ok('crv3d: T3 override feed 60 baked in (database says 80)', t3.every(t => t.feed === 60), JSON.stringify(t3.map(t => t.feed)));
+  ok('crv3d: class markers seen', r3.toolpathClasses.some(c => c.name === 'mcProfileToolpath')
+    && r3.toolpathClasses.some(c => c.name === 'mcDrillingToolpath'));
+
+  // stored toolpath geometry, in machine coordinates, matching the posted .tap
+  ok('crv3d: geometry runs found', r3.geometry.length > 40, r3.geometry.length);
+  const near = (a, b, t) => Math.abs(a - b) <= (t || 5e-4);
+  const t9 = r3.geometry.find(g => g.points.length === 101 && near(g.points[0].z, -0.5) && near(g.points[0].x, 0.7117, 0.01));
+  ok('crv3d: board 3 T9 finish run present', !!t9);
+  if (t9) {
+    ok('crv3d: T9 starts at the .tap start point', near(t9.points[0].x, 0.7117) && near(t9.points[0].y, 87.0545),
+      t9.points[0].x + ',' + t9.points[0].y);
+    ok('crv3d: T9 run closes on itself', near(t9.points[0].x, t9.points[100].x) && near(t9.points[0].y, t9.points[100].y));
+    const cc = { x: 1.29622, y: 86.69256 };
+    ok('crv3d: T9 run lies on the finish circle r=0.6875',
+      t9.points.every(q => Math.abs(Math.hypot(q.x - cc.x, q.y - cc.y) - 0.6875) < 0.002));
+  }
+  const ring1 = r3.geometry.find(g => near(g.points[0].x, 1.3832, 0.001) && near(g.points[0].y, 86.6926, 0.001) && near(g.points[0].z, -0.25));
+  ok('crv3d: first pocket ring at its .tap entry', !!ring1);
+
+  const r4 = Crv3d.parseCrv3d(fs.readFileSync(path.join(__dirname, 'fixtures', 'parity', 'lgc-50-board-4', 'source.crv3d')));
+  const t5 = r4.geometry.find(g => near(g.points[0].x, 3.6712, 0.001) && near(g.points[0].y, 72.2940, 0.001) && near(g.points[0].z, -0.1));
+  ok('crv3d: board 4 T5 run at its .tap start', !!t5);
+  if (t5) ok('crv3d: T5 run has Vectric\'s own 65-segment tessellation', t5.points.length === 66, t5.points.length);
+
+  // not-a-compound-file input must throw, not return garbage
+  let threw = false;
+  try { Crv3d.parseCrv3d(new Uint8Array(2048)); } catch (e) { threw = /compound/.test(e.message); }
+  ok('crv3d: junk input throws cleanly', threw);
+}
+
 console.log(`\n${pass}/${pass + fail} import checks passed`);
 process.exit(fail ? 1 : 0);

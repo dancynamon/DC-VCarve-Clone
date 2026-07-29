@@ -1,30 +1,35 @@
-Two differences remain, both on the T5 op only, both understood.
+ONE difference remains: a 0.0018" entry offset on the two SPLINE contours (4 and 5), which
+are each cut twice - shallow by T5, through by T3 - so the same artifact shows on ten passes
+(harness reports the first, pass 5: ref (3.6712, 72.2940) vs ours (3.6720, 72.2924); a full
+per-pass audit shows every other pass in the program matches within 0.001"). The project
+file settles WHY, and the answer is that this is a tessellation artifact, not information we
+are missing.
 
-1. Entry point 0.0018" out - ref (3.6712, 72.2940) vs ours (3.6720, 72.2924). Decomposed
-   against the source's first segment, the reference entry sits 0.18996" PERPENDICULAR to the
-   path (the tool radius, 0.1900, exactly right - confirmed independently by the tool database:
-   T5e - Amana 49706 Roundover 0.380) and 0.00176" FORWARD along the tangent. So the offset
-   distance is correct and the residual is purely where along the path Vectric's offset
-   polyline starts. Its first chord direction implies a tangent of 116.42 deg where the
-   source's first chord is 115.90 deg and a second-order one-sided estimate gives 115.38 -
-   Vectric is evidently using the underlying spline, which the DXF does not give us.
-   1.8 thou, on an entry into air, with a 0.380" cutter.
+From source.crv3d (see CRV3D.md):
 
-   Both principled options were tried and ours is the better one: the first-chord normal
-   lands 0.0018" out, a second-order one-sided (3-point) tangent estimate lands 0.0034" out -
-   it moves the wrong way, because the chord directions increase along the path (115.90,
-   116.95, 118.00 deg) so the true tangent at the endpoint is BELOW the first chord while
-   Vectric's is above it. Flattening error does not explain the gap either: at the local
-   radius of ~1.09" a 0.020" chord sits 0.00005" off the true spline, thirty times too small.
-   The most likely reading is the same one as board 3's entry angle - Vectric offset the real
-   spline in the .crv3d, and the DXF gives us a sampled polyline of it.
+  - The true source curve is a cubic bezier; its exact endpoint tangent is 115.372 deg
+    (anchor (3.50109, 72.20942), first control (3.31824, 72.59499)).
+  - Vectric's own stored T5 toolpath is 65 segments; its FIRST CHORD runs at 116.425 deg
+    and is 0.0434" long.
+  - The reference entry point is perpendicular to 116.44 deg - i.e. to VECTRIC'S OWN FIRST
+    SAMPLED CHORD, not to the true tangent (a full degree away from it).
 
-NOW FIXED, previously listed here: arc segmentation. The reference emits that 130-point
-flattened spline as pure G1 and we fitted 4 arcs to it. Solved by tracking arc PROVENANCE
-rather than trying to recover it - see ARC-FITTING.md. We now emit 0 arcs there, matching.
+  - Our entry is perpendicular to OUR first sampled chord (115.90 deg, from the DXF's
+    0.02" tessellation). Same policy, different sampling density.
 
-Everything else matches: all 4 T10 drills, all 6 T8 drills (after de-duplicating the DXF's
-coincident circles), the pocket (entry, ring radii, spacing and representation), the T9
-finishing pass, and ALL 7 CROSS-CUTS including their sweep order and directions.
+So both programs place the entry perpendicular to the first chord of their own flattening
+of the same true curve. Matching Vectric exactly would mean cloning its tessellator's step
+selection, not fixing any geometric parameter. The offset DISTANCE is exact on both sides:
+0.18996" against the 0.1900" tool radius of T5e - Amana 49706 Roundover 0.380.
+
+1.8 thou, on an entry into air, with a 0.380" cutter.
+
+NOW FIXED, previously listed here: arc segmentation (solved by arc provenance - see
+ARC-FITTING.md; we emit 0 arcs there, matching the reference).
+
+Everything else matches - audited pass by pass, not just through the harness's first-failure
+report: all 4 T10 drills, all 6 T8 drills, the pocket, the T9 finishing pass (via the
+crv3d-stored start point, as on board 3), and all cross-cuts on non-spline contours,
+including sweep order and directions throughout.
 
 See notes.md. Do NOT remove this marker to make the suite green.

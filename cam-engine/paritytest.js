@@ -17,6 +17,7 @@ const C = require('./cadcore.js');
 const GP = require('./gcodeparse.js');
 const P = require('./parity.js');
 const TDB = require('./tooldbparse.js');
+const Crv3d = require('./crv3dparse.js');
 
 /* Vectric's exported tool database, so fixtures reference a tool instead of hardcoding its
    geometry and speeds. `tool(5, 'T5e - Amana 49706 Roundover 0.380')` takes BOTH the number
@@ -197,7 +198,7 @@ if (!fixtures.length) {
     let ours = null;
     if (fs.existsSync(path.join(dir, 'ours.tap'))) ours = fs.readFileSync(path.join(dir, 'ours.tap'), 'utf8');
     else if (fs.existsSync(path.join(dir, 'job.js'))) {
-      try { ours = require(path.join(dir, 'job.js'))({ CAM, C, parseDxf, entityToPolys, tool, toolOpts, dir, fs, path }); }
+      try { ours = require(path.join(dir, 'job.js'))({ CAM, C, parseDxf, entityToPolys, tool, toolOpts, Crv3d, dir, fs, path }); }
       catch (e) { ok(`fixture ${name}: job.js runs`, false, e.message); continue; }
     }
     // A reference with no `ours` side yet is QUEUED WORK, not a regression. Failing

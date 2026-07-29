@@ -12,7 +12,7 @@
    0.1875 + 0.0025, so most likely a Ø0.375 tool carrying a 0.0025" allowance (Vectric's
    "allowance offset"), or a Ø0.38 tool. We model the effective offset, which is what
    reproduces the path; the decomposition is ambiguous and does not matter here. */
-module.exports = function ({ CAM, C, parseDxf, entityToPolys, tool, toolOpts, dir, fs, path }) {
+module.exports = function ({ CAM, C, parseDxf, entityToPolys, tool, toolOpts, Crv3d, dir, fs, path }) {
   const ents = parseDxf(fs.readFileSync(path.join(dir, 'source.dxf'), 'utf8'));
   const polys = [];
   for (const e of ents) for (const q of entityToPolys(e)) polys.push(q);
@@ -63,8 +63,17 @@ module.exports = function ({ CAM, C, parseDxf, entityToPolys, tool, toolOpts, di
     allowance: 0.00635,      //   stock left on the wall for the T9 finishing pass
     arcs: false,             //   Vectric tessellates pocket rings into G1, ~100 per circle
   }));
+  // As on board 3: the T9 finish's start point is operator-placed, stored only in the
+  // project file. Select the stored finishing run by geometry and use its first point.
+  const crv = Crv3d.parseCrv3d(fs.readFileSync(path.join(dir, 'source.crv3d')));
+  const pc = CAM.centroid(circle[0].pts);
+  const t9run = crv.geometry.find(g => g.points.length > 50 &&
+    g.points.every(q => Math.abs(Math.hypot(q.x - pc.x, q.y - pc.y) - 0.6875) < 0.01));
+  if (!t9run) throw new Error('T9 finishing run not found in source.crv3d');
+
   const finish = CAM.profileOp(circle, Object.assign(toolOpts(T9), {
     side: 'inside', topZ: 0, cutDepth: 0.5, passDepth: 0.5,
+    startAt: { x: t9run.points[0].x, y: t9run.points[0].y },
     plunge: 30,              // toolpath override: the tool's default plunge is 25
     // Vectric tessellates this circle into 100 G1 segments rather than emitting G2/G3 -
     // same as its pocket rings on the identical circle, on both boards 3 and 4 (four

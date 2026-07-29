@@ -7,7 +7,7 @@
 
    The DXF carries DUPLICATE circles — six coincident pairs — so the hole selection has to
    dedupe by centroid or it drills 16 holes instead of 10. */
-module.exports = function ({ CAM, C, parseDxf, entityToPolys, tool, toolOpts, dir, fs, path }) {
+module.exports = function ({ CAM, C, parseDxf, entityToPolys, tool, toolOpts, Crv3d, dir, fs, path }) {
   const ents = parseDxf(fs.readFileSync(path.join(dir, 'source.dxf'), 'utf8'));
   const polys = [];
   for (const e of ents) for (const q of entityToPolys(e)) polys.push(q);
@@ -43,8 +43,21 @@ module.exports = function ({ CAM, C, parseDxf, entityToPolys, tool, toolOpts, di
     allowance: 0.00635,      //   stock left on the wall for the T9 finishing pass
     arcs: false,             //   Vectric tessellates pocket rings into G1, ~100 per circle
   }));
+  // The T9 finish enters its circle at 148.23 deg round from +x - an operator-placed start
+  // point that lives in the project file and nowhere else (the DXF re-canonicalises circles
+  // to start at +x, wiping it). Read it from source.crv3d: the stored toolpath geometry's
+  // finishing run is the one whose points all sit on the finish-pass circle (r = 0.75 -
+  // 0.0625 = 0.6875) around the pocket centre.
+  const crv = Crv3d.parseCrv3d(fs.readFileSync(path.join(dir, 'source.crv3d')));
+  const pc = CAM.centroid(pocketCirc[0].pts);
+  const onFinish = g => g.points.length > 50 &&
+    g.points.every(q => Math.abs(Math.hypot(q.x - pc.x, q.y - pc.y) - 0.6875) < 0.01);
+  const t9run = crv.geometry.find(onFinish);
+  if (!t9run) throw new Error('T9 finishing run not found in source.crv3d');
+
   const finish = CAM.profileOp(pocketCirc, Object.assign(toolOpts(T9), {
     side: 'inside', topZ: 0, cutDepth: 0.5, passDepth: 0.5,
+    startAt: { x: t9run.points[0].x, y: t9run.points[0].y },
     plunge: 30,              // toolpath override: the tool's default plunge is 25
     // Vectric tessellates this circle into 100 G1 segments rather than emitting G2/G3 -
     // same as its pocket rings on the identical circle, on both boards 3 and 4 (four

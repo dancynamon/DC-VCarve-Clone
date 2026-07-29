@@ -359,7 +359,7 @@ function serpentineDirs(contours){
 }
 
 function profileOp(contours, opts){
-  const o=Object.assign({toolNum:1,toolDia:0.25,side:'outside',climb:true,topZ:0,cutDepth:0.25,passDepth:0.125,safeZ:0.25,feed:120,plunge:40,rpm:18000,tabs:{count:0,length:0.4,height:0.06},joinType:'round',leadType:'none',leadLen:0.25,rampLen:0,leadAngle:0,overcut:0,order:'source',entry:'source',openSide:'on',reverseOpen:false,serpentineOver:null,arcs:null},opts||{});
+  const o=Object.assign({toolNum:1,toolDia:0.25,side:'outside',climb:true,topZ:0,cutDepth:0.25,passDepth:0.125,safeZ:0.25,feed:120,plunge:40,rpm:18000,tabs:{count:0,length:0.4,height:0.06},joinType:'round',leadType:'none',leadLen:0.25,rampLen:0,leadAngle:0,overcut:0,order:'source',entry:'source',openSide:'on',reverseOpen:false,serpentineOver:null,arcs:null,startAt:null},opts||{});
   const r=o.toolDia/2, warnings=[], passesAll=[]; let leadSkipped=false;
   const depths=[]; let d=Math.min(o.passDepth,o.cutDepth);
   while(d<o.cutDepth-1e-9){depths.push(d);d+=o.passDepth;} depths.push(o.cutDepth);
@@ -407,8 +407,13 @@ function profileOp(contours, opts){
       if(c.closed && o.side!=='on'){
         const wantCCW=(o.side==='outside')?!o.climb:o.climb;
         lp=wantCCW?ensureCCW(lp):ensureCW(lp);
-        // enter where the source vector starts, not where Clipper happened to begin
-        lp=rotateLoopTo(lp, o.entry==='nearest' ? prevEntry : entryTarget(c.pts, o.side==='outside'?r:-r));
+        // enter where the source vector starts, not where Clipper happened to begin.
+        // `startAt` overrides both: Vectric profiles carry an operator-placed start point
+        // (stored in the .crv3d, invisible in a DXF export) - lgc-50-board-3's T9 finish
+        // enters its circle at 148.23 deg for no derivable reason, because it is a stored
+        // choice, not a computed one. rotateLoopTo projects onto the loop, so any point on
+        // or near the offset path works.
+        lp=rotateLoopTo(lp, o.startAt ? o.startAt : o.entry==='nearest' ? prevEntry : entryTarget(c.pts, o.side==='outside'?r:-r));
         prevEntry={x:lp[0].x,y:lp[0].y};
       }
       // tabs.spacing (VCarve's "constant spacing") sizes the count from the path length

@@ -458,3 +458,46 @@ none of which is a geometry difference:
 That is a pattern, not a coincidence: what is left in all three cases is information the DXF
 export does not carry. Reading a `.crv3d` directly is the only thing that would settle them,
 and it is a much larger piece of work than anything done so far.
+
+## Follow-up: the .crv3d decoder
+
+"Reading a .crv3d is the only thing that would settle them" turned out to be a smaller job
+than predicted, because the format is two things we had already met: an **OLE2 compound
+file** (the old Office container — documented, unencrypted) wrapping **MFC CArchive**
+streams (the `.tool` database serialisation). `crv3dparse.js` reads the container completely
+and decodes `Toolpaths/ToolpathData`; `CRV3D.md` is the format writeup.
+
+Three findings, in increasing order of consequence:
+
+1. **The tool records inside are byte-identical to the `.tool` database layout** — the
+   existing parser reads them unchanged, one per toolpath, with the operator's overrides
+   baked in. Feed 60 on T3 where the database says 80: every override the fixtures had
+   annotated by hand is now confirmed by the project file itself.
+
+2. **The computed toolpaths are stored, fully tessellated, in machine coordinates.** Only
+   line segments — arcs arrive pre-flattened, which independently confirms the NURBS
+   finding. And a board's file carries sibling boards' toolpaths too (board 3 contains
+   board 4's T5 cuts, offset on the sheet), so runs must be selected by geometry.
+
+3. **Board 3 is now at PARITY.** The 148.23° was an operator-placed start point, stored in
+   the project and destroyed by DXF export. The fixture reads it via a new `startAt` option
+   on `profileOp`, selecting the stored run by geometry (all points on the r=0.6875 finish
+   circle). Board 4's T9 had the same issue masked behind its T5 failure — a full per-pass
+   audit found it, and it gets the same fix.
+
+**Board 4 stays a KNOWN DIFF, now with the complete explanation.** The project file
+contains the true cubic bezier: exact endpoint tangent 115.372°. Vectric's own stored
+toolpath samples it into 65 segments whose first chord runs at 116.425° — and the reference
+entry is perpendicular to that chord, not to the true tangent. Ours is perpendicular to our
+first chord (115.90°, the DXF's finer flattening). Same policy, different sampling, of the
+same curve; Vectric's entry is a degree off its own true tangent. Cloning that means
+cloning its tessellator's step selection — imitating an artifact. The 0.0018" appears on
+all ten passes touching the two spline contours and nowhere else; every other pass in the
+program matches within 0.001".
+
+**The print jig's cut order would yield to exactly this decoder** — the stored runs are in
+cutting order — but its `.crv` project file is not in the repo. If you still have it, drop
+it in `print-jig-20-piece-foam/` and say so.
+
+Score: 5 of 7 fixtures at full PARITY. The two remaining known diffs are one tessellation
+artifact of 0.0018" and one missing input file.

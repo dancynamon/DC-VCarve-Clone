@@ -126,3 +126,17 @@ contour's start point. The reference is equally consistent with "start every rin
 from the pocket centre", because this circle's source start happens to be at 0 deg. A pocket
 whose boundary starts somewhere other than +x would tell the two apart; none of the seven
 fixtures has one.
+
+## PARITY, finally - the last diff was read out of the project file
+
+The T9 finishing pass's 148.23 deg start angle was never derivable because it is not
+derived: it is an operator-placed start point stored in the Vectric project. `source.crv3d`
+turned out to be an ordinary OLE2 compound file (see `crv3dparse.js` and `CRV3D.md`), and
+its `Toolpaths/ToolpathData` stream carries every computed toolpath as tessellated segments
+in machine coordinates. The finishing run - 100 segments, all on the r=0.6875 circle -
+starts at exactly (0.7117, 87.0545), the point the .tap alone could not explain.
+
+`job.js` now reads that point from the crv3d and hands it to `profileOp` as `startAt`,
+selected by geometry (the run whose points all sit on the finish circle), not by file
+position. The stored tool records in the same stream also confirm this fixture's overrides
+independently: T3 carries feed 60 baked in where the database tool says 80.
