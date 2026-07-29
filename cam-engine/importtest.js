@@ -203,6 +203,15 @@ if (!fs.existsSync(crvPath)) {
   ok('crv3d: board 4 T5 run at its .tap start', !!t5);
   if (t5) ok('crv3d: T5 run has Vectric\'s own 65-segment tessellation', t5.points.length === 66, t5.points.length);
 
+  // the print jig's project: the stored runs are in CUTTING order (this is what settled
+  // its fixture), and the first piece's entry matches the posted .tap exactly
+  const jigPath = path.join(__dirname, 'fixtures', 'parity', 'print-jig-20-piece-foam', 'source.crv3d');
+  const jig = Crv3d.parseCrv3d(fs.readFileSync(jigPath));
+  ok('crv3d: print jig reads', jig.geometry.length > 100, jig.geometry.length);
+  ok('crv3d: print jig single T2 tool', jig.tools.length === 1 && jig.tools[0].toolNum === 2, JSON.stringify(jig.tools.map(t => t.toolNum)));
+  const jig1 = jig.geometry[0].points[0];
+  ok('crv3d: print jig first stored entry = first .tap pass', near(jig1.x, 2.4764) && near(jig1.y, 2.4764), jig1.x + ',' + jig1.y);
+
   // not-a-compound-file input must throw, not return garbage
   let threw = false;
   try { Crv3d.parseCrv3d(new Uint8Array(2048)); } catch (e) { threw = /compound/.test(e.message); }

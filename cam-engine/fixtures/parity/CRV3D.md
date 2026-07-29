@@ -83,9 +83,13 @@ tangent. Matching it exactly would mean cloning Vectric's tessellator step selec
 would be imitating an artifact, not correcting an error. It stays a KNOWN DIFF with this
 paragraph as its reason.
 
-**The print jig's cut order** would yield to the same treatment — the stored runs are in
-cutting order — but its `.crv` project file is not in the repo. Drop it next to the fixture
-and the same decoder applies.
+**The print jig → PARITY.** Dan supplied its `.crv3d`, and the stored runs are in cutting
+order, matching the posted tour exactly. One refinement came out of it: the posted entry is
+each pass's stored **closing point**, not its first point. On all 20 pieces the stored chain
+closes exactly on its own start so the two coincide (matching the `.tap` to four decimals);
+the sheet outline's stored chain starts one tessellation sliver (0.0056") into a corner arc
+and ends at (0.125, 0.25) — where the `.tap` enters. The fixture reads order and entries
+from the file and is at full parity.
 
 ## Not yet decoded
 

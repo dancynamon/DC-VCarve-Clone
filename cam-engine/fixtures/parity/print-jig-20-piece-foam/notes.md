@@ -82,3 +82,22 @@ own offsetter built. That observation is what `allowedArcRadii` encodes. See
 travel-minimising (ours is 19% shorter), and not encoded in layers — all 20 pieces are on one
 layer with no per-piece attributes. It comes from the Aspire project's nesting order, which
 the DXF export does not carry. Details and numbers in `known-diff.txt`.
+
+## PARITY - the cut order was in the project file
+
+Dan supplied the jig's own `.crv3d`, and the decoder (see `../CRV3D.md`) settled the last
+difference. The stored toolpath runs are **in cutting order** and match the posted tour
+exactly - confirming it was the project's nesting order all along, reproducible by no rule
+(our nearest-neighbour tour is 19% shorter in rapid travel than Vectric's actual one).
+
+Each pass's entry is the stored chain's **closing point**. On all 20 pieces the stored chain
+closes exactly on its own start, so first and last coincide and match the `.tap` to four
+decimals. The sheet outline exposed the distinction: its stored chain starts one
+tessellation sliver (0.0056") into a corner arc and ends at (0.125, 0.25) - and the posted
+program enters at the closing point, not the sliver. Using the closing point is exact on
+all 21 passes.
+
+`job.js` now reads order and entries from `source.crv3d`, cuts each piece with a
+per-contour `startAt`, and the fixture is at full parity. The 0.012" entry residual the old
+known-diff recorded was the chained-entry consequence of the wrong order, not a separate
+defect.

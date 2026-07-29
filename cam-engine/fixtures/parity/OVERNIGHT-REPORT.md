@@ -501,3 +501,39 @@ it in `print-jig-20-piece-foam/` and say so.
 
 Score: 5 of 7 fixtures at full PARITY. The two remaining known diffs are one tessellation
 artifact of 0.0018" and one missing input file.
+
+## Follow-up: the print jig's project file arrived - PARITY
+
+The jig's own `.crv3d` confirmed everything the known-diff had inferred and settled the
+fixture:
+
+- **The stored runs are in cutting order**, and that order matches the posted tour cell for
+  cell - `(0,0) (0,1) (0,2) (0,3) (1,3) (2,3) ...` - proving it was the project's nesting
+  order, not any computable rule.
+- **The posted entry is each pass's stored closing point.** On all 20 pieces first and
+  closing point coincide (and match the `.tap` to four decimals). The sheet outline is the
+  case that distinguishes the two: its stored chain starts one tessellation sliver
+  (0.0056") into a corner arc and ends at (0.125, 0.25), which is exactly where the `.tap`
+  enters.
+
+`job.js` now reads order and entries from `source.crv3d` with a per-piece `startAt`. The
+0.012" entry residual in the old known-diff was the chained-entry consequence of the wrong
+order - not a separate defect, and it vanished with the order.
+
+## Final scoreboard
+
+| Fixture | Status |
+|---|---|
+| `xrt-50` | **PARITY** |
+| `lgc-50-board-1` | **PARITY** |
+| `lgc-50-board-2` | **PARITY** |
+| `lgc-50-board-3` | **PARITY** |
+| `lgc-50-board-5` | **PARITY** |
+| `print-jig-20-piece-foam` | **PARITY** |
+| `lgc-50-board-4` | KNOWN DIFF - one 0.0018" tessellation artifact on two spline entries |
+
+Six of seven at full parity. The one remaining difference is fully characterised down to
+the byte level (see board 4's `known-diff.txt`): Vectric's entry is perpendicular to its own
+tessellation's first chord, ours to ours, of the same true bezier - and Vectric's is a full
+degree off the curve's exact tangent. Closing it would mean cloning the tessellator's step
+selection to reproduce an artifact 1.8 thou wide, into air, with a 0.380" cutter.
