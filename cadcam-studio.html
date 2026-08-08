@@ -92,6 +92,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .modal-body{padding:12px 14px;display:flex;flex-direction:column;gap:8px}
 .mfield{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px;color:var(--ink)}
 .mfield span{text-transform:none;letter-spacing:.2px}
+.mfield input[type=checkbox]{width:auto}
 .mfield input{width:130px;background:var(--bg-input);border:1px solid var(--btn-bd);color:var(--ink);border-radius:4px;padding:5px 7px;font-family:inherit;font-size:12px}
 .mfield input:focus{outline:none;border-color:var(--accent-bd)}
 .modal-foot{display:flex;justify-content:flex-end;gap:8px;padding:10px 14px;border-top:1px solid var(--bd-soft)}
@@ -145,7 +146,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
   <div class="topbar">
     <span class="brand">AQUAMENTOR CAD/CAM</span>
     <button class="tb" id="btnNew" data-tip="Clear the design">New</button>
-    <button class="tb" id="btnImport" data-tip="Open an .aqcam project or .aqtpl toolpath template, or import DXF / SVG / vector PDF">Open / Import</button>
+    <button class="tb" id="btnImport" data-tip="Open an .aqcam project or .aqtpl template, or import DXF / SVG / vector PDF / a bitmap to trace (PNG, JPG, GIF, BMP, WEBP)">Open / Import</button>
     <button class="tb" id="btnSaveProj" data-tip="Save this job as an .aqcam project file (shapes, layers, material, toolpaths)">Save job…</button>
     <button class="tb" id="btnExpDXF" data-tip="Export design as DXF">Export DXF</button>
     <button class="tb" id="btnExpSVG" data-tip="Export design as SVG">Export SVG</button>
@@ -154,13 +155,14 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
     <button class="tb" id="btnRedo" data-tip="Redo (Ctrl+Y)">↷ Redo</button>
     <button class="tb" id="btnFit" data-tip="Fit view to all (F)">Fit (F)</button>
     <button class="tb" id="btnSelfTest" data-tip="Build a sample design and run every CAM op (Profile/Pocket/Drill/V-Carve) as a smoke test">Self-test</button>
+    <button class="tb" id="btnTrace" data-tip="Trace the imported bitmap into cuttable vectors">Trace bitmap…</button>
     <button class="tb" id="btnKeys" data-tip="Keyboard shortcuts reference">Keys?</button>
     <span class="sep"></span>
     <label><input type="checkbox" id="chkGrid" checked> Grid</label>
     <label>step<input type="number" id="gridStep" value="0.5" step="0.25" min="0.0625"></label>
     <label><input type="checkbox" id="chkSnap" checked> Grid-snap</label>
     <label><input type="checkbox" id="chkObjSnap" checked> Obj-snap</label>
-    <input type="file" id="fileInput" accept=".aqcam,.aqtpl,.dxf,.svg,.pdf" style="display:none">
+    <input type="file" id="fileInput" accept=".aqcam,.aqtpl,.dxf,.svg,.pdf,.png,.jpg,.jpeg,.gif,.bmp,.webp" style="display:none">
   </div>
 
   <div class="tools">
@@ -320,6 +322,22 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
     <div class="modal-h"><span class="mt" id="modalTitle">Edit shape</span><button class="mx" id="modalX" title="Close">×</button></div>
     <div class="modal-body" id="modalFields"></div>
     <div class="modal-foot"><button class="tb" id="modalCancel">Cancel</button><button class="tb primary" id="modalApply">Apply</button></div>
+  </div>
+</div>
+<div class="modal-bg" id="traceModal">
+  <div class="modal" style="left:96px;top:70px;min-width:300px">
+    <div class="modal-h"><span class="mt">Trace Bitmap</span><button class="mx" id="traceX" title="Close">×</button></div>
+    <div class="modal-body" style="padding:10px 14px">
+      <label class="mfield"><span>Threshold</span><input type="range" id="trThresh" min="1" max="254" value="128"></label>
+      <label class="mfield"><span>Invert (trace light)</span><input type="checkbox" id="trInvert"></label>
+      <label class="mfield"><span>Despeckle (px)</span><input type="number" id="trSpeck" value="2" min="0" step="1"></label>
+      <label class="mfield"><span>Smoothing tol (px)</span><input type="number" id="trTol" value="1" min="0" step="0.25"></label>
+      <label class="mfield"><span>Corner rounding</span><input type="range" id="trSmooth" min="0" max="1" step="0.5" value="0.5"></label>
+      <label class="mfield"><span>Width (in)</span><input type="number" id="trWidth" value="12" min="0.1" step="0.25"></label>
+      <div class="cam-hint" id="trStats" style="margin-top:6px">—</div>
+      <div class="cam-hint" style="color:#5c6b80;margin-top:2px">Traced contours land on the "trace" layer, ready to pocket / profile / V-carve. The bitmap stays underneath as a reference.</div>
+    </div>
+    <div class="modal-foot"><button class="tb" id="traceClearBg">Remove image</button><button class="tb" id="traceCancel">Cancel</button><button class="tb primary" id="traceApply">Trace</button></div>
   </div>
 </div>
 <div class="modal-bg" id="keysModal">
@@ -10632,6 +10650,247 @@ function parsePDFVectors(u8, opts) {
 
 </script>
 <script>
+/* bitmaptrace.js — turn a raster image into cuttable vector contours. Pure (no DOM, no Node deps).
+ *
+ * The UI decodes the file (PNG/JPG/GIF/BMP/WEBP) with a canvas and hands us plain RGBA pixels;
+ * everything from there down — threshold, despeckle, boundary trace, simplify, smooth, scale to
+ * inches — lives here so it is unit-testable headless.
+ *
+ * Pipeline:  RGBA → thresholdBitmap → despeckle → traceBitmap → simplifyPath → smoothPath → inches
+ *
+ * traceBitmap walks the boundary between ink and background on the pixel grid, emitting every edge
+ * with ink on its LEFT. Chained head-to-tail that yields CCW outer contours and CW holes, which is
+ * exactly the winding CAM's even-odd region builder and the Clipper booleans already expect — so a
+ * traced logo pockets and profiles with its counters intact, no extra hole detection needed.
+ *
+ * Row order: image data is top-down (canvas convention); we flip to y-up while thresholding, so
+ * everything downstream is already in CAD orientation.
+ */
+(function (root, factory) {
+  const mod = factory();
+  if (typeof module !== 'undefined' && module.exports) module.exports = mod;
+  root.BMPTRACE = mod;
+})(typeof self !== 'undefined' ? self : this, function () {
+'use strict';
+
+const DEFAULTS = {
+  threshold: 128,      // 0..255 luma cut; pixels DARKER than this are ink
+  invert: false,       // trace the light areas instead
+  alphaThreshold: 16,  // pixels more transparent than this are background whatever their colour
+  despeckle: 2,        // drop ink blobs / holes smaller than this many pixels (0 = keep everything)
+  tol: 1.0,            // simplify tolerance, in pixels (0 = keep the raw staircase)
+  smooth: 0.5,         // 0..1 corner rounding; corners sharper than cornerAngle are preserved
+  cornerAngle: 60,     // degrees of turn above which a vertex counts as a corner and is never rounded
+  dpi: 96,             // pixels per inch, used when widthInches is not given
+  widthInches: 0,      // scale so the image is exactly this wide (overrides dpi)
+  originX: 0, originY: 0,
+  minLoopPts: 3
+};
+
+// ---- 1. threshold: RGBA -> Uint8Array of 0/1, flipped to y-up ----
+// img: {width, height, data} where data is RGBA, row-major, TOP-down (canvas ImageData).
+function thresholdBitmap(img, opts) {
+  const o = Object.assign({}, DEFAULTS, opts || {});
+  const w = img.width | 0, h = img.height | 0, d = img.data;
+  const bits = new Uint8Array(w * h);
+  let ink = 0;
+  for (let jr = 0; jr < h; jr++) {
+    const jc = h - 1 - jr;                       // flip: image row 0 is the TOP, CAD y grows up
+    for (let i = 0; i < w; i++) {
+      const k = (jr * w + i) * 4;
+      const a = d[k + 3];
+      let on;
+      if (a < o.alphaThreshold) on = false;      // transparent = background
+      else {
+        const luma = 0.299 * d[k] + 0.587 * d[k + 1] + 0.114 * d[k + 2];
+        on = luma < o.threshold;                 // dark = ink
+      }
+      if (o.invert) on = !on;
+      if (on) { bits[jc * w + i] = 1; ink++; }
+    }
+  }
+  return { bits: bits, width: w, height: h, ink: ink };
+}
+
+// ---- 2. despeckle: drop ink blobs and enclosed holes smaller than minArea pixels ----
+// 4-connected labelling with an explicit stack (no recursion — a full-page scan would blow the stack).
+function _components(bits, w, h, want) {
+  const seen = new Uint8Array(w * h), comps = [];
+  const stack = [];
+  for (let s = 0; s < w * h; s++) {
+    if (seen[s] || bits[s] !== want) continue;
+    const cells = []; let touchesBorder = false;
+    stack.length = 0; stack.push(s); seen[s] = 1;
+    while (stack.length) {
+      const p = stack.pop(); cells.push(p);
+      const i = p % w, j = (p - i) / w;
+      if (i === 0 || j === 0 || i === w - 1 || j === h - 1) touchesBorder = true;
+      if (i > 0     && !seen[p - 1] && bits[p - 1] === want) { seen[p - 1] = 1; stack.push(p - 1); }
+      if (i < w - 1 && !seen[p + 1] && bits[p + 1] === want) { seen[p + 1] = 1; stack.push(p + 1); }
+      if (j > 0     && !seen[p - w] && bits[p - w] === want) { seen[p - w] = 1; stack.push(p - w); }
+      if (j < h - 1 && !seen[p + w] && bits[p + w] === want) { seen[p + w] = 1; stack.push(p + w); }
+    }
+    comps.push({ cells: cells, touchesBorder: touchesBorder });
+  }
+  return comps;
+}
+function despeckle(bits, w, h, minArea) {
+  if (!(minArea > 0)) return { bits: bits, removed: 0, filled: 0 };
+  const out = Uint8Array.from(bits);
+  let removed = 0, filled = 0;
+  for (const c of _components(out, w, h, 1)) {                       // specks of ink
+    if (c.cells.length < minArea) { for (const p of c.cells) out[p] = 0; removed++; }
+  }
+  for (const c of _components(out, w, h, 0)) {                       // pinholes inside ink
+    if (!c.touchesBorder && c.cells.length < minArea) { for (const p of c.cells) out[p] = 1; filled++; }
+  }
+  return { bits: out, removed: removed, filled: filled };
+}
+
+// ---- 3. trace: boundary loops on the pixel grid, ink always on the left of travel ----
+function traceBitmap(bits, w, h) {
+  const on = (i, j) => i >= 0 && j >= 0 && i < w && j < h && bits[j * w + i] === 1;
+  const vkey = (x, y) => y * (w + 1) + x;
+  const outEdges = new Map();                    // start vertex key -> [[ex,ey], ...]
+  const add = (sx, sy, ex, ey) => { const k = vkey(sx, sy); let a = outEdges.get(k); if (!a) { a = []; outEdges.set(k, a); } a.push([ex, ey]); };
+  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+    if (!on(i, j)) continue;
+    if (!on(i + 1, j)) add(i + 1, j,     i + 1, j + 1);   // right wall, travelling +y
+    if (!on(i, j + 1)) add(i + 1, j + 1, i,     j + 1);   // top wall,   travelling -x
+    if (!on(i - 1, j)) add(i,     j + 1, i,     j);       // left wall,  travelling -y
+    if (!on(i, j - 1)) add(i,     j,     i + 1, j);       // bottom wall,travelling +x
+  }
+  const loops = [];
+  const starts = Array.from(outEdges.keys());
+  for (const k0 of starts) {
+    let bucket = outEdges.get(k0);
+    while (bucket && bucket.length) {
+      const sx = k0 % (w + 1), sy = (k0 - sx) / (w + 1);
+      const pts = [{ x: sx, y: sy }];
+      let cx = sx, cy = sy, guard = 0;
+      const limit = 8 * w * h + 16;
+      while (guard++ < limit) {
+        const ck = vkey(cx, cy), b = outEdges.get(ck);
+        if (!b || !b.length) break;                    // dead end (shouldn't happen on a closed boundary)
+        const nxt = b.shift();
+        if (!b.length) outEdges.delete(ck);
+        cx = nxt[0]; cy = nxt[1];
+        if (cx === sx && cy === sy) break;             // closed
+        pts.push({ x: cx, y: cy });
+      }
+      if (pts.length >= 3) loops.push({ pts: _dropCollinear(pts), closed: true });
+      bucket = outEdges.get(k0);
+    }
+  }
+  return loops;
+}
+// merge runs of collinear staircase vertices (the raw trace has one vertex per pixel edge)
+function _dropCollinear(pts) {
+  const n = pts.length; if (n < 3) return pts;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const a = pts[(i - 1 + n) % n], b = pts[i], c = pts[(i + 1) % n];
+    const cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
+    if (Math.abs(cross) > 1e-12) out.push(b);
+  }
+  return out.length >= 3 ? out : pts;
+}
+
+// ---- 4. simplify (Ramer–Douglas–Peucker) ----
+function _perp(p, a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y, L2 = dx * dx + dy * dy;
+  if (L2 < 1e-18) return Math.hypot(p.x - a.x, p.y - a.y);
+  let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / L2;
+  t = t < 0 ? 0 : t > 1 ? 1 : t;
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+function _rdpOpen(pts, tol) {
+  if (pts.length < 3) return pts.slice();
+  const keep = new Uint8Array(pts.length); keep[0] = 1; keep[pts.length - 1] = 1;
+  const stack = [[0, pts.length - 1]];
+  while (stack.length) {
+    const [i0, i1] = stack.pop();
+    let best = -1, bd = tol;
+    for (let i = i0 + 1; i < i1; i++) { const d = _perp(pts[i], pts[i0], pts[i1]); if (d > bd) { bd = d; best = i; } }
+    if (best >= 0) { keep[best] = 1; stack.push([i0, best], [best, i1]); }
+  }
+  const out = []; for (let i = 0; i < pts.length; i++) if (keep[i]) out.push(pts[i]);
+  return out;
+}
+// Closed loops are split at the vertex farthest from pts[0] first, so the simplification isn't
+// anchored to one arbitrary point (which would leave a kink there on a smooth outline).
+function simplifyPath(pts, tol, closed) {
+  if (!(tol > 0) || pts.length < 4) return pts.slice();
+  if (!closed) return _rdpOpen(pts, tol);
+  let far = 0, fd = -1;
+  for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i].x - pts[0].x, pts[i].y - pts[0].y); if (d > fd) { fd = d; far = i; } }
+  const a = _rdpOpen(pts.slice(0, far + 1), tol);
+  const b = _rdpOpen(pts.slice(far).concat([pts[0]]), tol);
+  const out = a.concat(b.slice(1, -1));
+  return out.length >= 3 ? out : pts.slice();
+}
+
+// ---- 5. smooth (Chaikin corner cutting, sharp corners preserved) ----
+function _turnDeg(a, b, c) {
+  const a1 = Math.atan2(b.y - a.y, b.x - a.x), a2 = Math.atan2(c.y - b.y, c.x - b.x);
+  let d = a2 - a1; while (d <= -Math.PI) d += 2 * Math.PI; while (d > Math.PI) d -= 2 * Math.PI;
+  return Math.abs(d) * 180 / Math.PI;
+}
+function smoothPath(pts, closed, amount, cornerAngle) {
+  amount = Math.max(0, Math.min(1, amount == null ? 0 : amount));
+  const iters = amount <= 0 ? 0 : amount < 0.5 ? 1 : 2;
+  const corner = cornerAngle == null ? DEFAULTS.cornerAngle : cornerAngle;
+  let cur = pts.slice();
+  for (let it = 0; it < iters && cur.length >= 3; it++) {
+    const n = cur.length, out = [];
+    for (let i = 0; i < n; i++) {
+      const a = cur[(i - 1 + n) % n], b = cur[i], c = cur[(i + 1) % n];
+      if (!closed && (i === 0 || i === n - 1)) { out.push(b); continue; }
+      if (_turnDeg(a, b, c) >= corner) { out.push(b); continue; }        // a real corner — leave it alone
+      out.push({ x: b.x + (a.x - b.x) * 0.25, y: b.y + (a.y - b.y) * 0.25 });
+      out.push({ x: b.x + (c.x - b.x) * 0.25, y: b.y + (c.y - b.y) * 0.25 });
+    }
+    cur = out;
+  }
+  return cur;
+}
+
+function signedArea(pts) {
+  let a = 0; for (let i = 0, n = pts.length; i < n; i++) { const p = pts[i], q = pts[(i + 1) % n]; a += p.x * q.y - q.x * p.y; }
+  return a / 2;
+}
+
+// ---- the whole pipeline: RGBA image -> contours in inches ----
+function traceImage(img, opts) {
+  const o = Object.assign({}, DEFAULTS, opts || {});
+  const th = thresholdBitmap(img, o);
+  const w = th.width, h = th.height;
+  const ds = despeckle(th.bits, w, h, o.despeckle);
+  const raw = traceBitmap(ds.bits, w, h);
+  let ptsBefore = 0, ptsAfter = 0, outer = 0, holes = 0;
+  const scale = o.widthInches > 0 ? (o.widthInches / w) : (1 / (o.dpi > 0 ? o.dpi : 96));
+  const loops = [];
+  for (const lp of raw) {
+    ptsBefore += lp.pts.length;
+    let p = simplifyPath(lp.pts, o.tol, true);
+    p = smoothPath(p, true, o.smooth, o.cornerAngle);
+    if (p.length < o.minLoopPts) continue;
+    ptsAfter += p.length;
+    if (signedArea(p) >= 0) outer++; else holes++;
+    loops.push({ pts: p.map(q => ({ x: o.originX + q.x * scale, y: o.originY + q.y * scale })), closed: true });
+  }
+  return { loops: loops, stats: {
+    width: w, height: h, inkPixels: th.ink, specksRemoved: ds.removed, holesFilled: ds.filled,
+    loops: loops.length, outer: outer, holes: holes,
+    pointsBefore: ptsBefore, pointsAfter: ptsAfter,
+    scale: scale, widthInches: w * scale, heightInches: h * scale } };
+}
+
+return { DEFAULTS, thresholdBitmap, despeckle, traceBitmap, simplifyPath, smoothPath, traceImage, signedArea };
+});
+
+</script>
+<script>
 /* ===================== Aquamentor CAD/CAM Studio app ===================== */
 'use strict';
 const TAU = Math.PI*2;
@@ -10703,6 +10962,7 @@ function render(){
   if(pv && simField){ drawSimField(); updateHud(); return; }   // solid material-removal view
   if(!pv) drawGrid();          // Preview: clean material, no grid
   drawJob();
+  if(bgImage) drawBgImage();   // reference bitmap over the stock panel, under the vectors
   // shapes — dimmed reference lines in Preview, no selection colour
   for(const s of doc.shapes){
     if(!layerVisible(s.layer))continue;
@@ -10715,6 +10975,7 @@ function render(){
     if(sel.size && tool==='select') drawSelectionHandles();
     if(tool==='node' && sel.size===1) drawNodes(selectedShapes()[0]);
     if(draft) drawDraft();
+    if(tracePreview) drawTracePreview();
     if(measure) drawMeasure(measure.a, measure.b, true);
     if(snapMark) drawSnapMark(snapMark);
   }
@@ -10732,6 +10993,17 @@ function drawGrid(){
   // axes
   ctx.strokeStyle='rgba(90,130,255,0.35)'; ctx.beginPath();
   const o=W2S({x:0,y:0}); ctx.moveTo(o.x,0);ctx.lineTo(o.x,cv.height); ctx.moveTo(0,o.y);ctx.lineTo(cv.width,o.y); ctx.stroke();
+}
+function drawBgImage(){
+  const a=W2S({x:bgImage.x,y:bgImage.y+bgImage.h}), b=W2S({x:bgImage.x+bgImage.w,y:bgImage.y});
+  ctx.save(); ctx.globalAlpha=bgImage.alpha; ctx.imageSmoothingEnabled=true;
+  ctx.drawImage(bgImage.canvas, a.x, a.y, b.x-a.x, b.y-a.y);
+  ctx.restore();
+}
+function drawTracePreview(){
+  ctx.save(); ctx.strokeStyle='#ffd27a'; ctx.lineWidth=1.4;
+  for(const l of tracePreview){ ctx.beginPath(); l.pts.forEach((p,i)=>{const q=W2S(p); i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y);}); ctx.closePath(); ctx.stroke(); }
+  ctx.restore();
 }
 function drawSimField(){
   const a=W2S({x:simField.x0,y:simField.y1}), b=W2S({x:simField.x1,y:simField.y0});
@@ -11618,6 +11890,69 @@ function runSelfTest(){
   setMsg('Self-test: '+okN+'/'+results.length+' ops OK  ·  '+results.join('  '));
 }
 
+// ---- bitmap import + trace (D1) ----
+// The browser decodes the file (that's the only DOM-bound part); everything after it — threshold,
+// despeckle, boundary trace, simplify, smooth, scale — is BMPTRACE, so it is unit-tested headless.
+let bgImage=null;      // {canvas, imgData, x, y, w, h, name, alpha} — the reference bitmap under the vectors
+let tracePreview=null; // [{pts,closed}] live preview shapes while the Trace dialog is open
+
+function importBitmap(name, file){
+  const url=URL.createObjectURL(file), im=new Image();
+  im.onload=()=>{
+    URL.revokeObjectURL(url);
+    const MAXPX=1400;   // cap the working raster: past this the trace is slow and no more accurate
+    const k=Math.min(1, MAXPX/Math.max(im.naturalWidth,im.naturalHeight));
+    const w=Math.max(1,Math.round(im.naturalWidth*k)), h=Math.max(1,Math.round(im.naturalHeight*k));
+    const cn=document.createElement('canvas'); cn.width=w; cn.height=h;
+    const cx=cn.getContext('2d'); cx.drawImage(im,0,0,w,h);
+    let data; try{ data=cx.getImageData(0,0,w,h); }catch(e){ setMsg('Could not read image pixels: '+e.message); return; }
+    // place it filling the job width (keeping aspect), bottom-left at the job origin
+    const jw=job.w||24, inW=Math.min(jw, jw), inH=inW*h/w;
+    bgImage={canvas:cn, imgData:{width:w,height:h,data:data.data}, x:0, y:0, w:inW, h:inH, name:name, alpha:0.55};
+    fitJob(); openTraceModal();
+    setMsg('Loaded '+name+' — '+w+'×'+h+'px. Set the trace options, then Trace.');
+  };
+  im.onerror=()=>{ URL.revokeObjectURL(url); setMsg('Could not decode image: '+name); };
+  im.src=url;
+}
+function traceOpts(){ const g=id=>document.getElementById(id); const n=(id,d)=>{const el=g(id); const v=el?parseFloat(el.value):NaN; return isFinite(v)?v:d;};
+  return { threshold:n('trThresh',128), invert:!!(g('trInvert')&&g('trInvert').checked),
+    despeckle:n('trSpeck',2), tol:n('trTol',1), smooth:n('trSmooth',0.5),
+    widthInches:n('trWidth',bgImage?bgImage.w:12), originX:bgImage?bgImage.x:0, originY:bgImage?bgImage.y:0 }; }
+function runTracePreview(){
+  if(!bgImage) return;
+  let r; try{ r=BMPTRACE.traceImage(bgImage.imgData, traceOpts()); }
+  catch(e){ document.getElementById('trStats').textContent='Trace failed: '+e.message; return; }
+  lastTrace=r; tracePreview=r.loops;
+  // keep the reference bitmap boxed to the traced size so preview and image line up
+  bgImage.w=r.stats.widthInches; bgImage.h=r.stats.heightInches;
+  document.getElementById('trStats').textContent=
+    r.stats.loops+' contour(s) · '+r.stats.outer+' outer / '+r.stats.holes+' hole(s) · '+
+    r.stats.pointsAfter+' pts (from '+r.stats.pointsBefore+') · '+
+    r.stats.widthInches.toFixed(2)+'" × '+r.stats.heightInches.toFixed(2)+'"'+
+    (r.stats.specksRemoved?' · '+r.stats.specksRemoved+' speck(s) dropped':'');
+  render();
+}
+let lastTrace=null;
+function openTraceModal(){
+  if(!bgImage) return setMsg('Import a PNG/JPG first (Open / Import, or drag one in)');
+  const wEl=document.getElementById('trWidth'); if(wEl && !wEl.dataset.set){ wEl.value=bgImage.w.toFixed(2); wEl.dataset.set='1'; }
+  document.getElementById('traceModal').style.display='block';
+  runTracePreview();
+}
+function closeTraceModal(){ document.getElementById('traceModal').style.display='none'; tracePreview=null; render(); }
+function commitTrace(){
+  if(!lastTrace||!lastTrace.loops.length){ setMsg('Nothing to trace — adjust the threshold'); return; }
+  pushHistory();
+  if(!doc.layers.has('trace')) doc.layers.set('trace',{visible:true,color:'#ffd27a'});
+  const shapes=lastTrace.loops.map(l=>CADCORE.mkPoly(l.pts,true,'trace'));
+  addShapes(shapes); sel=new Set(shapes.map(s=>s.id));
+  closeTraceModal();
+  setMsg('Traced '+shapes.length+' contour(s) onto the "trace" layer — ready to pocket, profile or V-carve');
+  syncPanels(); render();
+}
+function clearBgImage(){ bgImage=null; tracePreview=null; lastTrace=null; closeTraceModal(); render(); setMsg('Reference bitmap removed'); }
+
 // ---- toolpath templates (C6): reusable machining recipes, persisted to localStorage ----
 // A template holds only the toolpath *settings*, never the geometry — so the same recipe (V-carve the
 // text, then profile it out with tabs) drops onto whatever vectors you have selected in this job.
@@ -11833,6 +12168,11 @@ function wire(){
     show('.profile-pocket', v==='profile'||v==='pocket');
     show('.not-drill', v!=='drill'); };
   if(camOp){ camOp.onchange=syncCamOp; syncCamOp(); }
+  // bitmap trace (D1)
+  on('btnTrace',openTraceModal); on('traceApply',commitTrace); on('traceCancel',closeTraceModal);
+  on('traceX',closeTraceModal); on('traceClearBg',clearBgImage);
+  ['trThresh','trInvert','trSpeck','trTol','trSmooth','trWidth'].forEach(id=>{ const el=document.getElementById(id);
+    if(el) el.addEventListener('input',()=>{ if(document.getElementById('traceModal').style.display==='block') runTracePreview(); }); });
   // toolpath templates
   loadTemplates(); buildTplLib();
   on('btnTplApply',applyTpl); on('btnTplSave',saveTpl); on('btnTplDel',delTpl); on('btnTplExport',exportTpl);
@@ -11857,6 +12197,7 @@ function wire(){
   on('btnNew',()=>{ if(confirm('Clear design?')){ pushHistory(); doc.shapes=[]; sel.clear(); toolpaths=null; render(); syncPanels(); } });
   const fi=document.getElementById('fileInput'); document.getElementById('btnImport').onclick=()=>fi.click();
   fi.onchange=e=>{ const f=e.target.files[0]; if(!f)return; const rd=new FileReader();
+    if(/\.(png|jpe?g|gif|bmp|webp)$/i.test(f.name)){ importBitmap(f.name, f); return; }
     if(/\.aqcam$/i.test(f.name)){ rd.onload=ev=>openProject(ev.target.result, f.name); rd.readAsText(f); }
     else if(/\.aqtpl$/i.test(f.name)){ rd.onload=ev=>importTplText(ev.target.result); rd.readAsText(f); }
     else if(/\.pdf$/i.test(f.name)){ rd.onload=ev=>importPDF(f.name,ev.target.result); rd.readAsArrayBuffer(f); }
@@ -11874,6 +12215,7 @@ function wire(){
   document.body.addEventListener('drop',e=>{ e.preventDefault(); const f=e.dataTransfer.files[0]; if(!f)return;
     if(/\.(ttf|otf|woff)$/i.test(f.name)){ loadFontFile(f); return; }
     const rd=new FileReader();
+    if(/\.(png|jpe?g|gif|bmp|webp)$/i.test(f.name)){ importBitmap(f.name, f); return; }
     if(/\.aqcam$/i.test(f.name)){ rd.onload=ev=>openProject(ev.target.result, f.name); rd.readAsText(f); }
     else if(/\.aqtpl$/i.test(f.name)){ rd.onload=ev=>importTplText(ev.target.result); rd.readAsText(f); }
     else if(/\.pdf$/i.test(f.name)){ rd.onload=ev=>importPDF(f.name,ev.target.result); rd.readAsArrayBuffer(f); }

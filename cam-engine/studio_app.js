@@ -69,6 +69,7 @@ function render(){
   if(pv && simField){ drawSimField(); updateHud(); return; }   // solid material-removal view
   if(!pv) drawGrid();          // Preview: clean material, no grid
   drawJob();
+  if(bgImage) drawBgImage();   // reference bitmap over the stock panel, under the vectors
   // shapes — dimmed reference lines in Preview, no selection colour
   for(const s of doc.shapes){
     if(!layerVisible(s.layer))continue;
@@ -81,6 +82,7 @@ function render(){
     if(sel.size && tool==='select') drawSelectionHandles();
     if(tool==='node' && sel.size===1) drawNodes(selectedShapes()[0]);
     if(draft) drawDraft();
+    if(tracePreview) drawTracePreview();
     if(measure) drawMeasure(measure.a, measure.b, true);
     if(snapMark) drawSnapMark(snapMark);
   }
@@ -98,6 +100,17 @@ function drawGrid(){
   // axes
   ctx.strokeStyle='rgba(90,130,255,0.35)'; ctx.beginPath();
   const o=W2S({x:0,y:0}); ctx.moveTo(o.x,0);ctx.lineTo(o.x,cv.height); ctx.moveTo(0,o.y);ctx.lineTo(cv.width,o.y); ctx.stroke();
+}
+function drawBgImage(){
+  const a=W2S({x:bgImage.x,y:bgImage.y+bgImage.h}), b=W2S({x:bgImage.x+bgImage.w,y:bgImage.y});
+  ctx.save(); ctx.globalAlpha=bgImage.alpha; ctx.imageSmoothingEnabled=true;
+  ctx.drawImage(bgImage.canvas, a.x, a.y, b.x-a.x, b.y-a.y);
+  ctx.restore();
+}
+function drawTracePreview(){
+  ctx.save(); ctx.strokeStyle='#ffd27a'; ctx.lineWidth=1.4;
+  for(const l of tracePreview){ ctx.beginPath(); l.pts.forEach((p,i)=>{const q=W2S(p); i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y);}); ctx.closePath(); ctx.stroke(); }
+  ctx.restore();
 }
 function drawSimField(){
   const a=W2S({x:simField.x0,y:simField.y1}), b=W2S({x:simField.x1,y:simField.y0});
@@ -984,6 +997,69 @@ function runSelfTest(){
   setMsg('Self-test: '+okN+'/'+results.length+' ops OK  ·  '+results.join('  '));
 }
 
+// ---- bitmap import + trace (D1) ----
+// The browser decodes the file (that's the only DOM-bound part); everything after it — threshold,
+// despeckle, boundary trace, simplify, smooth, scale — is BMPTRACE, so it is unit-tested headless.
+let bgImage=null;      // {canvas, imgData, x, y, w, h, name, alpha} — the reference bitmap under the vectors
+let tracePreview=null; // [{pts,closed}] live preview shapes while the Trace dialog is open
+
+function importBitmap(name, file){
+  const url=URL.createObjectURL(file), im=new Image();
+  im.onload=()=>{
+    URL.revokeObjectURL(url);
+    const MAXPX=1400;   // cap the working raster: past this the trace is slow and no more accurate
+    const k=Math.min(1, MAXPX/Math.max(im.naturalWidth,im.naturalHeight));
+    const w=Math.max(1,Math.round(im.naturalWidth*k)), h=Math.max(1,Math.round(im.naturalHeight*k));
+    const cn=document.createElement('canvas'); cn.width=w; cn.height=h;
+    const cx=cn.getContext('2d'); cx.drawImage(im,0,0,w,h);
+    let data; try{ data=cx.getImageData(0,0,w,h); }catch(e){ setMsg('Could not read image pixels: '+e.message); return; }
+    // place it filling the job width (keeping aspect), bottom-left at the job origin
+    const jw=job.w||24, inW=Math.min(jw, jw), inH=inW*h/w;
+    bgImage={canvas:cn, imgData:{width:w,height:h,data:data.data}, x:0, y:0, w:inW, h:inH, name:name, alpha:0.55};
+    fitJob(); openTraceModal();
+    setMsg('Loaded '+name+' — '+w+'×'+h+'px. Set the trace options, then Trace.');
+  };
+  im.onerror=()=>{ URL.revokeObjectURL(url); setMsg('Could not decode image: '+name); };
+  im.src=url;
+}
+function traceOpts(){ const g=id=>document.getElementById(id); const n=(id,d)=>{const el=g(id); const v=el?parseFloat(el.value):NaN; return isFinite(v)?v:d;};
+  return { threshold:n('trThresh',128), invert:!!(g('trInvert')&&g('trInvert').checked),
+    despeckle:n('trSpeck',2), tol:n('trTol',1), smooth:n('trSmooth',0.5),
+    widthInches:n('trWidth',bgImage?bgImage.w:12), originX:bgImage?bgImage.x:0, originY:bgImage?bgImage.y:0 }; }
+function runTracePreview(){
+  if(!bgImage) return;
+  let r; try{ r=BMPTRACE.traceImage(bgImage.imgData, traceOpts()); }
+  catch(e){ document.getElementById('trStats').textContent='Trace failed: '+e.message; return; }
+  lastTrace=r; tracePreview=r.loops;
+  // keep the reference bitmap boxed to the traced size so preview and image line up
+  bgImage.w=r.stats.widthInches; bgImage.h=r.stats.heightInches;
+  document.getElementById('trStats').textContent=
+    r.stats.loops+' contour(s) · '+r.stats.outer+' outer / '+r.stats.holes+' hole(s) · '+
+    r.stats.pointsAfter+' pts (from '+r.stats.pointsBefore+') · '+
+    r.stats.widthInches.toFixed(2)+'" × '+r.stats.heightInches.toFixed(2)+'"'+
+    (r.stats.specksRemoved?' · '+r.stats.specksRemoved+' speck(s) dropped':'');
+  render();
+}
+let lastTrace=null;
+function openTraceModal(){
+  if(!bgImage) return setMsg('Import a PNG/JPG first (Open / Import, or drag one in)');
+  const wEl=document.getElementById('trWidth'); if(wEl && !wEl.dataset.set){ wEl.value=bgImage.w.toFixed(2); wEl.dataset.set='1'; }
+  document.getElementById('traceModal').style.display='block';
+  runTracePreview();
+}
+function closeTraceModal(){ document.getElementById('traceModal').style.display='none'; tracePreview=null; render(); }
+function commitTrace(){
+  if(!lastTrace||!lastTrace.loops.length){ setMsg('Nothing to trace — adjust the threshold'); return; }
+  pushHistory();
+  if(!doc.layers.has('trace')) doc.layers.set('trace',{visible:true,color:'#ffd27a'});
+  const shapes=lastTrace.loops.map(l=>CADCORE.mkPoly(l.pts,true,'trace'));
+  addShapes(shapes); sel=new Set(shapes.map(s=>s.id));
+  closeTraceModal();
+  setMsg('Traced '+shapes.length+' contour(s) onto the "trace" layer — ready to pocket, profile or V-carve');
+  syncPanels(); render();
+}
+function clearBgImage(){ bgImage=null; tracePreview=null; lastTrace=null; closeTraceModal(); render(); setMsg('Reference bitmap removed'); }
+
 // ---- toolpath templates (C6): reusable machining recipes, persisted to localStorage ----
 // A template holds only the toolpath *settings*, never the geometry — so the same recipe (V-carve the
 // text, then profile it out with tabs) drops onto whatever vectors you have selected in this job.
@@ -1199,6 +1275,11 @@ function wire(){
     show('.profile-pocket', v==='profile'||v==='pocket');
     show('.not-drill', v!=='drill'); };
   if(camOp){ camOp.onchange=syncCamOp; syncCamOp(); }
+  // bitmap trace (D1)
+  on('btnTrace',openTraceModal); on('traceApply',commitTrace); on('traceCancel',closeTraceModal);
+  on('traceX',closeTraceModal); on('traceClearBg',clearBgImage);
+  ['trThresh','trInvert','trSpeck','trTol','trSmooth','trWidth'].forEach(id=>{ const el=document.getElementById(id);
+    if(el) el.addEventListener('input',()=>{ if(document.getElementById('traceModal').style.display==='block') runTracePreview(); }); });
   // toolpath templates
   loadTemplates(); buildTplLib();
   on('btnTplApply',applyTpl); on('btnTplSave',saveTpl); on('btnTplDel',delTpl); on('btnTplExport',exportTpl);
@@ -1223,6 +1304,7 @@ function wire(){
   on('btnNew',()=>{ if(confirm('Clear design?')){ pushHistory(); doc.shapes=[]; sel.clear(); toolpaths=null; render(); syncPanels(); } });
   const fi=document.getElementById('fileInput'); document.getElementById('btnImport').onclick=()=>fi.click();
   fi.onchange=e=>{ const f=e.target.files[0]; if(!f)return; const rd=new FileReader();
+    if(/\.(png|jpe?g|gif|bmp|webp)$/i.test(f.name)){ importBitmap(f.name, f); return; }
     if(/\.aqcam$/i.test(f.name)){ rd.onload=ev=>openProject(ev.target.result, f.name); rd.readAsText(f); }
     else if(/\.aqtpl$/i.test(f.name)){ rd.onload=ev=>importTplText(ev.target.result); rd.readAsText(f); }
     else if(/\.pdf$/i.test(f.name)){ rd.onload=ev=>importPDF(f.name,ev.target.result); rd.readAsArrayBuffer(f); }
@@ -1240,6 +1322,7 @@ function wire(){
   document.body.addEventListener('drop',e=>{ e.preventDefault(); const f=e.dataTransfer.files[0]; if(!f)return;
     if(/\.(ttf|otf|woff)$/i.test(f.name)){ loadFontFile(f); return; }
     const rd=new FileReader();
+    if(/\.(png|jpe?g|gif|bmp|webp)$/i.test(f.name)){ importBitmap(f.name, f); return; }
     if(/\.aqcam$/i.test(f.name)){ rd.onload=ev=>openProject(ev.target.result, f.name); rd.readAsText(f); }
     else if(/\.aqtpl$/i.test(f.name)){ rd.onload=ev=>importTplText(ev.target.result); rd.readAsText(f); }
     else if(/\.pdf$/i.test(f.name)){ rd.onload=ev=>importPDF(f.name,ev.target.result); rd.readAsArrayBuffer(f); }

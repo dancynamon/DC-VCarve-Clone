@@ -92,6 +92,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .modal-body{padding:12px 14px;display:flex;flex-direction:column;gap:8px}
 .mfield{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px;color:var(--ink)}
 .mfield span{text-transform:none;letter-spacing:.2px}
+.mfield input[type=checkbox]{width:auto}
 .mfield input{width:130px;background:var(--bg-input);border:1px solid var(--btn-bd);color:var(--ink);border-radius:4px;padding:5px 7px;font-family:inherit;font-size:12px}
 .mfield input:focus{outline:none;border-color:var(--accent-bd)}
 .modal-foot{display:flex;justify-content:flex-end;gap:8px;padding:10px 14px;border-top:1px solid var(--bd-soft)}
@@ -145,7 +146,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
   <div class="topbar">
     <span class="brand">AQUAMENTOR CAD/CAM</span>
     <button class="tb" id="btnNew" data-tip="Clear the design">New</button>
-    <button class="tb" id="btnImport" data-tip="Open an .aqcam project or .aqtpl toolpath template, or import DXF / SVG / vector PDF">Open / Import</button>
+    <button class="tb" id="btnImport" data-tip="Open an .aqcam project or .aqtpl template, or import DXF / SVG / vector PDF / a bitmap to trace (PNG, JPG, GIF, BMP, WEBP)">Open / Import</button>
     <button class="tb" id="btnSaveProj" data-tip="Save this job as an .aqcam project file (shapes, layers, material, toolpaths)">Save job…</button>
     <button class="tb" id="btnExpDXF" data-tip="Export design as DXF">Export DXF</button>
     <button class="tb" id="btnExpSVG" data-tip="Export design as SVG">Export SVG</button>
@@ -154,13 +155,14 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
     <button class="tb" id="btnRedo" data-tip="Redo (Ctrl+Y)">↷ Redo</button>
     <button class="tb" id="btnFit" data-tip="Fit view to all (F)">Fit (F)</button>
     <button class="tb" id="btnSelfTest" data-tip="Build a sample design and run every CAM op (Profile/Pocket/Drill/V-Carve) as a smoke test">Self-test</button>
+    <button class="tb" id="btnTrace" data-tip="Trace the imported bitmap into cuttable vectors">Trace bitmap…</button>
     <button class="tb" id="btnKeys" data-tip="Keyboard shortcuts reference">Keys?</button>
     <span class="sep"></span>
     <label><input type="checkbox" id="chkGrid" checked> Grid</label>
     <label>step<input type="number" id="gridStep" value="0.5" step="0.25" min="0.0625"></label>
     <label><input type="checkbox" id="chkSnap" checked> Grid-snap</label>
     <label><input type="checkbox" id="chkObjSnap" checked> Obj-snap</label>
-    <input type="file" id="fileInput" accept=".aqcam,.aqtpl,.dxf,.svg,.pdf" style="display:none">
+    <input type="file" id="fileInput" accept=".aqcam,.aqtpl,.dxf,.svg,.pdf,.png,.jpg,.jpeg,.gif,.bmp,.webp" style="display:none">
   </div>
 
   <div class="tools">
@@ -320,6 +322,22 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
     <div class="modal-h"><span class="mt" id="modalTitle">Edit shape</span><button class="mx" id="modalX" title="Close">×</button></div>
     <div class="modal-body" id="modalFields"></div>
     <div class="modal-foot"><button class="tb" id="modalCancel">Cancel</button><button class="tb primary" id="modalApply">Apply</button></div>
+  </div>
+</div>
+<div class="modal-bg" id="traceModal">
+  <div class="modal" style="left:96px;top:70px;min-width:300px">
+    <div class="modal-h"><span class="mt">Trace Bitmap</span><button class="mx" id="traceX" title="Close">×</button></div>
+    <div class="modal-body" style="padding:10px 14px">
+      <label class="mfield"><span>Threshold</span><input type="range" id="trThresh" min="1" max="254" value="128"></label>
+      <label class="mfield"><span>Invert (trace light)</span><input type="checkbox" id="trInvert"></label>
+      <label class="mfield"><span>Despeckle (px)</span><input type="number" id="trSpeck" value="2" min="0" step="1"></label>
+      <label class="mfield"><span>Smoothing tol (px)</span><input type="number" id="trTol" value="1" min="0" step="0.25"></label>
+      <label class="mfield"><span>Corner rounding</span><input type="range" id="trSmooth" min="0" max="1" step="0.5" value="0.5"></label>
+      <label class="mfield"><span>Width (in)</span><input type="number" id="trWidth" value="12" min="0.1" step="0.25"></label>
+      <div class="cam-hint" id="trStats" style="margin-top:6px">—</div>
+      <div class="cam-hint" style="color:#5c6b80;margin-top:2px">Traced contours land on the "trace" layer, ready to pocket / profile / V-carve. The bitmap stays underneath as a reference.</div>
+    </div>
+    <div class="modal-foot"><button class="tb" id="traceClearBg">Remove image</button><button class="tb" id="traceCancel">Cancel</button><button class="tb primary" id="traceApply">Trace</button></div>
   </div>
 </div>
 <div class="modal-bg" id="keysModal">
