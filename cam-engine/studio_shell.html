@@ -252,7 +252,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
       <label data-tip="Load a saved tool preset (dia, feed, plunge, RPM, op)">Tool<select id="camToolLib" style="max-width:120px"></select></label>
       <button class="tb" id="btnToolSave" data-tip="Save current CAM settings as a tool preset">Save</button>
       <button class="tb" id="btnToolDel" data-tip="Delete the selected preset">Del</button>
-      <label data-tip="Toolpath operation">Op<select id="camOp"><option value="profile">Profile</option><option value="pocket">Pocket</option><option value="drill">Drill</option><option value="vcarve">V-Carve</option></select></label>
+      <label data-tip="Toolpath operation">Op<select id="camOp"><option value="profile">Profile</option><option value="pocket">Pocket</option><option value="drill">Drill</option><option value="vcarve">V-Carve</option><option value="inlay">Inlay</option></select></label>
       <label>Tool#<input type="number" id="camTool" value="2" min="1" style="width:40px"></label>
       <label>Dia"<input type="number" id="camDia" value="0.25" step="0.001" style="width:56px"></label>
       <label class="profile-only">Side<select id="camSide"><option value="outside">Outside</option><option value="inside">Inside</option><option value="on">On line</option></select></label>
@@ -266,6 +266,15 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
       <label class="vcarve-only" data-tip="V-carve offset step (in) — smaller = smoother, more passes">VStep"<input type="number" id="camVStep" value="0.02" step="0.005" min="0.002" style="width:50px"></label>
       <label class="vcarve-only" data-tip="Flatten the groove bottom at this depth (0 = full sharp V)">Flat"<input type="number" id="camVFlat" value="0" step="0.05" min="0" style="width:46px"></label>
       <label class="vcarve-only" data-tip="Flat endmill Ø to rough-clear the flat interior first (0 = V-bit only)">Clr Ø"<input type="number" id="camVClearDia" value="0" step="0.03125" min="0" style="width:50px"></label>
+      <label class="inlay-only" data-tip="Straight = pocket cavity + profiled plug. V-carve = tapered walls that wedge together (VCarve-style V-inlay).">Fit<select id="camInlayStyle"><option value="pocket">Straight</option><option value="vcarve">V-carve</option></select></label>
+      <label class="inlay-only" data-tip="Which half to cut now. Both = the cavity and the plug in one program.">Part<select id="camInlayPart"><option value="both">Both</option><option value="female">Female (cavity)</option><option value="male">Male (plug)</option></select></label>
+      <label class="inlay-only" data-tip="Fit gap per side (glue line). 0.005–0.010&quot; is typical.">Gap"<input type="number" id="camInlayGap" value="0.005" step="0.001" min="0" style="width:52px"></label>
+      <label class="inlay-only" data-tip="Machine the gap into the cavity (keeps the plug true to the design) or into the plug (keeps the cavity true)">Gap on<select id="camInlayGapOn"><option value="female">Cavity</option><option value="male">Plug</option></select></label>
+      <label class="inlay-only" data-tip="Depth of the female cavity">Cavity"<input type="number" id="camInlayPocketD" value="0.125" step="0.01" min="0.01" style="width:52px"></label>
+      <label class="inlay-only" data-tip="Depth the male plug is cut to (plug height / field clearing depth)">Plug"<input type="number" id="camInlayMaleD" value="0.125" step="0.01" min="0.01" style="width:52px"></label>
+      <label class="inlay-only" data-tip="V-carve inlay only: how far below the plug's face the V starts. This is what makes the plug seat on its taper instead of bottoming out on the cavity floor.">Start"<input type="number" id="camInlayStartD" value="0.02" step="0.005" min="0" style="width:52px"></label>
+      <label class="inlay-only" data-tip="V-carve inlay only: how far outside the design the male field is cleared">Field"<input type="number" id="camInlayMargin" value="0.25" step="0.05" min="0.01" style="width:52px"></label>
+      <label class="inlay-only" data-tip="The plug is flipped face-down into the cavity, so its toolpath is mirrored in X"><input type="checkbox" id="camInlayMirror" checked>Mirror plug</label>
       <label class="not-drill"><input type="checkbox" id="camArcs" checked>Arcs</label>
       <label class="profile-pocket" data-tip="Lead-in/out at the cut entry/exit (avoids plunge marks on the edge)">Lead<select id="camLead"><option value="none">None</option><option value="arc">Arc</option><option value="line">Line</option></select></label>
       <label class="profile-pocket" data-tip="Lead-in/out length (in)">Lead"<input type="number" id="camLeadLen" value="0.25" step="0.05" min="0" style="width:46px"></label>

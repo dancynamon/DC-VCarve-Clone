@@ -454,5 +454,90 @@ console.log('\n(post-pp assertions added)');
   ok('time: distances split by kind', near(allT.plungeDist,2)&&near(allT.feedDist,10)&&near(allT.rapidDist,10), JSON.stringify(allT));
 })();
 
+// ---- C5: inlay toolpaths (matched female cavity + male plug) ----
+(function(){
+  const near=(a,b,t)=>Math.abs(a-b)<=(t||0.01);
+  const sq=[{x:2,y:2},{x:6,y:2},{x:6,y:5},{x:2,y:5}];
+  const cont=[{pts:sq,closed:true,area:12,ccw:true}];
+  const base={toolDia:0.125,pocketDepth:0.12,maleDepth:0.12,passDepth:0.12,topZ:0};
+  const bnds=ops=>CAM.boundsOf(ops.flatMap(o=>o.passes.map(p=>p.path)));
+
+  // --- pocket-style inlay: both parts in one call ---
+  const r=CAM.inlayOp(cont, Object.assign({style:'pocket',clearance:0.005},base));
+  ok('inlay: emits both parts', r.parts.female.length>0 && r.parts.male.length>0,
+     JSON.stringify({f:r.parts.female.length,m:r.parts.male.length,w:r.warnings}));
+  ok('inlay: ops are tagged female/male', r.ops.every(o=>o.part==='female'||o.part==='male'));
+  ok('inlay: female is a pocket, male is a profile',
+     r.parts.female[0].kind==='pocket' && r.parts.male[0].kind==='profile',
+     r.parts.female[0].kind+'/'+r.parts.male[0].kind);
+  ok('inlay: every pass reaches the requested depth',
+     r.ops.every(o=>o.passes.every(p=>p.z<=-0.12+1e-9)), JSON.stringify(r.ops.map(o=>o.passes.map(p=>p.z)[0])));
+
+  // clearance goes into the female by default -> the cavity is bigger than the design
+  const fb=bnds(r.parts.female);
+  ok('inlay: female pocket sits inside the enlarged cavity wall',
+     fb.minX>2-1e-9 && fb.maxX<6+1e-9, JSON.stringify(fb));
+  // ...and the male profile rides one tool radius outside the nominal design
+  const mb=bnds(r.parts.male);
+  ok('inlay: male profile is an outside cut', (mb.maxX-mb.minX) > 4, mb.maxX-mb.minX);
+
+  // clearance on the male instead: the plug shrinks, the cavity stays true to the design
+  const rm=CAM.inlayOp(cont, Object.assign({style:'pocket',clearance:0.02,clearanceOn:'male',mirrorMale:false},base));
+  const mb2=bnds(rm.parts.male);
+  const rn=CAM.inlayOp(cont, Object.assign({style:'pocket',clearance:0,clearanceOn:'male',mirrorMale:false},base));
+  const mb3=bnds(rn.parts.male);
+  ok('inlay: clearanceOn male shrinks the plug', (mb2.maxX-mb2.minX) < (mb3.maxX-mb3.minX)-0.03,
+     (mb3.maxX-mb3.minX)-(mb2.maxX-mb2.minX));
+  ok('inlay: zero clearance warns about a press fit', rn.warnings.some(w=>/press fit/.test(w)), JSON.stringify(rn.warnings));
+
+  // --- the male is mirrored (it gets flipped face-down into the cavity) ---
+  const asym=[{x:0,y:0},{x:4,y:0},{x:4,y:1},{x:1,y:1},{x:1,y:3},{x:0,y:3}];   // an L, so mirroring is visible
+  const ac=[{pts:asym,closed:true,area:7,ccw:true}];
+  const noMir=CAM.inlayOp(ac, Object.assign({},base,{style:'pocket',clearance:0,mirrorMale:false}));
+  const mir  =CAM.inlayOp(ac, Object.assign({},base,{style:'pocket',clearance:0,mirrorMale:true}));
+  const p0=noMir.parts.male[0].passes[0].path, p1=mir.parts.male[0].passes[0].path;
+  const cxm=(CAM.boundsOf([asym]).minX+CAM.boundsOf([asym]).maxX)/2;
+  ok('inlay: mirrored male is the X-reflection of the unmirrored one',
+     p1.length===p0.length && p0.every(q=>p1.some(w=>near(w.x,2*cxm-q.x,1e-6)&&near(w.y,q.y,1e-6))));
+  ok('inlay: mirrored closed pass keeps its cut direction',
+     Math.sign(CAM.signedArea(p0))===Math.sign(CAM.signedArea(p1)),
+     CAM.signedArea(p0)+'/'+CAM.signedArea(p1));
+  ok('inlay: mirroring does not move the female', near(bnds(noMir.parts.female).minX, bnds(mir.parts.female).minX, 1e-9));
+
+  // --- part filtering ---
+  const fOnly=CAM.inlayOp(cont, Object.assign({},base,{style:'pocket',part:'female'}));
+  ok('inlay: part=female emits only the cavity', fOnly.parts.male.length===0 && fOnly.parts.female.length>0);
+  const mOnly=CAM.inlayOp(cont, Object.assign({},base,{style:'pocket',part:'male'}));
+  ok('inlay: part=male emits only the plug', mOnly.parts.female.length===0 && mOnly.parts.male.length>0);
+
+  // --- V-carve inlay: tapered walls ---
+  const v=CAM.inlayOp(cont, Object.assign({},base,{style:'vcarve',bitAngle:90,step:0.05,startDepth:0.02,clearance:0.005}));
+  ok('inlay: vcarve female is a v-carve', v.parts.female.some(o=>o.kind==='vcarve'), JSON.stringify(v.parts.female.map(o=>o.kind)));
+  ok('inlay: vcarve male is a v-carve', v.parts.male.some(o=>o.kind==='vcarve'));
+  ok('inlay: vcarve female floor is flat at the pocket depth',
+     v.parts.female.every(o=>o.passes.every(p=>p.z>=-0.12-1e-9)), JSON.stringify(v.parts.female.map(o=>Math.min(...o.passes.map(p=>p.z)))));
+  // the male field is cut around the design, so it reaches well outside the design bbox
+  const vmb=bnds(v.parts.male);
+  ok('inlay: vcarve male clears the field around the design', (vmb.maxX-vmb.minX) > 4.3, vmb.maxX-vmb.minX);
+  // startDepth sinks the whole male cut below the surface
+  const vTop=Math.max(...v.parts.male.flatMap(o=>o.passes.map(p=>p.z)));
+  ok('inlay: startDepth sinks the male cut', vTop <= -0.02+1e-9, vTop);
+  const v0=CAM.inlayOp(cont, Object.assign({},base,{style:'vcarve',bitAngle:90,step:0.05,startDepth:0}));
+  ok('inlay: startDepth 0 warns the plug will bottom out', v0.warnings.some(w=>/bottoms out/.test(w)), JSON.stringify(v0.warnings));
+  const v0Top=Math.max(...v0.parts.male.flatMap(o=>o.passes.map(p=>p.z)));
+  ok('inlay: startDepth shifts the male by exactly that amount', near(v0Top-vTop, 0.02, 1e-6), v0Top+'/'+vTop);
+
+  // --- degenerate input ---
+  const open=CAM.inlayOp([{pts:[{x:0,y:0},{x:1,y:1}],closed:false}], Object.assign({},base,{style:'pocket'}));
+  ok('inlay: open contours are rejected with a warning', open.ops.length===0 && open.warnings.some(w=>/closed contour/.test(w)));
+  const tiny=CAM.inlayOp([{pts:[{x:0,y:0},{x:0.05,y:0},{x:0.05,y:0.05},{x:0,y:0.05}],closed:true}],
+    Object.assign({},base,{style:'pocket',clearance:0.2,clearanceOn:'male'}));
+  ok('inlay: clearance bigger than the detail warns', tiny.warnings.some(w=>/collapsed/.test(w)), JSON.stringify(tiny.warnings));
+
+  // --- the pair posts as G-code ---
+  const g=CAM.postProcess({name:'INLAY',units:'inch',ops:r.ops}, CAM.POSTS.shopsabre);
+  ok('inlay: pair posts to G-code', /G1|G01/.test(g) && g.length>200, g.length);
+})();
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

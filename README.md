@@ -5,7 +5,7 @@ Single self-contained HTML — no install, offline, posts G-code for ShopSabre (
 
 ## Quick start
 ```
-npm test     # 63 unit tests: CAM (27) + arc-fit (9) + CAD (27)
+npm test     # 369 checks: CAM (163) + arc-fit (9) + CAD (169) + smoke (10) + import (25) + PDF (30)
 npm run build # regenerates cadcam-studio.html from cam-engine/ sources
 open cadcam-studio.html
 ```
@@ -17,13 +17,15 @@ open cadcam-studio.html
   extension lines, solid arrowheads and an auto-formatted label (in / mm / plain, decimals, manual override).
   Snap to nodes, midpoints, centres and job corners; edit numerically like any shape. Annotations are never machined.
 - **Import/Export:** DXF + SVG (editable) in; DXF/SVG out.
-- **CAM:** Profile (outside/inside/on, climb/conv, multipass, tabs) → G2/G3 arcs → ShopSabre post → backplot → Export .tap.
+- **CAM:** Profile (outside/inside/on, climb/conv, multipass, tabs), Pocket, Drill, V-Carve, **Inlay**
+  (matched female cavity + male plug, straight or V-carve fit, with a per-side gap and a mirrored plug)
+  → G2/G3 arcs → ShopSabre post → backplot → Export .tap.
 
 ## Layout
 - `cadcam-studio.html` — built app (run `npm run build` to regenerate).
 - `cam-engine/` — sources: `cadcore.js` (CAD), `camcore.js` (CAM), `studio_app.js` (UI), `studio_shell.html` (markup/CSS), `dxfparse.js`, `build.js`, `package/clipper.js`, tests, ShopSabre `.pp`, roadmap README.
 
 ## Roadmap (next)
-TTF-outline text · Pocket / V-carve toolpaths · snap-to-job-corners · tool & material library · DXF BLOCK/INSERT expansion.
-See `cam-engine/README.md`.
+C6 toolpath templates · D1 bitmap import + trace · D2 clipart / shape library.
+Status table and full feature notes in `cam-engine/README.md`.
 # DC-VCarve-Clone

@@ -779,6 +779,7 @@ function buildOpRes(p, contours){
   const res=(p.op==='pocket')?CAM.pocketOp(contours,p)
     :(p.op==='drill')?CAM.drillOp(contours,p)
     :(p.op==='vcarve')?CAM.vcarveOp(contours,Object.assign({},p,{maxDepth:p.cutDepth,step:p.vstep}))
+    :(p.op==='inlay')?CAM.inlayOp(contours,Object.assign({},p,{step:p.vstep}))
     :CAM.profileOp(contours,p);
   for(const op of res.ops) op.clearZ=p.clearZ;   // vcarve flat-depth returns 2 ops (endmill + V-bit)
   return res;
@@ -801,11 +802,22 @@ function camParams(){ const g=id=>document.getElementById(id); const tabsN=parse
       if(cd<=0) return vn===1?2:1; const m=(typeof tools!=='undefined'&&tools)?tools.find(t=>Math.abs(t.dia-cd)<0.001):null; let n=m?m.toolNum:2; if(n===vn)n=vn===1?2:1; return n; })(),
     leadType:(g('camLead')&&g('camLead').value)||'none', leadLen:Math.abs(parseFloat(g('camLeadLen')&&g('camLeadLen').value)||0.25),
     rampLen:Math.abs(parseFloat(g('camRampLen')&&g('camRampLen').value)||0),
+    // inlay (C5): a matched cavity + plug pair from one design
+    style:(g('camInlayStyle')&&g('camInlayStyle').value)||'pocket',
+    part:(g('camInlayPart')&&g('camInlayPart').value)||'both',
+    clearance:Math.abs(parseFloat(g('camInlayGap')&&g('camInlayGap').value)||0),
+    clearanceOn:(g('camInlayGapOn')&&g('camInlayGapOn').value)||'female',
+    pocketDepth:Math.abs(parseFloat(g('camInlayPocketD')&&g('camInlayPocketD').value)||0.125),
+    maleDepth:Math.abs(parseFloat(g('camInlayMaleD')&&g('camInlayMaleD').value)||0.125),
+    startDepth:Math.abs(parseFloat(g('camInlayStartD')&&g('camInlayStartD').value)||0),
+    maleMargin:Math.abs(parseFloat(g('camInlayMargin')&&g('camInlayMargin').value)||0.25),
+    mirrorMale:!(g('camInlayMirror')&&!g('camInlayMirror').checked),
     tabs:{count:tabsN,length:parseFloat(g('camTabL').value)||0.4,height:parseFloat(g('camTabH').value)||0.1} }; }
 function camBuild(){ const contours=camContours(); const closedN=contours.filter(c=>c.closed).length; const p=camParams();
   const res=buildOpRes(p, contours);
   const post=Object.assign({},CAM.POSTS[document.getElementById('camPost').value]); post.arcs=(p.op!=='drill')&&document.getElementById('camArcs').checked;
-  const label=p.op==='pocket'?'POCKET':p.op==='drill'?'DRILL':p.op==='vcarve'?'VCARVE':p.side.toUpperCase();
+  const label=p.op==='pocket'?'POCKET':p.op==='drill'?'DRILL':p.op==='vcarve'?'VCARVE'
+    :p.op==='inlay'?('INLAY '+p.style.toUpperCase()+' '+p.part.toUpperCase()):p.side.toUpperCase();
   const g=CAM.postProcess({name:'design - '+label,units:'inch',ops:res.ops},post); const arcN=(g.match(/^G[23] /gm)||[]).length;
   return {g,closedN,passes:res.ops.reduce((n,op)=>n+op.passes.length,0),warnings:res.warnings,arcN,op:p.op,points:res.points||null}; }
 function toolpathSegs(g){ // parse to segments for overlay (tracks Z so the backplot can shade by depth)
@@ -836,7 +848,10 @@ function camClear(){ toolpaths=null; drillMarks=null; render(); }
 let opsQueue=[];       // [{p, ids, name, visible, label}]
 let editingIdx=null;   // toolpath currently loaded into the CAM panel for editing (null = creating new)
 const _esc=s=>String(s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
-function autoOpName(p){ p=p||{}; const op=p.op||'profile'; return op==='profile'?('Profile '+String(p.side||'outside').replace(/^./,c=>c.toUpperCase())):(op.charAt(0).toUpperCase()+op.slice(1)); }
+function autoOpName(p){ p=p||{}; const op=p.op||'profile';
+  if(op==='profile') return 'Profile '+String(p.side||'outside').replace(/^./,c=>c.toUpperCase());
+  if(op==='inlay') return 'Inlay '+(p.style==='vcarve'?'V':'straight')+' · '+String(p.part||'both');
+  return op.charAt(0).toUpperCase()+op.slice(1); }
 function autoLabel(p,ids,match){ return autoOpName(p)+' · T'+p.toolNum+' Ø'+p.toolDia+'" · '+((ids&&ids.length)?ids.length+' sel':'all')+(match?' (lib)':''); }
 function normalizeOp(q){ q=q||{}; return { p:q.p||{}, ids:Array.isArray(q.ids)?q.ids:[], name:q.name||q.label||autoOpName(q.p), label:q.label||'', visible:q.visible!==false }; }
 function refreshAddBtn(){ const b=document.getElementById('btnAddOp'); if(b) b.textContent=(editingIdx!=null)?'✓ Update':'+ Toolpath'; }
@@ -915,6 +930,9 @@ function applyParamsToPanel(p){ if(!p)return; const g=id=>document.getElementByI
   if(p.stepover!=null)set('camStep',Math.round(p.stepover*100)); set('camPocketStyle',p.pocketStyle); chk('camHelixEntry',p.rampEntry); set('camFinishDia',p.finishDia);
   set('camPeck',p.peck); set('camVAngle',p.bitAngle); set('camVStep',p.vstep); set('camVFlat',p.flatDepth); set('camVClearDia',p.clearDia);
   set('camLead',p.leadType); set('camLeadLen',p.leadLen); set('camRampLen',p.rampLen);
+  set('camInlayStyle',p.style); set('camInlayPart',p.part); set('camInlayGap',p.clearance); set('camInlayGapOn',p.clearanceOn);
+  set('camInlayPocketD',p.pocketDepth); set('camInlayMaleD',p.maleDepth); set('camInlayStartD',p.startDepth);
+  set('camInlayMargin',p.maleMargin); if(p.op==='inlay')chk('camInlayMirror',p.mirrorMale);
   if(p.tabs){ set('camTabN',p.tabs.count); set('camTabL',p.tabs.length); set('camTabH',p.tabs.height); }
   const op=g('camOp'); if(op)op.dispatchEvent(new Event('change',{bubbles:true})); }
 function postJob(){ if(!opsQueue.length){ setMsg('Job queue empty — "Add op" first.'); return; }
@@ -961,6 +979,7 @@ function runSelfTest(){
   run('Drill','drill',[circ.id], gg=>{ gg('camDia').value='0.25'; gg('camPeck').value='0.1'; gg('camDepth').value='0.4'; });
   // single-stroke text has no closed regions to V-carve, so verify the V-carve op on the closed rectangle
   run('V-Carve','vcarve',[rect.id], gg=>{ gg('camVAngle').value='90'; gg('camVStep').value='0.05'; gg('camDepth').value='0.3'; });
+  run('Inlay','inlay',[rect.id], gg=>{ gg('camInlayStyle').value='pocket'; gg('camInlayPart').value='both'; gg('camInlayGap').value='0.005'; gg('camInlayPocketD').value='0.12'; gg('camInlayMaleD').value='0.12'; gg('camPass').value='0.12'; });
   sel.clear(); fitJob(); syncPanels(); render();
   setMsg('Self-test: '+okN+'/'+results.length+' ops OK  ·  '+results.join('  '));
 }
@@ -1139,6 +1158,7 @@ function wire(){
     show('.pocket-only', v==='pocket');
     show('.drill-only', v==='drill');
     show('.vcarve-only', v==='vcarve');
+    show('.inlay-only', v==='inlay');
     show('.profile-pocket', v==='profile'||v==='pocket');
     show('.not-drill', v!=='drill'); };
   if(camOp){ camOp.onchange=syncCamOp; syncCamOp(); }

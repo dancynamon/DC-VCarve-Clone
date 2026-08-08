@@ -435,6 +435,98 @@ function vcarveOp(contours, opts){
   return {ops,warnings};
 }
 
+// ---- inlay: a matched pair of toolpaths — the female cavity and the male plug that drops into it ----
+// One design, two parts. FEMALE is the cavity machined into the base board; MALE is the plug machined
+// from the contrasting board, flipped over and glued in. The fit gap (`clearance`, per side) is machined
+// into ONE side only — the female by default, so the plug keeps the design's true size.
+//   style 'pocket' : straight walls. female = pocket to pocketDepth; male = outside profile of the same
+//                    shape to maleDepth (use tabs — the plug is a loose part once it's cut free).
+//   style 'vcarve' : tapered walls that wedge together. female = V-carve with a flat floor at pocketDepth;
+//                    male = V-carve of the FIELD around the design (a frame `maleMargin` outside its
+//                    bounding box, with the design as islands), which leaves the design raised on
+//                    V-tapered walls. `startDepth` sinks the male's V start below the surface — that is
+//                    what makes the plug seat on its taper instead of bottoming out on the cavity floor.
+// The male is mirrored in X by default (`mirrorMale`) because the plug is flipped face-down into the
+// cavity; mirrored closed passes are reversed too, so climb/conventional direction survives the flip.
+function _mirrorPass(p, cx){
+  const path=p.path.map(q=>Object.assign({},q,{x:2*cx-q.x}));
+  if(p.closed) path.reverse();          // mirroring flips handedness; reversing restores climb/conventional
+  return Object.assign({},p,{path});
+}
+function _shiftOpZ(op, dz){
+  return Object.assign({},op,{topZ:op.topZ+dz, passes:op.passes.map(p=>Object.assign({},p,{z:p.z+dz}))});
+}
+function _rectLoop(b){ return [{x:b.minX,y:b.minY},{x:b.maxX,y:b.minY},{x:b.maxX,y:b.maxY},{x:b.minX,y:b.maxY}]; }
+function _loopsToContours(loops){ return loops.map(lp=>({closed:true, pts:lp.map(p=>({x:p.x,y:p.y}))})); }
+
+function inlayOp(contours, opts){
+  const o=Object.assign({
+    style:'pocket', part:'both', clearance:0.005, clearanceOn:'female',
+    pocketDepth:0.125, maleDepth:0.125, startDepth:0, mirrorMale:true, maleMargin:0.25,
+    toolNum:1, toolDia:0.125, maleNum:0, bitAngle:90, climb:true, topZ:0, passDepth:0.125, safeZ:0.25,
+    feed:120, plunge:40, rpm:18000, stepover:0.4, pocketStyle:'offset', step:0.02,
+    clearDia:0, clearNum:2, tabs:{count:0,length:0.4,height:0.06}, joinType:'round'
+  }, opts||{});
+  const warnings=[], ops=[], parts={female:[],male:[]};
+  const loops=contours.filter(c=>c.closed && c.pts && c.pts.length>=3).map(c=>c.pts);
+  if(!loops.length){ warnings.push('Inlay needs closed contour(s)'); return {ops,warnings,parts}; }
+  if(!(o.clearance>0)) warnings.push('Clearance is 0 — the plug will be a press fit with no glue gap');
+
+  const region=regionFromLoops(loops);
+  const gap=Math.max(0,o.clearance);
+  // the clearance goes into exactly one side, so the pair still measures the design nominally
+  const femLoops=(o.clearanceOn==='female' && gap>0) ? offsetRegion(region,+gap).filter(lp=>lp.length>=3) : loops;
+  const malLoops=(o.clearanceOn==='male'   && gap>0) ? offsetRegion(region,-gap).filter(lp=>lp.length>=3) : loops;
+  if(!femLoops.length) warnings.push('Female geometry collapsed at this clearance');
+  if(!malLoops.length) warnings.push('Male geometry collapsed at this clearance — clearance larger than the smallest detail');
+
+  const shared={toolNum:o.toolNum,toolDia:o.toolDia,climb:o.climb,topZ:o.topZ,passDepth:o.passDepth,
+    safeZ:o.safeZ,feed:o.feed,plunge:o.plunge,rpm:o.rpm,stepover:o.stepover,pocketStyle:o.pocketStyle,
+    leadType:'none',leadLen:0,rampLen:0};     // no leads: the male is mirrored+reversed, leads wouldn't survive it
+
+  // ---------- female: the cavity ----------
+  if((o.part==='female'||o.part==='both') && femLoops.length){
+    let res;
+    if(o.style==='vcarve'){
+      res=vcarveOp(_loopsToContours(femLoops), Object.assign({},shared,
+        {bitAngle:o.bitAngle,maxDepth:o.pocketDepth,flatDepth:o.pocketDepth,step:o.step,clearDia:o.clearDia,clearNum:o.clearNum}));
+    } else {
+      res=pocketOp(_loopsToContours(femLoops), Object.assign({},shared,{cutDepth:o.pocketDepth}));
+    }
+    for(const w of res.warnings||[]) warnings.push('female: '+w);
+    for(const op of res.ops){ if(!op.passes||!op.passes.length) continue;
+      const tagged=Object.assign({},op,{part:'female',inlayStyle:o.style}); parts.female.push(tagged); ops.push(tagged); }
+  }
+
+  // ---------- male: the plug ----------
+  if((o.part==='male'||o.part==='both') && malLoops.length){
+    let res, mOps=[];
+    if(o.style==='vcarve'){
+      // V-carve the field AROUND the design: a frame maleMargin outside the bbox, design loops as islands.
+      const b=boundsOf(malLoops), m=Math.max(0.01,o.maleMargin);
+      const frame=_rectLoop({minX:b.minX-m,minY:b.minY-m,maxX:b.maxX+m,maxY:b.maxY+m});
+      res=vcarveOp(_loopsToContours([frame].concat(malLoops)), Object.assign({},shared,
+        {bitAngle:o.bitAngle,maxDepth:o.maleDepth,flatDepth:o.maleDepth,step:o.step,clearDia:o.clearDia,clearNum:o.clearNum}));
+      // startDepth sinks the whole male cut, so the V walls begin below the plug's face and seat on the taper
+      mOps=res.ops.map(op=>o.startDepth>0?_shiftOpZ(op,-o.startDepth):op);
+    } else {
+      res=profileOp(_loopsToContours(malLoops), Object.assign({},shared,
+        {side:'outside',cutDepth:o.maleDepth,tabs:o.tabs,joinType:o.joinType}));
+      mOps=res.ops;
+    }
+    for(const w of res.warnings||[]) warnings.push('male: '+w);
+    let cx=0;
+    if(o.mirrorMale){ const mb=boundsOf(malLoops); cx=(mb.minX+mb.maxX)/2; }
+    for(const op of mOps){ if(!op.passes||!op.passes.length) continue;
+      let t=Object.assign({},op,{part:'male',inlayStyle:o.style,toolNum:o.maleNum>0?o.maleNum:op.toolNum});
+      if(o.mirrorMale) t=Object.assign({},t,{passes:t.passes.map(p=>_mirrorPass(p,cx))});
+      parts.male.push(t); ops.push(t); }
+    if(o.style==='vcarve' && !(o.startDepth>0)) warnings.push('male: start depth 0 — the plug bottoms out on the cavity floor before its taper seats');
+  }
+  if(!ops.length) warnings.push('Inlay produced no toolpaths — check depths and clearance');
+  return {ops,warnings,parts};
+}
+
 // ---- arc fitting: turn a dense polyline into line + G2/G3 arc moves ----
 function circleFrom3(a,b,c){
   const ax=a.x,ay=a.y,bx=b.x,by=b.y,cx=c.x,cy=c.y;
@@ -736,5 +828,5 @@ function stockHeightAt(field, x, y) {
   return field.z[j * field.nx + i];
 }
 
-return {SCALE,TOL,dist,signedArea,isCCW,ensureCCW,ensureCW,boundsOf,assembleContours,offsetLoop,withTabs,fitArcs,profileOp,pocketOp,drillOp,vcarveOp,centroid,defaultTools,upsertTool,removeTool,slugId,orderPasses,postProcess,POSTS,simulateStock,stockHeightAt,estimateTime};
+return {SCALE,TOL,dist,signedArea,isCCW,ensureCCW,ensureCW,boundsOf,assembleContours,offsetLoop,withTabs,fitArcs,profileOp,pocketOp,drillOp,vcarveOp,inlayOp,centroid,defaultTools,upsertTool,removeTool,slugId,orderPasses,postProcess,POSTS,simulateStock,stockHeightAt,estimateTime};
 });

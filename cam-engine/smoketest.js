@@ -1,4 +1,4 @@
-// Headless smoke test: the studio "Self-test" four-op sequence, run purely through the CAM/CADCORE cores (no DOM).
+// Headless smoke test: the studio "Self-test" op sequence, run purely through the CAM/CADCORE cores (no DOM).
 const CAM = require('./camcore.js');
 const C = require('./cadcore.js');
 let pass = 0, fail = 0;
@@ -15,10 +15,11 @@ const ops = {
   Pocket:  CAM.pocketOp(rectC,  { toolDia: 0.25, stepover: 0.4, cutDepth: 0.3, passDepth: 0.25 }),
   Drill:   CAM.drillOp(circC,   { toolDia: 0.25, cutDepth: 0.4, peck: 0.1 }),
   'V-Carve': CAM.vcarveOp(rectC, { bitAngle: 90, step: 0.05, maxDepth: 0.3 }),
+  Inlay:   CAM.inlayOp(rectC,   { style: 'pocket', part: 'both', toolDia: 0.25, clearance: 0.005, pocketDepth: 0.12, maleDepth: 0.12, passDepth: 0.12 }),
 };
 const posts = { shopsabre: CAM.POSTS.shopsabre, generic: CAM.POSTS.generic };
 
-// 4 ops x 2 posts = 8 checks: each op produces passes AND posts to non-empty g-code on each post
+// 5 ops x 2 posts = 10 checks: each op produces passes AND posts to non-empty g-code on each post
 for (const opName of Object.keys(ops)) {
   const res = ops[opName];
   const passes = res.ops[0].passes.length;
