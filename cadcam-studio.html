@@ -81,7 +81,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .lyr.act{background:var(--accent-soft)}
 .lyr .sw{width:11px;height:11px;border-radius:2px;display:inline-block;border:1px solid rgba(20,40,70,.18)}
 .lyr .ln{cursor:pointer;color:var(--ink)}
-.pocket-only,.drill-only,.vcarve-only,.profile-pocket{display:none}
+.pocket-only,.drill-only,.vcarve-only,.inlay-only,.profile-pocket{display:none}
 /* shape properties modal */
 .modal-bg{position:fixed;inset:0;background:rgba(20,30,45,0.35);display:none;z-index:200}
 .modal{position:fixed;left:96px;top:70px;background:var(--bg-card);border:1px solid var(--bd);border-radius:8px;min-width:280px;max-width:340px;box-shadow:0 14px 44px rgba(20,40,70,.28)}
@@ -116,7 +116,8 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .cam-hint{font-size:10px;color:var(--ink-dim);width:100%;margin-top:4px}
 .jobq{width:100%;margin-top:7px;border-top:1px solid var(--bd-soft);padding-top:6px}
 .jobq-h{font-size:9px;letter-spacing:1px;color:var(--accent);text-transform:uppercase;margin-bottom:4px}
-.jobq-btns{display:flex;gap:5px;margin-bottom:5px}
+.jobq-btns{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-bottom:5px}
+.jobq-btns select{max-width:112px}
 .qrow{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:10px;color:#3c4a5a;padding:3px 5px;background:#eef3f8;border:1px solid var(--bd-soft);border-radius:3px;margin-bottom:3px}
 .qrow .ql{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .qrow .qbtns{display:flex;gap:1px;align-items:center;flex:none}
@@ -144,7 +145,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
   <div class="topbar">
     <span class="brand">AQUAMENTOR CAD/CAM</span>
     <button class="tb" id="btnNew" data-tip="Clear the design">New</button>
-    <button class="tb" id="btnImport" data-tip="Open an .aqcam project, or import DXF / SVG / vector PDF">Open / Import</button>
+    <button class="tb" id="btnImport" data-tip="Open an .aqcam project or .aqtpl toolpath template, or import DXF / SVG / vector PDF">Open / Import</button>
     <button class="tb" id="btnSaveProj" data-tip="Save this job as an .aqcam project file (shapes, layers, material, toolpaths)">Save job…</button>
     <button class="tb" id="btnExpDXF" data-tip="Export design as DXF">Export DXF</button>
     <button class="tb" id="btnExpSVG" data-tip="Export design as SVG">Export SVG</button>
@@ -159,7 +160,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
     <label>step<input type="number" id="gridStep" value="0.5" step="0.25" min="0.0625"></label>
     <label><input type="checkbox" id="chkSnap" checked> Grid-snap</label>
     <label><input type="checkbox" id="chkObjSnap" checked> Obj-snap</label>
-    <input type="file" id="fileInput" accept=".aqcam,.dxf,.svg,.pdf" style="display:none">
+    <input type="file" id="fileInput" accept=".aqcam,.aqtpl,.dxf,.svg,.pdf" style="display:none">
   </div>
 
   <div class="tools">
@@ -295,6 +296,15 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
       <div class="cam-hint" id="camHint">Generates from selected shapes (or all visible if none selected).</div>
       <div class="jobq"><div class="jobq-h">TOOLPATHS</div>
         <div class="jobq-btns"><button class="tb" id="btnAddOp" data-tip="Capture the current Op + selection as a new toolpath (or ✓ Update the one being edited)">+ Toolpath</button><button class="tb" id="btnRecalcAll" data-tip="Recompute the backplot for every visible toolpath">Recalc all</button><button class="tb" id="btnPostJob" data-tip="Post all toolpaths as one .tap with tool changes">Post job ⤓</button></div>
+        <div class="jobq-btns">
+          <label data-tip="A saved machining recipe — the toolpath settings with no geometry. Apply it to whatever vectors you have selected.">Template<select id="tplLib" style="max-width:118px"></select></label>
+          <button class="tb" id="btnTplApply" data-tip="Add this template's toolpaths, bound to the current selection (or all visible vectors)">Apply</button>
+          <button class="tb" id="btnTplSave" data-tip="Save the toolpath list above as a reusable template">Save…</button>
+          <button class="tb" id="btnTplDel" data-tip="Delete the selected template">Del</button>
+          <button class="tb" id="btnTplExport" data-tip="Export the selected template as an .aqtpl file">⤓</button>
+          <button class="tb" id="btnTplImport" data-tip="Import an .aqtpl template file">⤒</button>
+          <input type="file" id="tplInput" accept=".aqtpl,.json" style="display:none">
+        </div>
         <div id="opsQueue"></div></div>
     </div></div>
   </div>
@@ -8513,6 +8523,82 @@ function inlayOp(contours, opts){
   return {ops,warnings,parts};
 }
 
+// ---- toolpath templates (C6): a reusable machining recipe, with no geometry in it ----
+// A template is a named, ordered list of toolpath parameter sets. It deliberately carries NO shape ids
+// and no document state, so the same recipe (V-carve the text, then profile it out with tabs) can be
+// dropped onto a different job's vectors. Versioned like .aqcam; unknown versions are rejected rather
+// than silently half-read. Params are whitelisted on the way in AND out, so a hand-edited or
+// foreign file can never smuggle selection ids, functions or junk keys into the CAM panel.
+const TEMPLATE_FORMAT='aqtpl', TEMPLATE_VERSION=1;
+const TEMPLATE_PARAM_KEYS=['op','toolNum','toolDia','side','climb','cutDepth','passDepth','feed','plunge','rpm','topZ',
+  'stepover','pocketStyle','rampEntry','finishDia','finishNum','peck','bitAngle','vstep','flatDepth','clearDia','clearNum',
+  'leadType','leadLen','rampLen','tabs',
+  'style','part','clearance','clearanceOn','pocketDepth','maleDepth','startDepth','maleMargin','mirrorMale'];
+const TEMPLATE_DEFAULT_PARAMS={op:'profile',toolNum:1,toolDia:0.25,side:'outside',climb:true,cutDepth:0.25,passDepth:0.125,
+  feed:120,plunge:40,rpm:18000,topZ:0,stepover:0.4,pocketStyle:'offset',rampEntry:false,finishDia:0,finishNum:2,peck:0,
+  bitAngle:90,vstep:0.02,flatDepth:0,clearDia:0,clearNum:2,leadType:'none',leadLen:0.25,rampLen:0,
+  tabs:{count:0,length:0.4,height:0.1},
+  style:'pocket',part:'both',clearance:0.005,clearanceOn:'female',pocketDepth:0.125,maleDepth:0.125,startDepth:0.02,
+  maleMargin:0.25,mirrorMale:true};
+// Keep only known CAM params, filled out from the defaults, so every template entry is self-contained.
+function sanitizeTemplateParams(p){
+  const src=p&&typeof p==='object'?p:{}, out={};
+  for(const k of TEMPLATE_PARAM_KEYS){
+    const v=Object.prototype.hasOwnProperty.call(src,k)?src[k]:TEMPLATE_DEFAULT_PARAMS[k];
+    if(k==='tabs'){ const t=(v&&typeof v==='object')?v:TEMPLATE_DEFAULT_PARAMS.tabs;
+      out.tabs={count:+t.count||0, length:+t.length||0.4, height:+t.height||0.1}; }
+    else out[k]=v;
+  }
+  return out;
+}
+function normalizeTemplate(t){
+  t=t&&typeof t==='object'?t:{};
+  const name=String(t.name||'Template');
+  const entries=(Array.isArray(t.entries)?t.entries:[]).map((e,i)=>({
+    name:String((e&&e.name)||('Toolpath '+(i+1))), p:sanitizeTemplateParams(e&&e.p) }));
+  return {format:TEMPLATE_FORMAT, version:TEMPLATE_VERSION, id:t.id||slugId(name), name:name, entries:entries};
+}
+// Strip a live toolpath queue ([{p,ids,name,...}]) down to a reusable recipe.
+function templateFromQueue(name, queue){
+  return normalizeTemplate({name:name, entries:(Array.isArray(queue)?queue:[]).map((q,i)=>({
+    name:(q&&(q.name||q.label))||('Toolpath '+(i+1)), p:q&&q.p }))});
+}
+// Bind a recipe to a selection -> queue entries ready to push. ids [] means "all visible vectors".
+function applyTemplate(t, ids){
+  const tpl=normalizeTemplate(t);
+  return tpl.entries.map(e=>({p:sanitizeTemplateParams(e.p), ids:Array.isArray(ids)?ids.slice():[],
+    name:e.name, label:'', visible:true}));
+}
+function templateToJSON(t){ return JSON.stringify(normalizeTemplate(t), null, 2); }
+function templateFromJSON(text){
+  let o; try{ o=JSON.parse(text); }catch(e){ throw new Error('Not a toolpath template (invalid JSON)'); }
+  if(!o||o.format!==TEMPLATE_FORMAT) throw new Error('Not a toolpath template');
+  if(o.version!==TEMPLATE_VERSION) throw new Error('Unsupported template version '+o.version);
+  if(!Array.isArray(o.entries)) throw new Error('Template has no toolpaths');
+  return normalizeTemplate(o);
+}
+function upsertTemplate(list, t){ const n=normalizeTemplate(t); const out=(list||[]).filter(x=>x.id!==n.id); out.push(n); return out; }
+function removeTemplate(list, id){ return (list||[]).filter(x=>x.id!==id); }
+// Starter recipes for a sign/job shop — the shapes they run on come from whatever you have selected.
+function defaultTemplates(){ return [
+  normalizeTemplate({name:'Sign — V-carve + cut out', entries:[
+    {name:'V-carve text', p:{op:'vcarve',toolNum:3,toolDia:0.5,bitAngle:60,vstep:0.02,cutDepth:0.125,feed:80,plunge:25}},
+    {name:'Profile out (tabs)', p:{op:'profile',toolNum:1,toolDia:0.25,side:'outside',cutDepth:0.75,passDepth:0.25,
+      leadType:'arc',leadLen:0.25,rampLen:0.15,tabs:{count:4,length:0.5,height:0.1}}}]}),
+  normalizeTemplate({name:'Pocket + corner finish', entries:[
+    {name:'Pocket 1/4"', p:{op:'pocket',toolNum:1,toolDia:0.25,cutDepth:0.25,passDepth:0.125,stepover:0.4,finishDia:0.125,finishNum:2}}]}),
+  normalizeTemplate({name:'Through cut 1/4" w/ tabs', entries:[
+    {name:'Profile outside', p:{op:'profile',toolNum:1,toolDia:0.25,side:'outside',cutDepth:0.75,passDepth:0.25,
+      leadType:'arc',leadLen:0.25,tabs:{count:4,length:0.5,height:0.1}}}]}),
+  normalizeTemplate({name:'V-inlay pair', entries:[
+    {name:'Inlay cavity', p:{op:'inlay',style:'vcarve',part:'female',toolNum:3,toolDia:0.5,bitAngle:60,vstep:0.02,
+      clearance:0.005,pocketDepth:0.15,maleDepth:0.15,startDepth:0.02}},
+    {name:'Inlay plug', p:{op:'inlay',style:'vcarve',part:'male',toolNum:3,toolDia:0.5,bitAngle:60,vstep:0.02,
+      clearance:0.005,pocketDepth:0.15,maleDepth:0.15,startDepth:0.02,maleMargin:0.25,mirrorMale:true}}]}),
+  normalizeTemplate({name:'Peck drill 1/8"', entries:[
+    {name:'Drill', p:{op:'drill',toolNum:5,toolDia:0.125,cutDepth:0.5,peck:0.1,feed:20,plunge:20,rpm:12000}}]})
+]; }
+
 // ---- arc fitting: turn a dense polyline into line + G2/G3 arc moves ----
 function circleFrom3(a,b,c){
   const ax=a.x,ay=a.y,bx=b.x,by=b.y,cx=c.x,cy=c.y;
@@ -8814,7 +8900,9 @@ function stockHeightAt(field, x, y) {
   return field.z[j * field.nx + i];
 }
 
-return {SCALE,TOL,dist,signedArea,isCCW,ensureCCW,ensureCW,boundsOf,assembleContours,offsetLoop,withTabs,fitArcs,profileOp,pocketOp,drillOp,vcarveOp,inlayOp,centroid,defaultTools,upsertTool,removeTool,slugId,orderPasses,postProcess,POSTS,simulateStock,stockHeightAt,estimateTime};
+return {SCALE,TOL,dist,signedArea,isCCW,ensureCCW,ensureCW,boundsOf,assembleContours,offsetLoop,withTabs,fitArcs,profileOp,pocketOp,drillOp,vcarveOp,inlayOp,centroid,defaultTools,upsertTool,removeTool,slugId,orderPasses,
+  sanitizeTemplateParams,normalizeTemplate,templateFromQueue,applyTemplate,templateToJSON,templateFromJSON,
+  upsertTemplate,removeTemplate,defaultTemplates,TEMPLATE_VERSION,TEMPLATE_FORMAT,TEMPLATE_PARAM_KEYS,postProcess,POSTS,simulateStock,stockHeightAt,estimateTime};
 });
 
 </script>
@@ -11530,6 +11618,43 @@ function runSelfTest(){
   setMsg('Self-test: '+okN+'/'+results.length+' ops OK  ·  '+results.join('  '));
 }
 
+// ---- toolpath templates (C6): reusable machining recipes, persisted to localStorage ----
+// A template holds only the toolpath *settings*, never the geometry — so the same recipe (V-carve the
+// text, then profile it out with tabs) drops onto whatever vectors you have selected in this job.
+const TPL_KEY='aq_templates';
+let templates=[];
+function loadTemplates(){ try{ const s=localStorage.getItem(TPL_KEY); templates=s?JSON.parse(s).map(CAM.normalizeTemplate):CAM.defaultTemplates(); }
+  catch(e){ templates=CAM.defaultTemplates(); }
+  if(!Array.isArray(templates)||!templates.length) templates=CAM.defaultTemplates(); }
+function persistTemplates(){ try{ localStorage.setItem(TPL_KEY, JSON.stringify(templates)); }catch(e){} }
+function buildTplLib(selId){ const el=document.getElementById('tplLib'); if(!el)return; el.innerHTML='';
+  for(const t of templates){ const o=document.createElement('option'); o.value=t.id;
+    o.textContent=t.name+' ('+t.entries.length+')'; el.appendChild(o); }
+  if(selId)el.value=selId; }
+function currentTpl(){ const el=document.getElementById('tplLib'); return el?templates.find(t=>t.id===el.value):null; }
+function applyTpl(){ const t=currentTpl(); if(!t)return setMsg('No template selected');
+  const ids=[...sel]; const entries=CAM.applyTemplate(t, ids);
+  if(!entries.length)return setMsg('Template "'+t.name+'" has no toolpaths');
+  pushHistory();
+  for(const e of entries){ e.label=autoLabel(e.p, e.ids, null); opsQueue.push(e); }
+  editingIdx=null; buildQueueList(); recalcAll();
+  setMsg('Applied "'+t.name+'" — '+entries.length+' toolpath(s) on '+(ids.length?ids.length+' selected':'all visible')+' vector(s)'); }
+function saveTpl(){ if(!opsQueue.length)return setMsg('Add toolpaths first, then save them as a template');
+  const n=prompt('Template name:', currentTpl()?currentTpl().name:'My recipe'); if(n==null)return;
+  const t=CAM.templateFromQueue(n.trim()||'My recipe', opsQueue);
+  templates=CAM.upsertTemplate(templates,t); persistTemplates(); buildTplLib(t.id);
+  setMsg('Saved template "'+t.name+'" — '+t.entries.length+' toolpath(s), no geometry'); }
+function delTpl(){ const t=currentTpl(); if(!t)return;
+  if(!confirm('Delete template "'+t.name+'"?'))return;
+  templates=CAM.removeTemplate(templates,t.id); if(!templates.length)templates=CAM.defaultTemplates();
+  persistTemplates(); buildTplLib(); setMsg('Deleted template "'+t.name+'"'); }
+function exportTpl(){ const t=currentTpl(); if(!t)return setMsg('No template selected');
+  download(t.id+'.aqtpl', CAM.templateToJSON(t), 'application/json'); setMsg('Exported '+t.id+'.aqtpl'); }
+function importTplText(text){
+  try{ const t=CAM.templateFromJSON(text); templates=CAM.upsertTemplate(templates,t); persistTemplates(); buildTplLib(t.id);
+    setMsg('Imported template "'+t.name+'" — '+t.entries.length+' toolpath(s)'); }
+  catch(e){ setMsg('Template import failed: '+e.message); } }
+
 // ---- tool database (presets, persisted to localStorage) ----
 const TOOLS_KEY='aq_tools';
 let tools=[];
@@ -11708,6 +11833,12 @@ function wire(){
     show('.profile-pocket', v==='profile'||v==='pocket');
     show('.not-drill', v!=='drill'); };
   if(camOp){ camOp.onchange=syncCamOp; syncCamOp(); }
+  // toolpath templates
+  loadTemplates(); buildTplLib();
+  on('btnTplApply',applyTpl); on('btnTplSave',saveTpl); on('btnTplDel',delTpl); on('btnTplExport',exportTpl);
+  const ti=document.getElementById('tplInput'); const tb=document.getElementById('btnTplImport');
+  if(ti&&tb){ tb.onclick=()=>ti.click();
+    ti.onchange=e=>{ const f=e.target.files[0]; if(f){ const rd=new FileReader(); rd.onload=ev=>importTplText(ev.target.result); rd.readAsText(f); } ti.value=''; }; }
   // tool library
   loadTools(); buildToolLib();
   const tl=document.getElementById('camToolLib'); if(tl)tl.onchange=()=>applyTool(tl.value);
@@ -11727,6 +11858,7 @@ function wire(){
   const fi=document.getElementById('fileInput'); document.getElementById('btnImport').onclick=()=>fi.click();
   fi.onchange=e=>{ const f=e.target.files[0]; if(!f)return; const rd=new FileReader();
     if(/\.aqcam$/i.test(f.name)){ rd.onload=ev=>openProject(ev.target.result, f.name); rd.readAsText(f); }
+    else if(/\.aqtpl$/i.test(f.name)){ rd.onload=ev=>importTplText(ev.target.result); rd.readAsText(f); }
     else if(/\.pdf$/i.test(f.name)){ rd.onload=ev=>importPDF(f.name,ev.target.result); rd.readAsArrayBuffer(f); }
     else { rd.onload=ev=>importText(f.name,ev.target.result); rd.readAsText(f); } };
   const gs=document.getElementById('gridStep'); if(gs)gs.onchange=e=>{grid.step=parseFloat(e.target.value)||0.5; render();};
@@ -11743,6 +11875,7 @@ function wire(){
     if(/\.(ttf|otf|woff)$/i.test(f.name)){ loadFontFile(f); return; }
     const rd=new FileReader();
     if(/\.aqcam$/i.test(f.name)){ rd.onload=ev=>openProject(ev.target.result, f.name); rd.readAsText(f); }
+    else if(/\.aqtpl$/i.test(f.name)){ rd.onload=ev=>importTplText(ev.target.result); rd.readAsText(f); }
     else if(/\.pdf$/i.test(f.name)){ rd.onload=ev=>importPDF(f.name,ev.target.result); rd.readAsArrayBuffer(f); }
     else { rd.onload=ev=>importText(f.name,ev.target.result); rd.readAsText(f); } });
   window.addEventListener('resize',resize);

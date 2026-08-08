@@ -5,7 +5,7 @@ Single self-contained HTML — no install, offline, posts G-code for ShopSabre (
 
 ## Quick start
 ```
-npm test     # 369 checks: CAM (163) + arc-fit (9) + CAD (169) + smoke (10) + import (25) + PDF (30)
+npm test     # 401 checks: CAM (195) + arc-fit (9) + CAD (169) + smoke (10) + import (25) + PDF (30)
 npm run build # regenerates cadcam-studio.html from cam-engine/ sources
 open cadcam-studio.html
 ```
@@ -20,12 +20,14 @@ open cadcam-studio.html
 - **CAM:** Profile (outside/inside/on, climb/conv, multipass, tabs), Pocket, Drill, V-Carve, **Inlay**
   (matched female cavity + male plug, straight or V-carve fit, with a per-side gap and a mirrored plug)
   → G2/G3 arcs → ShopSabre post → backplot → Export .tap.
+- **Toolpath templates:** save a machining recipe (settings only, no geometry) and apply it to any job's
+  vectors; five starter recipes built in, import/export as `.aqtpl`.
 
 ## Layout
 - `cadcam-studio.html` — built app (run `npm run build` to regenerate).
 - `cam-engine/` — sources: `cadcore.js` (CAD), `camcore.js` (CAM), `studio_app.js` (UI), `studio_shell.html` (markup/CSS), `dxfparse.js`, `build.js`, `package/clipper.js`, tests, ShopSabre `.pp`, roadmap README.
 
 ## Roadmap (next)
-C6 toolpath templates · D1 bitmap import + trace · D2 clipart / shape library.
+D1 bitmap import + trace · D2 clipart / shape library.
 Status table and full feature notes in `cam-engine/README.md`.
 # DC-VCarve-Clone

@@ -527,6 +527,82 @@ function inlayOp(contours, opts){
   return {ops,warnings,parts};
 }
 
+// ---- toolpath templates (C6): a reusable machining recipe, with no geometry in it ----
+// A template is a named, ordered list of toolpath parameter sets. It deliberately carries NO shape ids
+// and no document state, so the same recipe (V-carve the text, then profile it out with tabs) can be
+// dropped onto a different job's vectors. Versioned like .aqcam; unknown versions are rejected rather
+// than silently half-read. Params are whitelisted on the way in AND out, so a hand-edited or
+// foreign file can never smuggle selection ids, functions or junk keys into the CAM panel.
+const TEMPLATE_FORMAT='aqtpl', TEMPLATE_VERSION=1;
+const TEMPLATE_PARAM_KEYS=['op','toolNum','toolDia','side','climb','cutDepth','passDepth','feed','plunge','rpm','topZ',
+  'stepover','pocketStyle','rampEntry','finishDia','finishNum','peck','bitAngle','vstep','flatDepth','clearDia','clearNum',
+  'leadType','leadLen','rampLen','tabs',
+  'style','part','clearance','clearanceOn','pocketDepth','maleDepth','startDepth','maleMargin','mirrorMale'];
+const TEMPLATE_DEFAULT_PARAMS={op:'profile',toolNum:1,toolDia:0.25,side:'outside',climb:true,cutDepth:0.25,passDepth:0.125,
+  feed:120,plunge:40,rpm:18000,topZ:0,stepover:0.4,pocketStyle:'offset',rampEntry:false,finishDia:0,finishNum:2,peck:0,
+  bitAngle:90,vstep:0.02,flatDepth:0,clearDia:0,clearNum:2,leadType:'none',leadLen:0.25,rampLen:0,
+  tabs:{count:0,length:0.4,height:0.1},
+  style:'pocket',part:'both',clearance:0.005,clearanceOn:'female',pocketDepth:0.125,maleDepth:0.125,startDepth:0.02,
+  maleMargin:0.25,mirrorMale:true};
+// Keep only known CAM params, filled out from the defaults, so every template entry is self-contained.
+function sanitizeTemplateParams(p){
+  const src=p&&typeof p==='object'?p:{}, out={};
+  for(const k of TEMPLATE_PARAM_KEYS){
+    const v=Object.prototype.hasOwnProperty.call(src,k)?src[k]:TEMPLATE_DEFAULT_PARAMS[k];
+    if(k==='tabs'){ const t=(v&&typeof v==='object')?v:TEMPLATE_DEFAULT_PARAMS.tabs;
+      out.tabs={count:+t.count||0, length:+t.length||0.4, height:+t.height||0.1}; }
+    else out[k]=v;
+  }
+  return out;
+}
+function normalizeTemplate(t){
+  t=t&&typeof t==='object'?t:{};
+  const name=String(t.name||'Template');
+  const entries=(Array.isArray(t.entries)?t.entries:[]).map((e,i)=>({
+    name:String((e&&e.name)||('Toolpath '+(i+1))), p:sanitizeTemplateParams(e&&e.p) }));
+  return {format:TEMPLATE_FORMAT, version:TEMPLATE_VERSION, id:t.id||slugId(name), name:name, entries:entries};
+}
+// Strip a live toolpath queue ([{p,ids,name,...}]) down to a reusable recipe.
+function templateFromQueue(name, queue){
+  return normalizeTemplate({name:name, entries:(Array.isArray(queue)?queue:[]).map((q,i)=>({
+    name:(q&&(q.name||q.label))||('Toolpath '+(i+1)), p:q&&q.p }))});
+}
+// Bind a recipe to a selection -> queue entries ready to push. ids [] means "all visible vectors".
+function applyTemplate(t, ids){
+  const tpl=normalizeTemplate(t);
+  return tpl.entries.map(e=>({p:sanitizeTemplateParams(e.p), ids:Array.isArray(ids)?ids.slice():[],
+    name:e.name, label:'', visible:true}));
+}
+function templateToJSON(t){ return JSON.stringify(normalizeTemplate(t), null, 2); }
+function templateFromJSON(text){
+  let o; try{ o=JSON.parse(text); }catch(e){ throw new Error('Not a toolpath template (invalid JSON)'); }
+  if(!o||o.format!==TEMPLATE_FORMAT) throw new Error('Not a toolpath template');
+  if(o.version!==TEMPLATE_VERSION) throw new Error('Unsupported template version '+o.version);
+  if(!Array.isArray(o.entries)) throw new Error('Template has no toolpaths');
+  return normalizeTemplate(o);
+}
+function upsertTemplate(list, t){ const n=normalizeTemplate(t); const out=(list||[]).filter(x=>x.id!==n.id); out.push(n); return out; }
+function removeTemplate(list, id){ return (list||[]).filter(x=>x.id!==id); }
+// Starter recipes for a sign/job shop — the shapes they run on come from whatever you have selected.
+function defaultTemplates(){ return [
+  normalizeTemplate({name:'Sign — V-carve + cut out', entries:[
+    {name:'V-carve text', p:{op:'vcarve',toolNum:3,toolDia:0.5,bitAngle:60,vstep:0.02,cutDepth:0.125,feed:80,plunge:25}},
+    {name:'Profile out (tabs)', p:{op:'profile',toolNum:1,toolDia:0.25,side:'outside',cutDepth:0.75,passDepth:0.25,
+      leadType:'arc',leadLen:0.25,rampLen:0.15,tabs:{count:4,length:0.5,height:0.1}}}]}),
+  normalizeTemplate({name:'Pocket + corner finish', entries:[
+    {name:'Pocket 1/4"', p:{op:'pocket',toolNum:1,toolDia:0.25,cutDepth:0.25,passDepth:0.125,stepover:0.4,finishDia:0.125,finishNum:2}}]}),
+  normalizeTemplate({name:'Through cut 1/4" w/ tabs', entries:[
+    {name:'Profile outside', p:{op:'profile',toolNum:1,toolDia:0.25,side:'outside',cutDepth:0.75,passDepth:0.25,
+      leadType:'arc',leadLen:0.25,tabs:{count:4,length:0.5,height:0.1}}}]}),
+  normalizeTemplate({name:'V-inlay pair', entries:[
+    {name:'Inlay cavity', p:{op:'inlay',style:'vcarve',part:'female',toolNum:3,toolDia:0.5,bitAngle:60,vstep:0.02,
+      clearance:0.005,pocketDepth:0.15,maleDepth:0.15,startDepth:0.02}},
+    {name:'Inlay plug', p:{op:'inlay',style:'vcarve',part:'male',toolNum:3,toolDia:0.5,bitAngle:60,vstep:0.02,
+      clearance:0.005,pocketDepth:0.15,maleDepth:0.15,startDepth:0.02,maleMargin:0.25,mirrorMale:true}}]}),
+  normalizeTemplate({name:'Peck drill 1/8"', entries:[
+    {name:'Drill', p:{op:'drill',toolNum:5,toolDia:0.125,cutDepth:0.5,peck:0.1,feed:20,plunge:20,rpm:12000}}]})
+]; }
+
 // ---- arc fitting: turn a dense polyline into line + G2/G3 arc moves ----
 function circleFrom3(a,b,c){
   const ax=a.x,ay=a.y,bx=b.x,by=b.y,cx=c.x,cy=c.y;
@@ -828,5 +904,7 @@ function stockHeightAt(field, x, y) {
   return field.z[j * field.nx + i];
 }
 
-return {SCALE,TOL,dist,signedArea,isCCW,ensureCCW,ensureCW,boundsOf,assembleContours,offsetLoop,withTabs,fitArcs,profileOp,pocketOp,drillOp,vcarveOp,inlayOp,centroid,defaultTools,upsertTool,removeTool,slugId,orderPasses,postProcess,POSTS,simulateStock,stockHeightAt,estimateTime};
+return {SCALE,TOL,dist,signedArea,isCCW,ensureCCW,ensureCW,boundsOf,assembleContours,offsetLoop,withTabs,fitArcs,profileOp,pocketOp,drillOp,vcarveOp,inlayOp,centroid,defaultTools,upsertTool,removeTool,slugId,orderPasses,
+  sanitizeTemplateParams,normalizeTemplate,templateFromQueue,applyTemplate,templateToJSON,templateFromJSON,
+  upsertTemplate,removeTemplate,defaultTemplates,TEMPLATE_VERSION,TEMPLATE_FORMAT,TEMPLATE_PARAM_KEYS,postProcess,POSTS,simulateStock,stockHeightAt,estimateTime};
 });

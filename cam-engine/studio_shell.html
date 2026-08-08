@@ -81,7 +81,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .lyr.act{background:var(--accent-soft)}
 .lyr .sw{width:11px;height:11px;border-radius:2px;display:inline-block;border:1px solid rgba(20,40,70,.18)}
 .lyr .ln{cursor:pointer;color:var(--ink)}
-.pocket-only,.drill-only,.vcarve-only,.profile-pocket{display:none}
+.pocket-only,.drill-only,.vcarve-only,.inlay-only,.profile-pocket{display:none}
 /* shape properties modal */
 .modal-bg{position:fixed;inset:0;background:rgba(20,30,45,0.35);display:none;z-index:200}
 .modal{position:fixed;left:96px;top:70px;background:var(--bg-card);border:1px solid var(--bd);border-radius:8px;min-width:280px;max-width:340px;box-shadow:0 14px 44px rgba(20,40,70,.28)}
@@ -116,7 +116,8 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .cam-hint{font-size:10px;color:var(--ink-dim);width:100%;margin-top:4px}
 .jobq{width:100%;margin-top:7px;border-top:1px solid var(--bd-soft);padding-top:6px}
 .jobq-h{font-size:9px;letter-spacing:1px;color:var(--accent);text-transform:uppercase;margin-bottom:4px}
-.jobq-btns{display:flex;gap:5px;margin-bottom:5px}
+.jobq-btns{display:flex;flex-wrap:wrap;align-items:center;gap:5px;margin-bottom:5px}
+.jobq-btns select{max-width:112px}
 .qrow{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:10px;color:#3c4a5a;padding:3px 5px;background:#eef3f8;border:1px solid var(--bd-soft);border-radius:3px;margin-bottom:3px}
 .qrow .ql{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .qrow .qbtns{display:flex;gap:1px;align-items:center;flex:none}
@@ -144,7 +145,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
   <div class="topbar">
     <span class="brand">AQUAMENTOR CAD/CAM</span>
     <button class="tb" id="btnNew" data-tip="Clear the design">New</button>
-    <button class="tb" id="btnImport" data-tip="Open an .aqcam project, or import DXF / SVG / vector PDF">Open / Import</button>
+    <button class="tb" id="btnImport" data-tip="Open an .aqcam project or .aqtpl toolpath template, or import DXF / SVG / vector PDF">Open / Import</button>
     <button class="tb" id="btnSaveProj" data-tip="Save this job as an .aqcam project file (shapes, layers, material, toolpaths)">Save job…</button>
     <button class="tb" id="btnExpDXF" data-tip="Export design as DXF">Export DXF</button>
     <button class="tb" id="btnExpSVG" data-tip="Export design as SVG">Export SVG</button>
@@ -159,7 +160,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
     <label>step<input type="number" id="gridStep" value="0.5" step="0.25" min="0.0625"></label>
     <label><input type="checkbox" id="chkSnap" checked> Grid-snap</label>
     <label><input type="checkbox" id="chkObjSnap" checked> Obj-snap</label>
-    <input type="file" id="fileInput" accept=".aqcam,.dxf,.svg,.pdf" style="display:none">
+    <input type="file" id="fileInput" accept=".aqcam,.aqtpl,.dxf,.svg,.pdf" style="display:none">
   </div>
 
   <div class="tools">
@@ -295,6 +296,15 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
       <div class="cam-hint" id="camHint">Generates from selected shapes (or all visible if none selected).</div>
       <div class="jobq"><div class="jobq-h">TOOLPATHS</div>
         <div class="jobq-btns"><button class="tb" id="btnAddOp" data-tip="Capture the current Op + selection as a new toolpath (or ✓ Update the one being edited)">+ Toolpath</button><button class="tb" id="btnRecalcAll" data-tip="Recompute the backplot for every visible toolpath">Recalc all</button><button class="tb" id="btnPostJob" data-tip="Post all toolpaths as one .tap with tool changes">Post job ⤓</button></div>
+        <div class="jobq-btns">
+          <label data-tip="A saved machining recipe — the toolpath settings with no geometry. Apply it to whatever vectors you have selected.">Template<select id="tplLib" style="max-width:118px"></select></label>
+          <button class="tb" id="btnTplApply" data-tip="Add this template's toolpaths, bound to the current selection (or all visible vectors)">Apply</button>
+          <button class="tb" id="btnTplSave" data-tip="Save the toolpath list above as a reusable template">Save…</button>
+          <button class="tb" id="btnTplDel" data-tip="Delete the selected template">Del</button>
+          <button class="tb" id="btnTplExport" data-tip="Export the selected template as an .aqtpl file">⤓</button>
+          <button class="tb" id="btnTplImport" data-tip="Import an .aqtpl template file">⤒</button>
+          <input type="file" id="tplInput" accept=".aqtpl,.json" style="display:none">
+        </div>
         <div id="opsQueue"></div></div>
     </div></div>
   </div>

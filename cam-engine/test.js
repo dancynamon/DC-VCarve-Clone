@@ -539,5 +539,85 @@ console.log('\n(post-pp assertions added)');
   ok('inlay: pair posts to G-code', /G1|G01/.test(g) && g.length>200, g.length);
 })();
 
+// ---- C6: toolpath templates (geometry-free machining recipes) ----
+(function(){
+  const near=(a,b,t)=>Math.abs(a-b)<=(t||1e-9);
+  // a live queue, complete with document-bound selection ids
+  const queue=[
+    {p:{op:'vcarve',toolNum:3,toolDia:0.5,bitAngle:60,cutDepth:0.125}, ids:['g1','g2'], name:'V-carve text', visible:true},
+    {p:{op:'profile',toolNum:1,toolDia:0.25,side:'outside',cutDepth:0.75,tabs:{count:4,length:0.5,height:0.1}}, ids:['g3'], name:'Cut out', visible:false}
+  ];
+  const t=CAM.templateFromQueue('Sign recipe', queue);
+  ok('tpl: captures every toolpath in order', t.entries.length===2 && t.entries[0].name==='V-carve text' && t.entries[1].name==='Cut out');
+  ok('tpl: is versioned + formatted', t.format==='aqtpl' && t.version===CAM.TEMPLATE_VERSION);
+  ok('tpl: gets an id from the name', t.id==='sign-recipe', t.id);
+  ok('tpl: keeps the machining params', t.entries[0].p.op==='vcarve' && near(t.entries[0].p.bitAngle,60) && near(t.entries[1].p.cutDepth,0.75));
+  ok('tpl: keeps nested tab settings', t.entries[1].p.tabs.count===4 && near(t.entries[1].p.tabs.length,0.5));
+  // the whole point: no document state travels with a recipe
+  ok('tpl: carries no selection ids', JSON.stringify(t).indexOf('g1')<0 && JSON.stringify(t).indexOf('ids')<0, JSON.stringify(t).slice(0,120));
+  ok('tpl: carries no visibility state', t.entries.every(e=>!('visible' in e.p)));
+
+  // partial entries are filled out from the defaults, so a hand-written template is still usable
+  const partial=CAM.normalizeTemplate({name:'Bare', entries:[{p:{op:'pocket'}}]});
+  ok('tpl: partial entry filled from defaults', partial.entries[0].p.toolDia>0 && partial.entries[0].p.tabs && partial.entries[0].p.stepover>0,
+     JSON.stringify(partial.entries[0].p).slice(0,80));
+  ok('tpl: unnamed entry gets a name', partial.entries[0].name==='Toolpath 1', partial.entries[0].name);
+
+  // unknown / hostile keys are dropped by the whitelist
+  const dirty=CAM.sanitizeTemplateParams({op:'pocket', ids:['g9'], evil:function(){}, nested:{a:1}, cutDepth:0.3});
+  ok('tpl: strips unknown keys', !('ids' in dirty) && !('evil' in dirty) && !('nested' in dirty), Object.keys(dirty).join(','));
+  ok('tpl: keeps whitelisted keys', dirty.op==='pocket' && near(dirty.cutDepth,0.3));
+  ok('tpl: every whitelisted key is present', CAM.TEMPLATE_PARAM_KEYS.every(k=>k in dirty));
+
+  // applying binds the recipe to whatever is selected NOW
+  const q2=CAM.applyTemplate(t, ['gA','gB']);
+  ok('tpl: apply produces one queue entry per toolpath', q2.length===2);
+  ok('tpl: apply binds the current selection', q2.every(e=>e.ids.join()==='gA,gB'));
+  ok('tpl: applied entries are visible + named', q2.every(e=>e.visible===true) && q2[1].name==='Cut out');
+  ok('tpl: applied params survive', q2[0].p.op==='vcarve' && q2[1].p.tabs.count===4);
+  const q3=CAM.applyTemplate(t, []);
+  ok('tpl: empty selection means "all visible"', q3.every(e=>e.ids.length===0));
+  q3[0].ids.push('x');
+  ok('tpl: applying twice does not share arrays', CAM.applyTemplate(t,[])[0].ids.length===0);
+
+  // ...and the applied params really drive the CAM ops
+  const sq=[{pts:[{x:0,y:0},{x:4,y:0},{x:4,y:3},{x:0,y:3}],closed:true,area:12,ccw:true}];
+  const built=CAM.profileOp(sq, q2[1].p);
+  ok('tpl: applied profile params build a real toolpath', built.ops[0].passes.length>0);
+  ok('tpl: applied tab count reaches the toolpath', built.ops[0].passes[0].path.some(p=>p.tab===true));
+
+  // JSON round-trip + validation
+  const json=CAM.templateToJSON(t);
+  const back=CAM.templateFromJSON(json);
+  ok('tpl: JSON round-trip is lossless', JSON.stringify(back)===JSON.stringify(CAM.normalizeTemplate(t)));
+  let threw=false; try{ CAM.templateFromJSON('{"format":"aqtpl","version":99,"entries":[]}'); }catch(e){ threw=/version/.test(e.message); }
+  ok('tpl: rejects an unknown version', threw);
+  threw=false; try{ CAM.templateFromJSON('{"format":"aqcam","version":1}'); }catch(e){ threw=/Not a toolpath template/.test(e.message); }
+  ok('tpl: rejects a non-template file', threw);
+  threw=false; try{ CAM.templateFromJSON('not json'); }catch(e){ threw=/invalid JSON/.test(e.message); }
+  ok('tpl: rejects garbage', threw);
+  threw=false; try{ CAM.templateFromJSON('{"format":"aqtpl","version":1}'); }catch(e){ threw=/no toolpaths/.test(e.message); }
+  ok('tpl: rejects a template with no entries array', threw);
+
+  // library management mirrors the tool library
+  let lib=CAM.defaultTemplates();
+  ok('tpl: ships starter recipes', lib.length>=4 && lib.every(x=>x.entries.length>0), lib.length);
+  ok('tpl: starter recipes are all valid', lib.every(x=>{ try{ CAM.templateFromJSON(CAM.templateToJSON(x)); return true; }catch(e){ return false; } }));
+  ok('tpl: starter ids are unique', new Set(lib.map(x=>x.id)).size===lib.length);
+  const n0=lib.length;
+  lib=CAM.upsertTemplate(lib, t);
+  ok('tpl: upsert adds a new recipe', lib.length===n0+1);
+  lib=CAM.upsertTemplate(lib, CAM.templateFromQueue('Sign recipe', [queue[0]]));
+  ok('tpl: upsert replaces by id, not appends', lib.length===n0+1 && lib.find(x=>x.id==='sign-recipe').entries.length===1);
+  lib=CAM.removeTemplate(lib,'sign-recipe');
+  ok('tpl: remove drops it', lib.length===n0 && !lib.find(x=>x.id==='sign-recipe'));
+
+  // the inlay recipe round-trips its inlay-specific params
+  const inl=CAM.defaultTemplates().find(x=>/inlay/i.test(x.name));
+  ok('tpl: inlay recipe keeps its own params',
+     inl && inl.entries[0].p.op==='inlay' && inl.entries[0].p.part==='female' && inl.entries[1].p.part==='male'
+     && inl.entries[1].p.mirrorMale===true, JSON.stringify(inl&&inl.entries.map(e=>e.p.part)));
+})();
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

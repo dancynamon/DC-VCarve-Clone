@@ -984,6 +984,43 @@ function runSelfTest(){
   setMsg('Self-test: '+okN+'/'+results.length+' ops OK  ·  '+results.join('  '));
 }
 
+// ---- toolpath templates (C6): reusable machining recipes, persisted to localStorage ----
+// A template holds only the toolpath *settings*, never the geometry — so the same recipe (V-carve the
+// text, then profile it out with tabs) drops onto whatever vectors you have selected in this job.
+const TPL_KEY='aq_templates';
+let templates=[];
+function loadTemplates(){ try{ const s=localStorage.getItem(TPL_KEY); templates=s?JSON.parse(s).map(CAM.normalizeTemplate):CAM.defaultTemplates(); }
+  catch(e){ templates=CAM.defaultTemplates(); }
+  if(!Array.isArray(templates)||!templates.length) templates=CAM.defaultTemplates(); }
+function persistTemplates(){ try{ localStorage.setItem(TPL_KEY, JSON.stringify(templates)); }catch(e){} }
+function buildTplLib(selId){ const el=document.getElementById('tplLib'); if(!el)return; el.innerHTML='';
+  for(const t of templates){ const o=document.createElement('option'); o.value=t.id;
+    o.textContent=t.name+' ('+t.entries.length+')'; el.appendChild(o); }
+  if(selId)el.value=selId; }
+function currentTpl(){ const el=document.getElementById('tplLib'); return el?templates.find(t=>t.id===el.value):null; }
+function applyTpl(){ const t=currentTpl(); if(!t)return setMsg('No template selected');
+  const ids=[...sel]; const entries=CAM.applyTemplate(t, ids);
+  if(!entries.length)return setMsg('Template "'+t.name+'" has no toolpaths');
+  pushHistory();
+  for(const e of entries){ e.label=autoLabel(e.p, e.ids, null); opsQueue.push(e); }
+  editingIdx=null; buildQueueList(); recalcAll();
+  setMsg('Applied "'+t.name+'" — '+entries.length+' toolpath(s) on '+(ids.length?ids.length+' selected':'all visible')+' vector(s)'); }
+function saveTpl(){ if(!opsQueue.length)return setMsg('Add toolpaths first, then save them as a template');
+  const n=prompt('Template name:', currentTpl()?currentTpl().name:'My recipe'); if(n==null)return;
+  const t=CAM.templateFromQueue(n.trim()||'My recipe', opsQueue);
+  templates=CAM.upsertTemplate(templates,t); persistTemplates(); buildTplLib(t.id);
+  setMsg('Saved template "'+t.name+'" — '+t.entries.length+' toolpath(s), no geometry'); }
+function delTpl(){ const t=currentTpl(); if(!t)return;
+  if(!confirm('Delete template "'+t.name+'"?'))return;
+  templates=CAM.removeTemplate(templates,t.id); if(!templates.length)templates=CAM.defaultTemplates();
+  persistTemplates(); buildTplLib(); setMsg('Deleted template "'+t.name+'"'); }
+function exportTpl(){ const t=currentTpl(); if(!t)return setMsg('No template selected');
+  download(t.id+'.aqtpl', CAM.templateToJSON(t), 'application/json'); setMsg('Exported '+t.id+'.aqtpl'); }
+function importTplText(text){
+  try{ const t=CAM.templateFromJSON(text); templates=CAM.upsertTemplate(templates,t); persistTemplates(); buildTplLib(t.id);
+    setMsg('Imported template "'+t.name+'" — '+t.entries.length+' toolpath(s)'); }
+  catch(e){ setMsg('Template import failed: '+e.message); } }
+
 // ---- tool database (presets, persisted to localStorage) ----
 const TOOLS_KEY='aq_tools';
 let tools=[];
@@ -1162,6 +1199,12 @@ function wire(){
     show('.profile-pocket', v==='profile'||v==='pocket');
     show('.not-drill', v!=='drill'); };
   if(camOp){ camOp.onchange=syncCamOp; syncCamOp(); }
+  // toolpath templates
+  loadTemplates(); buildTplLib();
+  on('btnTplApply',applyTpl); on('btnTplSave',saveTpl); on('btnTplDel',delTpl); on('btnTplExport',exportTpl);
+  const ti=document.getElementById('tplInput'); const tb=document.getElementById('btnTplImport');
+  if(ti&&tb){ tb.onclick=()=>ti.click();
+    ti.onchange=e=>{ const f=e.target.files[0]; if(f){ const rd=new FileReader(); rd.onload=ev=>importTplText(ev.target.result); rd.readAsText(f); } ti.value=''; }; }
   // tool library
   loadTools(); buildToolLib();
   const tl=document.getElementById('camToolLib'); if(tl)tl.onchange=()=>applyTool(tl.value);
@@ -1181,6 +1224,7 @@ function wire(){
   const fi=document.getElementById('fileInput'); document.getElementById('btnImport').onclick=()=>fi.click();
   fi.onchange=e=>{ const f=e.target.files[0]; if(!f)return; const rd=new FileReader();
     if(/\.aqcam$/i.test(f.name)){ rd.onload=ev=>openProject(ev.target.result, f.name); rd.readAsText(f); }
+    else if(/\.aqtpl$/i.test(f.name)){ rd.onload=ev=>importTplText(ev.target.result); rd.readAsText(f); }
     else if(/\.pdf$/i.test(f.name)){ rd.onload=ev=>importPDF(f.name,ev.target.result); rd.readAsArrayBuffer(f); }
     else { rd.onload=ev=>importText(f.name,ev.target.result); rd.readAsText(f); } };
   const gs=document.getElementById('gridStep'); if(gs)gs.onchange=e=>{grid.step=parseFloat(e.target.value)||0.5; render();};
@@ -1197,6 +1241,7 @@ function wire(){
     if(/\.(ttf|otf|woff)$/i.test(f.name)){ loadFontFile(f); return; }
     const rd=new FileReader();
     if(/\.aqcam$/i.test(f.name)){ rd.onload=ev=>openProject(ev.target.result, f.name); rd.readAsText(f); }
+    else if(/\.aqtpl$/i.test(f.name)){ rd.onload=ev=>importTplText(ev.target.result); rd.readAsText(f); }
     else if(/\.pdf$/i.test(f.name)){ rd.onload=ev=>importPDF(f.name,ev.target.result); rd.readAsArrayBuffer(f); }
     else { rd.onload=ev=>importText(f.name,ev.target.result); rd.readAsText(f); } });
   window.addEventListener('resize',resize);
