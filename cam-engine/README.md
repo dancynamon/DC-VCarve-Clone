@@ -6,6 +6,7 @@ Editor-first, VCarve-style. Draw + edit vectors, then cut. Single self-contained
 - **Fillet / Trim / Extend** (Edit tool group): **Fillet** rounds a clicked corner with a tangent arc (Fillet r radius, auto-clamped to the shorter edge); **Trim** cuts the clicked part of an open vector back to where it crosses another vector; **Extend** stretches an open vector's endpoint along its direction to the next vector ahead. Core: `filletPolyCorner` / `trimPolyline` / `extendPolyline` / `segInt` / `pathIntersections`.
 - **Curve (bezier) tool:** click anchors, drag to pull symmetric handles; Enter finishes, click the start node to close. Stored as `prim:{kind:'bezier',nodes}`, flattened to `pts` so CAM/preview/export just work. Node-edit shows draggable anchors + handles (green = smooth, tan = corner; dbl-click toggles). Core: `mkBezier`/`flattenBezier`/`reflowBezier`/`mirrorSmoothHandle`.
 - **Edit:** move / **scale (8 handles — a single unrotated rect/round/circle/ellipse stays parametric: dims update in the prim, and non-uniform-scaling a circle becomes an ellipse)** / **rotate about center from any of 4 corner grips (Shift = 15° snap; a single rect/round/circle/ellipse/polygon/star stays parametric — the grip accumulates its prim rotation so it remains editable in the dialog)**, offset, **weld (union) / subtract / intersect** (Clipper booleans), join, mirror H/V, rotate 90°, duplicate, array (rows×cols), align (6-way), node add/delete/drag.
+- **Dimension annotations (B3):** the **Dim** tool (shortcut **D**) draws VCarve-style dimensions — **aligned**, **horizontal**, **vertical**, **radius**, **diameter** and **angle** (3-point). Each one is a `type:'dim'` shape carrying only its defining points in `prim` (`a`, `b`, optional `c`, plus `style/off/textH/prec/unit/label`); every extension line, dimension line, solid arrowhead and single-stroke label is regenerated on demand by `cadcore.dimensionGeometry(prim)`, so moving an endpoint or switching style redraws the whole annotation. Labels auto-format in **in / mm / plain** at a chosen precision (`fmtDimValue`) with an optional manual override (e.g. `TYP 4X`), and prefix `R` / `Ø` / `°` automatically. Placement: click the two measured points then click to place the line (the offset is picked up live from the cursor); radius/Ø = centre then edge; angle = vertex, ray, ray, radius. Tight spans flip their arrows outboard automatically. Dimensions are **annotations** (`annotation:true`) — `shapesToContoursInput` drops them so they never reach CAM, and "Check vectors" ignores them — but they still export to DXF/SVG and round-trip through `.aqcam`. Double-click one for the numeric dialog (style/units/decimals/offset/label). Core: `mkDimension`/`dimensionGeometry`/`dimValue`/`fmtDimValue`/`measureText`.
 - **Snapping:** grid snap + object snap (endpoints, midpoints, centers) + **job/material corners, edge midpoints & center** (corner = diamond marker); ortho with Shift.
 - **Selection:** click an edge **or click inside** a closed contour to pick it (VCarve-style); marquee box-select; shift to add.
 - **Right-click menu:** right-click a shape for Edit dimensions…, Duplicate, Delete, Mirror H/V, Rotate 90°, Offset…, Array…, Bring to front / Send to back (and Weld/Subtract/Intersect when 2+ are selected).
@@ -29,10 +30,25 @@ Editor-first, VCarve-style. Draw + edit vectors, then cut. Single self-contained
 - **Tool library:** saved presets (dia/feed/plunge/RPM/op/angle) in a dropdown; Save/Del; persisted to localStorage.
 - **Self-test** (top bar): builds a sample design (rect + circle + single-stroke "AQ") and runs every CAM op (Profile w/ arc lead+ramp, Pocket, Drill, V-Carve) through `camBuild`, reporting "N/4 ops OK" in the status bar — a one-click smoke test of the pure core.
 - `pdftest.js` guards the vector-PDF importer (30 checks = pure inflate vs zlib, path/curve/rect ops, cm/q/Q transforms, FlateDecode end-to-end, Form XObject `Do`/`/Matrix`/nesting/cycle-guard, live-text `hasLiveText` flag (Tj/TJ), PDF→CAM). 
-- Engine: `cadcore.js` (pure, 100 unit tests) + `camcore.js` (CAM, 107 tests = profile/pocket/drill/v-carve/leads/ramp/helical/tooldb/arc/raster/ordering/medial-axis). The camcore suite also covers the material-removal sim (flat-cut depth, V cross-section, deeper-pass-wins, floor clamp, rapid no-op). `smoketest.js` runs the studio Self-test's 4-op sequence headless on both posts (8 checks). `importtest.js` guards DXF (6 checks), BLOCK/INSERT explosion (6 checks + 1 non-uniform-scale), SVG (6 checks), ELLIPSE-in-block (2 checks), and DXF+SVG round-trip export (4 checks) = 25 import checks. `npm test` runs all six suites.
+- Engine: `cadcore.js` (pure, 169 unit tests — incl. 37 dimension-annotation checks) + `camcore.js` (CAM, 107 tests = profile/pocket/drill/v-carve/leads/ramp/helical/tooldb/arc/raster/ordering/medial-axis). The camcore suite also covers the material-removal sim (flat-cut depth, V cross-section, deeper-pass-wins, floor clamp, rapid no-op). `smoketest.js` runs the studio Self-test's 4-op sequence headless on both posts (8 checks). `importtest.js` guards DXF (6 checks), BLOCK/INSERT explosion (6 checks + 1 non-uniform-scale), SVG (6 checks), ELLIPSE-in-block (2 checks), and DXF+SVG round-trip export (4 checks) = 25 import checks. `npm test` runs all six suites (344 checks).
 - **Text:** single-stroke engraving font (built in) **or real TTF/OTF outline text** — toggle "Outline (TTF)" in Shape params, **Load font…** (or drag-drop a `.ttf/.otf`), and placement traces the actual glyph contours (with counters/holes) as closed, cuttable vectors → Profile/Pocket/V-carve. Outline height = the "H" field. Parser: opentype.js (MIT), embedded in `package/opentype.js`.
 
 The older `gcode-cadcam-260614.html` remains as the import-a-file → CAM/backplot viewer.
+
+---
+
+## 2D VCarve-parity roadmap — status
+| ID | Feature | Status |
+|----|---------|--------|
+| A1–A4 | Draw / edit / snap / numeric-edit CAD core | ✅ done |
+| B1 | Bezier curve (pen) tool | ✅ done |
+| B2 | Trim / Extend / Fillet | ✅ done |
+| B3 | Dimension annotations | ✅ done |
+| C1–C4 | Profile / Pocket / Drill / V-carve (+ leads, rest machining, flat-depth) | ✅ done |
+| C5 | Inlay toolpath (male/female pair) | ⬜ next |
+| C6 | Toolpath templates | ⬜ |
+| D1 | Bitmap import + trace | ⬜ |
+| D2 | Clipart / shape library | ⬜ |
 
 ---
 

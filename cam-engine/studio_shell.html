@@ -185,6 +185,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
     </div></div>
     <div class="tgrp" data-grp="View"><div class="tgrp-h" data-tip="Measure & navigate"><span class="tcaret">▾</span>View</div><div class="tgrp-body">
       <button class="tool" data-tool="measure" data-tip="Measure distance / dx,dy / angle — shortcut: M" title="Measure (M)"><b>↔</b><span class="tlabel">Measure</span></button>
+      <button class="tool" data-tool="dim" data-tip="Dimension — a drawn annotation (extension lines, arrows, label). Never machined. Style/units in Shape params — shortcut: D" title="Dimension (D)"><b>⇤</b><span class="tlabel">Dim</span></button>
       <button class="tool" data-tool="pan" data-tip="Pan the view — drag (or Alt-drag with any tool)" title="Pan (Alt-drag)"><b>✋</b><span class="tlabel">Pan</span></button>
     </div></div>
   </div>
@@ -214,6 +215,10 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
       <button class="tb" id="btnLoadFont" data-tip="Load a .ttf/.otf font for outline text">Load font…</button>
       <input type="file" id="fontInput" accept=".ttf,.otf,.woff" style="display:none">
       <div class="cam-hint" id="fontHint" style="color:#5c6b80">Outline text uses the built-in stroke font until you load a .ttf/.otf.</div>
+      <label data-tip="Dimension style for the Dim tool">Dim<select id="dimStyle"><option value="aligned">Aligned</option><option value="horizontal">Horizontal</option><option value="vertical">Vertical</option><option value="radius">Radius</option><option value="diameter">Diameter</option><option value="angle">Angle</option></select></label>
+      <label data-tip="Dimension label height (in)">Dim H"<input type="number" id="dimTextH" value="0.18" step="0.02" min="0.02" style="width:52px"></label>
+      <label data-tip="Decimal places in the dimension label">Dec<input type="number" id="dimPrec" value="3" min="0" max="5" style="width:38px"></label>
+      <label data-tip="Dimension units — the drawing stays in inches either way">Units<select id="dimUnit"><option value="in">in</option><option value="mm">mm</option><option value="none">plain</option></select></label>
     </div></div>
     <div class="sectn"><h3>Edit</h3><div class="body">
       <button class="tb" id="btnOffset" data-tip="Offset selected by a distance">Offset</button>
@@ -316,6 +321,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
         <tr><td>G</td><td>Polygon</td></tr>
         <tr><td>T</td><td>Text</td></tr>
         <tr><td>M</td><td>Measure</td></tr>
+        <tr><td>D</td><td>Dimension annotation</td></tr>
         <tr class="keys-section"><td colspan="2">View</td></tr>
         <tr><td>F</td><td>Fit all to view</td></tr>
         <tr><td>Scroll</td><td>Zoom in / out</td></tr>

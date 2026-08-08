@@ -106,15 +106,16 @@ function drawSimField(){
   ctx.strokeStyle='rgba(20,30,45,0.55)'; ctx.lineWidth=1; ctx.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y);
   ctx.restore();
 }
-function drawShape(s, selected, dim){
-  const col = selected ? '#ff9a3c' : (doc.layers.get(s.layer)?.color || '#9fe7ff');
+function drawShape(s, selected, dimmed){
+  const isDim = s.type==='dim';   // annotation: own colour, solid arrowheads, never cut
+  const col = selected ? '#ff9a3c' : (isDim ? '#7fe0b0' : (doc.layers.get(s.layer)?.color || '#9fe7ff'));
   ctx.save();
-  if(dim) ctx.globalAlpha=0.28;   // Preview: faint reference outline under the toolpaths
-  ctx.strokeStyle=col; ctx.lineWidth=selected?2:1.3;
+  if(dimmed) ctx.globalAlpha=0.28;   // Preview: faint reference outline under the toolpaths
+  ctx.strokeStyle=col; ctx.fillStyle=col; ctx.lineWidth=selected?2:(isDim?1.1:1.3);
   for(const loop of CADCORE.flatten(s)){
     ctx.beginPath();
     loop.pts.forEach((p,i)=>{ const q=W2S(p); i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y); });
-    ctx.stroke();
+    if(isDim && loop.closed) ctx.fill(); else ctx.stroke();
   }
   ctx.restore();
 }
@@ -202,6 +203,7 @@ const TOOLMSG={ select:'Click to select · drag to move · handles to scale/rota
   rect:'Click-drag opposite corners', circle:'Click center, drag radius', ellipse:'Click-drag bounding box',
   arc:'Click center, click start, click end', polygon:'Click center, drag radius (sides in panel)', star:'Click center, drag radius',
   text:'Click placement point, type in panel', measure:'Click two points', pan:'Drag to pan',
+  dim:'Dimension — click the two measured points, then click to place the line (radius/Ø: centre then edge · angle: vertex, ray, ray, radius)',
   bezier:'Click anchors, drag to shape handles · Enter to finish · click start to close',
   fillet:'Click a corner to round it (set radius in "Fillet r")',
   trim:'Click the part of an open vector to cut back to where it crosses another',
@@ -236,6 +238,7 @@ cv.addEventListener('mousedown', e=>{
   }
   else if(tool==='arc'){ if(!draft){draft={kind:'arc',c:w,p1:null,p2:null};} else if(!draft.p1){draft.p1=w;} else {draft.p2=w; commitArc();} }
   else if(tool==='text'){ placeText(w); }
+  else if(tool==='dim'){ dimDown(w); }
   else if(tool==='measure'){ if(!draft){ measure=null; draft={kind:'measure',a:w,b:w}; } else { measure={a:draft.a,b:w}; draft=null; } }
   render();
 });
@@ -300,6 +303,10 @@ const MODAL_SPECS={
   line:[['x1','Start X',0.05],['y1','Start Y',0.05],['x2','End X',0.05],['y2','End Y',0.05],['rotDeg','Rotation°',1]],
   arc:[['cx','Center X',0.05],['cy','Center Y',0.05],['r','Radius',0.05],['a0Deg','Start angle°',1],['a1Deg','End angle°',1]],
   text:[['text','Text','text'],['x','X',0.05],['y','Y (baseline)',0.05],['h','Height',0.05]],
+  dim:[['style','Style',['aligned','horizontal','vertical','radius','diameter','angle']],
+    ['x1','From X',0.05],['y1','From Y',0.05],['x2','To X',0.05],['y2','To Y',0.05],
+    ['off','Offset / arc r',0.05],['textH','Text height',0.02],['prec','Decimals',1],
+    ['unit','Units',['in','mm','none']],['label','Label override','text']],
   generic:[['x','X',0.05],['y','Y',0.05],['w','Width',0.05],['h','Height',0.05],['rotDeg','Rotation°',1]]
 };
 let modalShape=null, modalOrig=null;   // modalOrig = pristine clone (live-preview baseline / revert target)
@@ -312,7 +319,8 @@ function openShapeModal(shape){ if(!shape)return; modalShape=shape; modalOrig=CA
     let val = key==='rotDeg'?(p.rot||0)*180/Math.PI : key==='a0Deg'?(p.a0||0)*180/Math.PI : key==='a1Deg'?(p.a1||0)*180/Math.PI : p[key];
     const row=document.createElement('label'); row.className='mfield';
     let inp;
-    if(step==='text') inp='<input type="text" data-k="'+key+'" value="'+String(val==null?'':val).replace(/"/g,'&quot;')+'">';
+    if(Array.isArray(step)) inp='<select data-k="'+key+'">'+step.map(o=>'<option value="'+o+'"'+(String(val)===o?' selected':'')+'>'+o+'</option>').join('')+'</select>';
+    else if(step==='text') inp='<input type="text" data-k="'+key+'" value="'+String(val==null?'':val).replace(/"/g,'&quot;')+'">';
     else { const dp=(key==='rotDeg'||key==='a0Deg'||key==='a1Deg')?1:(key==='n'?0:3);   // angles 0.1°, counts integer, lengths/positions 0.001"
       const dv=(typeof val==='number'&&isFinite(val))?+val.toFixed(dp):0;
       inp='<input type="number" data-k="'+key+'" step="'+step+'" value="'+dv+'">'; }
@@ -325,6 +333,7 @@ function openShapeModal(shape){ if(!shape)return; modalShape=shape; modalOrig=CA
 // rebuild the edited shape from the current field values (always from the pristine baseline, so previews don't drift)
 function buildShapeFromFields(){ const host=document.getElementById('modalFields'); const kind=host.dataset.kind; const vals={};
   host.querySelectorAll('input').forEach(inp=>{ vals[inp.dataset.k]= inp.type==='number'?(parseFloat(inp.value)||0):inp.value; });
+  host.querySelectorAll('select').forEach(sl=>{ vals[sl.dataset.k]=sl.value; });
   if(kind==='generic'){ let s=CADCORE.fitShapeTo(modalOrig, vals.x, vals.y, vals.w, vals.h);
     if(vals.rotDeg){ const b=CADCORE.bbox(s); s=CADCORE.rotate(s,(b.minX+b.maxX)/2,(b.minY+b.maxY)/2, vals.rotDeg*Math.PI/180); s.id=modalOrig.id; }
     return s; }
@@ -473,6 +482,65 @@ function updateDraft(w, shift){ if(!draft)return;
   else if(draft.kind==='arc'){ draft.cur=w; }
   else if(draft.kind==='bezier'){ draft.cur=w; }
   else if(draft.kind==='measure'){ draft.b=w; }
+  else if(draft.kind==='dim'){ updateDimDraft(w, shift); }
+}
+
+// ---- dimension annotations (B3) ----
+function dimUiOpts(){
+  const g=id=>document.getElementById(id);
+  return { style:(g('dimStyle')&&g('dimStyle').value)||'aligned',
+    textH:parseFloat(g('dimTextH')&&g('dimTextH').value)||0.18,
+    prec:(g('dimPrec')&&g('dimPrec').value!=='')?parseInt(g('dimPrec').value):3,
+    unit:(g('dimUnit')&&g('dimUnit').value)||'in' };
+}
+// How far past the measured points the cursor is, along the dimension's normal (signed).
+function dimSignedOff(d,w){
+  let u;
+  if(d.style==='horizontal') u={x:1,y:0};
+  else if(d.style==='vertical') u={x:0,y:1};
+  else { const L=CADCORE.dist(d.a,d.b)||1; u={x:(d.b.x-d.a.x)/L,y:(d.b.y-d.a.y)/L}; }
+  const n={x:-u.y,y:u.x};
+  const ta=d.a.x*n.x+d.a.y*n.y, tb=d.b.x*n.x+d.b.y*n.y, tw=w.x*n.x+w.y*n.y;
+  const hi=Math.max(ta,tb), lo=Math.min(ta,tb);
+  return tw>=(hi+lo)/2 ? tw-hi : tw-lo;
+}
+function dimDown(w){
+  const st=dimUiOpts().style;
+  if(!draft || draft.kind!=='dim' || draft.style!==st){ draft={kind:'dim',style:st,a:{x:w.x,y:w.y},b:{x:w.x,y:w.y},c:null,off:0.5,stage:1};
+    setMsg(st==='angle'?'Click the first ray':'Click the second point'); return; }
+  const d=draft;
+  if(st==='radius'||st==='diameter'){ d.b={x:w.x,y:w.y}; return commitDim(); }
+  if(st==='angle'){
+    if(d.stage===1){ d.b={x:w.x,y:w.y}; d.stage=2; setMsg('Click the second ray'); return; }
+    if(d.stage===2){ d.c={x:w.x,y:w.y}; d.stage=3; setMsg('Click to set the arc radius'); return; }
+    d.off=Math.max(0.02,CADCORE.dist(d.a,w)); return commitDim();
+  }
+  if(d.stage===1){ d.b={x:w.x,y:w.y}; d.stage=2; setMsg('Click to place the dimension line'); return; }
+  d.off=dimSignedOff(d,w); return commitDim();
+}
+function updateDimDraft(w, shift){
+  const d=draft;
+  if(d.stage===1){ d.b=(d.style==='angle')?{x:w.x,y:w.y}:ortho(d.a,w,shift); }
+  else if(d.stage===2){ if(d.style==='angle') d.c={x:w.x,y:w.y}; else d.off=dimSignedOff(d,w); }
+  else if(d.stage===3){ d.off=Math.max(0.02,CADCORE.dist(d.a,w)); }
+}
+function dimDraftPrim(d){ return Object.assign({kind:'dim'}, dimUiOpts(), {a:d.a,b:d.b,c:d.c,off:d.off,style:d.style}); }
+function drawDimDraft(d){
+  ctx.setLineDash([]); ctx.strokeStyle='#ffd27a'; ctx.fillStyle='#ffd27a'; ctx.lineWidth=1.1;
+  let loops=[]; try{ loops=CADCORE.dimensionGeometry(dimDraftPrim(d)).loops; }catch(err){ return; }
+  for(const l of loops){ ctx.beginPath(); l.pts.forEach((p,i)=>{const q=W2S(p); i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y);});
+    if(l.closed) ctx.fill(); else ctx.stroke(); }
+}
+function commitDim(){
+  const d=draft; draft=null;
+  if(!d||!d.a||!d.b){ render(); return; }
+  const degenerate = (d.style==='angle') ? (!d.c) : CADCORE.dist(d.a,d.b)<1e-4;
+  if(degenerate){ setMsg('Dimension too small — cancelled'); render(); return; }
+  pushHistory();
+  const s=CADCORE.mkDimension(d.a,d.b,Object.assign(dimUiOpts(),{off:d.off,c:d.c}),activeLayer);
+  addShapes([s]); sel=new Set([s.id]);
+  setMsg('Dimension: '+CADCORE.dimensionGeometry(s.prim).text+' (annotation — not machined)');
+  render(); syncPanels();
 }
 function ortho(a,b,shift){ if(!shift&&!grid.ortho)return b; const dx=b.x-a.x,dy=b.y-a.y; if(Math.abs(dx)>Math.abs(dy))return {x:b.x,y:a.y}; return {x:a.x,y:b.y}; }
 function drawDraft(){ ctx.strokeStyle='#ffd27a'; ctx.lineWidth=1.3; ctx.setLineDash([5,3]);
@@ -488,6 +556,7 @@ function drawDraft(){ ctx.strokeStyle='#ffd27a'; ctx.lineWidth=1.3; ctx.setLineD
   else if(d.kind==='arc'){ if(d.p1&&d.cur){ const r=Math.hypot(d.p1.x-d.c.x,d.p1.y-d.c.y); const a0=Math.atan2(d.p1.y-d.c.y,d.p1.x-d.c.x), a1=Math.atan2(d.cur.y-d.c.y,d.cur.x-d.c.x); poly(CADCORE.arcPolyline(d.c.x,d.c.y,r,a0,a1,true),false);} else if(d.cur){ line(d.c,d.cur);} }
   else if(d.kind==='bezier'){ drawBezierDraft(d); }
   else if(d.kind==='measure'){ ctx.setLineDash([]); drawMeasure(d.a,d.b,false); }
+  else if(d.kind==='dim'){ drawDimDraft(d); }
   ctx.setLineDash([]);
 }
 function drawBezierDraft(d){
@@ -981,6 +1050,8 @@ function buildProps(){ const el=document.getElementById('props'); if(!el)return;
   if(!sh.length){ el.innerHTML='<div class="muted">No selection</div>'; return; }
   if(sh.length>1){ const b=CADCORE.bboxAll(sh); el.innerHTML='<div class="muted">'+sh.length+' selected</div><div class="prow">W '+(b.maxX-b.minX).toFixed(3)+'"  H '+(b.maxY-b.minY).toFixed(3)+'"</div>'; return; }
   const s=sh[0]; const b=CADCORE.bbox(s); let h='<div class="prow">type: '+(s.prim?s.prim.kind:s.type)+'</div>';
+  if(s.type==='dim'){ const g=CADCORE.dimensionGeometry(s.prim);
+    h+='<div class="prow">'+s.prim.style+': <b>'+g.text+'</b></div><div class="prow muted">annotation — not machined</div>'; }
   h+='<div class="prow">X '+b.minX.toFixed(3)+'  Y '+b.minY.toFixed(3)+'</div>';
   h+='<div class="prow">W '+(b.maxX-b.minX).toFixed(3)+'"  H '+(b.maxY-b.minY).toFixed(3)+'"</div>';
   h+='<div class="prow">closed: '+(s.closed?'yes':'no')+(s.type==='text'?(' · "'+s.text+'"'):'')+'</div>';
@@ -997,7 +1068,7 @@ window.addEventListener('keydown', e=>{
   if(e.key==='Escape'){ hideCtxMenu(); draft=null; render(); return; }
   if(e.key==='Enter'&&tool==='polyline'&&draft){ commitPolyline(); return; }
   if(e.key==='Enter'&&tool==='bezier'&&draft){ commitBezier(false); return; }
-  const map={v:'select',n:'node',l:'line',p:'polyline',b:'bezier',r:'rect',c:'circle',e:'ellipse',a:'arc',g:'polygon',t:'text',m:'measure'};
+  const map={v:'select',n:'node',l:'line',p:'polyline',b:'bezier',r:'rect',c:'circle',e:'ellipse',a:'arc',g:'polygon',t:'text',m:'measure',d:'dim'};
   if(map[e.key]){ setTool(map[e.key]); }
   if(e.key==='f'){ fitAll(); }
 });

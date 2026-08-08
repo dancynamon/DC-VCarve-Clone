@@ -111,11 +111,15 @@ function mirrorSmoothHandle(node, movedSide) {
 // ---------- bbox / flatten ----------
 function flatten(shape) {
   if (shape.type === 'text') return textShapes(shape).flatMap(flatten);
+  if (shape.type === 'dim') return dimensionGeometry(shape.prim).loops;
   const pts = shape.pts.slice();
   if (shape.closed && pts.length && dist(pts[0], pts[pts.length - 1]) > 1e-9) pts.push({ x: pts[0].x, y: pts[0].y });
   return [{ pts, closed: shape.closed }];
 }
-function bbox(shape) { return bboxPts(shape.type === 'text' ? textShapes(shape).flatMap(s => s.pts) : shape.pts); }
+function bbox(shape) {
+  if (shape.type === 'dim') return bboxPts(flatten(shape).flatMap(l => l.pts));
+  return bboxPts(shape.type === 'text' ? textShapes(shape).flatMap(s => s.pts) : shape.pts);
+}
 function bboxPts(pts) {
   let b = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
   for (const p of pts) { if (p.x < b.minX) b.minX = p.x; if (p.y < b.minY) b.minY = p.y; if (p.x > b.maxX) b.maxX = p.x; if (p.y > b.maxY) b.maxY = p.y; }
@@ -156,6 +160,7 @@ function hitTest(shape, p, tol) {
 function snapPoints(shape) {
   const out = [];
   if (shape.type === 'text') { const b = bbox(shape); out.push({ x: b.minX, y: b.minY, kind: 'corner' }); return out; }
+  if (shape.type === 'dim') return shape.pts.map(p => ({ x: p.x, y: p.y, kind: 'node' }));
   const pts = shape.pts;
   for (const p of pts) out.push({ x: p.x, y: p.y, kind: 'node' });
   for (let i = 0; i + 1 < pts.length; i++) out.push({ x: (pts[i].x + pts[i + 1].x) / 2, y: (pts[i].y + pts[i + 1].y) / 2, kind: 'mid' });
@@ -180,6 +185,10 @@ function rectSnapPoints(x0, y0, x1, y1) {
 function applyToShape(shape, fn, keepPrim) {
   const s = clone(shape);
   if (s.type === 'text') { const a = fn({ x: s.x, y: s.y }); s.x = a.x; s.y = a.y; return s; }
+  if (s.type === 'dim') {   // move the defining points; the annotation redraws from them
+    const pr = s.prim; pr.a = fn(pr.a); pr.b = fn(pr.b); if (pr.c) pr.c = fn(pr.c);
+    return syncDimension(s);
+  }
   s.pts = s.pts.map(fn);
   if (!keepPrim) s.prim = { kind: 'poly' };
   else if (s.prim && s.prim.kind === 'bezier' && Array.isArray(s.prim.nodes)) {   // keep curve editable: move handles too
@@ -208,6 +217,7 @@ function scale(shape, cx, cy, sx, sy) {
 function mirror(shape, axis, at) {
   // axis 'x' = flip horizontally about vertical line x=at; 'y' = flip vertically about y=at
   const s = applyToShape(shape, p => axis === 'x' ? { x: 2 * at - p.x, y: p.y } : { x: p.x, y: 2 * at - p.y });
+  if (s.type === 'dim') return s;
   s.pts.reverse(); // keep winding sane
   return s;
 }
@@ -408,10 +418,156 @@ const FONT = (function () {
   F['#'] = { w: 10, s: [[[2,0],[3.5,14]], [[6.5,0],[8,14]], [[0,4.5],[10,4.5]], [[0,9.5],[10,9.5]]] };
   F['+'] = { w: 9, s: [[[1,7],[8,7]], [[4.5,10.5],[4.5,3.5]]] };
   F['='] = { w: 9, s: [[[1,9],[8,9]], [[1,5],[8,5]]] };
+  F['"'] = { w: 5, s: [[[1.3,14],[1.3,10.5]], [[3.5,14],[3.5,10.5]]] };
+  F['°'] = { w: 6, s: [A(2.4,11.6,2.4,0,360,true)] };          // degree sign
+  F['Ø'] = { w: 10, s: [A(5,7,5.2,0,360,true), [[1,1.4],[9,12.6]]] };  // diameter sign
+  F['±'] = { w: 9, s: [[[1,8],[8,8]], [[4.5,11.5],[4.5,4.5]], [[1,2],[8,2]]] };
+  F['×'] = { w: 9, s: [[[1.5,10.5],[7.5,3.5]], [[1.5,3.5],[7.5,10.5]]] };
   return F;
 })();
 
 function mkText(x, y, h, text, layer) { return { id: uid(), type: 'text', layer: layer || '0', x, y, h, text }; }
+
+// Advance width of a single-stroke string at cap-height h (same metrics textShapes lays out with).
+function measureText(text, h) {
+  const scale = h / 14; let w = 0;
+  for (const ch of (text || '').toUpperCase()) { const g = FONT[ch] || (ch === ' ' ? { w: 8 } : FONT['?']); w += (g.w + 2) * scale; }
+  return Math.max(0, w - 2 * scale);
+}
+
+// ---------- dimension annotations (B3) ----------
+// A dimension is a non-machinable annotation shape: {type:'dim', annotation:true, prim:{kind:'dim',...}}.
+// prim.a/b (and .c for angle) are the *defining* points; every line, arrowhead and text stroke is
+// derived on demand by dimensionGeometry() so editing a point or a style re-draws the whole thing.
+const DIM_STYLES = ['aligned', 'horizontal', 'vertical', 'radius', 'diameter', 'angle'];
+const DIM_DEFAULTS = { style: 'aligned', off: 0.5, textH: 0.18, prec: 3, unit: 'in', arrow: 0.12, ext: 0.09, gap: 0.05, label: '' };
+
+// Format a measurement (stored in inches; degrees for angles) for the dimension label.
+function fmtDimValue(v, prec, unit) {
+  if (unit === 'deg') return v.toFixed(prec == null ? 1 : prec) + '°';
+  if (unit === 'mm') return (v * 25.4).toFixed(prec == null ? 2 : prec) + ' MM';
+  if (unit === 'none') return v.toFixed(prec == null ? 3 : prec);
+  return v.toFixed(prec == null ? 3 : prec) + '"';
+}
+// The number a dimension measures: inches for linear/radius/diameter, degrees for angle.
+function dimValue(prim) {
+  const a = prim.a, b = prim.b;
+  switch (prim.style) {
+    case 'horizontal': return Math.abs(b.x - a.x);
+    case 'vertical': return Math.abs(b.y - a.y);
+    case 'radius': return dist(a, b);
+    case 'diameter': return 2 * dist(a, b);
+    case 'angle': {
+      const c = prim.c || b;
+      const a1 = Math.atan2(b.y - a.y, b.x - a.x), a2 = Math.atan2(c.y - a.y, c.x - a.x);
+      let d = a2 - a1; while (d <= -Math.PI) d += TAU; while (d > Math.PI) d -= TAU;
+      return Math.abs(d) * 180 / Math.PI;
+    }
+    default: return dist(a, b);
+  }
+}
+// Solid arrowhead triangle whose point is at `tip`, pointing along (dx,dy).
+function _arrowLoop(tip, dx, dy, len, wid) {
+  const bx = tip.x - dx * len, by = tip.y - dy * len, nx = -dy, ny = dx;
+  return { pts: [{ x: tip.x, y: tip.y }, { x: bx + nx * wid, y: by + ny * wid }, { x: bx - nx * wid, y: by - ny * wid }, { x: tip.x, y: tip.y }], closed: true };
+}
+// Single-stroke label centred on (cx,cy), rotated by `rot` radians.
+function _dimTextLoops(text, cx, cy, h, rot) {
+  const w = measureText(text, h), ca = Math.cos(rot || 0), sa = Math.sin(rot || 0);
+  return textShapes({ x: -w / 2, y: -h / 2, h: h, text: text }).map(s => ({
+    pts: s.pts.map(p => ({ x: cx + p.x * ca - p.y * sa, y: cy + p.x * sa + p.y * ca })), closed: false
+  }));
+}
+function _readable(rot) { return (rot > Math.PI / 2 + 1e-9 || rot < -Math.PI / 2 - 1e-9) ? rot + Math.PI : rot; }
+
+// Build every polyline of a dimension. Returns {loops,value,text,textPos,textH}.
+function dimensionGeometry(prim) {
+  const p = Object.assign({}, DIM_DEFAULTS, prim);
+  const st = DIM_STYLES.indexOf(p.style) >= 0 ? p.style : 'aligned';
+  const a = p.a, b = p.b, textH = p.textH, arrow = p.arrow, aw = arrow * 0.34, ext = p.ext, gap = p.gap, off = p.off;
+  const value = dimValue(Object.assign({}, p, { style: st }));
+  let text = (p.label != null && p.label !== '') ? String(p.label)
+    : fmtDimValue(value, p.prec, st === 'angle' ? 'deg' : p.unit);
+  if (!p.label) { if (st === 'radius') text = 'R' + text; else if (st === 'diameter') text = 'Ø' + text; }
+  const loops = [];
+
+  if (st === 'radius' || st === 'diameter') {
+    const L = dist(a, b) || 1, u = { x: (b.x - a.x) / L, y: (b.y - a.y) / L };
+    const p0 = st === 'diameter' ? { x: a.x - u.x * L, y: a.y - u.y * L } : { x: a.x, y: a.y };
+    loops.push({ pts: [p0, { x: b.x, y: b.y }], closed: false });
+    loops.push(_arrowLoop(b, u.x, u.y, arrow, aw));
+    if (st === 'diameter') loops.push(_arrowLoop(p0, -u.x, -u.y, arrow, aw));
+    const rot = _readable(Math.atan2(u.y, u.x));
+    const mid = { x: (p0.x + b.x) / 2, y: (p0.y + b.y) / 2 };
+    const tc = { x: mid.x - Math.sin(rot) * textH * 0.8, y: mid.y + Math.cos(rot) * textH * 0.8 };
+    for (const l of _dimTextLoops(text, tc.x, tc.y, textH, rot)) loops.push(l);
+    return { loops, value, text, textPos: { x: tc.x, y: tc.y, rot }, textH };
+  }
+
+  if (st === 'angle') {
+    const c = p.c || b;
+    const r = off > 0 ? off : Math.min(dist(a, b), dist(a, c)) * 0.6 || 1;
+    const a1 = Math.atan2(b.y - a.y, b.x - a.x), a2 = Math.atan2(c.y - a.y, c.x - a.x);
+    let d = a2 - a1; while (d <= -Math.PI) d += TAU; while (d > Math.PI) d -= TAU;
+    const ccw = d >= 0, sgn = ccw ? 1 : -1;
+    loops.push({ pts: arcPolyline(a.x, a.y, r, a1, a1 + d, ccw, 0.10), closed: false });
+    loops.push({ pts: [{ x: a.x, y: a.y }, { x: a.x + Math.cos(a1) * (r + ext), y: a.y + Math.sin(a1) * (r + ext) }], closed: false });
+    loops.push({ pts: [{ x: a.x, y: a.y }, { x: a.x + Math.cos(a2) * (r + ext), y: a.y + Math.sin(a2) * (r + ext) }], closed: false });
+    const t1 = { x: a.x + Math.cos(a1) * r, y: a.y + Math.sin(a1) * r };
+    const te = a1 + d, t2 = { x: a.x + Math.cos(te) * r, y: a.y + Math.sin(te) * r };
+    loops.push(_arrowLoop(t1, Math.sin(a1) * sgn, -Math.cos(a1) * sgn, arrow, aw));
+    loops.push(_arrowLoop(t2, -Math.sin(te) * sgn, Math.cos(te) * sgn, arrow, aw));
+    const am = a1 + d / 2, tr = r + textH * 1.5;   // clear of the arc's bulge under the rotated label
+    const tc = { x: a.x + Math.cos(am) * tr, y: a.y + Math.sin(am) * tr };
+    const rot = _readable(am + Math.PI / 2);
+    for (const l of _dimTextLoops(text, tc.x, tc.y, textH, rot)) loops.push(l);
+    return { loops, value, text, textPos: { x: tc.x, y: tc.y, rot }, textH };
+  }
+
+  // linear: aligned / horizontal / vertical — dimension line sits `off` beyond the outermost point.
+  let u;
+  if (st === 'horizontal') u = { x: 1, y: 0 };
+  else if (st === 'vertical') u = { x: 0, y: 1 };
+  else { const L = dist(a, b) || 1; u = { x: (b.x - a.x) / L, y: (b.y - a.y) / L }; }
+  const n = { x: -u.y, y: u.x };
+  const ta = a.x * n.x + a.y * n.y, tb = b.x * n.x + b.y * n.y;
+  const dv = (off >= 0 ? Math.max(ta, tb) : Math.min(ta, tb)) + off;
+  const A1 = { x: a.x + n.x * (dv - ta), y: a.y + n.y * (dv - ta) };
+  const B1 = { x: b.x + n.x * (dv - tb), y: b.y + n.y * (dv - tb) };
+  const sa1 = Math.sign(dv - ta) || 1, sb1 = Math.sign(dv - tb) || 1;
+  if (Math.abs(dv - ta) > gap) loops.push({ pts: [{ x: a.x + n.x * gap * sa1, y: a.y + n.y * gap * sa1 }, { x: A1.x + n.x * ext * sa1, y: A1.y + n.y * ext * sa1 }], closed: false });
+  if (Math.abs(dv - tb) > gap) loops.push({ pts: [{ x: b.x + n.x * gap * sb1, y: b.y + n.y * gap * sb1 }, { x: B1.x + n.x * ext * sb1, y: B1.y + n.y * ext * sb1 }], closed: false });
+  const span = dist(A1, B1);
+  const dir = span > 1e-9 ? { x: (B1.x - A1.x) / span, y: (B1.y - A1.y) / span } : { x: u.x, y: u.y };
+  const outside = span < arrow * 2 + measureText(text, textH) * 0.55;   // too tight: flip arrows outward
+  if (outside) {
+    loops.push({ pts: [{ x: A1.x - dir.x * arrow * 2, y: A1.y - dir.y * arrow * 2 }, { x: B1.x + dir.x * arrow * 2, y: B1.y + dir.y * arrow * 2 }], closed: false });
+    loops.push(_arrowLoop(A1, dir.x, dir.y, arrow, aw));
+    loops.push(_arrowLoop(B1, -dir.x, -dir.y, arrow, aw));
+  } else {
+    loops.push({ pts: [{ x: A1.x, y: A1.y }, { x: B1.x, y: B1.y }], closed: false });
+    loops.push(_arrowLoop(A1, -dir.x, -dir.y, arrow, aw));
+    loops.push(_arrowLoop(B1, dir.x, dir.y, arrow, aw));
+  }
+  const rot = _readable(Math.atan2(dir.y, dir.x));
+  const mid = { x: (A1.x + B1.x) / 2, y: (A1.y + B1.y) / 2 };
+  const tc = { x: mid.x - Math.sin(rot) * textH * 0.8, y: mid.y + Math.cos(rot) * textH * 0.8 };
+  for (const l of _dimTextLoops(text, tc.x, tc.y, textH, rot)) loops.push(l);
+  return { loops, value, text, textPos: { x: tc.x, y: tc.y, rot }, textH };
+}
+// Keep shape.pts (the defining points, used by snapping/handles) in step with prim.
+function syncDimension(shape) {
+  const pr = shape.prim;
+  shape.pts = [pr.a, pr.b].concat(pr.c ? [pr.c] : []).map(p => ({ x: p.x, y: p.y }));
+  return shape;
+}
+function mkDimension(a, b, opts, layer) {
+  opts = opts || {};
+  const prim = Object.assign({ kind: 'dim' }, DIM_DEFAULTS, opts, { kind: 'dim', a: { x: a.x, y: a.y }, b: { x: b.x, y: b.y } });
+  if (opts.c) prim.c = { x: opts.c.x, y: opts.c.y }; else delete prim.c;
+  if (DIM_STYLES.indexOf(prim.style) < 0) prim.style = 'aligned';
+  return syncDimension({ id: uid(), type: 'dim', layer: layer || '0', annotation: true, closed: false, pts: [], prim: prim });
+}
 
 // ---------- parametric editing (numeric properties dialog) ----------
 // Return the editable parameters for a shape's primitive, or null if it isn't parametric.
@@ -427,6 +583,9 @@ function primParams(shape) {
     case 'star': return { kind: 'star', cx: pr.cx, cy: pr.cy, rO: pr.rO, rI: pr.rI, n: pr.n, rot: pr.rot || 0 };
     case 'line': return { kind: 'line', x1: shape.pts[0].x, y1: shape.pts[0].y, x2: shape.pts[1].x, y2: shape.pts[1].y };
     case 'arc': return { kind: 'arc', cx: pr.cx, cy: pr.cy, r: pr.r, a0: pr.a0, a1: pr.a1, ccw: pr.ccw };
+    case 'dim': return { kind: 'dim', x1: pr.a.x, y1: pr.a.y, x2: pr.b.x, y2: pr.b.y,
+      style: pr.style, off: pr.off, textH: pr.textH, prec: pr.prec, unit: pr.unit, label: pr.label || '',
+      cx: pr.c ? pr.c.x : null, cy: pr.c ? pr.c.y : null };
     default: return null;
   }
 }
@@ -451,6 +610,9 @@ function applyPrimParams(shape, p) {
     // line rotation is a delta about its midpoint, baked into the endpoints (not stored — reopens at 0)
     case 'line': s = mkLine({ x: p.x1, y: p.y1 }, { x: p.x2, y: p.y2 }, L); if (p.rot) rotPtsAbout(s, (p.x1 + p.x2) / 2, (p.y1 + p.y2) / 2, p.rot); break;
     case 'arc': s = mkArc({ x: p.cx, y: p.cy }, p.r, p.a0, p.a1, p.ccw, L); break;
+    case 'dim': s = mkDimension({ x: p.x1, y: p.y1 }, { x: p.x2, y: p.y2 },
+      { style: p.style, off: p.off, textH: p.textH, prec: p.prec, unit: p.unit, label: p.label,
+        c: (p.cx != null && p.cy != null) ? { x: p.cx, y: p.cy } : null }, L); break;
     default: return shape;
   }
   s.id = shape.id; return s;
@@ -665,9 +827,10 @@ function validateShapes(shapes) {
 // ---------- doc utils ----------
 function clone(o) { return JSON.parse(JSON.stringify(o)); }
 function shapesToContoursInput(shapes) {
-  // flatten all shapes into {pts,closed} for CAM.assembleContours
+  // flatten all shapes into {pts,closed} for CAM.assembleContours — annotations (dimensions) never cut
   const out = [];
-  for (const s of shapes) for (const loop of flatten(s)) out.push({ pts: loop.pts, closed: loop.closed });
+  for (const s of shapes) { if (s.annotation || s.type === 'dim') continue;
+    for (const loop of flatten(s)) out.push({ pts: loop.pts, closed: loop.closed }); }
   return out;
 }
 
@@ -726,7 +889,8 @@ return {
   offsetShapes, booleanOp,
   nestShapes, placeShape,
   svgToShapes, svgPathToShapes, dxfPolysToShapes, toDXF, toSVG,
-  textShapes, outlineTextShapes, FONT, clone, shapesToContoursInput,
+  textShapes, outlineTextShapes, FONT, measureText, clone, shapesToContoursInput,
+  mkDimension, dimensionGeometry, dimValue, fmtDimValue, syncDimension, DIM_STYLES, DIM_DEFAULTS,
   primParams, applyPrimParams, fitShapeTo, fitPrimTo,
   projectToJSON, projectFromJSON, PROJECT_VERSION,
   validateShapes
