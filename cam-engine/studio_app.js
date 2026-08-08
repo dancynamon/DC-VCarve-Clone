@@ -216,6 +216,7 @@ const TOOLMSG={ select:'Click to select · drag to move · handles to scale/rota
   rect:'Click-drag opposite corners', circle:'Click center, drag radius', ellipse:'Click-drag bounding box',
   arc:'Click center, click start, click end', polygon:'Click center, drag radius (sides in panel)', star:'Click center, drag radius',
   text:'Click placement point, type in panel', measure:'Click two points', pan:'Drag to pan',
+  clipart:'Clipart — drag a box on the canvas to place the selected shape (a single click drops it at 2")',
   dim:'Dimension — click the two measured points, then click to place the line (radius/Ø: centre then edge · angle: vertex, ray, ray, radius)',
   bezier:'Click anchors, drag to shape handles · Enter to finish · click start to close',
   fillet:'Click a corner to round it (set radius in "Fillet r")',
@@ -252,6 +253,7 @@ cv.addEventListener('mousedown', e=>{
   else if(tool==='arc'){ if(!draft){draft={kind:'arc',c:w,p1:null,p2:null};} else if(!draft.p1){draft.p1=w;} else {draft.p2=w; commitArc();} }
   else if(tool==='text'){ placeText(w); }
   else if(tool==='dim'){ dimDown(w); }
+  else if(tool==='clipart'){ if(!clipArmed){ setMsg('Pick a clipart shape in the CLIPART panel first'); } else { draft={kind:'clip',a:w,b:w}; drag={kind:'draw'}; } }
   else if(tool==='measure'){ if(!draft){ measure=null; draft={kind:'measure',a:w,b:w}; } else { measure={a:draft.a,b:w}; draft=null; } }
   render();
 });
@@ -496,6 +498,7 @@ function updateDraft(w, shift){ if(!draft)return;
   else if(draft.kind==='bezier'){ draft.cur=w; }
   else if(draft.kind==='measure'){ draft.b=w; }
   else if(draft.kind==='dim'){ updateDimDraft(w, shift); }
+  else if(draft.kind==='clip'){ draft.b=w; }
 }
 
 // ---- dimension annotations (B3) ----
@@ -570,6 +573,7 @@ function drawDraft(){ ctx.strokeStyle='#ffd27a'; ctx.lineWidth=1.3; ctx.setLineD
   else if(d.kind==='bezier'){ drawBezierDraft(d); }
   else if(d.kind==='measure'){ ctx.setLineDash([]); drawMeasure(d.a,d.b,false); }
   else if(d.kind==='dim'){ drawDimDraft(d); }
+  else if(d.kind==='clip'){ drawClipDraft(d); }
   ctx.setLineDash([]);
 }
 function drawBezierDraft(d){
@@ -589,6 +593,7 @@ function line(a,b){ const p=W2S(a),q=W2S(b); ctx.beginPath();ctx.moveTo(p.x,p.y)
 function circ(c,r){ const o=W2S(c); ctx.beginPath();ctx.arc(o.x,o.y,r*view.ppi,0,TAU);ctx.stroke(); }
 function poly(pts,closed){ ctx.beginPath(); pts.forEach((p,i)=>{const q=W2S(p);i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y);}); if(closed)ctx.closePath(); ctx.stroke(); }
 function commitDraft(){ const d=draft; if(!d)return; let s=null;
+  if(d.kind==='clip'){ commitClip(d); draft=null; syncPanels(); return; }
   if(d.kind==='line'){ if(CADCORE.dist(d.a,d.b)>1e-4) s=CADCORE.mkLine(d.a,d.b,activeLayer); }
   else if(d.kind==='rect'){ const x=Math.min(d.a.x,d.b.x),y=Math.min(d.a.y,d.b.y),w=Math.abs(d.b.x-d.a.x),h=Math.abs(d.b.y-d.a.y); if(w>1e-4&&h>1e-4) s=CADCORE.mkRect(x,y,w,h,activeLayer); }
   else if(d.kind==='circle'){ if(d.r>1e-4) s=CADCORE.mkCircle(d.c,d.r,activeLayer); }
@@ -997,6 +1002,105 @@ function runSelfTest(){
   setMsg('Self-test: '+okN+'/'+results.length+' ops OK  ·  '+results.join('  '));
 }
 
+// ---- clipart / shape library (D2) ----
+// Built-in art is generated procedurally by CLIPART; the user's own pieces are made from the current
+// selection and persisted to localStorage. Entries are stored normalized to a unit box, so placing
+// one is just a scale into whatever box you drag.
+const CLIP_KEY='aq_clipart';
+let clipLib=[], clipArmed=null;
+function loadClipart(){
+  let user=[];
+  try{ const s=localStorage.getItem(CLIP_KEY); user=s?JSON.parse(s).map(CLIPART.normalizeClipart):[]; }catch(e){ user=[]; }
+  clipLib=user.reduce((L,u)=>CLIPART.upsertClipart(L,Object.assign({},u,{builtin:false})), CLIPART.builtinClipart());
+}
+function persistClipart(){ try{ localStorage.setItem(CLIP_KEY, JSON.stringify(clipLib.filter(e=>!e.builtin))); }catch(e){} }
+function clipThumbSVG(e,size){
+  const loops=CLIPART.clipartThumbnail(e,size);
+  const d=loops.map(l=>l.pts.map((p,i)=>(i?'L':'M')+p.x.toFixed(1)+','+(size-p.y).toFixed(1)).join(' ')+' Z').join(' ');
+  return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'" aria-hidden="true"><path d="'+d+'" fill="#3c4a5a" fill-rule="evenodd"/></svg>';
+}
+function buildClipCats(){
+  const el=document.getElementById('clipCat'); if(!el)return;
+  const cats=['All'].concat(CLIPART.clipartCategories(clipLib)); const cur=el.value;
+  el.innerHTML=cats.map(c=>'<option value="'+_esc(c)+'">'+_esc(c)+'</option>').join('');
+  if(cats.indexOf(cur)>=0) el.value=cur;
+}
+function buildClipGrid(){
+  const host=document.getElementById('clipGrid'); if(!host)return;
+  const catEl=document.getElementById('clipCat'); const cat=(catEl&&catEl.value)||'All';
+  host.innerHTML='';
+  for(const e of clipLib){
+    if(cat!=='All'&&e.category!==cat) continue;
+    const b=document.createElement('button');
+    b.className='clipcell'+(clipArmed&&clipArmed.id===e.id?' armed':'');
+    b.title=e.name+' · '+e.category+' — click, then drag a box on the canvas (a single click drops it at 2")';
+    b.innerHTML=clipThumbSVG(e,40)+'<span>'+_esc(e.name)+'</span>';
+    b.onclick=()=>armClip(e.id);
+    host.appendChild(b);
+  }
+  if(!host.children.length) host.innerHTML='<div class="muted">No shapes in this category</div>';
+}
+function armClip(id){
+  clipArmed=clipLib.find(e=>e.id===id)||null;
+  if(clipArmed){ setTool('clipart'); setMsg('Place "'+clipArmed.name+'" — drag a box on the canvas, or click once for a 2" piece'); }
+  buildClipGrid();
+}
+function drawClipDraft(d){
+  if(!clipArmed)return;
+  const box=clipBox(d); if(!box)return;
+  ctx.setLineDash([]); ctx.strokeStyle='#ffd27a'; ctx.lineWidth=1.3;
+  for(const l of CLIPART.placeClipart(clipArmed,box)) poly(l.pts,true);
+  ctx.setLineDash([4,3]); ctx.strokeStyle='rgba(255,210,122,0.45)';
+  poly([{x:box.x,y:box.y},{x:box.x+box.w,y:box.y},{x:box.x+box.w,y:box.y+box.h},{x:box.x,y:box.y+box.h}],true);
+  ctx.setLineDash([]);
+}
+function clipBox(d){
+  const w=Math.abs(d.b.x-d.a.x), h=Math.abs(d.b.y-d.a.y);
+  if(w<0.02||h<0.02){ const s=2; return {x:d.a.x, y:d.a.y, w:s, h:s/(clipArmed?clipArmed.aspect:1)}; }  // plain click = 2" default
+  return {x:Math.min(d.a.x,d.b.x), y:Math.min(d.a.y,d.b.y), w:w, h:h};
+}
+function commitClip(d){
+  if(!clipArmed)return;
+  const box=clipBox(d); const loops=CLIPART.placeClipart(clipArmed,box);
+  if(!loops.length){ setMsg('That clipart has no geometry'); return; }
+  pushHistory();
+  if(!doc.layers.has('clipart')) doc.layers.set('clipart',{visible:true,color:'#c9a7ff'});
+  const shapes=loops.map(l=>CADCORE.mkPoly(l.pts,true,'clipart'));
+  addShapes(shapes); sel=new Set(shapes.map(s=>s.id));
+  setMsg('Placed "'+clipArmed.name+'" — '+shapes.length+' contour(s), '+box.w.toFixed(2)+'" wide');
+}
+function addSelectionToClipart(){
+  const sh=selectedShapes().filter(s=>!s.annotation && s.type!=='dim');
+  const loops=[]; for(const s of sh) for(const l of CADCORE.flatten(s)) if(l.closed&&l.pts.length>=3) loops.push({pts:l.pts,closed:true});
+  if(!loops.length) return setMsg('Select one or more CLOSED vectors to add to the clipart library');
+  const name=prompt('Clipart name:','My shape'); if(name==null)return;
+  const cat=prompt('Category:','My shapes'); if(cat==null)return;
+  const e=CLIPART.clipartFromLoops(name.trim()||'My shape', cat.trim()||'My shapes', loops);
+  clipLib=CLIPART.upsertClipart(clipLib,e); persistClipart();
+  buildClipCats(); const ce=document.getElementById('clipCat'); if(ce)ce.value=e.category;
+  buildClipGrid(); setMsg('Added "'+e.name+'" to the clipart library ('+e.loops.length+' contour(s))');
+}
+function delClipart(){
+  if(!clipArmed) return setMsg('Click a clipart shape first');
+  if(clipArmed.builtin) return setMsg('"'+clipArmed.name+'" is built in and cannot be deleted');
+  if(!confirm('Delete clipart "'+clipArmed.name+'"?'))return;
+  const n=clipArmed.name; clipLib=CLIPART.removeClipart(clipLib,clipArmed.id); clipArmed=null;
+  persistClipart(); buildClipCats(); buildClipGrid(); setMsg('Deleted clipart "'+n+'"');
+}
+function exportClipart(){
+  const mine=clipLib.filter(e=>!e.builtin);
+  if(!mine.length) return setMsg('No custom clipart to export — add a selection first');
+  download('clipart.aqclip', CLIPART.libraryToJSON(mine), 'application/json');
+  setMsg('Exported '+mine.length+' clipart shape(s)');
+}
+function importClipText(text){
+  try{ const entries=CLIPART.libraryFromJSON(text);
+    clipLib=entries.reduce((L,e)=>CLIPART.upsertClipart(L,Object.assign({},e,{builtin:false})), clipLib);
+    persistClipart(); buildClipCats(); buildClipGrid();
+    setMsg('Imported '+entries.length+' clipart shape(s)'); }
+  catch(e){ setMsg('Clipart import failed: '+e.message); }
+}
+
 // ---- bitmap import + trace (D1) ----
 // The browser decodes the file (that's the only DOM-bound part); everything after it — threshold,
 // despeckle, boundary trace, simplify, smooth, scale — is BMPTRACE, so it is unit-tested headless.
@@ -1275,6 +1379,13 @@ function wire(){
     show('.profile-pocket', v==='profile'||v==='pocket');
     show('.not-drill', v!=='drill'); };
   if(camOp){ camOp.onchange=syncCamOp; syncCamOp(); }
+  // clipart library (D2)
+  loadClipart(); buildClipCats(); buildClipGrid();
+  const cc=document.getElementById('clipCat'); if(cc)cc.onchange=buildClipGrid;
+  on('btnClipAdd',addSelectionToClipart); on('btnClipDel',delClipart); on('btnClipExport',exportClipart);
+  const ci=document.getElementById('clipInput'), cb=document.getElementById('btnClipImport');
+  if(ci&&cb){ cb.onclick=()=>ci.click();
+    ci.onchange=e=>{ const f=e.target.files[0]; if(f){ const rd=new FileReader(); rd.onload=ev=>importClipText(ev.target.result); rd.readAsText(f); } ci.value=''; }; }
   // bitmap trace (D1)
   on('btnTrace',openTraceModal); on('traceApply',commitTrace); on('traceCancel',closeTraceModal);
   on('traceX',closeTraceModal); on('traceClearBg',clearBgImage);
@@ -1307,6 +1418,7 @@ function wire(){
     if(/\.(png|jpe?g|gif|bmp|webp)$/i.test(f.name)){ importBitmap(f.name, f); return; }
     if(/\.aqcam$/i.test(f.name)){ rd.onload=ev=>openProject(ev.target.result, f.name); rd.readAsText(f); }
     else if(/\.aqtpl$/i.test(f.name)){ rd.onload=ev=>importTplText(ev.target.result); rd.readAsText(f); }
+    else if(/\.aqclip$/i.test(f.name)){ rd.onload=ev=>importClipText(ev.target.result); rd.readAsText(f); }
     else if(/\.pdf$/i.test(f.name)){ rd.onload=ev=>importPDF(f.name,ev.target.result); rd.readAsArrayBuffer(f); }
     else { rd.onload=ev=>importText(f.name,ev.target.result); rd.readAsText(f); } };
   const gs=document.getElementById('gridStep'); if(gs)gs.onchange=e=>{grid.step=parseFloat(e.target.value)||0.5; render();};
@@ -1325,6 +1437,7 @@ function wire(){
     if(/\.(png|jpe?g|gif|bmp|webp)$/i.test(f.name)){ importBitmap(f.name, f); return; }
     if(/\.aqcam$/i.test(f.name)){ rd.onload=ev=>openProject(ev.target.result, f.name); rd.readAsText(f); }
     else if(/\.aqtpl$/i.test(f.name)){ rd.onload=ev=>importTplText(ev.target.result); rd.readAsText(f); }
+    else if(/\.aqclip$/i.test(f.name)){ rd.onload=ev=>importClipText(ev.target.result); rd.readAsText(f); }
     else if(/\.pdf$/i.test(f.name)){ rd.onload=ev=>importPDF(f.name,ev.target.result); rd.readAsArrayBuffer(f); }
     else { rd.onload=ev=>importText(f.name,ev.target.result); rd.readAsText(f); } });
   window.addEventListener('resize',resize);

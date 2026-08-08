@@ -81,6 +81,12 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .lyr.act{background:var(--accent-soft)}
 .lyr .sw{width:11px;height:11px;border-radius:2px;display:inline-block;border:1px solid rgba(20,40,70,.18)}
 .lyr .ln{cursor:pointer;color:var(--ink)}
+.clipgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;width:100%;max-height:230px;overflow-y:auto;margin-top:2px}
+.clipcell{display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 2px;background:var(--bg-input);border:1px solid var(--btn-bd);border-radius:5px;cursor:pointer;font-family:inherit}
+.clipcell:hover{background:var(--btn-hover);border-color:#9fb1c6}
+.clipcell.armed{background:var(--accent-soft);border-color:var(--accent-bd)}
+.clipcell span{font-size:8.5px;color:var(--ink-dim);line-height:1.1;text-align:center;word-break:break-word}
+.clipcell svg{display:block}
 .pocket-only,.drill-only,.vcarve-only,.inlay-only,.profile-pocket{display:none}
 /* shape properties modal */
 .modal-bg{position:fixed;inset:0;background:rgba(20,30,45,0.35);display:none;z-index:200}
@@ -162,7 +168,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
     <label>step<input type="number" id="gridStep" value="0.5" step="0.25" min="0.0625"></label>
     <label><input type="checkbox" id="chkSnap" checked> Grid-snap</label>
     <label><input type="checkbox" id="chkObjSnap" checked> Obj-snap</label>
-    <input type="file" id="fileInput" accept=".aqcam,.aqtpl,.dxf,.svg,.pdf,.png,.jpg,.jpeg,.gif,.bmp,.webp" style="display:none">
+    <input type="file" id="fileInput" accept=".aqcam,.aqtpl,.aqclip,.dxf,.svg,.pdf,.png,.jpg,.jpeg,.gif,.bmp,.webp" style="display:none">
   </div>
 
   <div class="tools">
@@ -248,6 +254,16 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
     <div class="sectn"><h3>Align</h3><div class="body">
       <button class="tb" id="btnAlignL" data-tip="Align left">Left</button><button class="tb" id="btnAlignHC" data-tip="Align horizontal center">H-Ctr</button><button class="tb" id="btnAlignR" data-tip="Align right">Right</button>
       <button class="tb" id="btnAlignT" data-tip="Align top">Top</button><button class="tb" id="btnAlignVC" data-tip="Align vertical center">V-Ctr</button><button class="tb" id="btnAlignB" data-tip="Align bottom">Bottom</button>
+    </div></div>
+    <div class="sectn"><h3>Clipart</h3><div class="body">
+      <label data-tip="Filter the library by category">Cat<select id="clipCat" style="max-width:118px"></select></label>
+      <button class="tb" id="btnClipAdd" data-tip="Add the selected closed vectors to the clipart library">+ Selection</button>
+      <button class="tb" id="btnClipDel" data-tip="Delete the highlighted custom shape (built-ins can't be deleted)">Del</button>
+      <button class="tb" id="btnClipExport" data-tip="Export your custom clipart as an .aqclip file">⤓</button>
+      <button class="tb" id="btnClipImport" data-tip="Import an .aqclip clipart file">⤒</button>
+      <input type="file" id="clipInput" accept=".aqclip,.json" style="display:none">
+      <div class="clipgrid" id="clipGrid"></div>
+      <div class="cam-hint" style="color:#5c6b80">Click a shape, then drag a box on the canvas to place it (a single click drops it 2" wide).</div>
     </div></div>
     <div class="sectn"><h3>Properties</h3><div class="body" id="props"><div class="muted">No selection</div></div></div>
     <div class="sectn"><h3>Layers</h3><div class="body" id="layerList"></div></div>
@@ -10891,6 +10907,226 @@ return { DEFAULTS, thresholdBitmap, despeckle, traceBitmap, simplifyPath, smooth
 
 </script>
 <script>
+/* clipart.js — a shape library: reusable vector art you drop into a job. Pure (no DOM, no deps).
+ *
+ * Every entry is stored NORMALIZED: x runs 0..1 and y runs 0..(1/aspect), so a piece can be placed
+ * at any size without carrying its original scale around. Loops keep CAM winding — outer contours
+ * CCW, holes CW — so a placed gear or life-ring pockets with its centre left uncut, exactly like the
+ * bitmap tracer's output.
+ *
+ * The built-in catalogue is generated procedurally rather than shipped as a blob of coordinates:
+ * it stays a few hundred bytes of code instead of a few hundred KB of data, and every piece can be
+ * regenerated at any smoothness.
+ *
+ * User entries are made from the current selection with clipartFromLoops(), and a whole library
+ * exports/imports as versioned .aqclip JSON.
+ */
+(function (root, factory) {
+  const mod = factory();
+  if (typeof module !== 'undefined' && module.exports) module.exports = mod;
+  root.CLIPART = mod;
+})(typeof self !== 'undefined' ? self : this, function () {
+'use strict';
+const TAU = Math.PI * 2;
+
+// ---- little geometry helpers (local, so this file stays dependency-free) ----
+function _arc(cx, cy, r, a0, a1, n) { const out = []; n = n || 48; for (let i = 0; i <= n; i++) out.push({ x: cx + r * Math.cos(a0 + (a1 - a0) * i / n), y: cy + r * Math.sin(a0 + (a1 - a0) * i / n) }); return out; }
+function _circle(cx, cy, r, n) { const out = []; n = n || 64; for (let i = 0; i < n; i++) { const a = i / n * TAU; out.push({ x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) }); } return out; }
+function signedArea(pts) { let a = 0; for (let i = 0, n = pts.length; i < n; i++) { const p = pts[i], q = pts[(i + 1) % n]; a += p.x * q.y - q.x * p.y; } return a / 2; }
+function _ccw(pts) { return signedArea(pts) >= 0 ? pts : pts.slice().reverse(); }
+function _cw(pts) { return signedArea(pts) < 0 ? pts : pts.slice().reverse(); }
+function _bbox(loops) {
+  let b = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+  for (const l of loops) for (const p of l.pts) { if (p.x < b.minX) b.minX = p.x; if (p.y < b.minY) b.minY = p.y; if (p.x > b.maxX) b.maxX = p.x; if (p.y > b.maxY) b.maxY = p.y; }
+  return b;
+}
+function slugId(name) { return String(name || 'clip').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'clip'; }
+
+// ---- normalize any loop set into the unit box (x 0..1, y 0..1/aspect) ----
+function normalizeLoops(loops) {
+  const clean = (loops || []).filter(l => l && l.pts && l.pts.length >= 3);
+  if (!clean.length) return { loops: [], aspect: 1 };
+  const b = _bbox(clean);
+  const w = (b.maxX - b.minX) || 1, h = (b.maxY - b.minY) || 1, k = 1 / w;
+  return {
+    aspect: w / h,
+    loops: clean.map(l => ({ closed: true, pts: l.pts.map(p => ({ x: (p.x - b.minX) * k, y: (p.y - b.minY) * k })) }))
+  };
+}
+// Make a library entry from arbitrary world-space loops (e.g. the current selection).
+function clipartFromLoops(name, category, loops) {
+  const n = normalizeLoops(loops);
+  return { id: slugId(name), name: String(name || 'Clip'), category: String(category || 'My shapes'),
+    aspect: n.aspect, loops: n.loops, builtin: false };
+}
+// Scale an entry into a target box. keepAspect fits it inside and centres it; otherwise it stretches.
+function placeClipart(entry, box) {
+  const e = entry || {}, o = box || {};
+  const x = o.x || 0, y = o.y || 0, w = o.w > 0 ? o.w : 1, h = o.h > 0 ? o.h : (w / (e.aspect || 1));
+  const uh = 1 / (e.aspect || 1);                       // the entry's own height in unit space
+  let sx, sy, ox = 0, oy = 0;
+  if (o.keepAspect === false) { sx = w; sy = h / uh; }
+  else { const k = Math.min(w, h / uh); sx = sy = k; ox = (w - k) / 2; oy = (h - k * uh) / 2; }
+  return (e.loops || []).map(l => ({ closed: true, pts: l.pts.map(p => ({ x: x + ox + p.x * sx, y: y + oy + p.y * sy })) }));
+}
+// Loops laid out inside a size x size preview box (for UI swatches).
+function clipartThumbnail(entry, size) { size = size > 0 ? size : 48; return placeClipart(entry, { x: 0, y: 0, w: size, h: size, keepAspect: true }); }
+
+// ---- built-in catalogue (procedural) ----
+function _entry(id, name, category, loops) {
+  const n = normalizeLoops(loops);
+  return { id: id, name: name, category: category, aspect: n.aspect, loops: n.loops, builtin: true };
+}
+function _heart() {
+  const pts = [];
+  for (let i = 0; i < 120; i++) { const t = i / 120 * TAU;
+    pts.push({ x: 16 * Math.pow(Math.sin(t), 3), y: 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t) }); }
+  return [{ pts: _ccw(pts), closed: true }];
+}
+function _star(n, rI) {
+  const pts = []; for (let i = 0; i < n * 2; i++) { const a = -Math.PI / 2 + i / (n * 2) * TAU; const r = i % 2 ? rI : 1; pts.push({ x: r * Math.cos(a), y: r * Math.sin(a) }); }
+  return [{ pts: _ccw(pts), closed: true }];
+}
+function _arrow() {
+  return [{ closed: true, pts: _ccw([{ x: 0, y: 0.3 }, { x: 0.55, y: 0.3 }, { x: 0.55, y: 0 }, { x: 1, y: 0.5 }, { x: 0.55, y: 1 }, { x: 0.55, y: 0.7 }, { x: 0, y: 0.7 }]) }];
+}
+function _chevron() {
+  return [{ closed: true, pts: _ccw([{ x: 0, y: 0 }, { x: 0.35, y: 0 }, { x: 0.7, y: 0.5 }, { x: 0.35, y: 1 }, { x: 0, y: 1 }, { x: 0.35, y: 0.5 }]) }];
+}
+function _cross(t) {
+  const a = (1 - t) / 2, b = a + t;
+  return [{ closed: true, pts: _ccw([{ x: a, y: 0 }, { x: b, y: 0 }, { x: b, y: a }, { x: 1, y: a }, { x: 1, y: b }, { x: b, y: b }, { x: b, y: 1 }, { x: a, y: 1 }, { x: a, y: b }, { x: 0, y: b }, { x: 0, y: a }, { x: a, y: a }]) }];
+}
+function _diamond() { return [{ closed: true, pts: _ccw([{ x: 0.5, y: 0 }, { x: 1, y: 0.5 }, { x: 0.5, y: 1 }, { x: 0, y: 0.5 }]) }]; }
+function _ngon(n) { const pts = []; for (let i = 0; i < n; i++) { const a = -Math.PI / 2 + i / n * TAU; pts.push({ x: Math.cos(a), y: Math.sin(a) }); } return [{ pts: _ccw(pts), closed: true }]; }
+function _gear(teeth) {
+  const rO = 1, rR = 0.82, hole = 0.34, pts = [];
+  for (let i = 0; i < teeth; i++) {
+    const a0 = i / teeth * TAU, q = TAU / teeth / 4;
+    pts.push(...(_arc(0, 0, rO, a0 - q * 0.8, a0 + q * 0.8, 4)));
+    pts.push(...(_arc(0, 0, rR, a0 + q * 1.4, a0 + q * 2.6, 4)));
+  }
+  return [{ pts: _ccw(pts), closed: true }, { pts: _cw(_circle(0, 0, hole, 48)), closed: true }];
+}
+function _roundRect(w, h, r) {
+  const pts = [];
+  pts.push(..._arc(w - r, r, r, -Math.PI / 2, 0, 8));
+  pts.push(..._arc(w - r, h - r, r, 0, Math.PI / 2, 8));
+  pts.push(..._arc(r, h - r, r, Math.PI / 2, Math.PI, 8));
+  pts.push(..._arc(r, r, r, Math.PI, Math.PI * 1.5, 8));
+  return [{ pts: _ccw(pts), closed: true }];
+}
+function _ellipse(rx, ry) { const pts = []; for (let i = 0; i < 72; i++) { const a = i / 72 * TAU; pts.push({ x: rx * Math.cos(a), y: ry * Math.sin(a) }); } return [{ pts: _ccw(pts), closed: true }]; }
+function _banner() {
+  return [{ closed: true, pts: _ccw([{ x: 0, y: 0 }, { x: 0.16, y: 0.28 }, { x: 0, y: 0.56 }, { x: 0.1, y: 0.56 },
+    { x: 0.1, y: 1 }, { x: 0.9, y: 1 }, { x: 0.9, y: 0.56 }, { x: 1, y: 0.56 }, { x: 0.84, y: 0.28 }, { x: 1, y: 0 }, { x: 0.9, y: 0 }, { x: 0.9, y: 0.44 }, { x: 0.1, y: 0.44 }, { x: 0.1, y: 0 }]) }];
+}
+function _shield() {
+  const pts = [{ x: 0, y: 1 }, { x: 1, y: 1 }, { x: 1, y: 0.45 }];
+  pts.push(..._arc(0.5, 0.45, 0.5, 0, -Math.PI, 28).slice(1));
+  return [{ pts: _ccw(pts), closed: true }];
+}
+function _lifeRing() {
+  const outer = _circle(0, 0, 1, 72), inner = _cw(_circle(0, 0, 0.55, 56));
+  const blocks = [];
+  for (let k = 0; k < 4; k++) {                       // the four grip pads, as holes in the ring
+    const a = k * Math.PI / 2 + Math.PI / 4, w = 0.22;
+    const c = { x: Math.cos(a), y: Math.sin(a) }, n = { x: -Math.sin(a), y: Math.cos(a) };
+    const p = [];
+    for (const [ra, s] of [[1.02, -1], [1.02, 1], [0.53, 1], [0.53, -1]]) p.push({ x: c.x * ra + n.x * w * s, y: c.y * ra + n.y * w * s });
+    blocks.push({ pts: _cw(p), closed: true });
+  }
+  return [{ pts: _ccw(outer), closed: true }, { pts: inner, closed: true }].concat(blocks);
+}
+function _drop() {
+  const pts = [{ x: 0, y: 1 }];
+  pts.push(..._arc(0, -0.15, 0.62, Math.PI * 0.72, -Math.PI * 0.28 - TAU, 56));
+  return [{ pts: _ccw(pts), closed: true }];
+}
+function _waves() {
+  const out = [];
+  for (let row = 0; row < 3; row++) {
+    const y0 = row * 0.34, top = [], bot = [];
+    for (let i = 0; i <= 48; i++) { const x = i / 48; const y = y0 + 0.06 + 0.05 * Math.sin(x * TAU * 1.5); top.push({ x, y: y + 0.07 }); bot.push({ x, y: y }); }
+    out.push({ pts: _ccw(top.concat(bot.reverse())), closed: true });
+  }
+  return out;
+}
+function _noSymbol() {
+  const outer = _circle(0, 0, 1, 72), inner = _cw(_circle(0, 0, 0.78, 64));
+  const a = Math.PI / 4, n = { x: -Math.sin(a), y: Math.cos(a) }, d = { x: Math.cos(a), y: Math.sin(a) }, w = 0.11, L = 0.78;
+  const bar = [
+    { x: -d.x * L + n.x * w, y: -d.y * L + n.y * w }, { x: d.x * L + n.x * w, y: d.y * L + n.y * w },
+    { x: d.x * L - n.x * w, y: d.y * L - n.y * w }, { x: -d.x * L - n.x * w, y: -d.y * L - n.y * w }];
+  return [{ pts: _ccw(outer), closed: true }, { pts: inner, closed: true }, { pts: _ccw(bar), closed: true }];
+}
+function _ladder() {
+  const out = [], railW = 0.14;
+  out.push({ pts: _ccw([{ x: 0, y: 0 }, { x: railW, y: 0 }, { x: railW, y: 1 }, { x: 0, y: 1 }]), closed: true });
+  out.push({ pts: _ccw([{ x: 1 - railW, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 1 - railW, y: 1 }]), closed: true });
+  for (let k = 0; k < 3; k++) { const y = 0.18 + k * 0.31;
+    out.push({ pts: _ccw([{ x: railW, y: y }, { x: 1 - railW, y: y }, { x: 1 - railW, y: y + 0.12 }, { x: railW, y: y + 0.12 }]), closed: true }); }
+  return out;
+}
+function builtinClipart() { return [
+  _entry('heart', 'Heart', 'Basic', _heart()),
+  _entry('star5', 'Star (5)', 'Basic', _star(5, 0.42)),
+  _entry('burst12', 'Starburst', 'Basic', _star(12, 0.66)),
+  _entry('arrow', 'Arrow', 'Basic', _arrow()),
+  _entry('chevron', 'Chevron', 'Basic', _chevron()),
+  _entry('cross', 'Cross', 'Basic', _cross(0.34)),
+  _entry('diamond', 'Diamond', 'Basic', _diamond()),
+  _entry('hexagon', 'Hexagon', 'Basic', _ngon(6)),
+  _entry('gear', 'Gear', 'Basic', _gear(12)),
+  _entry('plaque-round', 'Plaque (round corner)', 'Plaques', _roundRect(1.6, 1, 0.18)),
+  _entry('plaque-oval', 'Plaque (oval)', 'Plaques', _ellipse(1.5, 1)),
+  _entry('banner', 'Banner ribbon', 'Plaques', _banner()),
+  _entry('shield', 'Shield', 'Plaques', _shield()),
+  _entry('life-ring', 'Life ring', 'Pool & safety', _lifeRing()),
+  _entry('water-drop', 'Water drop', 'Pool & safety', _drop()),
+  _entry('waves', 'Waves', 'Pool & safety', _waves()),
+  _entry('no-symbol', 'No / prohibited', 'Pool & safety', _noSymbol()),
+  _entry('pool-ladder', 'Pool ladder', 'Pool & safety', _ladder())
+]; }
+function clipartCategories(list) {
+  const seen = [], out = [];
+  for (const e of (list || [])) if (seen.indexOf(e.category) < 0) { seen.push(e.category); out.push(e.category); }
+  return out;
+}
+
+// ---- library management + versioned .aqclip persistence ----
+const CLIP_FORMAT = 'aqclip', CLIP_VERSION = 1;
+function normalizeClipart(e) {
+  e = e && typeof e === 'object' ? e : {};
+  const loops = (Array.isArray(e.loops) ? e.loops : []).filter(l => l && Array.isArray(l.pts) && l.pts.length >= 3)
+    .map(l => ({ closed: true, pts: l.pts.map(p => ({ x: +p.x || 0, y: +p.y || 0 })) }));
+  const name = String(e.name || 'Clip');
+  return { id: e.id ? slugId(e.id) : slugId(name), name: name, category: String(e.category || 'My shapes'),
+    aspect: (+e.aspect > 0 ? +e.aspect : 1), loops: loops, builtin: !!e.builtin };
+}
+function upsertClipart(list, e) { const n = normalizeClipart(e); const out = (list || []).filter(x => x.id !== n.id); out.push(n); return out; }
+function removeClipart(list, id) { return (list || []).filter(x => x.id !== id); }
+function libraryToJSON(list) {
+  return JSON.stringify({ format: CLIP_FORMAT, version: CLIP_VERSION,
+    entries: (list || []).map(normalizeClipart).filter(e => e.loops.length) }, null, 2);
+}
+function libraryFromJSON(text) {
+  let o; try { o = JSON.parse(text); } catch (e) { throw new Error('Not a clipart library (invalid JSON)'); }
+  if (!o || o.format !== CLIP_FORMAT) throw new Error('Not a clipart library');
+  if (o.version !== CLIP_VERSION) throw new Error('Unsupported clipart version ' + o.version);
+  if (!Array.isArray(o.entries)) throw new Error('Clipart library has no entries');
+  const out = o.entries.map(normalizeClipart).filter(e => e.loops.length);
+  if (!out.length) throw new Error('Clipart library has no usable shapes');
+  return out;
+}
+
+return { builtinClipart, clipartCategories, placeClipart, clipartThumbnail, clipartFromLoops,
+  normalizeLoops, normalizeClipart, upsertClipart, removeClipart, libraryToJSON, libraryFromJSON,
+  signedArea, slugId, CLIP_FORMAT, CLIP_VERSION };
+});
+
+</script>
+<script>
 /* ===================== Aquamentor CAD/CAM Studio app ===================== */
 'use strict';
 const TAU = Math.PI*2;
@@ -11109,6 +11345,7 @@ const TOOLMSG={ select:'Click to select · drag to move · handles to scale/rota
   rect:'Click-drag opposite corners', circle:'Click center, drag radius', ellipse:'Click-drag bounding box',
   arc:'Click center, click start, click end', polygon:'Click center, drag radius (sides in panel)', star:'Click center, drag radius',
   text:'Click placement point, type in panel', measure:'Click two points', pan:'Drag to pan',
+  clipart:'Clipart — drag a box on the canvas to place the selected shape (a single click drops it at 2")',
   dim:'Dimension — click the two measured points, then click to place the line (radius/Ø: centre then edge · angle: vertex, ray, ray, radius)',
   bezier:'Click anchors, drag to shape handles · Enter to finish · click start to close',
   fillet:'Click a corner to round it (set radius in "Fillet r")',
@@ -11145,6 +11382,7 @@ cv.addEventListener('mousedown', e=>{
   else if(tool==='arc'){ if(!draft){draft={kind:'arc',c:w,p1:null,p2:null};} else if(!draft.p1){draft.p1=w;} else {draft.p2=w; commitArc();} }
   else if(tool==='text'){ placeText(w); }
   else if(tool==='dim'){ dimDown(w); }
+  else if(tool==='clipart'){ if(!clipArmed){ setMsg('Pick a clipart shape in the CLIPART panel first'); } else { draft={kind:'clip',a:w,b:w}; drag={kind:'draw'}; } }
   else if(tool==='measure'){ if(!draft){ measure=null; draft={kind:'measure',a:w,b:w}; } else { measure={a:draft.a,b:w}; draft=null; } }
   render();
 });
@@ -11389,6 +11627,7 @@ function updateDraft(w, shift){ if(!draft)return;
   else if(draft.kind==='bezier'){ draft.cur=w; }
   else if(draft.kind==='measure'){ draft.b=w; }
   else if(draft.kind==='dim'){ updateDimDraft(w, shift); }
+  else if(draft.kind==='clip'){ draft.b=w; }
 }
 
 // ---- dimension annotations (B3) ----
@@ -11463,6 +11702,7 @@ function drawDraft(){ ctx.strokeStyle='#ffd27a'; ctx.lineWidth=1.3; ctx.setLineD
   else if(d.kind==='bezier'){ drawBezierDraft(d); }
   else if(d.kind==='measure'){ ctx.setLineDash([]); drawMeasure(d.a,d.b,false); }
   else if(d.kind==='dim'){ drawDimDraft(d); }
+  else if(d.kind==='clip'){ drawClipDraft(d); }
   ctx.setLineDash([]);
 }
 function drawBezierDraft(d){
@@ -11482,6 +11722,7 @@ function line(a,b){ const p=W2S(a),q=W2S(b); ctx.beginPath();ctx.moveTo(p.x,p.y)
 function circ(c,r){ const o=W2S(c); ctx.beginPath();ctx.arc(o.x,o.y,r*view.ppi,0,TAU);ctx.stroke(); }
 function poly(pts,closed){ ctx.beginPath(); pts.forEach((p,i)=>{const q=W2S(p);i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y);}); if(closed)ctx.closePath(); ctx.stroke(); }
 function commitDraft(){ const d=draft; if(!d)return; let s=null;
+  if(d.kind==='clip'){ commitClip(d); draft=null; syncPanels(); return; }
   if(d.kind==='line'){ if(CADCORE.dist(d.a,d.b)>1e-4) s=CADCORE.mkLine(d.a,d.b,activeLayer); }
   else if(d.kind==='rect'){ const x=Math.min(d.a.x,d.b.x),y=Math.min(d.a.y,d.b.y),w=Math.abs(d.b.x-d.a.x),h=Math.abs(d.b.y-d.a.y); if(w>1e-4&&h>1e-4) s=CADCORE.mkRect(x,y,w,h,activeLayer); }
   else if(d.kind==='circle'){ if(d.r>1e-4) s=CADCORE.mkCircle(d.c,d.r,activeLayer); }
@@ -11890,6 +12131,105 @@ function runSelfTest(){
   setMsg('Self-test: '+okN+'/'+results.length+' ops OK  ·  '+results.join('  '));
 }
 
+// ---- clipart / shape library (D2) ----
+// Built-in art is generated procedurally by CLIPART; the user's own pieces are made from the current
+// selection and persisted to localStorage. Entries are stored normalized to a unit box, so placing
+// one is just a scale into whatever box you drag.
+const CLIP_KEY='aq_clipart';
+let clipLib=[], clipArmed=null;
+function loadClipart(){
+  let user=[];
+  try{ const s=localStorage.getItem(CLIP_KEY); user=s?JSON.parse(s).map(CLIPART.normalizeClipart):[]; }catch(e){ user=[]; }
+  clipLib=user.reduce((L,u)=>CLIPART.upsertClipart(L,Object.assign({},u,{builtin:false})), CLIPART.builtinClipart());
+}
+function persistClipart(){ try{ localStorage.setItem(CLIP_KEY, JSON.stringify(clipLib.filter(e=>!e.builtin))); }catch(e){} }
+function clipThumbSVG(e,size){
+  const loops=CLIPART.clipartThumbnail(e,size);
+  const d=loops.map(l=>l.pts.map((p,i)=>(i?'L':'M')+p.x.toFixed(1)+','+(size-p.y).toFixed(1)).join(' ')+' Z').join(' ');
+  return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'" aria-hidden="true"><path d="'+d+'" fill="#3c4a5a" fill-rule="evenodd"/></svg>';
+}
+function buildClipCats(){
+  const el=document.getElementById('clipCat'); if(!el)return;
+  const cats=['All'].concat(CLIPART.clipartCategories(clipLib)); const cur=el.value;
+  el.innerHTML=cats.map(c=>'<option value="'+_esc(c)+'">'+_esc(c)+'</option>').join('');
+  if(cats.indexOf(cur)>=0) el.value=cur;
+}
+function buildClipGrid(){
+  const host=document.getElementById('clipGrid'); if(!host)return;
+  const catEl=document.getElementById('clipCat'); const cat=(catEl&&catEl.value)||'All';
+  host.innerHTML='';
+  for(const e of clipLib){
+    if(cat!=='All'&&e.category!==cat) continue;
+    const b=document.createElement('button');
+    b.className='clipcell'+(clipArmed&&clipArmed.id===e.id?' armed':'');
+    b.title=e.name+' · '+e.category+' — click, then drag a box on the canvas (a single click drops it at 2")';
+    b.innerHTML=clipThumbSVG(e,40)+'<span>'+_esc(e.name)+'</span>';
+    b.onclick=()=>armClip(e.id);
+    host.appendChild(b);
+  }
+  if(!host.children.length) host.innerHTML='<div class="muted">No shapes in this category</div>';
+}
+function armClip(id){
+  clipArmed=clipLib.find(e=>e.id===id)||null;
+  if(clipArmed){ setTool('clipart'); setMsg('Place "'+clipArmed.name+'" — drag a box on the canvas, or click once for a 2" piece'); }
+  buildClipGrid();
+}
+function drawClipDraft(d){
+  if(!clipArmed)return;
+  const box=clipBox(d); if(!box)return;
+  ctx.setLineDash([]); ctx.strokeStyle='#ffd27a'; ctx.lineWidth=1.3;
+  for(const l of CLIPART.placeClipart(clipArmed,box)) poly(l.pts,true);
+  ctx.setLineDash([4,3]); ctx.strokeStyle='rgba(255,210,122,0.45)';
+  poly([{x:box.x,y:box.y},{x:box.x+box.w,y:box.y},{x:box.x+box.w,y:box.y+box.h},{x:box.x,y:box.y+box.h}],true);
+  ctx.setLineDash([]);
+}
+function clipBox(d){
+  const w=Math.abs(d.b.x-d.a.x), h=Math.abs(d.b.y-d.a.y);
+  if(w<0.02||h<0.02){ const s=2; return {x:d.a.x, y:d.a.y, w:s, h:s/(clipArmed?clipArmed.aspect:1)}; }  // plain click = 2" default
+  return {x:Math.min(d.a.x,d.b.x), y:Math.min(d.a.y,d.b.y), w:w, h:h};
+}
+function commitClip(d){
+  if(!clipArmed)return;
+  const box=clipBox(d); const loops=CLIPART.placeClipart(clipArmed,box);
+  if(!loops.length){ setMsg('That clipart has no geometry'); return; }
+  pushHistory();
+  if(!doc.layers.has('clipart')) doc.layers.set('clipart',{visible:true,color:'#c9a7ff'});
+  const shapes=loops.map(l=>CADCORE.mkPoly(l.pts,true,'clipart'));
+  addShapes(shapes); sel=new Set(shapes.map(s=>s.id));
+  setMsg('Placed "'+clipArmed.name+'" — '+shapes.length+' contour(s), '+box.w.toFixed(2)+'" wide');
+}
+function addSelectionToClipart(){
+  const sh=selectedShapes().filter(s=>!s.annotation && s.type!=='dim');
+  const loops=[]; for(const s of sh) for(const l of CADCORE.flatten(s)) if(l.closed&&l.pts.length>=3) loops.push({pts:l.pts,closed:true});
+  if(!loops.length) return setMsg('Select one or more CLOSED vectors to add to the clipart library');
+  const name=prompt('Clipart name:','My shape'); if(name==null)return;
+  const cat=prompt('Category:','My shapes'); if(cat==null)return;
+  const e=CLIPART.clipartFromLoops(name.trim()||'My shape', cat.trim()||'My shapes', loops);
+  clipLib=CLIPART.upsertClipart(clipLib,e); persistClipart();
+  buildClipCats(); const ce=document.getElementById('clipCat'); if(ce)ce.value=e.category;
+  buildClipGrid(); setMsg('Added "'+e.name+'" to the clipart library ('+e.loops.length+' contour(s))');
+}
+function delClipart(){
+  if(!clipArmed) return setMsg('Click a clipart shape first');
+  if(clipArmed.builtin) return setMsg('"'+clipArmed.name+'" is built in and cannot be deleted');
+  if(!confirm('Delete clipart "'+clipArmed.name+'"?'))return;
+  const n=clipArmed.name; clipLib=CLIPART.removeClipart(clipLib,clipArmed.id); clipArmed=null;
+  persistClipart(); buildClipCats(); buildClipGrid(); setMsg('Deleted clipart "'+n+'"');
+}
+function exportClipart(){
+  const mine=clipLib.filter(e=>!e.builtin);
+  if(!mine.length) return setMsg('No custom clipart to export — add a selection first');
+  download('clipart.aqclip', CLIPART.libraryToJSON(mine), 'application/json');
+  setMsg('Exported '+mine.length+' clipart shape(s)');
+}
+function importClipText(text){
+  try{ const entries=CLIPART.libraryFromJSON(text);
+    clipLib=entries.reduce((L,e)=>CLIPART.upsertClipart(L,Object.assign({},e,{builtin:false})), clipLib);
+    persistClipart(); buildClipCats(); buildClipGrid();
+    setMsg('Imported '+entries.length+' clipart shape(s)'); }
+  catch(e){ setMsg('Clipart import failed: '+e.message); }
+}
+
 // ---- bitmap import + trace (D1) ----
 // The browser decodes the file (that's the only DOM-bound part); everything after it — threshold,
 // despeckle, boundary trace, simplify, smooth, scale — is BMPTRACE, so it is unit-tested headless.
@@ -12168,6 +12508,13 @@ function wire(){
     show('.profile-pocket', v==='profile'||v==='pocket');
     show('.not-drill', v!=='drill'); };
   if(camOp){ camOp.onchange=syncCamOp; syncCamOp(); }
+  // clipart library (D2)
+  loadClipart(); buildClipCats(); buildClipGrid();
+  const cc=document.getElementById('clipCat'); if(cc)cc.onchange=buildClipGrid;
+  on('btnClipAdd',addSelectionToClipart); on('btnClipDel',delClipart); on('btnClipExport',exportClipart);
+  const ci=document.getElementById('clipInput'), cb=document.getElementById('btnClipImport');
+  if(ci&&cb){ cb.onclick=()=>ci.click();
+    ci.onchange=e=>{ const f=e.target.files[0]; if(f){ const rd=new FileReader(); rd.onload=ev=>importClipText(ev.target.result); rd.readAsText(f); } ci.value=''; }; }
   // bitmap trace (D1)
   on('btnTrace',openTraceModal); on('traceApply',commitTrace); on('traceCancel',closeTraceModal);
   on('traceX',closeTraceModal); on('traceClearBg',clearBgImage);
@@ -12200,6 +12547,7 @@ function wire(){
     if(/\.(png|jpe?g|gif|bmp|webp)$/i.test(f.name)){ importBitmap(f.name, f); return; }
     if(/\.aqcam$/i.test(f.name)){ rd.onload=ev=>openProject(ev.target.result, f.name); rd.readAsText(f); }
     else if(/\.aqtpl$/i.test(f.name)){ rd.onload=ev=>importTplText(ev.target.result); rd.readAsText(f); }
+    else if(/\.aqclip$/i.test(f.name)){ rd.onload=ev=>importClipText(ev.target.result); rd.readAsText(f); }
     else if(/\.pdf$/i.test(f.name)){ rd.onload=ev=>importPDF(f.name,ev.target.result); rd.readAsArrayBuffer(f); }
     else { rd.onload=ev=>importText(f.name,ev.target.result); rd.readAsText(f); } };
   const gs=document.getElementById('gridStep'); if(gs)gs.onchange=e=>{grid.step=parseFloat(e.target.value)||0.5; render();};
@@ -12218,6 +12566,7 @@ function wire(){
     if(/\.(png|jpe?g|gif|bmp|webp)$/i.test(f.name)){ importBitmap(f.name, f); return; }
     if(/\.aqcam$/i.test(f.name)){ rd.onload=ev=>openProject(ev.target.result, f.name); rd.readAsText(f); }
     else if(/\.aqtpl$/i.test(f.name)){ rd.onload=ev=>importTplText(ev.target.result); rd.readAsText(f); }
+    else if(/\.aqclip$/i.test(f.name)){ rd.onload=ev=>importClipText(ev.target.result); rd.readAsText(f); }
     else if(/\.pdf$/i.test(f.name)){ rd.onload=ev=>importPDF(f.name,ev.target.result); rd.readAsArrayBuffer(f); }
     else { rd.onload=ev=>importText(f.name,ev.target.result); rd.readAsText(f); } });
   window.addEventListener('resize',resize);

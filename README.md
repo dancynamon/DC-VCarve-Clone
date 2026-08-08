@@ -5,7 +5,7 @@ Single self-contained HTML — no install, offline, posts G-code for ShopSabre (
 
 ## Quick start
 ```
-npm test     # 446 checks: CAM (195) + CAD (169) + trace (45) + PDF (30) + import (25) + smoke (10) + arc-fit (9)
+npm test     # 493 checks: CAM (195) + CAD (169) + clipart (47) + trace (45) + PDF (30) + import (25) + smoke (10) + arc-fit (9)
 npm run build # regenerates cadcam-studio.html from cam-engine/ sources
 open cadcam-studio.html
 ```
@@ -19,6 +19,8 @@ open cadcam-studio.html
 - **Import/Export:** DXF + SVG + vector PDF (editable) in; DXF/SVG out.
 - **Bitmap trace:** drop in a PNG/JPG/GIF/BMP/WEBP, tune threshold / despeckle / smoothing with a live
   preview over the image, and trace it to cuttable contours (holes come out as holes) on a `trace` layer.
+- **Clipart library:** 18 built-in shapes (basic / plaques / pool & safety) placed by dragging a box;
+  save your own selections into it and share them as `.aqclip`.
 - **CAM:** Profile (outside/inside/on, climb/conv, multipass, tabs), Pocket, Drill, V-Carve, **Inlay**
   (matched female cavity + male plug, straight or V-carve fit, with a per-side gap and a mirrored plug)
   → G2/G3 arcs → ShopSabre post → backplot → Export .tap.
@@ -27,9 +29,9 @@ open cadcam-studio.html
 
 ## Layout
 - `cadcam-studio.html` — built app (run `npm run build` to regenerate).
-- `cam-engine/` — sources: `cadcore.js` (CAD), `camcore.js` (CAM), `studio_app.js` (UI), `studio_shell.html` (markup/CSS), `dxfparse.js`, `pdfparse.js`, `bitmaptrace.js`, `build.js`, `package/clipper.js`, tests, ShopSabre `.pp`, roadmap README.
+- `cam-engine/` — sources: `cadcore.js` (CAD), `camcore.js` (CAM), `studio_app.js` (UI), `studio_shell.html` (markup/CSS), `dxfparse.js`, `pdfparse.js`, `bitmaptrace.js`, `clipart.js`, `build.js`, `package/clipper.js`, tests, ShopSabre `.pp`, roadmap README.
 
-## Roadmap (next)
-D2 clipart / shape library.
-Status table and full feature notes in `cam-engine/README.md`.
+## Roadmap
+The 2D VCarve-parity build is complete — status table and full feature notes in `cam-engine/README.md`.
+Next: 3D / Aspire-style relief work, on top of the existing `simulateStock` heightfield.
 # DC-VCarve-Clone
