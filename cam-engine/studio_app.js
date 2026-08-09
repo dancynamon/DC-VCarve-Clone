@@ -209,6 +209,9 @@ let draft=null;        // in-progress geometry
 let drag=null;         // active drag state
 function setTool(t){ if(t!=='measure') measure=null; tool=t; sel=(t==='node')?sel:sel; draft=null; document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active',b.dataset.tool===t));
   const active=document.querySelector('.tool[data-tool="'+t+'"]'); if(active){ const grp=active.closest('.tgrp'); if(grp)grp.classList.remove('collapsed'); }   // keep the active tool visible
+  const form=TOOL_FORMS[t];
+  if(form) showForm(form,'drawing');            // the tool's options take over the dock
+  else if(formOpen() && t!=='clipart') setCmdTab(cmdTab);
   setMsg(TOOLMSG[t]||''); render(); }
 const TOOLMSG={ select:'Click to select · drag to move · handles to scale/rotate · marquee to box-select',
   node:'Select one shape, drag its nodes · dbl-click segment adds node · dbl-click node deletes',
@@ -222,6 +225,75 @@ const TOOLMSG={ select:'Click to select · drag to move · handles to scale/rota
   fillet:'Click a corner to round it (set radius in "Fillet r")',
   trim:'Click the part of an open vector to cut back to where it crosses another',
   extend:'Click near an open vector endpoint to stretch it to the next vector ahead' };
+
+// ---- VCarve-style command dock: tab strip + form-in-panel ----
+// Picking a tool does not open a floating dialog; its options REPLACE the dock contents, with
+// Close (and Calculate / OK where it applies) at the bottom. Everything lives in one place.
+const TOOL_FORMS={rect:'rect',rrect:'rrect',circle:'circle',ellipse:'ellipse',polygon:'polygon',star:'star',text:'text',dim:'dim',fillet:'fillet'};
+const CAM_TITLES={profile:'Profile Toolpath',pocket:'Pocket Toolpath',drill:'Drilling Toolpath',
+  vcarve:'V-Carve / Engraving Toolpath',inlay:'Inlay Toolpath'};
+const ORIGIN_LABEL={bl:'bottom-left',br:'bottom-right',tl:'top-left',tr:'top-right',center:'centre'};
+let cmdTab='drawing';
+function setCmdTab(name){
+  cmdTab=name;
+  document.querySelectorAll('.ctab').forEach(b=>b.classList.toggle('active',b.dataset.ctab===name));
+  document.querySelectorAll('.tform').forEach(f=>f.classList.remove('active'));
+  document.querySelectorAll('.cpane').forEach(p=>p.classList.remove('active'));
+  const pane=document.getElementById('pane'+name.charAt(0).toUpperCase()+name.slice(1));
+  if(pane) pane.classList.add('active');
+}
+function showForm(name, tab){
+  document.querySelectorAll('.tform').forEach(f=>f.classList.toggle('active',f.dataset.form===name));
+  document.querySelectorAll('.cpane').forEach(p=>p.classList.remove('active'));
+  const host=document.getElementById('paneForm'); if(host) host.classList.add('active');
+  if(tab){ cmdTab=tab; document.querySelectorAll('.ctab').forEach(b=>b.classList.toggle('active',b.dataset.ctab===tab)); }
+  const body=document.querySelector('.cmdbody'); if(body) body.scrollTop=0;
+}
+function closeForm(){ setCmdTab(cmdTab); }
+function formOpen(){ const h=document.getElementById('paneForm'); return !!(h&&h.classList.contains('active')); }
+function openCamForm(op){
+  const el=document.getElementById('camOp'); if(!el)return;
+  el.value=op||'profile'; el.dispatchEvent(new Event('change',{bubbles:true}));
+  const t=document.getElementById('camFormTitle'); if(t) t.textContent=CAM_TITLES[el.value]||'Toolpath';
+  document.querySelectorAll('.opbtn').forEach(b=>b.classList.toggle('active',b.dataset.op===el.value));
+  showForm('cam','toolpaths');
+}
+function updateMatSummary(){
+  const txt=job.w.toFixed(2)+'" \u00d7 '+job.h.toFixed(2)+'" \u00d7 '+job.thickness.toFixed(3)+'" thick \u00b7 datum '+(ORIGIN_LABEL[job.origin]||job.origin);
+  ['matSummary','matSummary2'].forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent=txt; });
+}
+// Create a shape straight from its form's numeric fields — VCarve lets you type it, not just drag it.
+function createFromForm(kind){
+  const n=(id,d)=>{const el=document.getElementById(id); const v=el?parseFloat(el.value):NaN; return isFinite(v)?v:d;};
+  const x=n('f'+kind.charAt(0).toUpperCase()+kind.slice(1)+'X',6), y=n('f'+kind.charAt(0).toUpperCase()+kind.slice(1)+'Y',6);
+  let sh=null;
+  if(kind==='rect'){ const w=n('fRectW',4),h=n('fRectH',3); if(w>0&&h>0) sh=CADCORE.mkRect(x-w/2,y-h/2,w,h,activeLayer); }
+  else if(kind==='rrect'){ const w=n('fRrectW',4),h=n('fRrectH',3),r=n('rrectR',0.25);
+    if(w>0&&h>0) sh=CADCORE.mkRoundRect(x-w/2,y-h/2,w,h,Math.min(r,Math.min(w,h)/2),activeLayer); }
+  else if(kind==='circle'){ const d=n('fCircleD',2); if(d>0) sh=CADCORE.mkCircle({x,y},d/2,activeLayer); }
+  else if(kind==='ellipse'){ const w=n('fEllipseW',4),h=n('fEllipseH',2); if(w>0&&h>0) sh=CADCORE.mkEllipse({x,y},w/2,h/2,0,activeLayer); }
+  else if(kind==='polygon'){ const d=n('fPolygonD',3),k=Math.max(3,Math.round(n('polyN',6))); if(d>0) sh=CADCORE.mkPolygon({x,y},d/2,k,undefined,activeLayer); }
+  else if(kind==='star'){ const d=n('fStarD',3),k=Math.max(3,Math.round(n('fStarN',5))),ip=Math.min(95,Math.max(5,n('fStarInner',45)))/100;
+    if(d>0) sh=CADCORE.mkStar({x,y},d/2,d/2*ip,k,undefined,activeLayer); }
+  else if(kind==='text'){ const tx=n('fTextX',2),ty=n('fTextY',6);
+    const el=document.getElementById('txtVal'), h=n('txtH',1);
+    const str=(el&&el.value)||''; if(!str.trim()) return setMsg('Type some text first');
+    placeText({x:tx,y:ty}); return; }
+  if(!sh) return setMsg('Check the size values');
+  pushHistory(); addShapes([sh]); sel=new Set([sh.id]); render(); syncPanels();
+  setMsg('Created '+kind+' at '+x.toFixed(2)+', '+y.toFixed(2));
+}
+function initCmdDock(){
+  document.querySelectorAll('[data-create]').forEach(b=>b.onclick=()=>createFromForm(b.dataset.create));
+  document.querySelectorAll('.ctab').forEach(b=>b.onclick=()=>setCmdTab(b.dataset.ctab));
+  document.querySelectorAll('[data-formclose]').forEach(b=>b.onclick=closeForm);
+  document.querySelectorAll('.opbtn').forEach(b=>b.onclick=()=>openCamForm(b.dataset.op));
+  const jf=()=>showForm('job',cmdTab);
+  const a=document.getElementById('btnJobForm'); if(a)a.onclick=jf;
+  const b=document.getElementById('btnJobForm2'); if(b)b.onclick=jf;
+  const n=document.getElementById('btnNestForm'); if(n)n.onclick=()=>showForm('nest','drawing');
+  updateMatSummary();
+}
 
 function evScr(e){ const r=cv.getBoundingClientRect(); return { x:e.clientX-r.left, y:e.clientY-r.top }; }
 
@@ -566,7 +638,7 @@ function drawDraft(){ ctx.strokeStyle='#ffd27a'; ctx.lineWidth=1.3; ctx.setLineD
   else if(d.kind==='rrect'){ const a=d.a,b=d.b; const x=Math.min(a.x,b.x),y=Math.min(a.y,b.y),w=Math.abs(b.x-a.x),h=Math.abs(b.y-a.y); const rr=Math.min(parseFloat(document.getElementById('rrectR').value)||0.25,Math.min(w,h)/2); poly(CADCORE.mkRoundRect(x,y,w,h,rr).pts,true); }
   else if(d.kind==='circle'){ circ(d.c,d.r); }
   else if(d.kind==='polygon'){ const s=CADCORE.mkPolygon(d.c,d.r||0.01,parseInt(document.getElementById('polyN').value)||5,d.rot); poly(s.pts,true); }
-  else if(d.kind==='star'){ const s=CADCORE.mkStar(d.c,d.r||0.01,(d.r||0.01)*0.45,parseInt(document.getElementById('polyN').value)||5,d.rot); poly(s.pts,true); }
+  else if(d.kind==='star'){ const sn=parseInt((document.getElementById('fStarN')||{}).value)||5, ip=Math.min(95,Math.max(5,parseFloat((document.getElementById('fStarInner')||{}).value)||45))/100; const s=CADCORE.mkStar(d.c,d.r||0.01,(d.r||0.01)*ip,sn,d.rot); poly(s.pts,true); }
   else if(d.kind==='ellipse'){ const a=d.a,b=d.b; const e=CADCORE.mkEllipse({x:(a.x+b.x)/2,y:(a.y+b.y)/2},Math.abs(b.x-a.x)/2,Math.abs(b.y-a.y)/2); poly(e.pts,true); }
   else if(d.kind==='polyline'){ poly(d.cur?d.pts.concat([d.cur]):d.pts,false); }
   else if(d.kind==='arc'){ if(d.p1&&d.cur){ const r=Math.hypot(d.p1.x-d.c.x,d.p1.y-d.c.y); const a0=Math.atan2(d.p1.y-d.c.y,d.p1.x-d.c.x), a1=Math.atan2(d.cur.y-d.c.y,d.cur.x-d.c.x); poly(CADCORE.arcPolyline(d.c.x,d.c.y,r,a0,a1,true),false);} else if(d.cur){ line(d.c,d.cur);} }
@@ -599,7 +671,7 @@ function commitDraft(){ const d=draft; if(!d)return; let s=null;
   else if(d.kind==='circle'){ if(d.r>1e-4) s=CADCORE.mkCircle(d.c,d.r,activeLayer); }
   else if(d.kind==='ellipse'){ const rx=Math.abs(d.b.x-d.a.x)/2,ry=Math.abs(d.b.y-d.a.y)/2; if(rx>1e-4&&ry>1e-4) s=CADCORE.mkEllipse({x:(d.a.x+d.b.x)/2,y:(d.a.y+d.b.y)/2},rx,ry,0,activeLayer); }
   else if(d.kind==='polygon'){ if(d.r>1e-4) s=CADCORE.mkPolygon(d.c,d.r,parseInt(document.getElementById('polyN').value)||5,d.rot,activeLayer); }
-  else if(d.kind==='star'){ if(d.r>1e-4) s=CADCORE.mkStar(d.c,d.r,d.r*0.45,parseInt(document.getElementById('polyN').value)||5,d.rot,activeLayer); }
+  else if(d.kind==='star'){ if(d.r>1e-4){ const sn=parseInt((document.getElementById('fStarN')||{}).value)||5, ip=Math.min(95,Math.max(5,parseFloat((document.getElementById('fStarInner')||{}).value)||45))/100; s=CADCORE.mkStar(d.c,d.r,d.r*ip,sn,d.rot,activeLayer); } }
   else if(d.kind==='rrect'){ const x=Math.min(d.a.x,d.b.x),y=Math.min(d.a.y,d.b.y),w=Math.abs(d.b.x-d.a.x),h=Math.abs(d.b.y-d.a.y); if(w>1e-4&&h>1e-4){ const rr=Math.min(parseFloat(document.getElementById('rrectR').value)||0.25,Math.min(w,h)/2); s=CADCORE.mkRoundRect(x,y,w,h,rr,activeLayer); } }
   if(s){ pushHistory(); addShapes([s]); sel=new Set([s.id]); }
   draft=null; syncPanels();
@@ -876,7 +948,7 @@ function refreshAddBtn(){ const b=document.getElementById('btnAddOp'); if(b) b.t
 function moveOp(i,dir){ const j=i+dir; if(j<0||j>=opsQueue.length)return; pushHistory(); const t=opsQueue[i]; opsQueue[i]=opsQueue[j]; opsQueue[j]=t;
   if(editingIdx===i)editingIdx=j; else if(editingIdx===j)editingIdx=i; buildQueueList(); }
 function renameOp(i){ const q=opsQueue[i]; if(!q)return; const n=prompt('Toolpath name:', q.name||q.label||'Toolpath'); if(n==null)return; pushHistory(); q.name=n.trim()||q.name; buildQueueList(); }
-function editOp(i){ const q=opsQueue[i]; if(!q)return; applyParamsToPanel(q.p); sel=new Set(q.ids); editingIdx=i; buildQueueList(); render(); setMsg('Editing "'+(q.name||q.label)+'" — adjust settings, then click ✓ Update'); }
+function editOp(i){ const q=opsQueue[i]; if(!q)return; applyParamsToPanel(q.p); openCamForm(q.p&&q.p.op); sel=new Set(q.ids); editingIdx=i; buildQueueList(); render(); setMsg('Editing "'+(q.name||q.label)+'" — adjust settings, then click ✓ Update'); }
 function buildQueueList(){ const el=document.getElementById('opsQueue'); if(!el)return; el.innerHTML=''; refreshAddBtn();
   if(!opsQueue.length){ el.innerHTML='<div class="muted" style="font-size:10px">No toolpaths yet — set an Op + selection, then "+ Toolpath".</div>'; return; }
   opsQueue.forEach((q,i)=>{ const row=document.createElement('div'); row.className='qrow'+(i===editingIdx?' editing':'');
@@ -1311,8 +1383,8 @@ window.addEventListener('keydown', e=>{
 
 // ---- collapsible right-panel sections ----
 function initCollapsibles(){
-  const DEFAULT_COLLAPSED = { 'Nest':1, 'Align':1, 'Layers':1 };   // others open by default
-  document.querySelectorAll('.right .sectn').forEach(sec=>{
+  const DEFAULT_COLLAPSED = {};   // everything open — the point of the dock is that nothing is hidden
+  document.querySelectorAll('.cmd .sectn').forEach(sec=>{
     const h=sec.querySelector('h3'); if(!h||h.dataset.coll)return;
     const title=h.textContent.trim();
     h.dataset.coll='1';
@@ -1363,7 +1435,7 @@ function wire(){
   on('btnJobSet',setJob); on('btnFitJob',fitJob);
   const js=document.getElementById('jobShow'); if(js)js.onchange=e=>{job.show=e.target.checked; render();};
   // live job dimension updates (no view refit — use "Set job"/"Fit job" to re-zoom)
-  const jobLive=()=>{ const g=id=>document.getElementById(id); job.w=Math.abs(parseFloat(g('jobW').value)||24); job.h=Math.abs(parseFloat(g('jobH').value)||18); job.thickness=Math.abs(parseFloat(g('jobT').value)||0.5); job.origin=g('jobOrigin').value; render(); };
+  const jobLive=()=>{ const g=id=>document.getElementById(id); job.w=Math.abs(parseFloat(g('jobW').value)||24); job.h=Math.abs(parseFloat(g('jobH').value)||18); job.thickness=Math.abs(parseFloat(g('jobT').value)||0.5); job.origin=g('jobOrigin').value; updateMatSummary(); render(); };
   ['jobW','jobH','jobT','jobOrigin'].forEach(id=>{ const el=document.getElementById(id); if(el)el.addEventListener('input',jobLive); });
   on('btnCamGen',camGenerate); on('btnCamExport',camExport); on('btnCamClear',camClear);
   on('btnAddOp',addOp); on('btnRecalcAll',recalcAll); on('btnPostJob',postJob); buildQueueList();
@@ -1379,6 +1451,7 @@ function wire(){
     show('.profile-pocket', v==='profile'||v==='pocket');
     show('.not-drill', v!=='drill'); };
   if(camOp){ camOp.onchange=syncCamOp; syncCamOp(); }
+  initCmdDock();
   // clipart library (D2)
   loadClipart(); buildClipCats(); buildClipGrid();
   const cc=document.getElementById('clipCat'); if(cc)cc.onchange=buildClipGrid;

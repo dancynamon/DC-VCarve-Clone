@@ -23,7 +23,7 @@ html,body{height:100%}
   --btn-hover:#dde9f5;
 }
 body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','SF Mono',monospace;font-size:12px;overflow:hidden}
-.app{display:grid;grid-template-rows:38px 1fr 24px;grid-template-columns:78px 1fr 248px;height:100vh;grid-template-areas:"top top top" "tools stage right" "status status status"}
+.app{display:grid;grid-template-rows:34px 1fr 24px;grid-template-columns:304px 1fr;height:100vh;grid-template-areas:"top top" "cmd stage" "status status"}
 .topbar{grid-area:top;display:flex;align-items:center;gap:6px;padding:0 10px;background:linear-gradient(#eef2f7,#dde5ee);border-bottom:1px solid var(--bd)}
 .topbar .brand{font-weight:700;color:var(--accent);letter-spacing:1px;margin-right:8px}
 .topbar .sep{width:1px;height:20px;background:var(--bd);margin:0 4px}
@@ -32,21 +32,36 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .tb:active{background:#d3e1f0;box-shadow:inset 0 1px 2px rgba(20,40,70,.12)}
 .topbar label{display:flex;align-items:center;gap:4px;color:var(--ink-dim);font-size:10px;text-transform:uppercase;letter-spacing:.5px}
 .topbar input[type=number]{width:48px;background:var(--bg-input);border:1px solid var(--btn-bd);color:var(--ink);border-radius:3px;padding:2px 4px;font-family:inherit}
-.tools{grid-area:tools;background:linear-gradient(#e7ecf3,#dde4ed);border-right:1px solid var(--bd);display:flex;flex-direction:column;align-items:stretch;gap:3px;padding:5px 5px;overflow-y:auto}
-.tgrp{width:100%;display:flex;flex-direction:column;gap:3px}
-.tgrp-h{display:flex;align-items:center;justify-content:center;gap:3px;font-size:8px;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-dim);cursor:pointer;padding:3px 2px 1px;user-select:none;border-top:1px solid var(--bd-soft)}
-.tgrp:first-child .tgrp-h{border-top:none}
-.tgrp-h:hover{color:var(--ink)}
-.tgrp-h .tcaret{font-size:7px;transition:transform .12s}
-.tgrp.collapsed .tgrp-h .tcaret{transform:rotate(-90deg)}
-.tgrp-body{display:flex;flex-direction:column;align-items:center;gap:4px}
-.tgrp.collapsed .tgrp-body{display:none}
-.tool{width:100%;height:42px;background:linear-gradient(#ffffff,#eef3f8);border:1px solid var(--btn-bd);border-radius:6px;color:#3a4756;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-direction:column;line-height:1.05;gap:1px;box-shadow:0 1px 1px rgba(20,40,70,.05)}
-.tool b{font-size:15px;font-weight:400}
-.tool .tlabel{font-size:9.5px;letter-spacing:.2px}
+.cmd{grid-area:cmd;background:linear-gradient(#e9eef4,#e2e8f0);border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow:hidden}
+.cmdtabs{display:flex;flex:none;background:var(--bg-head);border-bottom:1px solid var(--bd)}
+.ctab{flex:1;background:none;border:none;border-right:1px solid var(--bd-soft);border-bottom:2px solid transparent;color:var(--ink-dim);font-family:inherit;font-size:10.5px;letter-spacing:.3px;padding:7px 2px;cursor:pointer}
+.ctab:last-child{border-right:none}
+.ctab:hover{color:var(--ink);background:rgba(255,255,255,.5)}
+.ctab.active{color:var(--accent);font-weight:700;background:var(--bg-card);border-bottom-color:var(--accent-bd)}
+.toolstrip{flex:none;background:var(--bg-card);border-bottom:1px solid var(--bd);padding:5px 6px;display:flex;flex-direction:column;gap:4px}
+.tsgrp{display:grid;grid-template-columns:repeat(9,1fr);gap:3px}
+.toolstrip .tool{height:26px;font-size:12px}
+.toolstrip .tool b{font-size:12px}
+.cmdbody{flex:1;overflow-y:auto;padding:7px}
+.cpane{display:none}
+.cpane.active{display:block}
+/* icon grids inside a section, VCarve-style */
+.iconrow{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;width:100%}
+.tool{height:32px;width:auto;background:linear-gradient(#ffffff,#eef3f8);border:1px solid var(--btn-bd);border-radius:5px;color:#3a4756;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 1px rgba(20,40,70,.05);font-family:inherit;font-size:14px;line-height:1;padding:0}
+.tool b{font-size:14px;font-weight:400}
+.tool .tlabel{display:none}
 .tool:hover{background:linear-gradient(#f0f6fc,#dbe7f4);color:#1d2733;border-color:#9fb1c6}
 .tool.active{background:var(--accent-soft);border-color:var(--accent-bd);color:var(--accent)}
-.tool b{font-size:13px}
+/* form-in-panel: a tool's options take over the dock, like VCarve */
+.tform{display:none}
+.tform.active{display:block}
+.tform h4{font-size:10px;letter-spacing:1.1px;text-transform:uppercase;color:var(--accent);padding:8px 9px;background:var(--bg-head);border:1px solid var(--bd);border-bottom:none;border-radius:6px 6px 0 0}
+.tfbody{border:1px solid var(--bd);border-top:none;background:var(--bg-card);padding:8px 9px;display:flex;flex-wrap:wrap;gap:5px}
+.tfbody .grp{width:100%;font-size:9px;letter-spacing:.8px;text-transform:uppercase;color:var(--ink-dim);border-top:1px solid var(--bd-soft);padding-top:5px;margin-top:2px}
+.tfbody .grp:first-child{border-top:none;padding-top:0;margin-top:0}
+.formfoot{display:flex;gap:6px;justify-content:flex-end;border:1px solid var(--bd);border-top:none;border-radius:0 0 6px 6px;background:var(--bg-head);padding:7px 9px}
+.formfoot .tb.primary{background:linear-gradient(var(--accent-bright),#178a54);border-color:var(--accent-bd);color:#fff}
+.formhint{width:100%;font-size:10px;color:var(--ink-dim);line-height:1.35}
 .stage{grid-area:stage;position:relative;overflow:hidden}
 #cv{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair}
 #hud{position:absolute;inset:0;pointer-events:none}
@@ -63,7 +78,6 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .restorebar.show{display:flex}
 .restorebar .tb{font-size:10px;padding:3px 9px}
 .qrow .qt{flex:none;color:var(--ink-dim);font-size:9px;margin:0 3px;font-variant-numeric:tabular-nums}
-.right{grid-area:right;background:linear-gradient(#e9eef4,#e2e8f0);border-left:1px solid var(--bd);overflow-y:auto;padding:8px}
 .sectn{margin-bottom:8px;border:1px solid var(--bd);border-radius:6px;background:var(--bg-card);box-shadow:0 1px 2px rgba(20,40,70,.05);overflow:hidden}
 .sectn h3{font-size:9.5px;letter-spacing:1.2px;color:var(--accent);text-transform:uppercase;padding:7px 9px;border-bottom:1px solid var(--bd-soft);background:var(--bg-head);cursor:pointer;display:flex;align-items:center;gap:6px;user-select:none}
 .sectn h3 .caret{font-size:8px;transition:transform .12s;color:var(--ink-dim)}
@@ -71,17 +85,17 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .sectn.collapsed h3 .caret{transform:rotate(-90deg)}
 .sectn.collapsed .body{display:none}
 .sectn .body{padding:8px 9px;display:flex;flex-wrap:wrap;gap:5px}
-.right .tb{font-size:10px;padding:4px 7px}
-.right label{display:flex;align-items:center;gap:3px;font-size:9.5px;color:var(--ink-dim);text-transform:uppercase}
-.right input[type=number],.right input[type=text],.right select{background:var(--bg-input);border:1px solid var(--btn-bd);color:var(--ink);border-radius:3px;padding:3px 4px;font-family:inherit;font-size:11px}
-.right input:focus,.right select:focus,.topbar input:focus{outline:none;border-color:var(--accent-bd)}
+.cmd .tb,.tfbody .tb{font-size:10px;padding:4px 7px}
+.cmd label{display:flex;align-items:center;gap:3px;font-size:9.5px;color:var(--ink-dim);text-transform:uppercase}
+.cmd input[type=number],.cmd input[type=text],.cmd select{background:var(--bg-input);border:1px solid var(--btn-bd);color:var(--ink);border-radius:3px;padding:3px 4px;font-family:inherit;font-size:11px}
+.cmd input:focus,.cmd select:focus,.topbar input:focus{outline:none;border-color:var(--accent-bd)}
 .prow{font-size:11px;color:#3c4a5a;padding:1px 0;width:100%}
 .muted{color:var(--ink-dim);font-size:10px}
 .lyr{display:flex;align-items:center;gap:5px;padding:3px 4px;border-radius:3px;cursor:default;width:100%}
 .lyr.act{background:var(--accent-soft)}
 .lyr .sw{width:11px;height:11px;border-radius:2px;display:inline-block;border:1px solid rgba(20,40,70,.18)}
 .lyr .ln{cursor:pointer;color:var(--ink)}
-.clipgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;width:100%;max-height:230px;overflow-y:auto;margin-top:2px}
+.clipgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;width:100%;max-height:340px;overflow-y:auto;margin-top:2px}
 .clipcell{display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 2px;background:var(--bg-input);border:1px solid var(--btn-bd);border-radius:5px;cursor:pointer;font-family:inherit}
 .clipcell:hover{background:var(--btn-hover);border-color:#9fb1c6}
 .clipcell.armed{background:var(--accent-soft);border-color:var(--accent-bd)}
@@ -151,181 +165,337 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 <div class="app">
   <div class="topbar">
     <span class="brand">AQUAMENTOR CAD/CAM</span>
-    <button class="tb" id="btnNew" data-tip="Clear the design">New</button>
-    <button class="tb" id="btnImport" data-tip="Open an .aqcam project or .aqtpl template, or import DXF / SVG / vector PDF / a bitmap to trace (PNG, JPG, GIF, BMP, WEBP)">Open / Import</button>
-    <button class="tb" id="btnSaveProj" data-tip="Save this job as an .aqcam project file (shapes, layers, material, toolpaths)">Save job…</button>
-    <button class="tb" id="btnExpDXF" data-tip="Export design as DXF">Export DXF</button>
-    <button class="tb" id="btnExpSVG" data-tip="Export design as SVG">Export SVG</button>
+    <button class="tb" id="btnUndo" data-tip="Undo (Ctrl+Z)">&#8624; Undo</button>
+    <button class="tb" id="btnRedo" data-tip="Redo (Ctrl+Y)">&#8625; Redo</button>
     <span class="sep"></span>
-    <button class="tb" id="btnUndo" data-tip="Undo (Ctrl+Z)">↶ Undo</button>
-    <button class="tb" id="btnRedo" data-tip="Redo (Ctrl+Y)">↷ Redo</button>
     <button class="tb" id="btnFit" data-tip="Fit view to all (F)">Fit (F)</button>
-    <button class="tb" id="btnSelfTest" data-tip="Build a sample design and run every CAM op (Profile/Pocket/Drill/V-Carve) as a smoke test">Self-test</button>
-    <button class="tb" id="btnTrace" data-tip="Trace the imported bitmap into cuttable vectors">Trace bitmap…</button>
-    <button class="tb" id="btnKeys" data-tip="Keyboard shortcuts reference">Keys?</button>
+    <button class="tb" id="btnFitJob" data-tip="Zoom to the material">Fit job</button>
     <span class="sep"></span>
     <label><input type="checkbox" id="chkGrid" checked> Grid</label>
     <label>step<input type="number" id="gridStep" value="0.5" step="0.25" min="0.0625"></label>
     <label><input type="checkbox" id="chkSnap" checked> Grid-snap</label>
     <label><input type="checkbox" id="chkObjSnap" checked> Obj-snap</label>
+    <span class="sep"></span>
+    <button class="tb" id="btnSelfTest" data-tip="Build a sample design and run every CAM op as a smoke test">Self-test</button>
+    <button class="tb" id="btnKeys" data-tip="Keyboard shortcuts reference">Keys?</button>
     <input type="file" id="fileInput" accept=".aqcam,.aqtpl,.aqclip,.dxf,.svg,.pdf,.png,.jpg,.jpeg,.gif,.bmp,.webp" style="display:none">
   </div>
 
-  <div class="tools">
-    <div class="tgrp" data-grp="Edit"><div class="tgrp-h" data-tip="Selection & node editing"><span class="tcaret">▾</span>Edit</div><div class="tgrp-body">
-      <button class="tool active" data-tool="select" data-tip="Select / move / scale / rotate — shortcut: V" title="Select (V)"><b>▤</b><span class="tlabel">Select</span></button>
-      <button class="tool" data-tool="node" data-tip="Edit nodes — drag points, dbl-click add/remove — shortcut: N" title="Node edit (N)"><b>⬩</b><span class="tlabel">Nodes</span></button>
-      <button class="tool" data-tool="fillet" data-tip="Fillet — click a corner to round it with the Fillet r radius" title="Fillet corner"><b>◝</b><span class="tlabel">Fillet</span></button>
-      <button class="tool" data-tool="trim" data-tip="Trim — click the dangling part of an open vector to cut it back to where it crosses another vector" title="Trim"><b>✂</b><span class="tlabel">Trim</span></button>
-      <button class="tool" data-tool="extend" data-tip="Extend — click near an open vector's endpoint to stretch it to the next vector it points at" title="Extend"><b>⊢</b><span class="tlabel">Extend</span></button>
-    </div></div>
-    <div class="tgrp" data-grp="Create Vectors"><div class="tgrp-h" data-tip="Draw new vectors"><span class="tcaret">▾</span>Create</div><div class="tgrp-body">
-      <button class="tool" data-tool="line" data-tip="Line — click start, click end — shortcut: L" title="Line (L)"><b>╱</b><span class="tlabel">Line</span></button>
-      <button class="tool" data-tool="polyline" data-tip="Polyline — click points, Enter to finish — shortcut: P" title="Polyline (P)"><b>⟋</b><span class="tlabel">Polyline</span></button>
-      <button class="tool" data-tool="bezier" data-tip="Curve — click anchors, drag to pull handles; Enter to finish, click the start to close — shortcut: B" title="Curve (B)"><b>∿</b><span class="tlabel">Curve</span></button>
-      <button class="tool" data-tool="rect" data-tip="Rectangle — drag corners — shortcut: R" title="Rectangle (R)"><b>▭</b><span class="tlabel">Rect</span></button>
-      <button class="tool" data-tool="rrect" data-tip="Rounded rectangle — corner radius in Shape params" title="Rounded rectangle"><b>▢</b><span class="tlabel">Round</span></button>
-      <button class="tool" data-tool="circle" data-tip="Circle — center then radius — shortcut: C" title="Circle (C)"><b>◯</b><span class="tlabel">Circle</span></button>
-      <button class="tool" data-tool="ellipse" data-tip="Ellipse — drag bounding box — shortcut: E" title="Ellipse (E)"><b>⬭</b><span class="tlabel">Ellipse</span></button>
-      <button class="tool" data-tool="arc" data-tip="Arc — center, start, end — shortcut: A" title="Arc (A)"><b>◜</b><span class="tlabel">Arc</span></button>
-      <button class="tool" data-tool="polygon" data-tip="Polygon — number of sides in Shape params — shortcut: G" title="Polygon (G)"><b>⬠</b><span class="tlabel">Polygon</span></button>
-      <button class="tool" data-tool="star" data-tip="Star — number of points in Shape params" title="Star"><b>★</b><span class="tlabel">Star</span></button>
-      <button class="tool" data-tool="text" data-tip="Text — single-stroke or TTF outline; type in Shape params — shortcut: T" title="Text (T)"><b>T</b><span class="tlabel">Text</span></button>
-    </div></div>
-    <div class="tgrp" data-grp="View"><div class="tgrp-h" data-tip="Measure & navigate"><span class="tcaret">▾</span>View</div><div class="tgrp-body">
-      <button class="tool" data-tool="measure" data-tip="Measure distance / dx,dy / angle — shortcut: M" title="Measure (M)"><b>↔</b><span class="tlabel">Measure</span></button>
-      <button class="tool" data-tool="dim" data-tip="Dimension — a drawn annotation (extension lines, arrows, label). Never machined. Style/units in Shape params — shortcut: D" title="Dimension (D)"><b>⇤</b><span class="tlabel">Dim</span></button>
-      <button class="tool" data-tool="pan" data-tip="Pan the view — drag (or Alt-drag with any tool)" title="Pan (Alt-drag)"><b>✋</b><span class="tlabel">Pan</span></button>
-    </div></div>
+  <!-- ============ COMMAND DOCK (VCarve-style): tabs + form-in-panel ============ -->
+  <div class="cmd">
+    <div class="cmdtabs">
+      <button class="ctab active" data-ctab="drawing" data-tip="Draw and edit vectors">Drawing</button>
+      <button class="ctab" data-ctab="toolpaths" data-tip="Material, toolpath operations and the toolpath list">Toolpaths</button>
+      <button class="ctab" data-ctab="clipart" data-tip="Shape library">Clipart</button>
+      <button class="ctab" data-ctab="layers" data-tip="Layers and selection">Layers</button>
+    </div>
+    <div class="toolstrip">
+      <div class="tsgrp" data-tip="Select and edit"><button class="tool" data-tool="select" data-tip="Select / move / scale / rotate (V)" title="Select (V)"><b>&#9636;</b><span class="tlabel">Select</span></button>
+            <button class="tool" data-tool="node" data-tip="Node edit &#8212; drag points, dbl-click add/remove (N)" title="Node edit (N)"><b>&#11049;</b><span class="tlabel">Nodes</span></button>
+            <button class="tool" data-tool="fillet" data-tip="Fillet &#8212; click a corner to round it" title="Fillet"><b>&#9693;</b><span class="tlabel">Fillet</span></button>
+            <button class="tool" data-tool="trim" data-tip="Trim &#8212; click the dangling part of an open vector" title="Trim"><b>&#9986;</b><span class="tlabel">Trim</span></button>
+            <button class="tool" data-tool="extend" data-tip="Extend &#8212; stretch an open vector to the next one ahead" title="Extend"><b>&#8866;</b><span class="tlabel">Extend</span></button>
+          </div>
+      <div class="tsgrp" data-tip="Create vectors">
+            <button class="tool" data-tool="line" data-tip="Line &#8212; click start, click end (L)" title="Line (L)"><b>&#9585;</b><span class="tlabel">Line</span></button>
+            <button class="tool" data-tool="polyline" data-tip="Polyline &#8212; click points, Enter to finish (P)" title="Polyline (P)"><b>&#10187;</b><span class="tlabel">Polyline</span></button>
+            <button class="tool" data-tool="bezier" data-tip="Curve &#8212; click anchors, drag to pull handles (B)" title="Curve (B)"><b>&#8767;</b><span class="tlabel">Curve</span></button>
+            <button class="tool" data-tool="rect" data-tip="Rectangle &#8212; drag opposite corners (R)" title="Rectangle (R)"><b>&#9645;</b><span class="tlabel">Rect</span></button>
+            <button class="tool" data-tool="rrect" data-tip="Rounded rectangle &#8212; corner radius in the tool form" title="Rounded rectangle"><b>&#9634;</b><span class="tlabel">Round</span></button>
+            <button class="tool" data-tool="circle" data-tip="Circle &#8212; centre then radius (C)" title="Circle (C)"><b>&#9711;</b><span class="tlabel">Circle</span></button>
+            <button class="tool" data-tool="ellipse" data-tip="Ellipse &#8212; drag the bounding box (E)" title="Ellipse (E)"><b>&#11053;</b><span class="tlabel">Ellipse</span></button>
+            <button class="tool" data-tool="arc" data-tip="Arc &#8212; centre, start, end (A)" title="Arc (A)"><b>&#9692;</b><span class="tlabel">Arc</span></button>
+            <button class="tool" data-tool="polygon" data-tip="Polygon &#8212; sides in the tool form (G)" title="Polygon (G)"><b>&#11040;</b><span class="tlabel">Polygon</span></button>
+            <button class="tool" data-tool="star" data-tip="Star &#8212; points in the tool form" title="Star"><b>&#9733;</b><span class="tlabel">Star</span></button>
+            <button class="tool" data-tool="text" data-tip="Draw Text &#8212; single-stroke or TTF outline (T)" title="Text (T)"><b>T</b><span class="tlabel">Text</span></button>
+            <button class="tool" data-tool="dim" data-tip="Dimension &#8212; a drawn annotation, never machined (D)" title="Dimension (D)"><b>&#8676;</b><span class="tlabel">Dim</span></button>
+            <button class="tool" data-tool="measure" data-tip="Measure distance / dx,dy / angle (M)" title="Measure (M)"><b>&#8596;</b><span class="tlabel">Measure</span></button>
+            <button class="tool" data-tool="pan" data-tip="Pan the view &#8212; drag (or Alt-drag with any tool)" title="Pan"><b>&#9995;</b><span class="tlabel">Pan</span></button>
+          </div>
+    </div>
+    <div class="cmdbody">
+
+      <!-- ---------------- DRAWING ---------------- -->
+      <div class="cpane active" id="paneDrawing">
+        <div class="sectn"><h3>File Operations</h3><div class="body">
+          <button class="tb" id="btnNew" data-tip="Clear the design">New</button>
+          <button class="tb" id="btnImport" data-tip="Open an .aqcam project / .aqtpl template / .aqclip clipart, or import DXF, SVG, vector PDF or a bitmap">Open / Import</button>
+          <button class="tb" id="btnSaveProj" data-tip="Save this job as an .aqcam project file">Save job&#8230;</button>
+          <button class="tb" id="btnTrace" data-tip="Trace the imported bitmap into cuttable vectors">Trace Bitmap&#8230;</button>
+          <button class="tb" id="btnExpDXF" data-tip="Export design as DXF">Export DXF</button>
+          <button class="tb" id="btnExpSVG" data-tip="Export design as SVG">Export SVG</button>
+        </div></div>
+
+        <div class="sectn"><h3>Job Setup</h3><div class="body">
+          <div class="formhint" id="matSummary">&#8212;</div>
+          <button class="tb" id="btnJobForm" data-tip="Set material width, height, thickness and the XY datum">Job Setup&#8230;</button>
+        </div></div>
+
+        
+
+        <div class="sectn"><h3>Transform Objects</h3><div class="body">
+          
+          <button class="tb" id="btnMirrorH" data-tip="Mirror horizontally">Mirror H</button>
+          <button class="tb" id="btnMirrorV" data-tip="Mirror vertically">Mirror V</button>
+          <button class="tb" id="btnRot90" data-tip="Rotate 90 degrees">Rotate 90&#176;</button>
+          <button class="tb" id="btnDup" data-tip="Duplicate selected">Duplicate</button>
+          <button class="tb" id="btnArray" data-tip="Grid array (rows x cols)">Array Copy</button>
+          <button class="tb" id="btnNestForm" data-tip="Pack shapes onto sheets to minimise waste">Nesting&#8230;</button>
+          <div class="grp" style="width:100%;font-size:9px;color:#5c6a7c;text-transform:uppercase;letter-spacing:.8px">Align</div>
+          <button class="tb" id="btnAlignL" data-tip="Align left">Left</button><button class="tb" id="btnAlignHC" data-tip="Align horizontal center">H-Ctr</button><button class="tb" id="btnAlignR" data-tip="Align right">Right</button>
+          <button class="tb" id="btnAlignT" data-tip="Align top">Top</button><button class="tb" id="btnAlignVC" data-tip="Align vertical center">V-Ctr</button><button class="tb" id="btnAlignB" data-tip="Align bottom">Bottom</button>
+        </div></div>
+
+        <div class="sectn"><h3>Edit Objects</h3><div class="body">
+          <button class="tb" id="btnOffset" data-tip="Offset selected by a distance">Offset</button>
+          <button class="tb" id="btnJoin" data-tip="Join touching vectors into contours">Join</button>
+          <button class="tb" id="btnUnion" data-tip="Weld &#8212; merge into one (union)">Weld &#8746;</button>
+          <button class="tb" id="btnDiff" data-tip="Subtract later shapes from first">Subtract</button>
+          <button class="tb" id="btnInt" data-tip="Keep only overlap (intersect)">Intersect</button>
+          <button class="tb" id="btnDelete" data-tip="Delete selected (Del)">Delete</button>
+          <button class="tb" id="btnCheckVec" data-tip="Find open, duplicate or self-intersecting vectors and select them">Vector Validator</button>
+        </div></div>
+
+        <div class="sectn"><h3>Selection</h3><div class="body" id="props"><div class="muted">No selection</div></div></div>
+      </div>
+
+      <!-- ---------------- TOOLPATHS ---------------- -->
+      <div class="cpane" id="paneToolpaths">
+        <div class="sectn"><h3>Material Setup</h3><div class="body">
+          <div class="formhint" id="matSummary2">&#8212;</div>
+          <button class="tb" id="btnJobForm2" data-tip="Set material size, thickness and the XY datum">Edit&#8230;</button>
+        </div></div>
+
+        <div class="sectn"><h3>Toolpath Operations</h3><div class="body">
+          <div class="iconrow" style="grid-template-columns:repeat(5,1fr)">
+            <button class="tool opbtn" data-op="profile" data-tip="Profile Toolpath &#8212; cut around a contour, outside / inside / on the line" title="Profile"><b>&#9723;</b></button>
+            <button class="tool opbtn" data-op="pocket" data-tip="Pocket Toolpath &#8212; clear a closed region, islands respected" title="Pocket"><b>&#9635;</b></button>
+            <button class="tool opbtn" data-op="drill" data-tip="Drilling Toolpath &#8212; one hole per closed contour centroid" title="Drill"><b>&#9678;</b></button>
+            <button class="tool opbtn" data-op="vcarve" data-tip="V-Carve / Engraving Toolpath &#8212; true medial-axis groove" title="V-Carve"><b>&#9660;</b></button>
+            <button class="tool opbtn" data-op="inlay" data-tip="Inlay Toolpath &#8212; matched female cavity + male plug" title="Inlay"><b>&#9707;</b></button>
+          </div>
+          <div class="formhint">Pick an operation to open its form. It runs on the selected vectors, or all visible ones if nothing is selected.</div>
+        </div></div>
+
+        <div class="sectn"><h3>Toolpath List</h3><div class="body">
+          <div class="jobq-btns">
+            <button class="tb" id="btnRecalcAll" data-tip="Recompute the backplot for every visible toolpath">Preview Visible</button>
+            <button class="tb" id="btnPostJob" data-tip="Post all toolpaths as one .tap with tool changes">Save Toolpaths &#10515;</button>
+          </div>
+          <div id="opsQueue" style="width:100%"></div>
+        </div></div>
+
+        <div class="sectn"><h3>Toolpath Templates</h3><div class="body">
+          <label data-tip="A saved machining recipe &#8212; toolpath settings with no geometry">Template<select id="tplLib" style="max-width:118px"></select></label>
+          <button class="tb" id="btnTplApply" data-tip="Add this template's toolpaths, bound to the current selection">Apply</button>
+          <button class="tb" id="btnTplSave" data-tip="Save the toolpath list as a reusable template">Save&#8230;</button>
+          <button class="tb" id="btnTplDel" data-tip="Delete the selected template">Del</button>
+          <button class="tb" id="btnTplExport" data-tip="Export the selected template as an .aqtpl file">&#10515;</button>
+          <button class="tb" id="btnTplImport" data-tip="Import an .aqtpl template file">&#10514;</button>
+          <input type="file" id="tplInput" accept=".aqtpl,.json" style="display:none">
+        </div></div>
+      </div>
+
+      <!-- ---------------- CLIPART ---------------- -->
+      <div class="cpane" id="paneClipart">
+        <div class="sectn"><h3>Clipart Library</h3><div class="body">
+          <label data-tip="Filter the library by category">Cat<select id="clipCat" style="max-width:118px"></select></label>
+          <button class="tb" id="btnClipAdd" data-tip="Add the selected closed vectors to the clipart library">+ Selection</button>
+          <button class="tb" id="btnClipDel" data-tip="Delete the highlighted custom shape (built-ins can't be deleted)">Del</button>
+          <button class="tb" id="btnClipExport" data-tip="Export your custom clipart as an .aqclip file">&#10515;</button>
+          <button class="tb" id="btnClipImport" data-tip="Import an .aqclip clipart file">&#10514;</button>
+          <input type="file" id="clipInput" accept=".aqclip,.json" style="display:none">
+          <div class="clipgrid" id="clipGrid"></div>
+          <div class="formhint">Click a shape, then drag a box on the canvas to place it (a single click drops it 2&quot; wide).</div>
+        </div></div>
+      </div>
+
+      <!-- ---------------- LAYERS ---------------- -->
+      <div class="cpane" id="paneLayers">
+        <div class="sectn"><h3>Layers</h3><div class="body" id="layerList"></div></div>
+      </div>
+
+      <!-- ============ FORM-IN-PANEL: a tool's options take over the dock ============ -->
+      <div class="cpane" id="paneForm">
+
+        <div class="tform" data-form="job"><h4>Job Setup</h4><div class="tfbody">
+          <div class="grp">Job size</div>
+          <label data-tip="Material width (X)">W&quot;<input type="number" id="jobW" value="24" step="0.5" style="width:60px"></label>
+          <label data-tip="Material height (Y)">H&quot;<input type="number" id="jobH" value="18" step="0.5" style="width:60px"></label>
+          <div class="grp">Material</div>
+          <label data-tip="Material thickness (Z)">Thickness&quot;<input type="number" id="jobT" value="0.5" step="0.05" style="width:58px"></label>
+          <div class="grp">XY datum position</div>
+          <label data-tip="Where X0 Y0 sits on the material">Origin<select id="jobOrigin"><option value="bl">Bottom-L</option><option value="br">Bottom-R</option><option value="tl">Top-L</option><option value="tr">Top-R</option><option value="center">Center</option></select></label>
+          <label data-tip="Show/hide the material outline"><input type="checkbox" id="jobShow" checked>Show material</label>
+        </div><div class="formfoot"><button class="tb" data-formclose="1">Close</button><button class="tb primary" id="btnJobSet">OK</button></div></div>
+
+        <div class="tform" data-form="rect"><h4>Draw Rectangle</h4><div class="tfbody">
+          <div class="grp">Size</div>
+          <label>Width"<input type="number" id="fRectW" value="4" step="0.25" style="width:58px"></label>
+          <label>Height"<input type="number" id="fRectH" value="3" step="0.25" style="width:58px"></label>
+          <div class="grp">Position (centre)</div>
+          <label>X"<input type="number" id="fRectX" value="6" step="0.25" style="width:58px"></label>
+          <label>Y"<input type="number" id="fRectY" value="6" step="0.25" style="width:58px"></label>
+          <div class="formhint">Type exact values and press Create, or drag it out on the canvas.</div>
+        </div><div class="formfoot"><button class="tb" data-formclose="1">Close</button><button class="tb primary" data-create="rect">Create</button></div></div>
+
+        <div class="tform" data-form="rrect"><h4>Draw Rounded Rectangle</h4><div class="tfbody">
+          <div class="grp">Size</div>
+          <label>Width"<input type="number" id="fRrectW" value="4" step="0.25" style="width:58px"></label>
+          <label>Height"<input type="number" id="fRrectH" value="3" step="0.25" style="width:58px"></label>
+          <label>Corner radius"<input type="number" id="rrectR" value="0.25" step="0.05" style="width:58px"></label>
+          <div class="grp">Position (centre)</div>
+          <label>X"<input type="number" id="fRrectX" value="6" step="0.25" style="width:58px"></label>
+          <label>Y"<input type="number" id="fRrectY" value="6" step="0.25" style="width:58px"></label>
+          <div class="formhint">Type exact values and press Create, or drag it out on the canvas.</div>
+        </div><div class="formfoot"><button class="tb" data-formclose="1">Close</button><button class="tb primary" data-create="rrect">Create</button></div></div>
+
+        <div class="tform" data-form="polygon"><h4>Draw Polygon</h4><div class="tfbody">
+          <div class="grp">Size</div>
+          <label>Number of sides<input type="number" id="polyN" value="6" min="3" max="64" style="width:52px"></label>
+          <label>Diameter"<input type="number" id="fPolygonD" value="3" step="0.25" style="width:58px"></label>
+          <div class="grp">Position (centre)</div>
+          <label>X"<input type="number" id="fPolygonX" value="6" step="0.25" style="width:58px"></label>
+          <label>Y"<input type="number" id="fPolygonY" value="6" step="0.25" style="width:58px"></label>
+          <div class="formhint">Type exact values and press Create, or drag it out on the canvas.</div>
+        </div><div class="formfoot"><button class="tb" data-formclose="1">Close</button><button class="tb primary" data-create="polygon">Create</button></div></div>
+
+        <div class="tform" data-form="star"><h4>Draw Star</h4><div class="tfbody">
+          <div class="grp">Size</div>
+          <label>Number of points<input type="number" id="fStarN" value="5" min="3" max="64" style="width:52px"></label>
+          <label>Outer diameter"<input type="number" id="fStarD" value="3" step="0.25" style="width:58px"></label>
+          <label>Inner %<input type="number" id="fStarInner" value="45" step="5" style="width:48px"></label>
+          <div class="grp">Position (centre)</div>
+          <label>X"<input type="number" id="fStarX" value="6" step="0.25" style="width:58px"></label>
+          <label>Y"<input type="number" id="fStarY" value="6" step="0.25" style="width:58px"></label>
+          <div class="formhint">Type exact values and press Create, or drag it out on the canvas.</div>
+        </div><div class="formfoot"><button class="tb" data-formclose="1">Close</button><button class="tb primary" data-create="star">Create</button></div></div>
+
+        <div class="tform" data-form="circle"><h4>Draw Circle</h4><div class="tfbody">
+          <div class="grp">Size</div>
+          <label>Diameter"<input type="number" id="fCircleD" value="2" step="0.25" style="width:58px"></label>
+          <div class="grp">Position (centre)</div>
+          <label>X"<input type="number" id="fCircleX" value="6" step="0.25" style="width:58px"></label>
+          <label>Y"<input type="number" id="fCircleY" value="6" step="0.25" style="width:58px"></label>
+          <div class="formhint">Type exact values and press Create, or drag it out on the canvas.</div>
+        </div><div class="formfoot"><button class="tb" data-formclose="1">Close</button><button class="tb primary" data-create="circle">Create</button></div></div>
+
+        <div class="tform" data-form="ellipse"><h4>Draw Ellipse</h4><div class="tfbody">
+          <div class="grp">Size</div>
+          <label>Width"<input type="number" id="fEllipseW" value="4" step="0.25" style="width:58px"></label>
+          <label>Height"<input type="number" id="fEllipseH" value="2" step="0.25" style="width:58px"></label>
+          <div class="grp">Position (centre)</div>
+          <label>X"<input type="number" id="fEllipseX" value="6" step="0.25" style="width:58px"></label>
+          <label>Y"<input type="number" id="fEllipseY" value="6" step="0.25" style="width:58px"></label>
+          <div class="formhint">Type exact values and press Create, or drag it out on the canvas.</div>
+        </div><div class="formfoot"><button class="tb" data-formclose="1">Close</button><button class="tb primary" data-create="ellipse">Create</button></div></div>
+
+        <div class="tform" data-form="text"><h4>Draw Text</h4><div class="tfbody">
+          <label style="width:100%">Text<input type="text" id="txtVal" value="AQUAMENTOR" style="flex:1"></label>
+          <label>Height&quot;<input type="number" id="txtH" value="1" step="0.1" style="width:56px"></label>
+          <label data-tip="Outline = real TTF glyph contours (closed, cuttable). Off = single-stroke engraving."><input type="checkbox" id="txtOutline">Outline (TTF)</label>
+          <button class="tb" id="btnLoadFont" data-tip="Load a .ttf/.otf font for outline text">Load font&#8230;</button>
+          <input type="file" id="fontInput" accept=".ttf,.otf,.woff" style="display:none">
+          <div class="grp">Position (baseline, left)</div>
+          <label>X"<input type="number" id="fTextX" value="2" step="0.25" style="width:58px"></label>
+          <label>Y"<input type="number" id="fTextY" value="6" step="0.25" style="width:58px"></label>
+          <div class="formhint" id="fontHint">Outline text uses the built-in stroke font until you load a .ttf/.otf.</div>
+        </div><div class="formfoot"><button class="tb" data-formclose="1">Close</button><button class="tb primary" data-create="text">Create</button></div></div>
+
+        <div class="tform" data-form="dim"><h4>Dimension</h4><div class="tfbody">
+          <label data-tip="Dimension style">Style<select id="dimStyle"><option value="aligned">Aligned</option><option value="horizontal">Horizontal</option><option value="vertical">Vertical</option><option value="radius">Radius</option><option value="diameter">Diameter</option><option value="angle">Angle</option></select></label>
+          <label data-tip="Dimension label height (in)">Text H&quot;<input type="number" id="dimTextH" value="0.18" step="0.02" min="0.02" style="width:56px"></label>
+          <label data-tip="Decimal places in the label">Decimals<input type="number" id="dimPrec" value="3" min="0" max="5" style="width:44px"></label>
+          <label data-tip="Label units &#8212; the drawing stays in inches either way">Units<select id="dimUnit"><option value="in">in</option><option value="mm">mm</option><option value="none">plain</option></select></label>
+          <div class="formhint">Click the two measured points, then click to place the dimension line. Radius / diameter: centre then edge. Angle: vertex, ray, ray, radius. Dimensions are annotations and are never machined.</div>
+        </div><div class="formfoot"><button class="tb" data-formclose="1">Close</button></div></div>
+
+        <div class="tform" data-form="fillet"><h4>Fillet Corner</h4><div class="tfbody">
+          <label data-tip="Radius applied to the clicked corner">Radius&quot;<input type="number" id="filletR" value="0.25" step="0.05" min="0" style="width:56px"></label>
+          <div class="formhint">Click a vector corner to round it. The radius is clamped to the shorter of the two edges.</div>
+        </div><div class="formfoot"><button class="tb" data-formclose="1">Close</button></div></div>
+
+        <div class="tform" data-form="nest"><h4>Nesting</h4><div class="tfbody">
+          <div class="grp">Sheet</div>
+          <label data-tip="Sheet width (defaults from the job)">W&quot;<input type="number" id="nestW" value="24" step="0.5" min="1" style="width:58px"></label>
+          <label data-tip="Sheet height (defaults from the job)">H&quot;<input type="number" id="nestH" value="18" step="0.5" min="1" style="width:58px"></label>
+          <div class="grp">Clearances</div>
+          <label data-tip="Edge keep-out margin inside the sheet border">Margin&quot;<input type="number" id="nestMargin" value="0" step="0.125" min="0" style="width:56px"></label>
+          <label data-tip="Gap between packed parts (kerf + handling)">Gap&quot;<input type="number" id="nestSpacing" value="0.125" step="0.0625" min="0" style="width:56px"></label>
+          <label data-tip="Allow each part to rotate 90&#176; when it fits better landscape"><input type="checkbox" id="nestRotate" checked>Allow 90&#176; rotation</label>
+        </div><div class="formfoot"><button class="tb" data-formclose="1">Close</button><button class="tb primary" id="btnNest">Nest</button></div></div>
+
+        <div class="tform" data-form="cam"><h4 id="camFormTitle">Profile Toolpath</h4><div class="tfbody">
+          <div class="grp">Cutting depths</div>
+          <label data-tip="Depth of the material surface (Z zero)">Start depth&quot;<input type="number" id="camTopZ" value="0" step="0.01" style="width:54px"></label>
+          <label>Cut depth&quot;<input type="number" id="camDepth" value="0.5" step="0.01" style="width:54px"></label>
+          <label data-tip="Maximum depth removed per pass">Pass depth&quot;<input type="number" id="camPass" value="0.25" step="0.01" style="width:54px"></label>
+
+          <div class="grp">Tool</div>
+          <label data-tip="Load a saved tool preset (dia, feed, plunge, RPM, op)">Preset<select id="camToolLib" style="max-width:104px"></select></label>
+          <button class="tb" id="btnToolSave" data-tip="Save current settings as a tool preset">Save</button>
+          <button class="tb" id="btnToolDel" data-tip="Delete the selected preset">Del</button>
+          <label>Tool #<input type="number" id="camTool" value="2" min="1" style="width:44px"></label>
+          <label>Diameter&quot;<input type="number" id="camDia" value="0.25" step="0.001" style="width:58px"></label>
+          <label>Feed<input type="number" id="camFeed" value="120" style="width:54px"></label>
+          <label>Plunge<input type="number" id="camPlunge" value="40" style="width:50px"></label>
+          <label>RPM<input type="number" id="camRpm" value="18000" style="width:62px"></label>
+          <label class="vcarve-only" data-tip="Included V-bit angle (deg)">V angle&#176;<input type="number" id="camVAngle" value="90" min="1" max="179" style="width:48px"></label>
+
+          <div class="grp">Machine vectors</div>
+          <label class="profile-only">Side<select id="camSide"><option value="outside">Outside</option><option value="inside">Inside</option><option value="on">On line</option></select></label>
+          <label>Direction<select id="camDir"><option value="climb">Climb</option><option value="conv">Conventional</option></select></label>
+          <label class="pocket-only" data-tip="Pocket stepover as % of tool diameter">Stepover %<input type="number" id="camStep" value="40" min="5" max="90" style="width:48px"></label>
+          <label class="pocket-only" data-tip="Concentric offset rings or horizontal raster zig-zag">Clear style<select id="camPocketStyle"><option value="offset">Offset</option><option value="raster">Raster</option></select></label>
+          <label class="pocket-only" data-tip="Descend via a helical arc instead of a straight plunge"><input type="checkbox" id="camHelixEntry">Helical entry</label>
+          <label class="pocket-only" data-tip="Smaller finish tool &#216; &#8212; rest-machines the corners the main tool couldn't reach (0 = single tool)">Finish &#216;&quot;<input type="number" id="camFinishDia" value="0" step="0.03125" min="0" style="width:54px"></label>
+          <label class="drill-only" data-tip="Peck depth per plunge (0 = single plunge)">Peck depth&quot;<input type="number" id="camPeck" value="0.1" step="0.05" min="0" style="width:54px"></label>
+          <label class="vcarve-only" data-tip="V-carve offset step (in) &#8212; smaller = smoother, more passes">V step&quot;<input type="number" id="camVStep" value="0.02" step="0.005" min="0.002" style="width:54px"></label>
+          <label class="vcarve-only" data-tip="Flatten the groove bottom at this depth (0 = full sharp V)">Flat depth&quot;<input type="number" id="camVFlat" value="0" step="0.05" min="0" style="width:54px"></label>
+          <label class="vcarve-only" data-tip="Flat endmill &#216; to rough-clear the flat interior first (0 = V-bit only)">Clear &#216;&quot;<input type="number" id="camVClearDia" value="0" step="0.03125" min="0" style="width:54px"></label>
+
+          <div class="grp inlay-only">Inlay fit</div>
+          <label class="inlay-only" data-tip="Straight = pocket cavity + profiled plug. V-carve = tapered walls that wedge together.">Fit<select id="camInlayStyle"><option value="pocket">Straight</option><option value="vcarve">V-carve</option></select></label>
+          <label class="inlay-only" data-tip="Which half to cut now">Part<select id="camInlayPart"><option value="both">Both</option><option value="female">Female (cavity)</option><option value="male">Male (plug)</option></select></label>
+          <label class="inlay-only" data-tip="Fit gap per side (glue line). 0.005&#8211;0.010&quot; is typical.">Gap&quot;<input type="number" id="camInlayGap" value="0.005" step="0.001" min="0" style="width:54px"></label>
+          <label class="inlay-only" data-tip="Machine the gap into the cavity (plug stays true) or into the plug (cavity stays true)">Gap on<select id="camInlayGapOn"><option value="female">Cavity</option><option value="male">Plug</option></select></label>
+          <label class="inlay-only" data-tip="Depth of the female cavity">Cavity&quot;<input type="number" id="camInlayPocketD" value="0.125" step="0.01" min="0.01" style="width:54px"></label>
+          <label class="inlay-only" data-tip="Depth the male plug is cut to">Plug&quot;<input type="number" id="camInlayMaleD" value="0.125" step="0.01" min="0.01" style="width:54px"></label>
+          <label class="inlay-only" data-tip="How far below the plug's face the V starts &#8212; this is what seats the plug on its taper">Start&quot;<input type="number" id="camInlayStartD" value="0.02" step="0.005" min="0" style="width:54px"></label>
+          <label class="inlay-only" data-tip="How far outside the design the male field is cleared">Field&quot;<input type="number" id="camInlayMargin" value="0.25" step="0.05" min="0.01" style="width:54px"></label>
+          <label class="inlay-only" data-tip="The plug is flipped face-down into the cavity, so its toolpath is mirrored in X"><input type="checkbox" id="camInlayMirror" checked>Mirror plug</label>
+
+          <div class="grp profile-pocket">Lead in / out</div>
+          <label class="profile-pocket" data-tip="Tangential entry/exit, so the plunge lands off the finished edge">Lead<select id="camLead"><option value="none">None</option><option value="arc">Arc</option><option value="line">Line</option></select></label>
+          <label class="profile-pocket">Lead length&quot;<input type="number" id="camLeadLen" value="0.25" step="0.05" min="0" style="width:54px"></label>
+          <label class="profile-pocket" data-tip="Ramp down in Z over this distance (0 = straight plunge)">Ramp&quot;<input type="number" id="camRampLen" value="0" step="0.05" min="0" style="width:54px"></label>
+
+          <div class="grp profile-only">Bridges / tabs</div>
+          <label class="profile-only">Tabs<input type="number" id="camTabN" value="0" style="width:44px"></label>
+          <label class="profile-only">Length&quot;<input type="number" id="camTabL" value="0.4" step="0.05" style="width:52px"></label>
+          <label class="profile-only">Height&quot;<input type="number" id="camTabH" value="0.1" step="0.01" style="width:52px"></label>
+
+          <div class="grp">Output</div>
+          <label>Post processor<select id="camPost"><option value="shopsabre">ShopSabre</option><option value="generic">Generic</option></select></label>
+          <label class="not-drill" data-tip="Fit G2/G3 arcs instead of polyline G1 moves"><input type="checkbox" id="camArcs" checked>Arcs G2/G3</label>
+          <div class="cam-hint" id="camHint">Runs on the selected shapes, or all visible ones if nothing is selected.</div>
+          <select id="camOp" style="display:none"><option value="profile">Profile</option><option value="pocket">Pocket</option><option value="drill">Drill</option><option value="vcarve">V-Carve</option><option value="inlay">Inlay</option></select>
+        </div><div class="formfoot">
+          <button class="tb" id="btnCamClear" data-tip="Hide the toolpath overlay">Clear</button>
+          <button class="tb" id="btnCamExport" data-tip="Calculate and save this toolpath as .tap">&#10515; .tap</button>
+          <button class="tb" data-formclose="1">Close</button>
+          <button class="tb" id="btnCamGen" data-tip="Calculate the toolpath and show the backplot">Calculate</button>
+          <button class="tb primary" id="btnAddOp" data-tip="Add this toolpath to the list (or update the one being edited)">+ Toolpath</button>
+        </div></div>
+
+      </div>
+    </div>
   </div>
 
-  <div class="stage"><div class="viewtabs"><button class="vtab active" data-view="2d" data-tip="Edit vectors">2D Design</button><button class="vtab" data-view="preview" data-tip="Machining backplot of all visible toolpaths">Preview</button></div>
-    <div class="simctrl" id="simCtrl"><label data-tip="Show simulated cut material vs. line toolpaths"><input type="checkbox" id="simSolid" checked>3D cut</label><label data-tip="Simulation cell size — smaller = finer + slower">Res"<select id="simRes"><option value="0.08">0.08</option><option value="0.05" selected>0.05</option><option value="0.03">0.03</option><option value="0.02">0.02</option></select></label></div>
+  <div class="stage"><div class="viewtabs"><button class="vtab active" data-view="2d" data-tip="Edit vectors">2D View</button><button class="vtab" data-view="preview" data-tip="Machining preview of all visible toolpaths">3D View</button></div>
+    <div class="simctrl" id="simCtrl"><label data-tip="Show simulated cut material vs. line toolpaths"><input type="checkbox" id="simSolid" checked>3D cut</label><label data-tip="Simulation cell size &#8212; smaller = finer + slower">Res&quot;<select id="simRes"><option value="0.08">0.08</option><option value="0.05" selected>0.05</option><option value="0.03">0.03</option><option value="0.02">0.02</option></select></label></div>
     <div class="restorebar" id="restoreBar"><span id="restoreMsg">Restore last session?</span><button class="tb" id="restoreYes">Restore</button><button class="tb" id="restoreNo">Dismiss</button></div>
     <canvas id="cv"></canvas><canvas id="hud"></canvas></div>
-
-  <div class="right">
-    <div class="sectn"><h3>Job / Material</h3><div class="body">
-      <label data-tip="Material width (X)">W"<input type="number" id="jobW" value="24" step="0.5" style="width:56px"></label>
-      <label data-tip="Material height (Y)">H"<input type="number" id="jobH" value="18" step="0.5" style="width:56px"></label>
-      <label data-tip="Material thickness (Z)">Thick"<input type="number" id="jobT" value="0.5" step="0.05" style="width:54px"></label>
-      <label data-tip="Where X0 Y0 sits on the material">Origin<select id="jobOrigin"><option value="bl">Bottom-L</option><option value="br">Bottom-R</option><option value="tl">Top-L</option><option value="tr">Top-R</option><option value="center">Center</option></select></label>
-      <label data-tip="Show/hide the material outline"><input type="checkbox" id="jobShow" checked>Show</label>
-      <button class="tb" id="btnJobSet" data-tip="Apply size and fit the view to the material">Set job</button>
-      <button class="tb" id="btnFitJob" data-tip="Zoom to the material">Fit job</button>
-    </div></div>
-    <div class="sectn"><h3>Shape params</h3><div class="body">
-      <label>Sides<input type="number" id="polyN" value="6" min="3" max="64" style="width:48px"></label>
-      <label data-tip="Corner radius for rounded rectangle">Corner r"<input type="number" id="rrectR" value="0.25" step="0.05" min="0" style="width:50px"></label>
-      <label data-tip="Radius for the Fillet tool">Fillet r"<input type="number" id="filletR" value="0.25" step="0.05" min="0" style="width:50px"></label>
-      <label>Text<input type="text" id="txtVal" value="AQUAMENTOR" style="width:120px"></label>
-      <label>H"<input type="number" id="txtH" value="1" step="0.1" style="width:50px"></label>
-      <label data-tip="Outline = real TTF glyph contours (closed, cuttable). Off = single-stroke engraving."><input type="checkbox" id="txtOutline">Outline (TTF)</label>
-      <button class="tb" id="btnLoadFont" data-tip="Load a .ttf/.otf font for outline text">Load font…</button>
-      <input type="file" id="fontInput" accept=".ttf,.otf,.woff" style="display:none">
-      <div class="cam-hint" id="fontHint" style="color:#5c6b80">Outline text uses the built-in stroke font until you load a .ttf/.otf.</div>
-      <label data-tip="Dimension style for the Dim tool">Dim<select id="dimStyle"><option value="aligned">Aligned</option><option value="horizontal">Horizontal</option><option value="vertical">Vertical</option><option value="radius">Radius</option><option value="diameter">Diameter</option><option value="angle">Angle</option></select></label>
-      <label data-tip="Dimension label height (in)">Dim H"<input type="number" id="dimTextH" value="0.18" step="0.02" min="0.02" style="width:52px"></label>
-      <label data-tip="Decimal places in the dimension label">Dec<input type="number" id="dimPrec" value="3" min="0" max="5" style="width:38px"></label>
-      <label data-tip="Dimension units — the drawing stays in inches either way">Units<select id="dimUnit"><option value="in">in</option><option value="mm">mm</option><option value="none">plain</option></select></label>
-    </div></div>
-    <div class="sectn"><h3>Edit</h3><div class="body">
-      <button class="tb" id="btnOffset" data-tip="Offset selected by a distance">Offset</button>
-      <button class="tb" id="btnUnion" data-tip="Weld — merge into one (union)">Weld ∪</button>
-      <button class="tb" id="btnDiff" data-tip="Subtract later shapes from first">Subtract</button>
-      <button class="tb" id="btnInt" data-tip="Keep only overlap (intersect)">Intersect</button>
-      <button class="tb" id="btnJoin" data-tip="Join touching vectors into contours">Join</button>
-      <button class="tb" id="btnMirrorH" data-tip="Mirror horizontally">Mirror H</button>
-      <button class="tb" id="btnMirrorV" data-tip="Mirror vertically">Mirror V</button>
-      <button class="tb" id="btnRot90" data-tip="Rotate 90 degrees">Rotate 90°</button>
-      <button class="tb" id="btnDup" data-tip="Duplicate selected">Duplicate</button>
-      <button class="tb" id="btnArray" data-tip="Grid array (rows x cols)">Array</button>
-      <button class="tb" id="btnDelete" data-tip="Delete selected (Del)">Delete</button>
-      <button class="tb" id="btnCheckVec" data-tip="Find open, duplicate, or self-intersecting vectors and select them">Check vectors</button>
-    </div></div>
-    <div class="sectn"><h3>Nest</h3><div class="body">
-      <label data-tip="Sheet width for nesting (defaults from Job)">W"<input type="number" id="nestW" value="24" step="0.5" min="1" style="width:56px"></label>
-      <label data-tip="Sheet height for nesting (defaults from Job)">H"<input type="number" id="nestH" value="18" step="0.5" min="1" style="width:56px"></label>
-      <label data-tip="Edge keep-out margin inside the sheet border">Margin"<input type="number" id="nestMargin" value="0" step="0.125" min="0" style="width:50px"></label>
-      <label data-tip="Gap between packed parts (kerf + handling)">Gap"<input type="number" id="nestSpacing" value="0.125" step="0.0625" min="0" style="width:50px"></label>
-      <label data-tip="Allow each part to rotate 90° when it fits better landscape"><input type="checkbox" id="nestRotate" checked>Rotate 90°</label>
-      <button class="tb" id="btnNest" data-tip="Pack selected shapes (or all) onto sheets, minimize material waste. Multi-sheet layouts spread left-to-right.">Nest ▣</button>
-    </div></div>
-    <div class="sectn"><h3>Align</h3><div class="body">
-      <button class="tb" id="btnAlignL" data-tip="Align left">Left</button><button class="tb" id="btnAlignHC" data-tip="Align horizontal center">H-Ctr</button><button class="tb" id="btnAlignR" data-tip="Align right">Right</button>
-      <button class="tb" id="btnAlignT" data-tip="Align top">Top</button><button class="tb" id="btnAlignVC" data-tip="Align vertical center">V-Ctr</button><button class="tb" id="btnAlignB" data-tip="Align bottom">Bottom</button>
-    </div></div>
-    <div class="sectn"><h3>Clipart</h3><div class="body">
-      <label data-tip="Filter the library by category">Cat<select id="clipCat" style="max-width:118px"></select></label>
-      <button class="tb" id="btnClipAdd" data-tip="Add the selected closed vectors to the clipart library">+ Selection</button>
-      <button class="tb" id="btnClipDel" data-tip="Delete the highlighted custom shape (built-ins can't be deleted)">Del</button>
-      <button class="tb" id="btnClipExport" data-tip="Export your custom clipart as an .aqclip file">⤓</button>
-      <button class="tb" id="btnClipImport" data-tip="Import an .aqclip clipart file">⤒</button>
-      <input type="file" id="clipInput" accept=".aqclip,.json" style="display:none">
-      <div class="clipgrid" id="clipGrid"></div>
-      <div class="cam-hint" style="color:#5c6b80">Click a shape, then drag a box on the canvas to place it (a single click drops it 2" wide).</div>
-    </div></div>
-    <div class="sectn"><h3>Properties</h3><div class="body" id="props"><div class="muted">No selection</div></div></div>
-    <div class="sectn"><h3>Layers</h3><div class="body" id="layerList"></div></div>
-    <div class="sectn"><h3>CAM · Profile → G-code</h3><div class="body">
-      <label data-tip="Load a saved tool preset (dia, feed, plunge, RPM, op)">Tool<select id="camToolLib" style="max-width:120px"></select></label>
-      <button class="tb" id="btnToolSave" data-tip="Save current CAM settings as a tool preset">Save</button>
-      <button class="tb" id="btnToolDel" data-tip="Delete the selected preset">Del</button>
-      <label data-tip="Toolpath operation">Op<select id="camOp"><option value="profile">Profile</option><option value="pocket">Pocket</option><option value="drill">Drill</option><option value="vcarve">V-Carve</option><option value="inlay">Inlay</option></select></label>
-      <label>Tool#<input type="number" id="camTool" value="2" min="1" style="width:40px"></label>
-      <label>Dia"<input type="number" id="camDia" value="0.25" step="0.001" style="width:56px"></label>
-      <label class="profile-only">Side<select id="camSide"><option value="outside">Outside</option><option value="inside">Inside</option><option value="on">On line</option></select></label>
-      <label>Dir<select id="camDir"><option value="climb">Climb</option><option value="conv">Conv</option></select></label>
-      <label class="pocket-only" data-tip="Pocket stepover as % of tool diameter">Step%<input type="number" id="camStep" value="40" min="5" max="90" style="width:44px"></label>
-      <label class="pocket-only" data-tip="Pocket clearing style: concentric offset rings or horizontal raster zig-zag">Style<select id="camPocketStyle"><option value="offset">Offset</option><option value="raster">Raster</option></select></label>
-      <label class="pocket-only" data-tip="Descend to cut depth via a helical arc instead of a straight plunge"><input type="checkbox" id="camHelixEntry">Helix in</label>
-      <label class="pocket-only" data-tip="Optional smaller finish tool Ø — rest-machines the corners the main tool couldn't reach (0 = single tool)">Finish Ø"<input type="number" id="camFinishDia" value="0" step="0.03125" min="0" style="width:50px"></label>
-      <label class="drill-only" data-tip="Peck depth per plunge (0 = single plunge)">Peck"<input type="number" id="camPeck" value="0.1" step="0.05" min="0" style="width:46px"></label>
-      <label class="vcarve-only" data-tip="Included V-bit angle (deg)">V°<input type="number" id="camVAngle" value="90" min="1" max="179" style="width:42px"></label>
-      <label class="vcarve-only" data-tip="V-carve offset step (in) — smaller = smoother, more passes">VStep"<input type="number" id="camVStep" value="0.02" step="0.005" min="0.002" style="width:50px"></label>
-      <label class="vcarve-only" data-tip="Flatten the groove bottom at this depth (0 = full sharp V)">Flat"<input type="number" id="camVFlat" value="0" step="0.05" min="0" style="width:46px"></label>
-      <label class="vcarve-only" data-tip="Flat endmill Ø to rough-clear the flat interior first (0 = V-bit only)">Clr Ø"<input type="number" id="camVClearDia" value="0" step="0.03125" min="0" style="width:50px"></label>
-      <label class="inlay-only" data-tip="Straight = pocket cavity + profiled plug. V-carve = tapered walls that wedge together (VCarve-style V-inlay).">Fit<select id="camInlayStyle"><option value="pocket">Straight</option><option value="vcarve">V-carve</option></select></label>
-      <label class="inlay-only" data-tip="Which half to cut now. Both = the cavity and the plug in one program.">Part<select id="camInlayPart"><option value="both">Both</option><option value="female">Female (cavity)</option><option value="male">Male (plug)</option></select></label>
-      <label class="inlay-only" data-tip="Fit gap per side (glue line). 0.005–0.010&quot; is typical.">Gap"<input type="number" id="camInlayGap" value="0.005" step="0.001" min="0" style="width:52px"></label>
-      <label class="inlay-only" data-tip="Machine the gap into the cavity (keeps the plug true to the design) or into the plug (keeps the cavity true)">Gap on<select id="camInlayGapOn"><option value="female">Cavity</option><option value="male">Plug</option></select></label>
-      <label class="inlay-only" data-tip="Depth of the female cavity">Cavity"<input type="number" id="camInlayPocketD" value="0.125" step="0.01" min="0.01" style="width:52px"></label>
-      <label class="inlay-only" data-tip="Depth the male plug is cut to (plug height / field clearing depth)">Plug"<input type="number" id="camInlayMaleD" value="0.125" step="0.01" min="0.01" style="width:52px"></label>
-      <label class="inlay-only" data-tip="V-carve inlay only: how far below the plug's face the V starts. This is what makes the plug seat on its taper instead of bottoming out on the cavity floor.">Start"<input type="number" id="camInlayStartD" value="0.02" step="0.005" min="0" style="width:52px"></label>
-      <label class="inlay-only" data-tip="V-carve inlay only: how far outside the design the male field is cleared">Field"<input type="number" id="camInlayMargin" value="0.25" step="0.05" min="0.01" style="width:52px"></label>
-      <label class="inlay-only" data-tip="The plug is flipped face-down into the cavity, so its toolpath is mirrored in X"><input type="checkbox" id="camInlayMirror" checked>Mirror plug</label>
-      <label class="not-drill"><input type="checkbox" id="camArcs" checked>Arcs</label>
-      <label class="profile-pocket" data-tip="Lead-in/out at the cut entry/exit (avoids plunge marks on the edge)">Lead<select id="camLead"><option value="none">None</option><option value="arc">Arc</option><option value="line">Line</option></select></label>
-      <label class="profile-pocket" data-tip="Lead-in/out length (in)">Lead"<input type="number" id="camLeadLen" value="0.25" step="0.05" min="0" style="width:46px"></label>
-      <label class="profile-pocket" data-tip="Ramp the lead-in down in Z over this distance (0 = straight plunge)">Ramp"<input type="number" id="camRampLen" value="0" step="0.05" min="0" style="width:46px"></label>
-      <label>Cut"<input type="number" id="camDepth" value="0.5" step="0.01" style="width:52px"></label>
-      <label>Pass"<input type="number" id="camPass" value="0.25" step="0.01" style="width:52px"></label>
-      <label>Feed<input type="number" id="camFeed" value="120" style="width:52px"></label>
-      <label>Plunge<input type="number" id="camPlunge" value="40" style="width:46px"></label>
-      <label>RPM<input type="number" id="camRpm" value="18000" style="width:60px"></label>
-      <label>TopZ"<input type="number" id="camTopZ" value="0" step="0.01" style="width:46px"></label>
-      <label class="profile-only">Tabs#<input type="number" id="camTabN" value="0" style="width:40px"></label>
-      <label class="profile-only">len"<input type="number" id="camTabL" value="0.4" step="0.05" style="width:46px"></label>
-      <label class="profile-only">h"<input type="number" id="camTabH" value="0.1" step="0.01" style="width:46px"></label>
-      <label>Post<select id="camPost"><option value="shopsabre">ShopSabre</option><option value="generic">Generic</option></select></label>
-      <button class="tb" id="btnCamGen" data-tip="Generate toolpath + backplot">▶ Generate</button>
-      <button class="tb" id="btnCamExport" data-tip="Generate and save .tap">⤓ Export .tap</button>
-      <button class="tb" id="btnCamClear" data-tip="Hide toolpath overlay">Clear</button>
-      <div class="cam-hint" id="camHint">Generates from selected shapes (or all visible if none selected).</div>
-      <div class="jobq"><div class="jobq-h">TOOLPATHS</div>
-        <div class="jobq-btns"><button class="tb" id="btnAddOp" data-tip="Capture the current Op + selection as a new toolpath (or ✓ Update the one being edited)">+ Toolpath</button><button class="tb" id="btnRecalcAll" data-tip="Recompute the backplot for every visible toolpath">Recalc all</button><button class="tb" id="btnPostJob" data-tip="Post all toolpaths as one .tap with tool changes">Post job ⤓</button></div>
-        <div class="jobq-btns">
-          <label data-tip="A saved machining recipe — the toolpath settings with no geometry. Apply it to whatever vectors you have selected.">Template<select id="tplLib" style="max-width:118px"></select></label>
-          <button class="tb" id="btnTplApply" data-tip="Add this template's toolpaths, bound to the current selection (or all visible vectors)">Apply</button>
-          <button class="tb" id="btnTplSave" data-tip="Save the toolpath list above as a reusable template">Save…</button>
-          <button class="tb" id="btnTplDel" data-tip="Delete the selected template">Del</button>
-          <button class="tb" id="btnTplExport" data-tip="Export the selected template as an .aqtpl file">⤓</button>
-          <button class="tb" id="btnTplImport" data-tip="Import an .aqtpl template file">⤒</button>
-          <input type="file" id="tplInput" accept=".aqtpl,.json" style="display:none">
-        </div>
-        <div id="opsQueue"></div></div>
-    </div></div>
-  </div>
 
   <div class="status">
     <span>Pos <span class="v" id="coords">0, 0 in</span></span>

@@ -10,6 +10,17 @@ npm run build # regenerates cadcam-studio.html from cam-engine/ sources
 open cadcam-studio.html
 ```
 
+## Layout (VCarve-style)
+A single **command dock** down the left — everything lives there, nothing floats:
+- **Tabs:** Drawing · Toolpaths · Clipart · Layers.
+- **Persistent tool strip** under the tabs: all 19 draw/edit tools, always one click away.
+- **Form-in-panel:** picking a tool (or a toolpath operation) *replaces* the dock body with that
+  tool's options — grouped like VCarve (Cutting Depths / Tool / Machine Vectors / Lead in-out /
+  Bridges / Output) with Close, Calculate and + Toolpath at the bottom.
+- **Type or drag:** shape forms take exact Width / Height / Diameter / Sides / centre X-Y and a
+  **Create** button, so nothing needs the mouse.
+- Canvas tabs are **2D View / 3D View**; the top bar keeps only undo/redo, zoom and snapping.
+
 ## What it does
 - **CAD editor:** job/material setup, draw line/polyline/rect/rounded-rect/circle/ellipse/arc/polygon/star/text,
   select/move/scale/rotate, node edit, offset, weld/subtract/intersect, mirror, array, align, snapping, measure, tooltips, layers, undo/redo.
