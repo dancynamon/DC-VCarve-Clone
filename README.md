@@ -5,7 +5,7 @@ Single self-contained HTML — no install, offline, posts G-code for ShopSabre (
 
 ## Quick start
 ```
-npm test     # 530 checks: CAM (195) + CAD (169) + clipart (47) + trace (45) + PDF (30) + import (25) + smoke (10) + arc-fit (9)
+npm test     # 562 checks: 3D (32) + CAM (195) + CAD (169) + clipart (47) + trace (45) + PDF (30) + import (25) + smoke (10) + arc-fit (9)
 npm run build # regenerates cadcam-studio.html from cam-engine/ sources
 open cadcam-studio.html
 ```
@@ -25,6 +25,9 @@ Rebuilt from screenshots of Dan's own Aspire install (`docs/vcarve-reference/`):
 - **Icons:** a hand-drawn 24×24 inline-SVG set on one stroke weight, inheriting `currentColor` so
   buttons keep their hover/active states. Each glyph shows what the tool does — profile is an offset
   path around a shape, pocket is concentric clearing rings, v-carve is a V groove in section.
+- **True 3D view:** the machined stock is rendered as a real solid in WebGL — **drag to orbit,
+  shift- or right-drag to pan, wheel to zoom, double-click to reframe**. Falls back to the flat
+  top-down shading if the browser has no WebGL.
 - **Canvas theme:** 2D View is a near-white ground with dark ink; 3D View uses the lavender gradient
   (`#babbf4 → #e0e0f8`) sampled straight out of the reference screenshots. All canvas colours come
   from one `THEMES` table in `studio_app.js`, so retuning is a single edit.

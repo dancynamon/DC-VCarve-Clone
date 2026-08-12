@@ -86,7 +86,8 @@ function snapWorld(scr){
 }
 
 // ---- rendering ----
-function resize(){ const r=cv.parentElement.getBoundingClientRect(); cv.width=r.width; cv.height=r.height; if(!view._init){ view.oy=cv.height-60; view._init=true; } render(); }
+function resize(){ const r=cv.parentElement.getBoundingClientRect(); cv.width=r.width; cv.height=r.height;
+  if(gl3d){ gl3d.resize(); gl3d.draw(); } if(!view._init){ view.oy=cv.height-60; view._init=true; } render(); }
 function render(){
   const pv = viewMode==='preview';
   ctx.clearRect(0,0,cv.width,cv.height);
@@ -952,12 +953,64 @@ const AUTOSAVE_KEY='aqcam_autosave';
 let autosaveTimer=null;
 function projectJSON(metaName){ return CADCORE.projectToJSON(doc, job, opsQueue, {name:metaName||'aqcam job', savedAt:Date.now(), app:'Aquamentor CAD/CAM', view:viewMode}); }
 // ---- 2D Design / Preview view tabs ----
+// ---- 3D view (orbit / pan / zoom) ---------------------------------------------
+// The heightfield becomes a real solid in WebGL: drag to orbit, shift- or right-drag to pan,
+// wheel to zoom, double-click to reframe. Falls back to the flat top-down shading when the
+// browser has no usable WebGL, so the 3D tab always shows something.
+let gl3d = null, gl3dMesh = null, gl3dFail = false;
+function hex3(h){ return [parseInt(h.slice(1,3),16)/255, parseInt(h.slice(3,5),16)/255, parseInt(h.slice(5,7),16)/255]; }
+function gl3dInit(){
+  if(gl3d || gl3dFail) return gl3d;
+  const c=document.getElementById('gl'); if(!c){ gl3dFail=true; return null; }
+  gl3d = (typeof GLVIEW!=='undefined') ? GLVIEW.createRenderer(c) : null;
+  if(!gl3d){ gl3dFail=true; setMsg('3D view: WebGL unavailable — falling back to the flat preview'); return null; }
+  const th=THEMES.preview;
+  gl3d.setColors({ clear:hex3(th.gradBot), top:[th.stockTop[0]/255,th.stockTop[1]/255,th.stockTop[2]/255],
+    deep:[th.stockDeep[0]/255,th.stockDeep[1]/255,th.stockDeep[2]/255] });
+  bindGL3D(c);
+  return gl3d;
+}
+function gl3dShow(on){
+  const c=document.getElementById('gl'), h=document.getElementById('glHint');
+  if(c) c.classList.toggle('on', !!on);
+  if(h) h.classList.toggle('on', !!on);
+}
+function gl3dSetField(field){
+  if(!gl3dInit()) return false;
+  // keep the mesh under ~1.2M verts; decimate rather than choke on a fine sim
+  const step=Math.max(1, Math.ceil(Math.sqrt((field.nx*field.ny)/1200000)));
+  gl3dMesh=GLVIEW.buildHeightMesh(field,{step});
+  gl3d.setMesh(gl3dMesh, field.thickness);
+  gl3d.frameAll(); gl3d.resize(); gl3d.draw();
+  requestAnimationFrame(()=>{ if(gl3d){ gl3d.resize(); gl3d.draw(); } });   // after layout settles
+  return true;
+}
+function bindGL3D(c){
+  let drag=null;
+  const stop=e=>{ e.preventDefault(); e.stopPropagation(); };
+  c.addEventListener('contextmenu', e=>e.preventDefault());
+  c.addEventListener('mousedown', e=>{
+    stop(e); c.classList.add('drag');
+    drag={ x:e.clientX, y:e.clientY, pan:(e.button===2||e.button===1||e.shiftKey) };
+  });
+  window.addEventListener('mousemove', e=>{
+    if(!drag||!gl3d) return;
+    const dx=e.clientX-drag.x, dy=e.clientY-drag.y; drag.x=e.clientX; drag.y=e.clientY;
+    if(drag.pan){ const k=gl3d.cam.dist*0.0016; gl3d.pan(-dx*k, dy*k); }
+    else gl3d.orbit(dx*0.008, dy*0.008);
+    gl3d.draw();
+  });
+  window.addEventListener('mouseup', ()=>{ drag=null; c.classList.remove('drag'); });
+  c.addEventListener('wheel', e=>{ stop(e); if(!gl3d)return; gl3d.zoom(Math.exp(e.deltaY*0.0012)); gl3d.draw(); }, {passive:false});
+  c.addEventListener('dblclick', e=>{ stop(e); if(!gl3d)return; gl3d.frameAll(); gl3d.draw(); });
+}
 function setView(mode){
   viewMode = (mode==='preview') ? 'preview' : '2d';
   document.querySelectorAll('.vtab').forEach(b=>b.classList.toggle('active', b.dataset.view===viewMode));
   const stage=document.querySelector('.stage'); if(stage)stage.classList.toggle('preview', viewMode==='preview');
-  if(viewMode==='preview'){ const solid=document.getElementById('simSolid'); if(solid&&solid.checked) runSim(); else { simField=null; recalcAll(); } }
-  else { simField=null; render(); }
+  if(viewMode==='preview'){ const solid=document.getElementById('simSolid');
+    if(solid&&solid.checked) runSim(); else { gl3dShow(false); simField=null; recalcAll(); } }
+  else { gl3dShow(false); simField=null; render(); }
 }
 // Build the tool profile + cut segments for one toolpath, for the material sim.
 // One toolpath may post to multiple ops (vcarve flat-depth = endmill + V-bit) — build a sim cut per op.
@@ -977,9 +1030,14 @@ function runSim(){
   const res=parseFloat((document.getElementById('simRes')||{}).value)||0.05;
   const cuts=[]; for(const q of opsQueue){ if(q.visible===false)continue; for(const c of simCutFor(q)) cuts.push(c); }
   const field=CAM.simulateStock({ x0:r.x0, y0:r.y0, w, h, thickness:job.thickness||0.5, res, cuts });
-  simField=shadeHeightfield(field, r);
+  const has3d=!!gl3dInit();
+  gl3dShow(has3d);                      // must be visible before we size the viewport
+  const solid3d=has3d && gl3dSetField(field);
+  if(!solid3d) gl3dShow(false);
+  simField = solid3d ? null : shadeHeightfield(field, r);
   render();
-  setMsg('3D sim: '+cuts.length+' toolpath(s) · '+field.nx+'×'+field.ny+' cells @ '+res+'"');
+  setMsg('3D sim: '+cuts.length+' toolpath(s) · '+field.nx+'×'+field.ny+' cells @ '+res+'"'
+    + (solid3d ? ' · '+gl3dMesh.vertexCount.toLocaleString()+' verts — drag to orbit' : ''));
 }
 // Shade the heightfield into an offscreen canvas: wood-tone depth ramp + directional hillshade for a carved look.
 function shadeHeightfield(field, r){

@@ -87,6 +87,11 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .stage{grid-area:stage;position:relative;overflow:hidden}
 #cv{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair}
 #hud{position:absolute;inset:0;pointer-events:none}
+#gl{position:absolute;inset:0;width:100%;height:100%;display:none;cursor:grab}
+#gl.on{display:block}
+#gl.drag{cursor:grabbing}
+.glhint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:22;display:none;background:rgba(22,36,60,.82);color:#dce8f7;border-radius:5px;padding:4px 10px;font-size:10px;letter-spacing:.2px;pointer-events:none}
+.stage.preview .glhint.on{display:block}
 .viewtabs{position:absolute;top:0;left:0;z-index:20;display:flex;gap:2px;background:var(--bg-card);border:1px solid var(--bd);border-radius:0 0 6px 0;padding:2px;box-shadow:0 2px 8px rgba(20,40,70,.18)}
 .vtab{background:none;border:none;color:var(--ink-dim);font-family:inherit;font-size:11px;padding:4px 16px;border-radius:6px;cursor:pointer;letter-spacing:.3px}
 .vtab:hover{color:var(--ink)}
@@ -380,7 +385,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 <div class="stage"><div class="viewtabs"><button class="vtab active" data-view="2d" data-tip="Edit vectors">2D View</button><button class="vtab" data-view="preview" data-tip="Machining preview of all visible toolpaths">3D View</button></div>
     <div class="simctrl" id="simCtrl"><label data-tip="Show simulated cut material vs. line toolpaths">3D cut</label><label data-tip="Simulation cell size &#8212; smaller = finer + slower">Res&quot;</label></div>
     <div class="restorebar" id="restoreBar"><span id="restoreMsg">Restore last session?</span><button class="tb" id="restoreYes">Restore</button><button class="tb" id="restoreNo">Dismiss</button></div>
-    <canvas id="cv"></canvas><canvas id="hud"></canvas></div>
+    <canvas id="cv"></canvas><canvas id="gl"></canvas><canvas id="hud"></canvas><div class="glhint" id="glHint">drag to orbit · shift-drag or right-drag to pan · wheel to zoom · double-click to reset</div></div>
 
   <div class="rdock">
     <div class="dockhead"><span id="rdockTitle">Toolpaths</span><span class="pin">▣</span></div>
