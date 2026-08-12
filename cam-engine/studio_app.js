@@ -360,7 +360,51 @@ function createFromForm(kind){
   pushHistory(); addShapes([sh]); sel=new Set([sh.id]); render(); syncPanels();
   setMsg('Created '+kind+' at '+x.toFixed(2)+', '+y.toFixed(2));
 }
+// ---- tool icon set ------------------------------------------------------------
+// Hand-drawn 24x24 stroke glyphs on one weight, inheriting currentColor so they pick up the
+// button's hover/active state. Each one shows what the tool DOES (profile = an offset path around a
+// shape; pocket = concentric clearing rings; v-carve = a V groove section), rather than a letterform.
+const ICON_SVG=(inner,extra)=>'<svg viewBox="0 0 24 24" width="17" height="17" fill="none" '+
+  'stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" '+
+  'aria-hidden="true"'+(extra||'')+'>'+inner+'</svg>';
+const DOT=(x,y)=>'<circle cx="'+x+'" cy="'+y+'" r="1.5" fill="currentColor" stroke="none"/>';
+const ICONS={
+  select:  '<path d="M6 3 L6 18 L10 14.2 L12.6 20 L15 19 L12.4 13.4 L17.5 13.4 Z" fill="currentColor" stroke="none"/>',
+  node:    '<path d="M4 17 C 8 7, 15 7, 20 13"/><rect x="2.4" y="15.4" width="3.2" height="3.2" fill="currentColor" stroke="none"/><rect x="18.4" y="11.4" width="3.2" height="3.2" fill="currentColor" stroke="none"/><rect x="10.4" y="7.6" width="3.2" height="3.2" fill="none"/>',
+  fillet:  '<path d="M4 20 V11 A7 7 0 0 1 11 4 H20"/><path d="M4 4 H11 M4 4 V11" stroke-dasharray="2 2" opacity=".5"/>',
+  trim:    '<path d="M6.5 3.5 L16.8 16.2"/><path d="M17.5 3.5 L7.2 16.2"/><circle cx="5.6" cy="18.6" r="2.5"/><circle cx="18.4" cy="18.6" r="2.5"/>',
+  extend:  '<path d="M3 12 H14"/><path d="M11 9 L14.5 12 L11 15"/><path d="M19 5 V19"/>',
+  line:    '<path d="M5.5 18.5 L18.5 5.5"/>'+DOT(5.5,18.5)+DOT(18.5,5.5),
+  polyline:'<path d="M4 18 L9 8.5 L14.5 14 L20 5.5"/>'+DOT(4,18)+DOT(20,5.5),
+  bezier:  '<path d="M4 18 C 8 7, 16 7, 20 13"/><path d="M4 18 L8.5 11" opacity=".5"/><path d="M20 13 L15.5 8" opacity=".5"/>'+DOT(4,18)+DOT(20,13)+DOT(8.5,11)+DOT(15.5,8),
+  rect:    '<rect x="3.5" y="6" width="17" height="12"/>',
+  rrect:   '<rect x="3.5" y="6" width="17" height="12" rx="3.5"/>',
+  circle:  '<circle cx="12" cy="12" r="8.2"/>',
+  ellipse: '<ellipse cx="12" cy="12" rx="9" ry="6"/>',
+  arc:     '<path d="M3.5 17.5 A 9.5 9.5 0 0 1 20.5 17.5"/>'+DOT(3.5,17.5)+DOT(20.5,17.5),
+  polygon: '<path d="M12 3.4 L20 8 L20 16 L12 20.6 L4 16 L4 8 Z"/>',
+  star:    '<path d="M12 3 L14.5 9.4 L21.3 9.8 L16 14 L17.8 20.6 L12 16.8 L6.2 20.6 L8 14 L2.7 9.8 L9.5 9.4 Z"/>',
+  text:    '<path d="M4.5 6 H19.5"/><path d="M12 6 V19"/><path d="M9 19 H15"/>',
+  dim:     '<path d="M5 5.5 V13.5 M19 5.5 V13.5"/><path d="M5 18 H19"/><path d="M8 15.6 L5 18 L8 20.4 Z" fill="currentColor"/><path d="M16 15.6 L19 18 L16 20.4 Z" fill="currentColor"/>',
+  measure: '<rect x="2.6" y="9" width="18.8" height="6" rx="1"/><path d="M7 9 V12 M12 9 V13 M17 9 V12"/>',
+  pan:     '<path d="M12 3.5 V20.5 M3.5 12 H20.5"/><path d="M12 3.5 L9.6 6.4 M12 3.5 L14.4 6.4 M12 20.5 L9.6 17.6 M12 20.5 L14.4 17.6 M3.5 12 L6.4 9.6 M3.5 12 L6.4 14.4 M20.5 12 L17.6 9.6 M20.5 12 L17.6 14.4"/>',
+  // toolpath operations
+  profile: '<rect x="7" y="8" width="10" height="8" rx="1"/><rect x="3.6" y="4.6" width="16.8" height="14.8" rx="2.6" stroke-dasharray="3 2.2" opacity=".75"/>',
+  pocket:  '<rect x="3.4" y="5.4" width="17.2" height="13.2" rx="1.4"/><rect x="6.3" y="8.3" width="11.4" height="7.4" rx="1" opacity=".75"/><rect x="9.2" y="11.2" width="5.6" height="1.6" rx=".8" opacity=".55"/>',
+  drill:   '<circle cx="12" cy="12" r="7.6"/><circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none"/><path d="M12 1.8 V5 M12 19 V22.2 M1.8 12 H5 M19 12 H22.2"/>',
+  vcarve:  '<path d="M2.6 7 H21.4"/><path d="M2.6 7 V17 H21.4 V7"/><path d="M7.4 7 L12 15.6 L16.6 7 Z" fill="currentColor" fill-opacity=".18"/>',
+  inlay:   '<path d="M2.8 18.4 V9 H8 L11 13.4 L14 9 H19.2 V18.4 Z"/><path d="M8 5.6 L11 1.6 L14 5.6 Z" fill="currentColor" fill-opacity=".25"/>'
+};
+function paintIcons(){
+  document.querySelectorAll('.tool[data-tool]').forEach(b=>{
+    const g=ICONS[b.dataset.tool]; if(g) b.innerHTML=ICON_SVG(g);
+  });
+  document.querySelectorAll('.opbtn[data-op]').forEach(b=>{
+    const g=ICONS[b.dataset.op]; if(g) b.innerHTML=ICON_SVG(g);
+  });
+}
 function initCmdDock(){
+  paintIcons();
   const jd=document.getElementById('jobDims'); if(jd) jd.style.whiteSpace='pre';
   document.querySelectorAll('[data-create]').forEach(b=>b.onclick=()=>createFromForm(b.dataset.create));
   document.querySelectorAll('.dtab').forEach(b=>b.onclick=()=>setCmdTab(b.dataset.ctab));
