@@ -211,7 +211,7 @@ function setTool(t){ if(t!=='measure') measure=null; tool=t; sel=(t==='node')?se
   const active=document.querySelector('.tool[data-tool="'+t+'"]'); if(active){ const grp=active.closest('.tgrp'); if(grp)grp.classList.remove('collapsed'); }   // keep the active tool visible
   const form=TOOL_FORMS[t];
   if(form) showForm(form,'drawing');            // the tool's options take over the dock
-  else if(formOpen() && t!=='clipart') setCmdTab(cmdTab);
+  else if(formOpen() && t!=='clipart' && t!=='select') setCmdTab(cmdTab);
   setMsg(TOOLMSG[t]||''); render(); }
 const TOOLMSG={ select:'Click to select · drag to move · handles to scale/rotate · marquee to box-select',
   node:'Select one shape, drag its nodes · dbl-click segment adds node · dbl-click node deletes',
@@ -234,38 +234,87 @@ const CAM_TITLES={profile:'Profile Toolpath',pocket:'Pocket Toolpath',drill:'Dri
   vcarve:'V-Carve / Engraving Toolpath',inlay:'Inlay Toolpath'};
 const ORIGIN_LABEL={bl:'bottom-left',br:'bottom-right',tl:'top-left',tr:'top-right',center:'centre'};
 let cmdTab='drawing';
+// LEFT dock = Drawing / Clipart / Layers (tabs at the bottom, Aspire-style).
+// RIGHT dock = Toolpaths: Material Setup + Toolpath Operations, swapped for a toolpath form,
+// with the Toolpath List always visible underneath.
 function setCmdTab(name){
   cmdTab=name;
-  document.querySelectorAll('.ctab').forEach(b=>b.classList.toggle('active',b.dataset.ctab===name));
-  document.querySelectorAll('.tform').forEach(f=>f.classList.remove('active'));
-  document.querySelectorAll('.cpane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.dtab').forEach(b=>b.classList.toggle('active',b.dataset.ctab===name));
+  document.querySelectorAll('#paneForm .tform').forEach(f=>f.classList.remove('active'));
+  document.querySelectorAll('.dpane').forEach(p=>p.classList.remove('active'));
   const pane=document.getElementById('pane'+name.charAt(0).toUpperCase()+name.slice(1));
   if(pane) pane.classList.add('active');
+  const t=document.getElementById('ldockTitle'); if(t) t.textContent=name.charAt(0).toUpperCase()+name.slice(1);
 }
 function showForm(name, tab){
-  document.querySelectorAll('.tform').forEach(f=>f.classList.toggle('active',f.dataset.form===name));
-  document.querySelectorAll('.cpane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('#paneForm .tform').forEach(f=>f.classList.toggle('active',f.dataset.form===name));
+  document.querySelectorAll('.dpane').forEach(p=>p.classList.remove('active'));
   const host=document.getElementById('paneForm'); if(host) host.classList.add('active');
-  if(tab){ cmdTab=tab; document.querySelectorAll('.ctab').forEach(b=>b.classList.toggle('active',b.dataset.ctab===tab)); }
-  const body=document.querySelector('.cmdbody'); if(body) body.scrollTop=0;
+  if(tab) cmdTab=tab;
+  const body=document.querySelector('.dockbody'); if(body) body.scrollTop=0;
 }
 function closeForm(){ setCmdTab(cmdTab); }
 function formOpen(){ const h=document.getElementById('paneForm'); return !!(h&&h.classList.contains('active')); }
+function showCamForm(){
+  document.querySelectorAll('.rpane').forEach(p=>p.classList.remove('active'));
+  const f=document.getElementById('paneCamForm'); if(f) f.classList.add('active');
+  const tf=document.querySelector('#paneCamForm .tform'); if(tf) tf.classList.add('active');
+  const rt=document.querySelector('.rtop'); if(rt) rt.scrollTop=0;
+}
+function closeCamForm(){
+  document.querySelectorAll('.rpane').forEach(p=>p.classList.remove('active'));
+  const o=document.getElementById('paneOps'); if(o) o.classList.add('active');
+}
 function openCamForm(op){
   const el=document.getElementById('camOp'); if(!el)return;
   el.value=op||'profile'; el.dispatchEvent(new Event('change',{bubbles:true}));
   const t=document.getElementById('camFormTitle'); if(t) t.textContent=CAM_TITLES[el.value]||'Toolpath';
   document.querySelectorAll('.opbtn').forEach(b=>b.classList.toggle('active',b.dataset.op===el.value));
-  showForm('cam','toolpaths');
+  showCamForm();
 }
 function updateMatSummary(){
-  const txt=job.w.toFixed(2)+'" \u00d7 '+job.h.toFixed(2)+'" \u00d7 '+job.thickness.toFixed(3)+'" thick \u00b7 datum '+(ORIGIN_LABEL[job.origin]||job.origin);
-  ['matSummary','matSummary2'].forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent=txt; });
+  const set=(id,txt)=>{const el=document.getElementById(id); if(el) el.textContent=txt;};
+  set('matSummary', job.w.toFixed(2)+'" \u00d7 '+job.h.toFixed(2)+'"  \u00b7  Z0 top, '+job.thickness.toFixed(3)+'" thick');
+  set('matDatum', 'XY Datum: '+(ORIGIN_LABEL[job.origin]||job.origin));
+  set('jobDims', 'Job Dimensions\n  Width  (X): '+job.w.toFixed(3)+' inches\n  Height (Y): '+job.h.toFixed(3)+' inches\n  Depth  (Z): '+job.thickness.toFixed(3)+' inches');
 }
-// Create a shape straight from its form's numeric fields — VCarve lets you type it, not just drag it.
+// ---- menu bar ----
+const MENU_ACTIONS={
+  'new':()=>document.getElementById('btnNew').click(),
+  'open':()=>document.getElementById('btnImport').click(),
+  'save':()=>document.getElementById('btnSaveProj').click(),
+  'expdxf':()=>exportDXF(), 'expsvg':()=>exportSVG(),
+  'trace':()=>openTraceModal(),
+  'undo':()=>undo(), 'redo':()=>redo(), 'dup':()=>opDuplicate(), 'del':()=>deleteSelected(),
+  'check':()=>document.getElementById('btnCheckVec').click(),
+  'recalc':()=>recalcAll(), 'post':()=>postJob(),
+  'v2d':()=>setView('2d'), 'v3d':()=>setView('preview'),
+  'fit':()=>fitAll(), 'fitjob':()=>fitJob(),
+  'keys':()=>{document.getElementById('keysModal').style.display='block';},
+  'selftest':()=>selfTest()
+};
+function closeMenus(){ document.querySelectorAll('.menu.open').forEach(m=>m.classList.remove('open')); }
+function initMenuBar(){
+  document.querySelectorAll('.menu').forEach(m=>{
+    m.addEventListener('mousedown',e=>{
+      if(e.target.closest('.mdrop')) return;
+      e.stopPropagation(); const was=m.classList.contains('open'); closeMenus(); if(!was) m.classList.add('open');
+    });
+    m.addEventListener('mouseenter',()=>{ if(document.querySelector('.menu.open')){ closeMenus(); m.classList.add('open'); } });
+  });
+  document.querySelectorAll('.mdrop button').forEach(b=>{
+    b.onmousedown=e=>e.stopPropagation();
+    b.onclick=()=>{ closeMenus(); const a=b.dataset.act;
+      if(a&&a.indexOf('op:')===0) return openCamForm(a.slice(3));
+      const fn=MENU_ACTIONS[a]; if(fn) try{ fn(); }catch(err){ setMsg('Menu action failed: '+err.message); } };
+  });
+  window.addEventListener('mousedown',e=>{ if(!e.target.closest('.menu')) closeMenus(); });
+}
+// Create a shape straight from its form's numeric fields — Aspire lets you type it, not just drag it.
 function createFromForm(kind){
   const n=(id,d)=>{const el=document.getElementById(id); const v=el?parseFloat(el.value):NaN; return isFinite(v)?v:d;};
-  const x=n('f'+kind.charAt(0).toUpperCase()+kind.slice(1)+'X',6), y=n('f'+kind.charAt(0).toUpperCase()+kind.slice(1)+'Y',6);
+  const K=kind.charAt(0).toUpperCase()+kind.slice(1);
+  const x=n('f'+K+'X',6), y=n('f'+K+'Y',6);
   let sh=null;
   if(kind==='rect'){ const w=n('fRectW',4),h=n('fRectH',3); if(w>0&&h>0) sh=CADCORE.mkRect(x-w/2,y-h/2,w,h,activeLayer); }
   else if(kind==='rrect'){ const w=n('fRrectW',4),h=n('fRrectH',3),r=n('rrectR',0.25);
@@ -275,20 +324,22 @@ function createFromForm(kind){
   else if(kind==='polygon'){ const d=n('fPolygonD',3),k=Math.max(3,Math.round(n('polyN',6))); if(d>0) sh=CADCORE.mkPolygon({x,y},d/2,k,undefined,activeLayer); }
   else if(kind==='star'){ const d=n('fStarD',3),k=Math.max(3,Math.round(n('fStarN',5))),ip=Math.min(95,Math.max(5,n('fStarInner',45)))/100;
     if(d>0) sh=CADCORE.mkStar({x,y},d/2,d/2*ip,k,undefined,activeLayer); }
-  else if(kind==='text'){ const tx=n('fTextX',2),ty=n('fTextY',6);
-    const el=document.getElementById('txtVal'), h=n('txtH',1);
-    const str=(el&&el.value)||''; if(!str.trim()) return setMsg('Type some text first');
-    placeText({x:tx,y:ty}); return; }
+  else if(kind==='text'){ const el=document.getElementById('txtVal');
+    if(!el||!el.value.trim()) return setMsg('Type some text first');
+    placeText({x:n('fTextX',2),y:n('fTextY',6)}); return; }
   if(!sh) return setMsg('Check the size values');
   pushHistory(); addShapes([sh]); sel=new Set([sh.id]); render(); syncPanels();
   setMsg('Created '+kind+' at '+x.toFixed(2)+', '+y.toFixed(2));
 }
 function initCmdDock(){
+  const jd=document.getElementById('jobDims'); if(jd) jd.style.whiteSpace='pre';
   document.querySelectorAll('[data-create]').forEach(b=>b.onclick=()=>createFromForm(b.dataset.create));
-  document.querySelectorAll('.ctab').forEach(b=>b.onclick=()=>setCmdTab(b.dataset.ctab));
-  document.querySelectorAll('[data-formclose]').forEach(b=>b.onclick=closeForm);
+  document.querySelectorAll('.dtab').forEach(b=>b.onclick=()=>setCmdTab(b.dataset.ctab));
+  initMenuBar();
+  document.querySelectorAll('[data-formclose]').forEach(b=>b.onclick=e=>{
+    if(e.target.closest('#paneCamForm')) closeCamForm(); else closeForm(); });
   document.querySelectorAll('.opbtn').forEach(b=>b.onclick=()=>openCamForm(b.dataset.op));
-  const jf=()=>showForm('job',cmdTab);
+  const jf=()=>showForm('job','drawing');
   const a=document.getElementById('btnJobForm'); if(a)a.onclick=jf;
   const b=document.getElementById('btnJobForm2'); if(b)b.onclick=jf;
   const n=document.getElementById('btnNestForm'); if(n)n.onclick=()=>showForm('nest','drawing');

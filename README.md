@@ -10,16 +10,18 @@ npm run build # regenerates cadcam-studio.html from cam-engine/ sources
 open cadcam-studio.html
 ```
 
-## Layout (VCarve-style)
-A single **command dock** down the left — everything lives there, nothing floats:
-- **Tabs:** Drawing · Toolpaths · Clipart · Layers.
-- **Persistent tool strip** under the tabs: all 19 draw/edit tools, always one click away.
-- **Form-in-panel:** picking a tool (or a toolpath operation) *replaces* the dock body with that
-  tool's options — grouped like VCarve (Cutting Depths / Tool / Machine Vectors / Lead in-out /
-  Bridges / Output) with Close, Calculate and + Toolpath at the bottom.
-- **Type or drag:** shape forms take exact Width / Height / Diameter / Sides / centre X-Y and a
-  **Create** button, so nothing needs the mouse.
-- Canvas tabs are **2D View / 3D View**; the top bar keeps only undo/redo, zoom and snapping.
+## Layout (matched to Vectric Aspire)
+Rebuilt from screenshots of Dan's own Aspire install (`docs/vcarve-reference/`):
+- **Menu bar:** File · Edit · Toolpaths · View · Help, with working drop-downs.
+- **Left dock "Drawing"** — File Operations, 2D View Control, Create Vectors, Transform Objects,
+  Edit Objects, Align Objects, Offset and Layout; a **Job Dimensions** readout at the bottom, and
+  **Drawing / Clipart / Layers** tabs along the bottom edge.
+- **Right dock "Toolpaths"** — Material Setup (Set…, Z0/thickness, XY datum), a Toolpath Operations
+  icon grid, and a **Toolpath List** that stays visible underneath whatever form is open.
+- **Form-in-panel, per dock:** a drawing tool's options replace the left dock body; a toolpath
+  operation's options replace the right dock's upper area. The two never clobber each other.
+- **Type or drag:** shape forms take exact Width / Height / Diameter / Sides / centre X-Y + **Create**.
+- Canvas tabs **2D View / 3D View** sit top-left over the view, as in Aspire.
 
 ## What it does
 - **CAD editor:** job/material setup, draw line/polyline/rect/rounded-rect/circle/ellipse/arc/polygon/star/text,
