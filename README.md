@@ -22,6 +22,9 @@ Rebuilt from screenshots of Dan's own Aspire install (`docs/vcarve-reference/`):
   operation's options replace the right dock's upper area. The two never clobber each other.
 - **Type or drag:** shape forms take exact Width / Height / Diameter / Sides / centre X-Y + **Create**.
 - Canvas tabs **2D View / 3D View** sit top-left over the view, as in Aspire.
+- **Canvas theme:** 2D View is a near-white ground with dark ink; 3D View uses the lavender gradient
+  (`#babbf4 → #e0e0f8`) sampled straight out of the reference screenshots. All canvas colours come
+  from one `THEMES` table in `studio_app.js`, so retuning is a single edit.
 
 ## What it does
 - **CAD editor:** job/material setup, draw line/polyline/rect/rounded-rect/circle/ellipse/arc/polygon/star/text,
