@@ -46,6 +46,7 @@ const THEMES={
     jobEdge:'#5c7ea8', jobKey:'rgba(30,45,70,0.35)', jobCorner:'#3f6fa0',
     labelBg:'rgba(244,248,252,0.96)', labelBd:'#8fb0d4', labelInk:'#22384f' }),
   preview: Object.assign({}, INK, { bg:'#c9cbf4', gradTop:'#babbf4', gradBot:'#e0e0f8',
+    stockTop:[56,67,245], stockDeep:[14,18,104],   // measured Aspire material blue, darkened with depth
     grid:'rgba(30,45,70,0.06)', axis:'rgba(60,90,200,0.22)',
     jobFace:'rgba(56,67,245,0.92)', jobShadow:'rgba(30,40,90,0.35)',
     jobEdge:'#2732c8', jobKey:'rgba(20,28,90,0.45)', jobCorner:'#8f97ff',
@@ -899,13 +900,17 @@ function shadeHeightfield(field, r){
   const off=document.createElement('canvas'); off.width=nx; off.height=ny; const octx=off.getContext('2d');
   const img=octx.createImageData(nx,ny); const px=img.data;
   const L=[-0.5,-0.55,0.67]; const Ln=Math.hypot(L[0],L[1],L[2]); L[0]/=Ln;L[1]/=Ln;L[2]/=Ln;
+  const th=THEMES.preview, TOPC=th.stockTop, DEEPC=th.stockDeep;
+  // normalise the shade so an uncut flat top lands exactly on the stock colour
+  const SFLAT=0.55+0.45*Math.max(0.35,Math.min(1.15,L[2]));
   const at=(i,j)=>z[Math.min(ny-1,Math.max(0,j))*nx+Math.min(nx-1,Math.max(0,i))];
   for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){ const h=z[j*nx+i]; const frac=Math.min(1,(-h)/maxD);
-    // wood tone: top warm tan -> deep shadowed brown
-    let R=198-frac*120, G=168-frac*118, B=120-frac*82;
+    // Aspire material blue: uncut surface = the measured stock colour, darkening with cut depth so
+    // the carve still reads as depth rather than a flat slab.
+    let R=TOPC[0]+(DEEPC[0]-TOPC[0])*frac, G=TOPC[1]+(DEEPC[1]-TOPC[1])*frac, B=TOPC[2]+(DEEPC[2]-TOPC[2])*frac;
     const gx=(at(i+1,j)-at(i-1,j))/(2*res), gy=(at(i,j+1)-at(i,j-1))/(2*res);
     let nz=1/Math.sqrt(gx*gx+gy*gy+1), nX=-gx*nz, nY=-gy*nz;
-    let lam=nX*L[0]+nY*L[1]+nz*L[2]; lam=Math.max(0.35,Math.min(1.15,lam)); const s=0.55+0.45*lam;
+    let lam=nX*L[0]+nY*L[1]+nz*L[2]; lam=Math.max(0.35,Math.min(1.15,lam)); const s=(0.55+0.45*lam)/SFLAT;
     const o=((ny-1-j)*nx+i)*4;   // flip rows so image top = max Y
     px[o]=Math.max(0,Math.min(255,R*s)); px[o+1]=Math.max(0,Math.min(255,G*s)); px[o+2]=Math.max(0,Math.min(255,B*s)); px[o+3]=255; }
   octx.putImageData(img,0,0);
