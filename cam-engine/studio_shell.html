@@ -69,6 +69,8 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .tool{height:27px;width:auto;background:linear-gradient(#ffffff,#eef3f8);border:1px solid var(--btn-bd);border-radius:5px;color:#3a4756;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 1px rgba(20,40,70,.05);font-family:inherit;font-size:14px;line-height:1;padding:0}
 .tool b{font-size:14px;font-weight:400}
 .tool svg{display:block;pointer-events:none}
+.tb.iconbtn{width:30px;height:27px;padding:0;display:inline-flex;align-items:center;justify-content:center}
+.tb.iconbtn svg{display:block;pointer-events:none}
 .tool .tlabel{display:none}
 .tool:hover{background:linear-gradient(#f0f6fc,#dbe7f4);color:#1d2733;border-color:#9fb1c6}
 .tool.active{background:var(--accent-soft);border-color:var(--accent-bd);color:var(--accent)}
@@ -179,7 +181,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 /* hover tooltips */
 [data-tip]{position:relative}
 [data-tip]:hover::after{content:attr(data-tip);position:absolute;left:50%;top:115%;transform:translateX(-50%);background:#16243c;color:#dce8f7;border:1px solid #2c405c;padding:3px 8px;border-radius:4px;font-size:10px;line-height:1.3;white-space:nowrap;z-index:80;pointer-events:none;letter-spacing:.2px;text-transform:none;box-shadow:0 3px 10px rgba(0,0,0,.4)}
-.tools .tool[data-tip]:hover::after{left:118%;top:50%;transform:translateY(-50%)}
+.iconrow .tool[data-tip]:hover::after,.tb.iconbtn[data-tip]:hover::after{white-space:normal;min-width:120px;max-width:190px}
 </style></head>
 <body>
 <div class="app">
@@ -228,20 +230,20 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
           <button class="tb" id="btnMirrorV" data-tip="Mirror vertically">Mirror V</button>
           <button class="tb" id="btnRot90" data-tip="Rotate 90 degrees">Rotate 90&#176;</button>
           <button class="tb" id="btnDup" data-tip="Duplicate selected">Duplicate</button>
-          <button class="tb" id="btnArray" data-tip="Grid array (rows x cols)">Array Copy</button>
+          
           
           
           
           
         </div><div class="secgrp"><h3>Edit Objects</h3><div class="iconrow"><button class="tool" data-tool="node" data-tip="Node edit &#8212; drag points, dbl-click add/remove (N)" title="Node edit (N)"><b>&#11049;</b><span class="tlabel">Nodes</span></button><button class="tool" data-tool="fillet" data-tip="Fillet &#8212; click a corner to round it" title="Fillet"><b>&#9693;</b><span class="tlabel">Fillet</span></button><button class="tool" data-tool="trim" data-tip="Trim &#8212; click the dangling part of an open vector" title="Trim"><b>&#9986;</b><span class="tlabel">Trim</span></button><button class="tool" data-tool="extend" data-tip="Extend &#8212; stretch an open vector to the next one ahead" title="Extend"><b>&#8866;</b><span class="tlabel">Extend</span></button></div>
-          <button class="tb" id="btnOffset" data-tip="Offset selected by a distance">Offset</button>
+          
           <button class="tb" id="btnJoin" data-tip="Join touching vectors into contours">Join</button>
           <button class="tb" id="btnUnion" data-tip="Weld &#8212; merge into one (union)">Weld &#8746;</button>
           <button class="tb" id="btnDiff" data-tip="Subtract later shapes from first">Subtract</button>
           <button class="tb" id="btnInt" data-tip="Keep only overlap (intersect)">Intersect</button>
           <button class="tb" id="btnDelete" data-tip="Delete selected (Del)">Delete</button>
           <button class="tb" id="btnCheckVec" data-tip="Find open, duplicate or self-intersecting vectors and select them">Vector Validator</button>
-        </div><div class="secgrp"><h3>Align Objects</h3><button class="tb" id="btnAlignL">Left</button><button class="tb" id="btnAlignHC">H-Ctr</button><button class="tb" id="btnAlignR">Right</button><button class="tb" id="btnAlignT">Top</button><button class="tb" id="btnAlignVC">V-Ctr</button><button class="tb" id="btnAlignB">Bottom</button></div><div class="secgrp"><h3>Offset and Layout</h3><button class="tb" id="btnOffset2" data-tip="Offset selected by a distance">Offset</button><button class="tb" id="btnNestForm" data-tip="Pack shapes onto sheets to minimise waste">Nesting…</button><button class="tb" id="btnArray2" data-tip="Grid array (rows x cols)">Array Copy</button></div><div class="sectn"><h3>Selection</h3><div class="body" id="props"><div class="muted">No selection</div></div></div>
+        </div><div class="secgrp"><h3>Align Objects</h3><button class="tb" id="btnAlignL">Left</button><button class="tb" id="btnAlignHC">H-Ctr</button><button class="tb" id="btnAlignR">Right</button><button class="tb" id="btnAlignT">Top</button><button class="tb" id="btnAlignVC">V-Ctr</button><button class="tb" id="btnAlignB">Bottom</button></div><div class="secgrp"><h3>Offset and Layout</h3><button class="tb" id="btnOffset" data-tip="Offset selected by a distance">Offset</button><button class="tb" id="btnArray" data-tip="Grid array (rows x cols)">Array Copy</button><button class="tb" id="btnNestForm" data-tip="Pack shapes onto sheets to minimise waste">Nesting…</button></div><div class="sectn"><h3>Selection</h3><div class="body" id="props"><div class="muted">No selection</div></div></div>
       </div>
       <div class="dpane" id="paneClipart"><div class="sectn"><h3>Clipart Library</h3><div class="body">
           <label data-tip="Filter the library by category">Cat<select id="clipCat" style="max-width:118px"></select></label>

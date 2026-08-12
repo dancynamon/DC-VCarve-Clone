@@ -393,9 +393,52 @@ const ICONS={
   pocket:  '<rect x="3.4" y="5.4" width="17.2" height="13.2" rx="1.4"/><rect x="6.3" y="8.3" width="11.4" height="7.4" rx="1" opacity=".75"/><rect x="9.2" y="11.2" width="5.6" height="1.6" rx=".8" opacity=".55"/>',
   drill:   '<circle cx="12" cy="12" r="7.6"/><circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none"/><path d="M12 1.8 V5 M12 19 V22.2 M1.8 12 H5 M19 12 H22.2"/>',
   vcarve:  '<path d="M2.6 7 H21.4"/><path d="M2.6 7 V17 H21.4 V7"/><path d="M7.4 7 L12 15.6 L16.6 7 Z" fill="currentColor" fill-opacity=".18"/>',
-  inlay:   '<path d="M2.8 18.4 V9 H8 L11 13.4 L14 9 H19.2 V18.4 Z"/><path d="M8 5.6 L11 1.6 L14 5.6 Z" fill="currentColor" fill-opacity=".25"/>'
+  inlay:   '<path d="M2.8 18.4 V9 H8 L11 13.4 L14 9 H19.2 V18.4 Z"/><path d="M8 5.6 L11 1.6 L14 5.6 Z" fill="currentColor" fill-opacity=".25"/>',
+  // ---- command buttons (File Operations / View / Transform / Edit / Align / Layout) ----
+  'new':     '<path d="M6 3.2 H14 L18.6 8 V20.8 H6 Z"/><path d="M14 3.2 V8 H18.6"/>',
+  'open':    '<path d="M2.8 18.6 V6.4 H9.4 L11.4 8.8 H17.6 V11"/><path d="M2.8 18.6 L6.2 11 H21.6 L18.2 18.6 Z"/>',
+  'save':    '<path d="M4 4.4 H17.2 L20 7.2 V19.6 H4 Z"/><path d="M7.4 4.4 V10 H15.6 V4.4"/><rect x="7.4" y="13.4" width="8.2" height="6.2"/>',
+  'tracebmp':'<rect x="2.8" y="4.6" width="10.6" height="10.6" rx="1"/><path d="M5 12.6 L7.6 9.4 L9.6 11.6 L11.4 9.6" opacity=".65"/><path d="M9.6 20.4 C 13 20.4, 13.6 12.4, 21 12.4"/>'+DOT(9.6,20.4)+DOT(21,12.4),
+  'expdxf':  '<path d="M5 3.4 H12.6 L16.6 7.4 V13"/><path d="M12.6 3.4 V7.4 H16.6"/><path d="M5 3.4 V16.6 H10"/><path d="M13.6 20.2 L17.4 16.4 L21.2 20.2 Z"/><path d="M13.6 20.2 H21.2" opacity=".6"/>',
+  'expsvg':  '<path d="M5 3.4 H12.6 L16.6 7.4 V12"/><path d="M12.6 3.4 V7.4 H16.6"/><path d="M5 3.4 V16.6 H9.4"/><path d="M12 20.4 C 15 14.6, 18.6 20.4, 21.4 15"/>'+DOT(12,20.4)+DOT(21.4,15),
+  'fit':     '<rect x="3.2" y="5.4" width="17.6" height="13.2" rx="1.4" stroke-dasharray="2.6 2"/><path d="M8.6 10 L11.4 12.8 M8.6 14 V10 H12.6"/><path d="M15.4 14 L12.6 11.2 M15.4 10 V14 H11.4"/>',
+  'fitjob':  '<rect x="2.8" y="5" width="18.4" height="14" rx="1.4" stroke-dasharray="2.6 2"/><rect x="7.4" y="9" width="9.2" height="6" fill="currentColor" fill-opacity=".2"/>',
+  'mirrorh': '<path d="M12 2.6 V21.4" stroke-dasharray="2.4 2.2"/><path d="M9.4 6.4 L2.8 12 L9.4 17.6 Z"/><path d="M14.6 6.4 L21.2 12 L14.6 17.6 Z" fill="currentColor" fill-opacity=".22"/>',
+  'mirrorv': '<path d="M2.6 12 H21.4" stroke-dasharray="2.4 2.2"/><path d="M6.4 9.4 L12 2.8 L17.6 9.4 Z"/><path d="M6.4 14.6 L12 21.2 L17.6 14.6 Z" fill="currentColor" fill-opacity=".22"/>',
+  'rot90':   '<path d="M12 4.2 A7.8 7.8 0 1 1 4.6 14.6"/><path d="M8.4 2.2 L12 4.2 L8.4 6.6"/><rect x="9" y="9" width="6" height="6" fill="currentColor" fill-opacity=".22"/>',
+  'duplicate':'<rect x="3.2" y="7.4" width="11.6" height="11.6" rx="1"/><path d="M7.6 7.4 V4 H20.8 V17.2 H17.4" opacity=".7"/>',
+  'array':   '<rect x="3" y="3" width="6.4" height="6.4"/><rect x="14.6" y="3" width="6.4" height="6.4"/><rect x="3" y="14.6" width="6.4" height="6.4"/><rect x="14.6" y="14.6" width="6.4" height="6.4"/>',
+  'nest':    '<rect x="2.6" y="4" width="18.8" height="16" rx="1" stroke-dasharray="2.6 2"/><rect x="4.6" y="6" width="7.4" height="5.4" fill="currentColor" fill-opacity=".18"/><circle cx="17" cy="9.2" r="3.2" fill="currentColor" fill-opacity=".18"/><rect x="4.6" y="13.4" width="12" height="4.6" fill="currentColor" fill-opacity=".18"/>',
+  'offset':  '<rect x="7.6" y="8.6" width="8.8" height="6.8" rx="1"/><rect x="3.6" y="4.6" width="16.8" height="14.8" rx="3" stroke-dasharray="3 2.2" opacity=".8"/>',
+  'join':    '<path d="M3 17.4 C 6.4 17.4, 8.4 12, 11.6 12"/><path d="M21 17.4 C 17.6 17.4, 15.6 12, 12.4 12"/>'+DOT(12,12)+DOT(3,17.4)+DOT(21,17.4),
+  'weld':    '<circle cx="9.4" cy="12" r="5.6" fill="currentColor" fill-opacity=".26"/><circle cx="14.6" cy="12" r="5.6" fill="currentColor" fill-opacity=".26"/>',
+  'subtract':'<circle cx="9.4" cy="12" r="5.6" fill="currentColor" fill-opacity=".26"/><circle cx="14.6" cy="12" r="5.6" stroke-dasharray="2.4 2" fill="none"/>',
+  'intersect':'<circle cx="9.5" cy="12" r="5.5"/><circle cx="14.5" cy="12" r="5.5"/><path d="M12 7.1 A5.5 5.5 0 0 0 12 16.9 A5.5 5.5 0 0 0 12 7.1 Z" fill="currentColor" fill-opacity=".45" stroke="none"/>',
+  'del':     '<path d="M4.4 6.6 H19.6"/><path d="M9.6 6.6 V4.2 H14.4 V6.6"/><path d="M6.4 6.6 L7.4 20.4 H16.6 L17.6 6.6"/><path d="M10.4 10 V17 M13.6 10 V17" opacity=".65"/>',
+  'validate':'<path d="M2.8 16.6 C 6.6 16.6, 8.2 7.4, 12 7.4 C 14.6 7.4, 15.8 11, 17 13" opacity=".9"/><circle cx="16.4" cy="15.6" r="4.6"/><path d="M14.4 15.6 L15.9 17.1 L18.6 13.9"/>',
+  'alignL':  '<path d="M3.6 3.4 V20.6"/><rect x="6.6" y="6" width="13.4" height="4.4" fill="currentColor" fill-opacity=".22"/><rect x="6.6" y="13.6" width="8.4" height="4.4" fill="currentColor" fill-opacity=".22"/>',
+  'alignR':  '<path d="M20.4 3.4 V20.6"/><rect x="4" y="6" width="13.4" height="4.4" fill="currentColor" fill-opacity=".22"/><rect x="9" y="13.6" width="8.4" height="4.4" fill="currentColor" fill-opacity=".22"/>',
+  'alignHC': '<path d="M12 3.4 V20.6" stroke-dasharray="2.4 2"/><rect x="5.3" y="6" width="13.4" height="4.4" fill="currentColor" fill-opacity=".22"/><rect x="7.8" y="13.6" width="8.4" height="4.4" fill="currentColor" fill-opacity=".22"/>',
+  'alignT':  '<path d="M3.4 3.6 H20.6"/><rect x="6" y="6.6" width="4.4" height="13.4" fill="currentColor" fill-opacity=".22"/><rect x="13.6" y="6.6" width="4.4" height="8.4" fill="currentColor" fill-opacity=".22"/>',
+  'alignB':  '<path d="M3.4 20.4 H20.6"/><rect x="6" y="4" width="4.4" height="13.4" fill="currentColor" fill-opacity=".22"/><rect x="13.6" y="9" width="4.4" height="8.4" fill="currentColor" fill-opacity=".22"/>',
+  'alignVC': '<path d="M3.4 12 H20.6" stroke-dasharray="2.4 2"/><rect x="6" y="5.3" width="4.4" height="13.4" fill="currentColor" fill-opacity=".22"/><rect x="13.6" y="7.8" width="4.4" height="8.4" fill="currentColor" fill-opacity=".22"/>',
 };
+// Left-dock command buttons become icon buttons too, the way Aspire lays them out.
+// Their data-tip tooltips carry the naming, so nothing becomes unguessable.
+const ICON_BTNS={ btnNew:'new', btnImport:'open', btnSaveProj:'save', btnTrace:'tracebmp',
+  btnExpDXF:'expdxf', btnExpSVG:'expsvg', btnFit:'fit', btnFitJob:'fitjob',
+  btnMirrorH:'mirrorh', btnMirrorV:'mirrorv', btnRot90:'rot90', btnDup:'duplicate',
+  btnArray:'array', btnNestForm:'nest', btnOffset:'offset', btnJoin:'join', btnUnion:'weld',
+  btnDiff:'subtract', btnInt:'intersect', btnDelete:'del', btnCheckVec:'validate',
+  btnAlignL:'alignL', btnAlignHC:'alignHC', btnAlignR:'alignR',
+  btnAlignT:'alignT', btnAlignVC:'alignVC', btnAlignB:'alignB' };
 function paintIcons(){
+  for(const id in ICON_BTNS){
+    const b=document.getElementById(id), g=ICONS[ICON_BTNS[id]];
+    if(!b||!g) continue;
+    if(!b.dataset.tip && b.textContent.trim()) b.dataset.tip=b.textContent.trim();
+    b.classList.add('iconbtn'); b.innerHTML=ICON_SVG(g);
+  }
   document.querySelectorAll('.tool[data-tool]').forEach(b=>{
     const g=ICONS[b.dataset.tool]; if(g) b.innerHTML=ICON_SVG(g);
   });
