@@ -5,7 +5,7 @@ Single self-contained HTML — no install, offline, posts G-code for ShopSabre (
 
 ## Quick start
 ```
-npm test     # 614 checks: 3D (44) + CAM (195) + CAD (169) + clipart (47) + import (59) + trace (45) + PDF (30) + arc-fit (15) + smoke (10)
+npm test     # 646 checks: CAM (217) + CAD (169) + import (69) + clipart (47) + trace (45) + 3D (44) + PDF (30) + arc-fit (15) + smoke (10)
 npm run build # regenerates cadcam-studio.html from cam-engine/ sources
 open cadcam-studio.html
 ```
@@ -54,10 +54,28 @@ Rebuilt from screenshots of Dan's own Aspire install (`docs/vcarve-reference/`):
   vectors; five starter recipes built in, import/export as `.aqtpl`.
 
 ## Re-posting a job from its DXF
-`node cam-engine/repost.js in.dxf out.tap --dia 0.25 --depth 1.5 --pass 1.5 --feed 100 --plunge 30 --rpm 24000 --clear 0.8 --side outside --dir conventional --lead line --leadlen 0.25`
-runs the same engine as the studio with no browser, so a job whose only surviving source is its `.dxf`
-can be regenerated after an engine fix. `CAD/XRT-50-aq.tap` is the worked example (the Vectric-posted
-`CAD/XRT-50.tap` is left untouched beside it for comparison).
+`cam-engine/repost.js` runs the same engine as the studio with no browser, so a job whose only
+surviving source is its `.dxf` can be regenerated after an engine fix.
+
+**One op over every vector** — enough for a simple nest:
+```
+node cam-engine/repost.js CAD/XRT-50.dxf CAD/XRT-50-aq.tap --dia 0.25 --depth 1.5 --pass 1.5 \
+  --feed 100 --plunge 30 --rpm 24000 --clear 0.8 --side outside --dir conventional \
+  --lead line --leadlen 0.25
+```
+
+**A job spec** — several tools over hand-picked vectors, which is what a real job looks like:
+```
+node cam-engine/repost.js --job "CAD/jobs/LGC 50 Job 1 Board 3.aqjob.json"
+```
+A spec is readable JSON: each op names its tool, feeds, depths and tabs, and `select`s vectors by
+`[layer, index]` (the vector's position within that layer in DXF order). A third element overrides
+that one vector — Vectric lets each vector in a toolpath sit on its own side of the line, so
+`["TOP_STEP_4", 0, {"side":"right","reverse":true}]` is normal, not an edge case.
+
+Every `.tap` in `CAD/` has been re-posted this way to `*-aq.tap`; the Vectric originals are left
+untouched beside them. Cut geometry matches the originals to 0.0001" on the straight-cut boards,
+0.0015" on the foam jig and 0.010" on the two pocket roughs (whose finished wall matches to 0.0004").
 
 ## Layout
 - `cadcam-studio.html` — built app (run `npm run build` to regenerate).

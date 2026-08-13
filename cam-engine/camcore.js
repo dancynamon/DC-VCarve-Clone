@@ -7,7 +7,7 @@
 })(typeof self !== 'undefined' ? self : this, function (ClipperLib) {
 'use strict';
 const SCALE = 100000, TOL = 1e-4;
-const ARC_TOL = 0.003;         // ClipperOffset arc tolerance used throughout (offsetLoop / offsetRegion)
+const ARC_TOL = 0.001;        // ClipperOffset arc tolerance: how far an offset round join may sit off true
 const ARC_CHORD_RATIO = 12;    // max chord / median chord inside one fitted arc — a real curve is near-uniform
 const ARC_MAX_SAG = 0.05;      // hard cap (in) on how far a fitted arc may depart from the polyline it replaces
 function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
@@ -60,7 +60,7 @@ function assembleContours(polys, tol){
 }
 
 function offsetLoop(loop, delta, joinType){
-  const co=new ClipperLib.ClipperOffset(2, 0.003*SCALE);
+  const co=new ClipperLib.ClipperOffset(2, ARC_TOL*SCALE);
   const path=loop.map(p=>new ClipperLib.IntPoint(Math.round(p.x*SCALE),Math.round(p.y*SCALE)));
   const jt = joinType==='miter'?ClipperLib.JoinType.jtMiter : joinType==='square'?ClipperLib.JoinType.jtSquare : ClipperLib.JoinType.jtRound;
   co.AddPath(path, jt, ClipperLib.EndType.etClosedPolygon);
@@ -69,17 +69,63 @@ function offsetLoop(loop, delta, joinType){
   return sol.map(p=>p.map(pt=>({x:pt.X/SCALE,y:pt.Y/SCALE})));
 }
 
-function withTabs(loop, count, tabLen){
+// ---- one-sided offset of an OPEN vector (Vectric's "profile left/right of the line") ----
+// Clipper only offsets an open path into a closed "racetrack" that wraps both sides. Rather than
+// re-derive corner joins by hand (and get the self-intersection cleanup wrong), offset with butt ends
+// and then keep the run of the result that lies on the wanted side of the source. delta>0 = left of
+// travel direction, delta<0 = right. Returns the run oriented along the source, or [] if it vanished.
+function _sideOf(pts, v){          // signed side of v w.r.t. the nearest segment of the open path pts
+  let bestD=Infinity, bestC=0;
+  for(let i=0;i<pts.length-1;i++){
+    const a=pts[i], b=pts[i+1], vx=b.x-a.x, vy=b.y-a.y, L2=vx*vx+vy*vy;
+    let t=L2?((v.x-a.x)*vx+(v.y-a.y)*vy)/L2:0; t=Math.max(0,Math.min(1,t));
+    const d=Math.hypot(v.x-a.x-t*vx, v.y-a.y-t*vy);
+    if(d<bestD){ bestD=d; bestC=vx*(v.y-a.y)-vy*(v.x-a.x); }
+  }
+  return bestC>0?1:(bestC<0?-1:0);
+}
+function offsetOpenPath(pts, delta, joinType){
+  if(!pts || pts.length<2) return [];
+  if(Math.abs(delta)<1e-9) return pts.map(p=>({x:p.x,y:p.y}));
+  const co=new ClipperLib.ClipperOffset(2, ARC_TOL*SCALE);
+  const jt = joinType==='miter'?ClipperLib.JoinType.jtMiter : joinType==='square'?ClipperLib.JoinType.jtSquare : ClipperLib.JoinType.jtRound;
+  co.AddPath(toIntPath(pts), jt, ClipperLib.EndType.etOpenButt);
+  const sol=new ClipperLib.Paths();
+  co.Execute(sol, Math.abs(delta)*SCALE);
+  if(!sol.length) return [];
+  let ring=null, bestA=-1;
+  for(const p of sol){ const r=fromIntPath(p), a=Math.abs(signedArea(r)); if(a>bestA){bestA=a; ring=r;} }
+  if(!ring || ring.length<2) return [];
+  const want = delta>0?1:-1;
+  const side = ring.map(v=>_sideOf(pts,v));
+  // longest contiguous cyclic run on the wanted side (the racetrack has exactly one per side)
+  const n=ring.length; let bestStart=-1,bestLen=0,i=0;
+  while(i<n){
+    if(side[i]!==want){i++;continue;}
+    let len=0; while(len<n && side[(i+len)%n]===want) len++;
+    if(len>bestLen){bestLen=len;bestStart=i;}
+    i+=len;
+  }
+  if(bestStart<0) return [];
+  const run=[]; for(let k=0;k<bestLen;k++) run.push(ring[(bestStart+k)%n]);
+  const s=pts[0], e=pts[pts.length-1];
+  if(dist(run[0],s)>dist(run[0],e)) run.reverse();   // travel the same way as the source vector
+  return run;
+}
+
+function withTabs(loop, count, tabLen, closed){
+  closed = closed!==false;
   if(!count||count<1||!tabLen) return loop.map(p=>({x:p.x,y:p.y,tab:false}));
   const n=loop.length, segLen=[]; let total=0;
-  for(let i=0;i<n;i++){const a=loop[i],b=loop[(i+1)%n];const L=dist(a,b);segLen.push(L);total+=L;}
+  const last = closed?n:n-1;
+  for(let i=0;i<last;i++){const a=loop[i],b=loop[(i+1)%n];const L=dist(a,b);segLen.push(L);total+=L;}
   if(total===0) return loop.map(p=>({x:p.x,y:p.y,tab:false}));
   const centers=[]; for(let k=0;k<count;k++) centers.push((k+0.5)/count*total);
   const half=Math.min(tabLen, total/count*0.9)/2;
   const iv=centers.map(c=>[c-half,c+half]);
   function inTab(pos){for(const [s,e] of iv){let a=((s%total)+total)%total,b=((e%total)+total)%total;if(a<=b){if(pos>=a&&pos<=b)return true;}else{if(pos>=a||pos<=b)return true;}}return false;}
   const out=[]; let acc=0;
-  for(let i=0;i<n;i++){
+  for(let i=0;i<last;i++){
     const a=loop[i],b=loop[(i+1)%n],L=segLen[i];
     out.push({x:a.x,y:a.y,tab:inTab(acc)});
     const steps=Math.max(1,Math.ceil(L/0.02));
@@ -89,6 +135,7 @@ function withTabs(loop, count, tabLen){
     }
     acc+=L;
   }
+  if(!closed) out.push({x:loop[n-1].x, y:loop[n-1].y, tab:inTab(total)});   // open paths keep their last vertex
   return out;
 }
 
@@ -141,29 +188,50 @@ function profileOp(contours, opts){
   const r=o.toolDia/2, warnings=[], passesAll=[]; let leadSkipped=false;
   const depths=[]; let d=Math.min(o.passDepth,o.cutDepth);
   while(d<o.cutDepth-1e-9){depths.push(d);d+=o.passDepth;} depths.push(o.cutDepth);
+  const openSide = (o.side==='left'||o.side==='right');
   for(const c of contours){
-    let loops;
-    if(o.side==='on'||!c.closed) loops=[c.pts];
+    let loops, pts=(o.reverse && !c.closed)?reversed(c.pts):c.pts;
+    if(!c.closed){
+      // open vector: cut on the line, or offset to one side of it (Vectric's Left/Right)
+      if(!openSide) loops=[pts];
+      else{
+        const run=offsetOpenPath(pts, o.side==='left'?+r:-r, o.joinType);
+        if(!run.length){warnings.push('Open-vector offset vanished (tool too big) on a contour');continue;}
+        loops=[run];
+      }
+    } else if(o.side==='on'||openSide) loops=[pts];
     else{
-      const base=ensureCCW(c.pts);
+      const base=ensureCCW(pts);
       const delta=o.side==='outside'?+r:-r;
       loops=offsetLoop(base,delta,o.joinType);
       if(!loops.length){warnings.push('Inside profile collapsed (tool too big) on a contour');continue;}
     }
     for(let lp of loops){
-      if(c.closed && o.side!=='on'){
+      if(c.closed && o.side!=='on' && !openSide){
         const wantCCW=(o.side==='outside')?!o.climb:o.climb;
         lp=wantCCW?ensureCCW(lp):ensureCW(lp);
       }
-      const tabbed=(c.closed && o.tabs && o.tabs.count>0)?withTabs(lp,o.tabs.count,o.tabs.length):lp.map(p=>({x:p.x,y:p.y,tab:false}));
-      let path=tabbed, closed=c.closed&&o.side!=='on';
-      if(closed && o.leadType && o.leadType!=='none'){
+      const tabH=(o.tabs&&o.tabs.count>0&&o.tabs.height)||0;
+      const wantTabs=(o.tabs && o.tabs.count>0 && (c.closed || openSide || o.side==='on'));
+      const plain=lp.map(p=>({x:p.x,y:p.y,tab:false}));
+      const tabbed=wantTabs?withTabs(lp,o.tabs.count,o.tabs.length,c.closed):plain;
+      let closed=c.closed&&o.side!=='on';
+      const lead=pts0=>{
+        if(!(closed && o.leadType && o.leadType!=='none')) return {path:pts0, closed};
         const interiorSign=signedArea(lp)>0?1:-1;                       // left normal = interior when CCW
         const sideSign=(o.side==='outside')?-interiorSign:interiorSign; // outside profile leads away from part; inside leads into the hole
-        const wl=wrapLead(lp,tabbed,o.leadType,o.leadLen,sideSign,o.rampLen);
-        path=wl.path; closed=wl.closed; if(wl.skipped) leadSkipped=true;
-      }
-      depths.forEach(depth=>passesAll.push({z:o.topZ-depth,tabHeight:(o.tabs&&o.tabs.height)||0,closed,path}));
+        const wl=wrapLead(lp,pts0,o.leadType,o.leadLen,sideSign,o.rampLen);
+        if(wl.skipped) leadSkipped=true;
+        return {path:wl.path, closed:wl.closed};
+      };
+      const wTab=lead(tabbed), noTab=lead(plain);
+      // Tabs only bite on passes that reach into the tab: a pass shallower than (cutDepth - tabHeight)
+      // is entirely above the tab top, so lifting there would just leave stock for the next pass to hit.
+      depths.forEach(depth=>{
+        const bites = tabH>0 && depth > o.cutDepth-tabH+1e-9;
+        const w = bites?wTab:noTab;
+        passesAll.push({z:o.topZ-depth, tabHeight:bites?tabH:0, closed:w.closed, path:w.path});
+      });
     }
   }
   if(leadSkipped) warnings.push('Lead-in/out skipped on a contour too small for the lead length');
@@ -195,7 +263,7 @@ function regionFromLoops(loops){
 }
 // offset an oriented region (IntPoint paths) by delta inches; returns array of point-loops
 function offsetRegion(region, delta){
-  const co=new ClipperLib.ClipperOffset(2, 0.003*SCALE);
+  const co=new ClipperLib.ClipperOffset(2, ARC_TOL*SCALE);
   for(const path of region) co.AddPath(path, ClipperLib.JoinType.jtRound, ClipperLib.EndType.etClosedPolygon);
   const sol=new ClipperLib.Paths(); co.Execute(sol, delta*SCALE);
   return sol.map(fromIntPath);
@@ -924,7 +992,7 @@ function stockHeightAt(field, x, y) {
   return field.z[j * field.nx + i];
 }
 
-return {SCALE,TOL,dist,signedArea,isCCW,ensureCCW,ensureCW,boundsOf,assembleContours,offsetLoop,withTabs,fitArcs,profileOp,pocketOp,drillOp,vcarveOp,inlayOp,centroid,defaultTools,upsertTool,removeTool,slugId,orderPasses,
+return {SCALE,TOL,dist,signedArea,isCCW,ensureCCW,ensureCW,boundsOf,assembleContours,offsetLoop,offsetOpenPath,withTabs,fitArcs,profileOp,pocketOp,drillOp,vcarveOp,inlayOp,centroid,defaultTools,upsertTool,removeTool,slugId,orderPasses,
   sanitizeTemplateParams,normalizeTemplate,templateFromQueue,applyTemplate,templateToJSON,templateFromJSON,
   upsertTemplate,removeTemplate,defaultTemplates,TEMPLATE_VERSION,TEMPLATE_FORMAT,TEMPLATE_PARAM_KEYS,postProcess,POSTS,simulateStock,stockHeightAt,estimateTime};
 });

@@ -136,5 +136,38 @@ ok('repost: plunge feed applied', /F30\.0/.test(rp.gcode));
 ok('repost: spindle speed applied', /S24000/.test(rp.gcode));
 ok('repost: no warnings on sample.dxf', rp.warnings.length === 0, JSON.stringify(rp.warnings));
 
+// --- repost job specs: several ops over hand-picked DXF vectors ---
+const idx = RP.dxfIndex(dxf);
+const layerNames = Object.keys(idx);
+ok('jobspec: dxfIndex groups vectors by layer', layerNames.length >= 1, JSON.stringify(layerNames));
+const firstLayer = layerNames.find(L => idx[L].some(e => e.pts.length >= 4));
+const firstIdx = idx[firstLayer].findIndex(e => e.pts.length >= 4);
+const job = RP.repostJob(dxf, { name: 'spec', reorder: false, ops: [
+  { op: 'drill', label: 'holes', toolNum: 8, toolDia: 0.375, rpm: 10000, feed: 62.5, plunge: 20,
+    cutDepth: 1.5, clearZ: 0.8, select: [[firstLayer, firstIdx]] },
+  { op: 'profile', label: 'cut', side: 'outside', climb: false, toolNum: 3, toolDia: 0.375,
+    rpm: 18000, feed: 60, plunge: 20, cutDepth: 1.5, passDepth: 0.375, clearZ: 0.8,
+    tabs: { count: 1, length: 0.875, height: 0.125 }, select: [[firstLayer, firstIdx]] } ] });
+ok('jobspec: one summary row per op', job.ops.length === 2, JSON.stringify(job.ops));
+ok('jobspec: ops post in spec order (T8 before T3)', /\r?\nT8\r?\n[\s\S]*\r?\nT3\r?\n/.test(job.gcode));
+ok('jobspec: each op gets its own spindle speed', /S10000/.test(job.gcode) && /S18000/.test(job.gcode));
+ok('jobspec: 4 depth passes on the profile op', job.ops[1].passes === 4, job.ops[1].passes);
+ok('jobspec: tab lift appears at cutDepth - tabHeight', /Z-1\.3750/.test(job.gcode));
+ok('jobspec: only one tab lift per pass', (job.gcode.match(/Z-1\.3750/g) || []).length === 1,
+   (job.gcode.match(/Z-1\.3750/g) || []).length);
+ok('jobspec: per-vector override changes the side', (function () {
+  const a = RP.repostJob(dxf, { ops: [{ op: 'profile', side: 'outside', toolNum: 1, toolDia: 0.5,
+              cutDepth: 0.1, passDepth: 0.1, select: [[firstLayer, firstIdx]] }] });
+  const b = RP.repostJob(dxf, { ops: [{ op: 'profile', side: 'outside', toolNum: 1, toolDia: 0.5,
+              cutDepth: 0.1, passDepth: 0.1, select: [[firstLayer, firstIdx, { side: 'inside' }]] }] });
+  return a.gcode !== b.gcode; })());
+let threw = '';
+try { RP.repostJob(dxf, { ops: [{ op: 'profile', select: [['NO_SUCH_LAYER', 0]] }] }); }
+catch (e) { threw = e.message; }
+ok('jobspec: a missing layer is a clear error, not silence', /missing layer/.test(threw), threw);
+try { threw = ''; RP.repostJob(dxf, { ops: [{ op: 'profile', select: [[firstLayer, 9999]] }] }); }
+catch (e) { threw = e.message; }
+ok('jobspec: an out-of-range vector index is a clear error', /missing vector/.test(threw), threw);
+
 console.log(`\n${pass}/${pass + fail} import checks passed`);
 process.exit(fail ? 1 : 0);

@@ -379,7 +379,10 @@ console.log('\n(post-pp assertions added)');
   ok('job: T2 first (header, Z2 follows)', t2i<t1i && lines[t2i+1]==='Z2', lines[t2i+1]);
   ok('job: T1 toolchange (no Z2, S follows)', lines[t1i+1]!=='Z2' && /^S\d/.test(lines[t1i+1]||''), lines[t1i+1]);
   ok('job: single program (one G90, ends m51, no M30)', (g.match(/^G90$/gm)||[]).length===1 && /m51\s*$/.test(g) && !/M30/.test(g));
-  ok('job: profile tabs present (T1 op cut)', profile.ops[0].passes[0].path.some(p=>p.tab));
+  // tabs only bite on passes that reach into them: cutDepth .5, tab .06 -> only the final -.5 pass
+  const pp=profile.ops[0].passes;
+  ok('job: profile tabs present on the final pass', pp[pp.length-1].path.some(p=>p.tab) && pp[pp.length-1].tabHeight===0.06);
+  ok('job: no tabs on the shallow pass', !pp[0].path.some(p=>p.tab) && pp[0].tabHeight===0, pp[0].tabHeight);
 })();
 
 // 14. toolpath ordering (nearest-neighbor minimizes rapids)
@@ -584,7 +587,8 @@ console.log('\n(post-pp assertions added)');
   const sq=[{pts:[{x:0,y:0},{x:4,y:0},{x:4,y:3},{x:0,y:3}],closed:true,area:12,ccw:true}];
   const built=CAM.profileOp(sq, q2[1].p);
   ok('tpl: applied profile params build a real toolpath', built.ops[0].passes.length>0);
-  ok('tpl: applied tab count reaches the toolpath', built.ops[0].passes[0].path.some(p=>p.tab===true));
+  const bp=built.ops[0].passes;
+  ok('tpl: applied tab count reaches the toolpath', bp[bp.length-1].path.some(p=>p.tab===true));
 
   // JSON round-trip + validation
   const json=CAM.templateToJSON(t);
@@ -617,6 +621,53 @@ console.log('\n(post-pp assertions added)');
   ok('tpl: inlay recipe keeps its own params',
      inl && inl.entries[0].p.op==='inlay' && inl.entries[0].p.part==='female' && inl.entries[1].p.part==='male'
      && inl.entries[1].p.mirrorMale===true, JSON.stringify(inl&&inl.entries.map(e=>e.p.part)));
+})();
+
+// ---- open-vector side offset (Vectric's profile Left/Right of an open line) ----
+(function(){
+  const line=[{x:0,y:0},{x:3.5,y:0}];
+  const L=CAM.offsetOpenPath(line, 0.1875,'round'), R=CAM.offsetOpenPath(line,-0.1875,'round');
+  ok('openoff: left of +X vector is +Y', L.length===2 && Math.abs(L[0].y-0.1875)<1e-6 && Math.abs(L[1].y-0.1875)<1e-6, JSON.stringify(L));
+  ok('openoff: right of +X vector is -Y', R.length===2 && Math.abs(R[0].y+0.1875)<1e-6, JSON.stringify(R));
+  ok('openoff: keeps the source direction', L[0].x<L[1].x && R[0].x<R[1].x, JSON.stringify([L[0].x,R[0].x]));
+  ok('openoff: butt ends, no overshoot', Math.abs(L[0].x-0)<1e-6 && Math.abs(L[1].x-3.5)<1e-6, JSON.stringify([L[0].x,L[1].x]));
+  ok('openoff: zero delta is the source', JSON.stringify(CAM.offsetOpenPath(line,0,'round'))===JSON.stringify(line.map(p=>({x:p.x,y:p.y}))));
+  ok('openoff: degenerate input yields nothing', CAM.offsetOpenPath([{x:0,y:0}],0.1,'round').length===0);
+
+  // an L-bend: the outside of the corner gets a tool-radius arc, the inside gets a sharp intersection
+  const bend=[{x:0,y:0},{x:2,y:0},{x:2,y:2}];
+  const out=CAM.offsetOpenPath(bend,-0.25,'round');   // right of the travel = outside of this left turn
+  const inn=CAM.offsetOpenPath(bend, 0.25,'round');
+  const onArc=out.filter(p=>Math.abs(Math.hypot(p.x-2,p.y-0)-0.25)<1e-3).length;
+  ok('openoff: convex corner rounds at tool radius', onArc>=3, onArc);
+  ok('openoff: concave corner is a single miter point', inn.length===3, inn.length);
+  ok('openoff: concave corner sits at the offset intersection', Math.abs(inn[1].x-1.75)<1e-6 && Math.abs(inn[1].y-0.25)<1e-6, JSON.stringify(inn[1]));
+  const far=p=>Math.min(...bend.map((q,i)=>i?Math.hypot(p.x-q.x,p.y-q.y):Infinity));
+  ok('openoff: every point is >= r from the source', out.every(p=>far(p)>=0.2499), 'ok');
+
+  // profileOp drives it, with tabs, on an open contour
+  const cs=[{closed:false,pts:line}];
+  const lp=CAM.profileOp(cs,{side:'left',toolDia:0.375,cutDepth:1.5,passDepth:0.375,tabs:{count:3,length:0.4,height:0.125}});
+  const P=lp.ops[0].passes;
+  ok('openoff: profileOp left => 4 depth passes', P.length===4, P.length);
+  ok('openoff: profileOp left offsets by tool radius', Math.abs(P[0].path[0].y-0.1875)<1e-6, P[0].path[0].y);
+  ok('openoff: open pass stays open', P.every(q=>!q.closed));
+  ok('openoff: tabs on the final pass only', P[3].path.some(q=>q.tab) && !P[0].path.some(q=>q.tab));
+  ok('openoff: tab count honoured', (function(){let n=0,prev=false;for(const q of P[3].path){if(q.tab&&!prev)n++;prev=q.tab;}return n===3;})());
+  ok('openoff: open path keeps its last vertex', Math.abs(P[3].path[P[3].path.length-1].x-3.5)<1e-6, P[3].path[P[3].path.length-1].x);
+  const rp=CAM.profileOp(cs,{side:'right',toolDia:0.375,cutDepth:0.25,passDepth:0.25});
+  ok('openoff: profileOp right mirrors left', Math.abs(rp.ops[0].passes[0].path[0].y+0.1875)<1e-6, rp.ops[0].passes[0].path[0].y);
+  const rev=CAM.profileOp([{closed:false,pts:line}],{side:'left',toolDia:0.375,cutDepth:0.25,passDepth:0.25,reverse:true});
+  ok('openoff: reverse flips the vector, so "left" flips side', Math.abs(rev.ops[0].passes[0].path[0].y+0.1875)<1e-6, rev.ops[0].passes[0].path[0].y);
+  const onp=CAM.profileOp(cs,{side:'on',toolDia:0.375,cutDepth:0.25,passDepth:0.25});
+  ok('openoff: side=on still cuts the line itself', Math.abs(onp.ops[0].passes[0].path[0].y)<1e-9);
+  const huge=CAM.profileOp([{closed:false,pts:[{x:0,y:0},{x:0.001,y:0}]}],{side:'left',toolDia:0.375,cutDepth:0.25,passDepth:0.25});
+  ok('openoff: no crash on a degenerate vector', Array.isArray(huge.ops[0].passes));
+  // closed contours are unaffected by the new side values
+  const sqc=CAM.assembleContours([{closed:true,pts:[{x:0,y:0},{x:4,y:0},{x:4,y:3},{x:0,y:3}]}]);
+  const cl=CAM.profileOp(sqc,{side:'left',toolDia:0.25,cutDepth:0.1,passDepth:0.5});
+  const cb=CAM.boundsOf(cl.ops[0].passes.map(q=>q.path));
+  ok('openoff: left/right on a CLOSED contour falls back to on-the-line', Math.abs(cb.minX)<1e-9 && Math.abs(cb.maxX-4)<1e-9, JSON.stringify(cb));
 })();
 
 console.log(`\n${pass} passed, ${fail} failed`);
