@@ -268,7 +268,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
           <label data-tip="Material width (X)">W&quot;<input type="number" id="jobW" value="48.5" step="0.5" style="width:60px"></label>
           <label data-tip="Material height (Y)">H&quot;<input type="number" id="jobH" value="97" step="0.5" style="width:60px"></label>
           <div class="grp">Material</div>
-          <label data-tip="Material thickness (Z)">Thickness&quot;<input type="number" id="jobT" value="0.5" step="0.05" style="width:58px"></label>
+          <label data-tip="Material thickness (Z)">Thickness&quot;<input type="number" id="jobT" value="1.5" step="0.05" style="width:58px"></label>
           <div class="grp">XY datum position</div>
           <label data-tip="Where X0 Y0 sits on the material">Origin<select id="jobOrigin"><option value="bl">Bottom-L</option><option value="br">Bottom-R</option><option value="tl">Top-L</option><option value="tr">Top-R</option><option value="center">Center</option></select></label>
           <label data-tip="Show/hide the material outline"><input type="checkbox" id="jobShow" checked>Show material</label>
@@ -11600,7 +11600,7 @@ let drillMarks = null;    // drill hole centers overlay [{x,y}]
 let drillDia = 0.25;      // tool dia for drill marker size
 let lastGcode = '';
 let msg = '';
-let job = { w:48.5, h:97, thickness:0.5, origin:'bl', show:true };   // Dan's standard sheet
+let job = { w:48.5, h:97, thickness:1.5, origin:'bl', show:true };   // Dan's standard sheet
 let measure = null;   // persisted measurement {a,b}
 let viewMode = '2d';  // '2d' design canvas | 'preview' machining backplot (VCarve-style view tabs)
 let simField = null;  // {canvas, x0,y0,x1,y1} — shaded material-removal heightfield for Preview

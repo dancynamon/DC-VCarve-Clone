@@ -36,7 +36,7 @@ Rebuilt from screenshots of Dan's own Aspire install (`docs/vcarve-reference/`):
   from one `THEMES` table in `studio_app.js`, so retuning is a single edit.
 
 ## What it does
-- **Default job: 48.5" × 97"** — the standard sheet, so it is right on open.
+- **Default job: 48.5" × 97" × 1.5" thick** — the standard sheet, so it is right on open.
 - **CAD editor:** job/material setup, draw line/polyline/rect/rounded-rect/circle/ellipse/arc/polygon/star/text,
   select/move/scale/rotate, node edit, offset, weld/subtract/intersect, mirror, array, align, snapping, measure, tooltips, layers, undo/redo.
 - **Dimension annotations (D):** aligned / horizontal / vertical / radius / diameter / angle dimensions with
