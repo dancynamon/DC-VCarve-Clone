@@ -14,12 +14,23 @@ const uid = () => 'g' + (_id++);
 const TAU = Math.PI * 2;
 
 // ---------- helpers ----------
+// Chord height (sagitta) a tessellated arc is allowed to depart from the true curve, in inches.
+// A FIXED angular step made big arcs coarse — a 12" radius circle carried 0.06" of faceting, which
+// is both a cutting-accuracy problem and enough to stop the CAM arc-fitter recognising it as a
+// circle. Deriving the step from the radius keeps that error constant at any size.
+const ARC_CHORD_H = 0.004;
+function arcStepFor(r) {
+  if (!(r > 0)) return 0.20;
+  const c = 1 - ARC_CHORD_H / r;
+  if (c <= -1 || c >= 1) return 0.20;
+  return Math.max(0.015, Math.min(0.20, 2 * Math.acos(c)));
+}
 function arcPolyline(cx, cy, r, a0, a1, ccw, maxSeg) {
   // a0,a1 radians. ccw true -> increasing angle.
   let span = a1 - a0;
   if (ccw && span < 0) span += TAU;
   if (!ccw && span > 0) span -= TAU;
-  const n = Math.max(2, Math.ceil(Math.abs(span) / (maxSeg || 0.20)));
+  const n = Math.max(2, Math.ceil(Math.abs(span) / (maxSeg || arcStepFor(r))));
   const out = [];
   for (let i = 0; i <= n; i++) out.push({ x: cx + r * Math.cos(a0 + span * i / n), y: cy + r * Math.sin(a0 + span * i / n) });
   return out;
@@ -40,7 +51,7 @@ function mkCircle(c, r, layer) {
 }
 function mkEllipse(c, rx, ry, rot, layer) {
   rot = rot || 0; const pts = [];
-  const n = Math.max(48, Math.ceil(Math.max(rx, ry) * 24));
+  const n = Math.max(48, Math.ceil(TAU / arcStepFor(Math.max(rx, ry))));   // constant chord height, like arcPolyline
   for (let i = 0; i < n; i++) { const a = i / n * TAU; const lx = rx * Math.cos(a), ly = ry * Math.sin(a);
     pts.push({ x: c.x + lx * Math.cos(rot) - ly * Math.sin(rot), y: c.y + lx * Math.sin(rot) + ly * Math.cos(rot) }); }
   return { id: uid(), type: 'path', layer: layer || '0', closed: true, pts, prim: { kind: 'ellipse', cx: c.x, cy: c.y, rx, ry, rot } };
@@ -880,7 +891,7 @@ function projectFromJSON(text) {
 }
 
 return {
-  uid, arcPolyline, dist,
+  uid, arcPolyline, arcStepFor, dist,
   mkLine, mkPoly, mkRect, mkRoundRect, mkCircle, mkEllipse, mkArc, mkPolygon, mkStar, mkText,
   mkBezier, flattenBezier, reflowBezier, mirrorSmoothHandle,
   segInt, pathIntersections, filletPolyCorner, trimPolyline, extendPolyline,

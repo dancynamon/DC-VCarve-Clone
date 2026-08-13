@@ -8204,6 +8204,9 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 })(typeof self !== 'undefined' ? self : this, function (ClipperLib) {
 'use strict';
 const SCALE = 100000, TOL = 1e-4;
+const ARC_TOL = 0.003;         // ClipperOffset arc tolerance used throughout (offsetLoop / offsetRegion)
+const ARC_CHORD_RATIO = 12;    // max chord / median chord inside one fitted arc — a real curve is near-uniform
+const ARC_MAX_SAG = 0.05;      // hard cap (in) on how far a fitted arc may depart from the polyline it replaces
 function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
 function near(a,b,t){return dist(a,b)<=(t==null?TOL:t);}
 function signedArea(pts){let s=0;for(let i=0,n=pts.length;i<n;i++){const a=pts[i],b=pts[(i+1)%n];s+=a.x*b.y-b.x*a.y;}return s/2;}
@@ -8814,6 +8817,23 @@ function arcCovers(P,i,j,arc,tol,maxStep){
   const {cx,cy,r}=arc;
   if(r>1e5||r<1e-4) return false;          // essentially straight / degenerate
   maxStep = maxStep || (35*Math.PI/180);   // max angle between consecutive samples
+  // The input is a POLYLINE: consecutive pairs are STRAIGHT segments, and a tessellated curve has
+  // near-uniform chords. A long straight edge carrying no intermediate samples does not: fitting an
+  // arc across it swallows one enormous chord beside fine ones. That is how a 46" rounded rect's 44"
+  // side got replaced by a 250"-radius arc that bowed the cut out by an inch — every sampled point
+  // sat on the circle, so the cover test alone passed. Reject a window whose chords are wildly
+  // uneven, and cap the absolute departure from the polyline as a backstop.
+  const chords=[];
+  for(let k=i;k<j;k++) chords.push(Math.hypot(P[k+1].x-P[k].x, P[k+1].y-P[k].y));
+  if(chords.length){
+    const sorted=chords.slice().sort((a,b)=>a-b);
+    const med=sorted[Math.floor(sorted.length/2)]||0;
+    const max=sorted[sorted.length-1];
+    if(med>0 && max>ARC_CHORD_RATIO*med) return false;          // one run dwarfs the rest: not a curve
+    if(max>2*r) return false;                                    // chord longer than the diameter
+    const sag=r-Math.sqrt(Math.max(0,r*r-max*max/4));
+    if(sag>ARC_MAX_SAG) return false;                            // departs too far from the polyline
+  }
   let prevAng=null, dir=0;
   for(let k=i;k<=j;k++){
     const dd=Math.hypot(P[k].x-cx,P[k].y-cy);
@@ -9124,12 +9144,23 @@ const uid = () => 'g' + (_id++);
 const TAU = Math.PI * 2;
 
 // ---------- helpers ----------
+// Chord height (sagitta) a tessellated arc is allowed to depart from the true curve, in inches.
+// A FIXED angular step made big arcs coarse — a 12" radius circle carried 0.06" of faceting, which
+// is both a cutting-accuracy problem and enough to stop the CAM arc-fitter recognising it as a
+// circle. Deriving the step from the radius keeps that error constant at any size.
+const ARC_CHORD_H = 0.004;
+function arcStepFor(r) {
+  if (!(r > 0)) return 0.20;
+  const c = 1 - ARC_CHORD_H / r;
+  if (c <= -1 || c >= 1) return 0.20;
+  return Math.max(0.015, Math.min(0.20, 2 * Math.acos(c)));
+}
 function arcPolyline(cx, cy, r, a0, a1, ccw, maxSeg) {
   // a0,a1 radians. ccw true -> increasing angle.
   let span = a1 - a0;
   if (ccw && span < 0) span += TAU;
   if (!ccw && span > 0) span -= TAU;
-  const n = Math.max(2, Math.ceil(Math.abs(span) / (maxSeg || 0.20)));
+  const n = Math.max(2, Math.ceil(Math.abs(span) / (maxSeg || arcStepFor(r))));
   const out = [];
   for (let i = 0; i <= n; i++) out.push({ x: cx + r * Math.cos(a0 + span * i / n), y: cy + r * Math.sin(a0 + span * i / n) });
   return out;
@@ -9150,7 +9181,7 @@ function mkCircle(c, r, layer) {
 }
 function mkEllipse(c, rx, ry, rot, layer) {
   rot = rot || 0; const pts = [];
-  const n = Math.max(48, Math.ceil(Math.max(rx, ry) * 24));
+  const n = Math.max(48, Math.ceil(TAU / arcStepFor(Math.max(rx, ry))));   // constant chord height, like arcPolyline
   for (let i = 0; i < n; i++) { const a = i / n * TAU; const lx = rx * Math.cos(a), ly = ry * Math.sin(a);
     pts.push({ x: c.x + lx * Math.cos(rot) - ly * Math.sin(rot), y: c.y + lx * Math.sin(rot) + ly * Math.cos(rot) }); }
   return { id: uid(), type: 'path', layer: layer || '0', closed: true, pts, prim: { kind: 'ellipse', cx: c.x, cy: c.y, rx, ry, rot } };
@@ -9990,7 +10021,7 @@ function projectFromJSON(text) {
 }
 
 return {
-  uid, arcPolyline, dist,
+  uid, arcPolyline, arcStepFor, dist,
   mkLine, mkPoly, mkRect, mkRoundRect, mkCircle, mkEllipse, mkArc, mkPolygon, mkStar, mkText,
   mkBezier, flattenBezier, reflowBezier, mirrorSmoothHandle,
   segInt, pathIntersections, filletPolyCorner, trimPolyline, extendPolyline,

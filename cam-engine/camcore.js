@@ -7,6 +7,9 @@
 })(typeof self !== 'undefined' ? self : this, function (ClipperLib) {
 'use strict';
 const SCALE = 100000, TOL = 1e-4;
+const ARC_TOL = 0.003;         // ClipperOffset arc tolerance used throughout (offsetLoop / offsetRegion)
+const ARC_CHORD_RATIO = 12;    // max chord / median chord inside one fitted arc — a real curve is near-uniform
+const ARC_MAX_SAG = 0.05;      // hard cap (in) on how far a fitted arc may depart from the polyline it replaces
 function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
 function near(a,b,t){return dist(a,b)<=(t==null?TOL:t);}
 function signedArea(pts){let s=0;for(let i=0,n=pts.length;i<n;i++){const a=pts[i],b=pts[(i+1)%n];s+=a.x*b.y-b.x*a.y;}return s/2;}
@@ -617,6 +620,23 @@ function arcCovers(P,i,j,arc,tol,maxStep){
   const {cx,cy,r}=arc;
   if(r>1e5||r<1e-4) return false;          // essentially straight / degenerate
   maxStep = maxStep || (35*Math.PI/180);   // max angle between consecutive samples
+  // The input is a POLYLINE: consecutive pairs are STRAIGHT segments, and a tessellated curve has
+  // near-uniform chords. A long straight edge carrying no intermediate samples does not: fitting an
+  // arc across it swallows one enormous chord beside fine ones. That is how a 46" rounded rect's 44"
+  // side got replaced by a 250"-radius arc that bowed the cut out by an inch — every sampled point
+  // sat on the circle, so the cover test alone passed. Reject a window whose chords are wildly
+  // uneven, and cap the absolute departure from the polyline as a backstop.
+  const chords=[];
+  for(let k=i;k<j;k++) chords.push(Math.hypot(P[k+1].x-P[k].x, P[k+1].y-P[k].y));
+  if(chords.length){
+    const sorted=chords.slice().sort((a,b)=>a-b);
+    const med=sorted[Math.floor(sorted.length/2)]||0;
+    const max=sorted[sorted.length-1];
+    if(med>0 && max>ARC_CHORD_RATIO*med) return false;          // one run dwarfs the rest: not a curve
+    if(max>2*r) return false;                                    // chord longer than the diameter
+    const sag=r-Math.sqrt(Math.max(0,r*r-max*max/4));
+    if(sag>ARC_MAX_SAG) return false;                            // departs too far from the polyline
+  }
   let prevAng=null, dir=0;
   for(let k=i;k<=j;k++){
     const dd=Math.hypot(P[k].x-cx,P[k].y-cy);
