@@ -66,10 +66,10 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .dpane.active,.rpane.active{display:block}
 /* icon grids inside a section, VCarve-style */
 .iconrow{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;width:100%;margin-bottom:2px}
-.tool{height:34px;width:auto;background:linear-gradient(#ffffff,#eef3f8);border:1px solid var(--btn-bd);border-radius:5px;color:#3a4756;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 1px rgba(20,40,70,.05);font-family:inherit;font-size:14px;line-height:1;padding:0}
+.tool{height:42px;width:auto;background:linear-gradient(#ffffff,#eef3f8);border:1px solid var(--btn-bd);border-radius:5px;color:#3a4756;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 1px rgba(20,40,70,.05);font-family:inherit;font-size:14px;line-height:1;padding:0}
 .tool b{font-size:14px;font-weight:400}
 .tool svg{display:block;pointer-events:none}
-.tb.iconbtn{width:34px;height:31px;padding:0;display:inline-flex;align-items:center;justify-content:center}
+.tb.iconbtn{width:40px;height:36px;padding:0;display:inline-flex;align-items:center;justify-content:center}
 .tb.iconbtn svg{display:block;pointer-events:none}
 .tool .tlabel{display:none}
 .tool:hover{background:linear-gradient(#f0f6fc,#dbe7f4);color:#1d2733;border-color:#9fb1c6}
@@ -265,8 +265,8 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 
         <div class="tform" data-form="job"><h4>Job Setup</h4><div class="tfbody">
           <div class="grp">Job size</div>
-          <label data-tip="Material width (X)">W&quot;<input type="number" id="jobW" value="24" step="0.5" style="width:60px"></label>
-          <label data-tip="Material height (Y)">H&quot;<input type="number" id="jobH" value="18" step="0.5" style="width:60px"></label>
+          <label data-tip="Material width (X)">W&quot;<input type="number" id="jobW" value="48.5" step="0.5" style="width:60px"></label>
+          <label data-tip="Material height (Y)">H&quot;<input type="number" id="jobH" value="97" step="0.5" style="width:60px"></label>
           <div class="grp">Material</div>
           <label data-tip="Material thickness (Z)">Thickness&quot;<input type="number" id="jobT" value="0.5" step="0.05" style="width:58px"></label>
           <div class="grp">XY datum position</div>
@@ -362,8 +362,8 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 
         <div class="tform" data-form="nest"><h4>Nesting</h4><div class="tfbody">
           <div class="grp">Sheet</div>
-          <label data-tip="Sheet width (defaults from the job)">W&quot;<input type="number" id="nestW" value="24" step="0.5" min="1" style="width:58px"></label>
-          <label data-tip="Sheet height (defaults from the job)">H&quot;<input type="number" id="nestH" value="18" step="0.5" min="1" style="width:58px"></label>
+          <label data-tip="Sheet width (defaults from the job)">W&quot;<input type="number" id="nestW" value="48.5" step="0.5" min="1" style="width:58px"></label>
+          <label data-tip="Sheet height (defaults from the job)">H&quot;<input type="number" id="nestH" value="97" step="0.5" min="1" style="width:58px"></label>
           <div class="grp">Clearances</div>
           <label data-tip="Edge keep-out margin inside the sheet border">Margin&quot;<input type="number" id="nestMargin" value="0" step="0.125" min="0" style="width:56px"></label>
           <label data-tip="Gap between packed parts (kerf + handling)">Gap&quot;<input type="number" id="nestSpacing" value="0.125" step="0.0625" min="0" style="width:56px"></label>
@@ -11600,7 +11600,7 @@ let drillMarks = null;    // drill hole centers overlay [{x,y}]
 let drillDia = 0.25;      // tool dia for drill marker size
 let lastGcode = '';
 let msg = '';
-let job = { w:24, h:18, thickness:0.5, origin:'bl', show:true };
+let job = { w:48.5, h:97, thickness:0.5, origin:'bl', show:true };   // Dan's standard sheet
 let measure = null;   // persisted measurement {a,b}
 let viewMode = '2d';  // '2d' design canvas | 'preview' machining backplot (VCarve-style view tabs)
 let simField = null;  // {canvas, x0,y0,x1,y1} — shaded material-removal heightfield for Preview
@@ -11962,64 +11962,79 @@ const ICON_COL={
   alignL:'#4a6a8a',alignHC:'#4a6a8a',alignR:'#4a6a8a',alignT:'#4a6a8a',alignVC:'#4a6a8a',alignB:'#4a6a8a',
   profile:'#b8501d',pocket:'#1d6fb8',drill:'#2f7d32',vcarve:'#7b52c9',inlay:'#b8901d'
 };
-const ICON_SVG=(inner,name,size)=>'<svg viewBox="0 0 24 24" width="'+(size||22)+'" height="'+(size||22)+'" fill="none" '+
+// Accent hue per icon: elements marked stroke/fill="var(--a)" pick it up, so each glyph reads
+// as two tones instead of one flat colour.
+const ICON_ACC={
+  'new':'#1d6fb8','open':'#c9971d','save':'#1d6fb8','tracebmp':'#1d6fb8','expdxf':'#2f7d32','expsvg':'#2f7d32',
+  fit:'#c9971d', fitjob:'#c9971d',
+  line:'#c9971d',polyline:'#c9971d',bezier:'#c9971d',rect:'#7b52c9',rrect:'#7b52c9',circle:'#7b52c9',
+  ellipse:'#7b52c9',arc:'#c9971d',polygon:'#7b52c9',star:'#b8501d',text:'#c9971d',dim:'#c0392b',
+  measure:'#c9971d',pan:'#1d6fb8',select:'#c9971d',
+  mirrorh:'#1d6fb8',mirrorv:'#1d6fb8',rot90:'#c9971d',duplicate:'#1d6fb8',array:'#1d6fb8',nest:'#2f7d32',
+  node:'#c9971d',fillet:'#c9971d',trim:'#4a6a8a',extend:'#c9971d',
+  offset:'#1d6fb8',join:'#c9971d',weld:'#1d6fb8',subtract:'#c0392b',intersect:'#2f7d32',
+  del:'#c0392b',validate:'#1d6fb8',
+  alignL:'#1d6fb8',alignHC:'#1d6fb8',alignR:'#1d6fb8',alignT:'#1d6fb8',alignVC:'#1d6fb8',alignB:'#1d6fb8',
+  profile:'#1d6fb8',pocket:'#c9971d',drill:'#c0392b',vcarve:'#c9971d',inlay:'#2f7d32'
+};
+const ICON_SVG=(inner,name,size)=>'<svg viewBox="0 0 24 24" width="'+(size||28)+'" height="'+(size||28)+'" fill="none" '+
   'stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" '+
-  'style="color:'+((ICON_COL[name])||'#33414f')+'" aria-hidden="true">'+inner+'</svg>';
-const DOT=(x,y)=>'<circle cx="'+x+'" cy="'+y+'" r="1.5" fill="currentColor" stroke="none"/>';
+  'style="color:'+((ICON_COL[name])||'#33414f')+';--a:'+((ICON_ACC[name])||'#c9971d')+'" aria-hidden="true">'+inner+'</svg>';
+const DOT=(x,y)=>'<circle cx="'+x+'" cy="'+y+'" r="1.7" fill="var(--a)" stroke="none"/>';
 const ICONS={
   select:  '<path d="M6 3 L6 18 L10 14.2 L12.6 20 L15 19 L12.4 13.4 L17.5 13.4 Z" fill="currentColor" stroke="none"/>',
   node:    '<path d="M4 17 C 8 7, 15 7, 20 13"/><rect x="2.4" y="15.4" width="3.2" height="3.2" fill="currentColor" stroke="none"/><rect x="18.4" y="11.4" width="3.2" height="3.2" fill="currentColor" stroke="none"/><rect x="10.4" y="7.6" width="3.2" height="3.2" fill="none"/>',
   fillet:  '<path d="M4 20 V11 A7 7 0 0 1 11 4 H20"/><path d="M4 4 H11 M4 4 V11" stroke-dasharray="2 2" opacity=".5"/>',
-  trim:    '<path d="M6.5 3.5 L16.8 16.2"/><path d="M17.5 3.5 L7.2 16.2"/><circle cx="5.6" cy="18.6" r="2.5"/><circle cx="18.4" cy="18.6" r="2.5"/>',
+  trim:    '<path d="M6.5 3.5 L16.8 16.2"/><path d="M17.5 3.5 L7.2 16.2"/><circle cx="5.6" cy="18.6" r="2.5" fill="var(--a)" fill-opacity=".32" stroke="var(--a)"/><circle cx="18.4" cy="18.6" r="2.5" fill="var(--a)" fill-opacity=".32" stroke="var(--a)"/>',
   extend:  '<path d="M3 12 H14"/><path d="M11 9 L14.5 12 L11 15"/><path d="M19 5 V19"/>',
   line:    '<path d="M5.5 18.5 L18.5 5.5"/>'+DOT(5.5,18.5)+DOT(18.5,5.5),
   polyline:'<path d="M4 18 L9 8.5 L14.5 14 L20 5.5"/>'+DOT(4,18)+DOT(20,5.5),
   bezier:  '<path d="M4 18 C 8 7, 16 7, 20 13"/><path d="M4 18 L8.5 11" opacity=".5"/><path d="M20 13 L15.5 8" opacity=".5"/>'+DOT(4,18)+DOT(20,13)+DOT(8.5,11)+DOT(15.5,8),
-  rect:    '<rect x="3.5" y="6" width="17" height="12"/>',
-  rrect:   '<rect x="3.5" y="6" width="17" height="12" rx="3.5"/>',
-  circle:  '<circle cx="12" cy="12" r="8.2"/>',
-  ellipse: '<ellipse cx="12" cy="12" rx="9" ry="6"/>',
+  rect:    '<rect x="3.5" y="6" width="17" height="12" fill="var(--a)" fill-opacity=".16"/>',
+  rrect:   '<rect x="3.5" y="6" width="17" height="12" rx="3.5" fill="var(--a)" fill-opacity=".16"/>',
+  circle:  '<circle cx="12" cy="12" r="8.2" fill="var(--a)" fill-opacity=".16"/>',
+  ellipse: '<ellipse cx="12" cy="12" rx="9" ry="6" fill="var(--a)" fill-opacity=".16"/>',
   arc:     '<path d="M3.5 17.5 A 9.5 9.5 0 0 1 20.5 17.5"/>'+DOT(3.5,17.5)+DOT(20.5,17.5),
-  polygon: '<path d="M12 3.4 L20 8 L20 16 L12 20.6 L4 16 L4 8 Z"/>',
-  star:    '<path d="M12 3 L14.5 9.4 L21.3 9.8 L16 14 L17.8 20.6 L12 16.8 L6.2 20.6 L8 14 L2.7 9.8 L9.5 9.4 Z"/>',
+  polygon: '<path d="M12 3.4 L20 8 L20 16 L12 20.6 L4 16 L4 8 Z" fill="var(--a)" fill-opacity=".16"/>',
+  star:    '<path d="M12 3 L14.5 9.4 L21.3 9.8 L16 14 L17.8 20.6 L12 16.8 L6.2 20.6 L8 14 L2.7 9.8 L9.5 9.4 Z" fill="currentColor" fill-opacity=".3"/>',
   text:    '<path d="M4.5 6 H19.5"/><path d="M12 6 V19"/><path d="M9 19 H15"/>',
   dim:     '<path d="M5 5.5 V13.5 M19 5.5 V13.5"/><path d="M5 18 H19"/><path d="M8 15.6 L5 18 L8 20.4 Z" fill="currentColor"/><path d="M16 15.6 L19 18 L16 20.4 Z" fill="currentColor"/>',
   measure: '<rect x="2.6" y="9" width="18.8" height="6" rx="1"/><path d="M7 9 V12 M12 9 V13 M17 9 V12"/>',
   pan:     '<path d="M12 3.5 V20.5 M3.5 12 H20.5"/><path d="M12 3.5 L9.6 6.4 M12 3.5 L14.4 6.4 M12 20.5 L9.6 17.6 M12 20.5 L14.4 17.6 M3.5 12 L6.4 9.6 M3.5 12 L6.4 14.4 M20.5 12 L17.6 9.6 M20.5 12 L17.6 14.4"/>',
   // toolpath operations
-  profile: '<rect x="7" y="8" width="10" height="8" rx="1"/><rect x="3.6" y="4.6" width="16.8" height="14.8" rx="2.6" stroke-dasharray="3 2.2" opacity=".75"/>',
-  pocket:  '<rect x="3.4" y="5.4" width="17.2" height="13.2" rx="1.4"/><rect x="6.3" y="8.3" width="11.4" height="7.4" rx="1" opacity=".75"/><rect x="9.2" y="11.2" width="5.6" height="1.6" rx=".8" opacity=".55"/>',
-  drill:   '<circle cx="12" cy="12" r="7.6"/><circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none"/><path d="M12 1.8 V5 M12 19 V22.2 M1.8 12 H5 M19 12 H22.2"/>',
-  vcarve:  '<path d="M2.6 7 H21.4"/><path d="M2.6 7 V17 H21.4 V7"/><path d="M7.4 7 L12 15.6 L16.6 7 Z" fill="currentColor" fill-opacity=".18"/>',
-  inlay:   '<path d="M2.8 18.4 V9 H8 L11 13.4 L14 9 H19.2 V18.4 Z"/><path d="M8 5.6 L11 1.6 L14 5.6 Z" fill="currentColor" fill-opacity=".25"/>',
+  profile: '<rect x="7" y="8" width="10" height="8" rx="1" fill="currentColor" fill-opacity=".2"/><rect x="3.6" y="4.6" width="16.8" height="14.8" rx="2.6" stroke-dasharray="3 2.2" stroke="var(--a)"/>',
+  pocket:  '<rect x="3.4" y="5.4" width="17.2" height="13.2" rx="1.4" fill="currentColor" fill-opacity=".16"/><rect x="6.3" y="8.3" width="11.4" height="7.4" rx="1" stroke="var(--a)"/><rect x="9.2" y="11.2" width="5.6" height="1.6" rx=".8" stroke="var(--a)"/>',
+  drill:   '<circle cx="12" cy="12" r="7.6" fill="currentColor" fill-opacity=".14"/><circle cx="12" cy="12" r="2.8" fill="var(--a)" stroke="none"/><path d="M12 1.8 V5 M12 19 V22.2 M1.8 12 H5 M19 12 H22.2" stroke="var(--a)"/>',
+  vcarve:  '<path d="M2.6 7 V17 H21.4 V7 Z" fill="currentColor" fill-opacity=".16"/><path d="M7.4 7 L12 15.6 L16.6 7 Z" fill="var(--a)" fill-opacity=".55" stroke="var(--a)"/>',
+  inlay:   '<path d="M2.8 18.4 V9 H8 L11 13.4 L14 9 H19.2 V18.4 Z" fill="currentColor" fill-opacity=".18"/><path d="M8 5.6 L11 1.6 L14 5.6 Z" fill="var(--a)" fill-opacity=".6" stroke="var(--a)"/>',
   // ---- command buttons (File Operations / View / Transform / Edit / Align / Layout) ----
-  'new':     '<path d="M6 3.2 H14 L18.6 8 V20.8 H6 Z"/><path d="M14 3.2 V8 H18.6"/>',
-  'open':    '<path d="M2.8 18.6 V6.4 H9.4 L11.4 8.8 H17.6 V11"/><path d="M2.8 18.6 L6.2 11 H21.6 L18.2 18.6 Z"/>',
-  'save':    '<path d="M4 4.4 H17.2 L20 7.2 V19.6 H4 Z"/><path d="M7.4 4.4 V10 H15.6 V4.4"/><rect x="7.4" y="13.4" width="8.2" height="6.2"/>',
+  'new':     '<path d="M6 3.2 H14 L18.6 8 V20.8 H6 Z" fill="currentColor" fill-opacity=".12"/><path d="M14 3.2 V8 H18.6" stroke="var(--a)"/><path d="M9 13.4 H15.6 M12.3 10.1 V16.7" stroke="var(--a)"/>',
+  'open':    '<path d="M2.8 18.6 V6.4 H9.4 L11.4 8.8 H17.6 V11"/><path d="M2.8 18.6 L6.2 11 H21.6 L18.2 18.6 Z" fill="var(--a)" fill-opacity=".28" stroke="var(--a)"/>',
+  'save':    '<path d="M4 4.4 H17.2 L20 7.2 V19.6 H4 Z" fill="currentColor" fill-opacity=".12"/><path d="M7.4 4.4 V10 H15.6 V4.4" stroke="var(--a)"/><rect x="7.4" y="13.4" width="8.2" height="6.2" fill="var(--a)" fill-opacity=".3" stroke="var(--a)"/>',
   'tracebmp':'<rect x="2.8" y="4.6" width="10.6" height="10.6" rx="1"/><path d="M5 12.6 L7.6 9.4 L9.6 11.6 L11.4 9.6" opacity=".65"/><path d="M9.6 20.4 C 13 20.4, 13.6 12.4, 21 12.4"/>'+DOT(9.6,20.4)+DOT(21,12.4),
   'expdxf':  '<path d="M5 3.4 H12.6 L16.6 7.4 V13"/><path d="M12.6 3.4 V7.4 H16.6"/><path d="M5 3.4 V16.6 H10"/><path d="M13.6 20.2 L17.4 16.4 L21.2 20.2 Z"/><path d="M13.6 20.2 H21.2" opacity=".6"/>',
   'expsvg':  '<path d="M5 3.4 H12.6 L16.6 7.4 V12"/><path d="M12.6 3.4 V7.4 H16.6"/><path d="M5 3.4 V16.6 H9.4"/><path d="M12 20.4 C 15 14.6, 18.6 20.4, 21.4 15"/>'+DOT(12,20.4)+DOT(21.4,15),
   'fit':     '<rect x="3.2" y="5.4" width="17.6" height="13.2" rx="1.4" stroke-dasharray="2.6 2"/><path d="M8.6 10 L11.4 12.8 M8.6 14 V10 H12.6"/><path d="M15.4 14 L12.6 11.2 M15.4 10 V14 H11.4"/>',
   'fitjob':  '<rect x="2.8" y="5" width="18.4" height="14" rx="1.4" stroke-dasharray="2.6 2"/><rect x="7.4" y="9" width="9.2" height="6" fill="currentColor" fill-opacity=".2"/>',
-  'mirrorh': '<path d="M12 2.6 V21.4" stroke-dasharray="2.4 2.2"/><path d="M9.4 6.4 L2.8 12 L9.4 17.6 Z"/><path d="M14.6 6.4 L21.2 12 L14.6 17.6 Z" fill="currentColor" fill-opacity=".22"/>',
-  'mirrorv': '<path d="M2.6 12 H21.4" stroke-dasharray="2.4 2.2"/><path d="M6.4 9.4 L12 2.8 L17.6 9.4 Z"/><path d="M6.4 14.6 L12 21.2 L17.6 14.6 Z" fill="currentColor" fill-opacity=".22"/>',
+  'mirrorh': '<path d="M12 2.6 V21.4" stroke-dasharray="2.4 2.2"/><path d="M9.4 6.4 L2.8 12 L9.4 17.6 Z"/><path d="M14.6 6.4 L21.2 12 L14.6 17.6 Z" fill="var(--a)" fill-opacity=".4" stroke="var(--a)"/>',
+  'mirrorv': '<path d="M2.6 12 H21.4" stroke-dasharray="2.4 2.2"/><path d="M6.4 9.4 L12 2.8 L17.6 9.4 Z"/><path d="M6.4 14.6 L12 21.2 L17.6 14.6 Z" fill="var(--a)" fill-opacity=".4" stroke="var(--a)"/>',
   'rot90':   '<path d="M12 4.2 A7.8 7.8 0 1 1 4.6 14.6"/><path d="M8.4 2.2 L12 4.2 L8.4 6.6"/><rect x="9" y="9" width="6" height="6" fill="currentColor" fill-opacity=".22"/>',
   'duplicate':'<rect x="3.2" y="7.4" width="11.6" height="11.6" rx="1"/><path d="M7.6 7.4 V4 H20.8 V17.2 H17.4" opacity=".7"/>',
-  'array':   '<rect x="3" y="3" width="6.4" height="6.4"/><rect x="14.6" y="3" width="6.4" height="6.4"/><rect x="3" y="14.6" width="6.4" height="6.4"/><rect x="14.6" y="14.6" width="6.4" height="6.4"/>',
+  'array':   '<rect x="3" y="3" width="6.4" height="6.4" fill="currentColor" fill-opacity=".28"/><rect x="14.6" y="3" width="6.4" height="6.4" fill="var(--a)" fill-opacity=".28" stroke="var(--a)"/><rect x="3" y="14.6" width="6.4" height="6.4" fill="var(--a)" fill-opacity=".28" stroke="var(--a)"/><rect x="14.6" y="14.6" width="6.4" height="6.4" fill="currentColor" fill-opacity=".28"/>',
   'nest':    '<rect x="2.6" y="4" width="18.8" height="16" rx="1" stroke-dasharray="2.6 2"/><rect x="4.6" y="6" width="7.4" height="5.4" fill="currentColor" fill-opacity=".18"/><circle cx="17" cy="9.2" r="3.2" fill="currentColor" fill-opacity=".18"/><rect x="4.6" y="13.4" width="12" height="4.6" fill="currentColor" fill-opacity=".18"/>',
   'offset':  '<rect x="7.6" y="8.6" width="8.8" height="6.8" rx="1"/><rect x="3.6" y="4.6" width="16.8" height="14.8" rx="3" stroke-dasharray="3 2.2" opacity=".8"/>',
   'join':    '<path d="M3 17.4 C 6.4 17.4, 8.4 12, 11.6 12"/><path d="M21 17.4 C 17.6 17.4, 15.6 12, 12.4 12"/>'+DOT(12,12)+DOT(3,17.4)+DOT(21,17.4),
-  'weld':    '<circle cx="9.4" cy="12" r="5.6" fill="currentColor" fill-opacity=".26"/><circle cx="14.6" cy="12" r="5.6" fill="currentColor" fill-opacity=".26"/>',
-  'subtract':'<circle cx="9.4" cy="12" r="5.6" fill="currentColor" fill-opacity=".26"/><circle cx="14.6" cy="12" r="5.6" stroke-dasharray="2.4 2" fill="none"/>',
-  'intersect':'<circle cx="9.5" cy="12" r="5.5"/><circle cx="14.5" cy="12" r="5.5"/><path d="M12 7.1 A5.5 5.5 0 0 0 12 16.9 A5.5 5.5 0 0 0 12 7.1 Z" fill="currentColor" fill-opacity=".45" stroke="none"/>',
-  'del':     '<path d="M4.4 6.6 H19.6"/><path d="M9.6 6.6 V4.2 H14.4 V6.6"/><path d="M6.4 6.6 L7.4 20.4 H16.6 L17.6 6.6"/><path d="M10.4 10 V17 M13.6 10 V17" opacity=".65"/>',
+  'weld':    '<circle cx="9.4" cy="12" r="5.6" fill="currentColor" fill-opacity=".34"/><circle cx="14.6" cy="12" r="5.6" fill="var(--a)" fill-opacity=".34" stroke="var(--a)"/>',
+  'subtract':'<circle cx="9.4" cy="12" r="5.6" fill="#1d6fb8" fill-opacity=".32" stroke="#1d6fb8"/><circle cx="14.6" cy="12" r="5.6" stroke-dasharray="2.4 2" stroke="var(--a)" fill="none"/>',
+  'intersect':'<circle cx="9.5" cy="12" r="5.5"/><circle cx="14.5" cy="12" r="5.5" stroke="var(--a)"/><path d="M12 7.1 A5.5 5.5 0 0 0 12 16.9 A5.5 5.5 0 0 0 12 7.1 Z" fill="var(--a)" fill-opacity=".6" stroke="none"/>',
+  'del':     '<path d="M4.4 6.6 H19.6"/><path d="M9.6 6.6 V4.2 H14.4 V6.6"/><path d="M6.4 6.6 L7.4 20.4 H16.6 L17.6 6.6" fill="currentColor" fill-opacity=".16"/><path d="M10.4 10 V17 M13.6 10 V17"/>',
   'validate':'<path d="M2.8 16.6 C 6.6 16.6, 8.2 7.4, 12 7.4 C 14.6 7.4, 15.8 11, 17 13" opacity=".9"/><circle cx="16.4" cy="15.6" r="4.6"/><path d="M14.4 15.6 L15.9 17.1 L18.6 13.9"/>',
-  'alignL':  '<path d="M3.6 3.4 V20.6"/><rect x="6.6" y="6" width="13.4" height="4.4" fill="currentColor" fill-opacity=".22"/><rect x="6.6" y="13.6" width="8.4" height="4.4" fill="currentColor" fill-opacity=".22"/>',
-  'alignR':  '<path d="M20.4 3.4 V20.6"/><rect x="4" y="6" width="13.4" height="4.4" fill="currentColor" fill-opacity=".22"/><rect x="9" y="13.6" width="8.4" height="4.4" fill="currentColor" fill-opacity=".22"/>',
-  'alignHC': '<path d="M12 3.4 V20.6" stroke-dasharray="2.4 2"/><rect x="5.3" y="6" width="13.4" height="4.4" fill="currentColor" fill-opacity=".22"/><rect x="7.8" y="13.6" width="8.4" height="4.4" fill="currentColor" fill-opacity=".22"/>',
-  'alignT':  '<path d="M3.4 3.6 H20.6"/><rect x="6" y="6.6" width="4.4" height="13.4" fill="currentColor" fill-opacity=".22"/><rect x="13.6" y="6.6" width="4.4" height="8.4" fill="currentColor" fill-opacity=".22"/>',
-  'alignB':  '<path d="M3.4 20.4 H20.6"/><rect x="6" y="4" width="4.4" height="13.4" fill="currentColor" fill-opacity=".22"/><rect x="13.6" y="9" width="4.4" height="8.4" fill="currentColor" fill-opacity=".22"/>',
-  'alignVC': '<path d="M3.4 12 H20.6" stroke-dasharray="2.4 2"/><rect x="6" y="5.3" width="4.4" height="13.4" fill="currentColor" fill-opacity=".22"/><rect x="13.6" y="7.8" width="4.4" height="8.4" fill="currentColor" fill-opacity=".22"/>',
+  'alignL':  '<path d="M3.6 3.4 V20.6"/><rect x="6.6" y="6" width="13.4" height="4.4" fill="var(--a)" fill-opacity=".28"/><rect x="6.6" y="13.6" width="8.4" height="4.4" fill="currentColor" fill-opacity=".22"/>',
+  'alignR':  '<path d="M20.4 3.4 V20.6"/><rect x="4" y="6" width="13.4" height="4.4" fill="var(--a)" fill-opacity=".28"/><rect x="9" y="13.6" width="8.4" height="4.4" fill="currentColor" fill-opacity=".22"/>',
+  'alignHC': '<path d="M12 3.4 V20.6" stroke-dasharray="2.4 2"/><rect x="5.3" y="6" width="13.4" height="4.4" fill="var(--a)" fill-opacity=".28"/><rect x="7.8" y="13.6" width="8.4" height="4.4" fill="currentColor" fill-opacity=".22"/>',
+  'alignT':  '<path d="M3.4 3.6 H20.6"/><rect x="6" y="6.6" width="4.4" height="13.4" fill="var(--a)" fill-opacity=".28"/><rect x="13.6" y="6.6" width="4.4" height="8.4" fill="currentColor" fill-opacity=".22"/>',
+  'alignB':  '<path d="M3.4 20.4 H20.6"/><rect x="6" y="4" width="4.4" height="13.4" fill="var(--a)" fill-opacity=".28"/><rect x="13.6" y="9" width="4.4" height="8.4" fill="currentColor" fill-opacity=".22"/>',
+  'alignVC': '<path d="M3.4 12 H20.6" stroke-dasharray="2.4 2"/><rect x="6" y="5.3" width="4.4" height="13.4" fill="var(--a)" fill-opacity=".28"/><rect x="13.6" y="7.8" width="4.4" height="8.4" fill="currentColor" fill-opacity=".22"/>',
 };
 // Left-dock command buttons become icon buttons too, the way Aspire lays them out.
 // Their data-tip tooltips carry the naming, so nothing becomes unguessable.
@@ -12035,13 +12050,13 @@ function paintIcons(){
     const b=document.getElementById(id), g=ICONS[ICON_BTNS[id]];
     if(!b||!g) continue;
     if(!b.dataset.tip && b.textContent.trim()) b.dataset.tip=b.textContent.trim();
-    b.classList.add('iconbtn'); b.innerHTML=ICON_SVG(g, ICON_BTNS[id], 20);
+    b.classList.add('iconbtn'); b.innerHTML=ICON_SVG(g, ICON_BTNS[id], 24);
   }
   document.querySelectorAll('.tool[data-tool]').forEach(b=>{
     const g=ICONS[b.dataset.tool]; if(g) b.innerHTML=ICON_SVG(g, b.dataset.tool);
   });
   document.querySelectorAll('.opbtn[data-op]').forEach(b=>{
-    const g=ICONS[b.dataset.op]; if(g) b.innerHTML=ICON_SVG(g, b.dataset.op, 24);
+    const g=ICONS[b.dataset.op]; if(g) b.innerHTML=ICON_SVG(g, b.dataset.op, 30);
   });
 }
 function initCmdDock(){

@@ -66,10 +66,10 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .dpane.active,.rpane.active{display:block}
 /* icon grids inside a section, VCarve-style */
 .iconrow{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;width:100%;margin-bottom:2px}
-.tool{height:34px;width:auto;background:linear-gradient(#ffffff,#eef3f8);border:1px solid var(--btn-bd);border-radius:5px;color:#3a4756;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 1px rgba(20,40,70,.05);font-family:inherit;font-size:14px;line-height:1;padding:0}
+.tool{height:42px;width:auto;background:linear-gradient(#ffffff,#eef3f8);border:1px solid var(--btn-bd);border-radius:5px;color:#3a4756;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 1px rgba(20,40,70,.05);font-family:inherit;font-size:14px;line-height:1;padding:0}
 .tool b{font-size:14px;font-weight:400}
 .tool svg{display:block;pointer-events:none}
-.tb.iconbtn{width:34px;height:31px;padding:0;display:inline-flex;align-items:center;justify-content:center}
+.tb.iconbtn{width:40px;height:36px;padding:0;display:inline-flex;align-items:center;justify-content:center}
 .tb.iconbtn svg{display:block;pointer-events:none}
 .tool .tlabel{display:none}
 .tool:hover{background:linear-gradient(#f0f6fc,#dbe7f4);color:#1d2733;border-color:#9fb1c6}
@@ -265,8 +265,8 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 
         <div class="tform" data-form="job"><h4>Job Setup</h4><div class="tfbody">
           <div class="grp">Job size</div>
-          <label data-tip="Material width (X)">W&quot;<input type="number" id="jobW" value="24" step="0.5" style="width:60px"></label>
-          <label data-tip="Material height (Y)">H&quot;<input type="number" id="jobH" value="18" step="0.5" style="width:60px"></label>
+          <label data-tip="Material width (X)">W&quot;<input type="number" id="jobW" value="48.5" step="0.5" style="width:60px"></label>
+          <label data-tip="Material height (Y)">H&quot;<input type="number" id="jobH" value="97" step="0.5" style="width:60px"></label>
           <div class="grp">Material</div>
           <label data-tip="Material thickness (Z)">Thickness&quot;<input type="number" id="jobT" value="0.5" step="0.05" style="width:58px"></label>
           <div class="grp">XY datum position</div>
@@ -362,8 +362,8 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 
         <div class="tform" data-form="nest"><h4>Nesting</h4><div class="tfbody">
           <div class="grp">Sheet</div>
-          <label data-tip="Sheet width (defaults from the job)">W&quot;<input type="number" id="nestW" value="24" step="0.5" min="1" style="width:58px"></label>
-          <label data-tip="Sheet height (defaults from the job)">H&quot;<input type="number" id="nestH" value="18" step="0.5" min="1" style="width:58px"></label>
+          <label data-tip="Sheet width (defaults from the job)">W&quot;<input type="number" id="nestW" value="48.5" step="0.5" min="1" style="width:58px"></label>
+          <label data-tip="Sheet height (defaults from the job)">H&quot;<input type="number" id="nestH" value="97" step="0.5" min="1" style="width:58px"></label>
           <div class="grp">Clearances</div>
           <label data-tip="Edge keep-out margin inside the sheet border">Margin&quot;<input type="number" id="nestMargin" value="0" step="0.125" min="0" style="width:56px"></label>
           <label data-tip="Gap between packed parts (kerf + handling)">Gap&quot;<input type="number" id="nestSpacing" value="0.125" step="0.0625" min="0" style="width:56px"></label>
