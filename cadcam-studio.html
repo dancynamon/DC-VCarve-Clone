@@ -10073,7 +10073,7 @@ function dxfTransformEntity(ent, M) {
     case 'CIRCLE': {
       if (Math.abs(sx - sy) > 1e-6) {
         // Non-uniform scale: tessellate in block space then transform each point so the ellipse is correct
-        const raw = circlePts(ent.cx, ent.cy, ent.r, 64).slice(0, 64); // drop duplicate closing point
+        const raw = circlePts(ent.cx, ent.cy, ent.r); raw.pop();       // drop duplicate closing point
         return { type: 'LWPOLYLINE', layer: ent.layer || '0', closed: true,
                  vertices: raw.map(p => { const q = dxfApplyMat(M, p.x, p.y); return { x: q.x, y: q.y, bulge: 0 }; }) };
       }
@@ -10329,6 +10329,17 @@ function parseDxf(text) {
 }
 
 // --- DXF geometry helpers ---
+// Adaptive tessellation: pick the angular step so the chord never departs from the true arc by more
+// than DXF_CHORD_H. A fixed step (the old `PI/16` / `PI/32` / `64 steps`) makes the error scale with
+// radius — a 2.875" round end came in 0.0138" flat-sided and a 12" one 0.058". Mirrors cadcore's
+// arcStepFor; duplicated here because dxfparse.js is concatenated into the browser build standalone.
+const DXF_CHORD_H = 0.004;
+function dxfArcStep(r) {
+  if (!(r > 0)) return 0.20;
+  const c = 1 - DXF_CHORD_H / r;
+  if (c <= -1 || c >= 1) return 0.20;
+  return Math.max(0.015, Math.min(0.20, 2 * Math.acos(c)));
+}
 function bulgeArcPts(p1, p2, bulge, steps) {
   if (Math.abs(bulge) < 1e-9) return [p1, p2];
   const dx = p2.x - p1.x, dy = p2.y - p1.y;
@@ -10345,7 +10356,7 @@ function bulgeArcPts(p1, p2, bulge, steps) {
   let ea = Math.atan2(p2.y - cy, p2.x - cx);
   if (bulge > 0) { if (ea < sa) ea += 2 * Math.PI; }
   else { if (ea > sa) ea -= 2 * Math.PI; }
-  steps = steps || Math.max(8, Math.min(64, Math.ceil(a / (Math.PI / 16))));
+  steps = steps || Math.max(8, Math.min(512, Math.ceil(a / dxfArcStep(r))));
   const pts = [];
   for (let i = 0; i <= steps; i++) {
     const t = i / steps;
@@ -10359,7 +10370,7 @@ function arcPts(cx, cy, r, sDeg, eDeg, steps) {
   let sa = sDeg * Math.PI / 180, ea = eDeg * Math.PI / 180;
   if (ea < sa) ea += 2 * Math.PI;
   const span = ea - sa;
-  steps = steps || Math.max(12, Math.ceil(span / (Math.PI / 32)));
+  steps = steps || Math.max(12, Math.ceil(span / dxfArcStep(r)));
   const pts = [];
   for (let i = 0; i <= steps; i++) {
     const a = sa + span * (i / steps);
@@ -10369,7 +10380,7 @@ function arcPts(cx, cy, r, sDeg, eDeg, steps) {
 }
 
 function circlePts(cx, cy, r, steps) {
-  steps = steps || 64;
+  steps = steps || Math.max(64, Math.ceil(2 * Math.PI / dxfArcStep(r)));
   const pts = [];
   for (let i = 0; i <= steps; i++) {
     const a = (i / steps) * 2 * Math.PI;
@@ -10390,7 +10401,7 @@ function ellipsePts(ent, steps) {
   const ea = ent.endParam == null ? 2 * Math.PI : ent.endParam;
   let span = ea - sa;
   if (span <= 0) span += 2 * Math.PI;
-  steps = steps || Math.max(32, Math.ceil(span / (Math.PI / 32)));
+  steps = steps || Math.max(32, Math.ceil(span / dxfArcStep(major)));
   const pts = [];
   for (let i = 0; i <= steps; i++) {
     const t = sa + span * (i / steps);

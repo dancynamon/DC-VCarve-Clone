@@ -5,7 +5,7 @@ Single self-contained HTML — no install, offline, posts G-code for ShopSabre (
 
 ## Quick start
 ```
-npm test     # 574 checks: 3D (44) + CAM (195) + CAD (169) + clipart (47) + trace (45) + PDF (30) + import (25) + smoke (10) + arc-fit (9)
+npm test     # 614 checks: 3D (44) + CAM (195) + CAD (169) + clipart (47) + import (59) + trace (45) + PDF (30) + arc-fit (15) + smoke (10)
 npm run build # regenerates cadcam-studio.html from cam-engine/ sources
 open cadcam-studio.html
 ```
@@ -53,9 +53,15 @@ Rebuilt from screenshots of Dan's own Aspire install (`docs/vcarve-reference/`):
 - **Toolpath templates:** save a machining recipe (settings only, no geometry) and apply it to any job's
   vectors; five starter recipes built in, import/export as `.aqtpl`.
 
+## Re-posting a job from its DXF
+`node cam-engine/repost.js in.dxf out.tap --dia 0.25 --depth 1.5 --pass 1.5 --feed 100 --plunge 30 --rpm 24000 --clear 0.8 --side outside --dir conventional --lead line --leadlen 0.25`
+runs the same engine as the studio with no browser, so a job whose only surviving source is its `.dxf`
+can be regenerated after an engine fix. `CAD/XRT-50-aq.tap` is the worked example (the Vectric-posted
+`CAD/XRT-50.tap` is left untouched beside it for comparison).
+
 ## Layout
 - `cadcam-studio.html` — built app (run `npm run build` to regenerate).
-- `cam-engine/` — sources: `cadcore.js` (CAD), `camcore.js` (CAM), `studio_app.js` (UI), `studio_shell.html` (markup/CSS), `dxfparse.js`, `pdfparse.js`, `bitmaptrace.js`, `clipart.js`, `build.js`, `package/clipper.js`, tests, ShopSabre `.pp`, roadmap README.
+- `cam-engine/` — sources: `cadcore.js` (CAD), `camcore.js` (CAM), `studio_app.js` (UI), `studio_shell.html` (markup/CSS), `dxfparse.js`, `pdfparse.js`, `bitmaptrace.js`, `clipart.js`, `repost.js`, `build.js`, `package/clipper.js`, tests, ShopSabre `.pp`, roadmap README.
 
 ## Roadmap
 The 2D VCarve-parity build is complete — status table and full feature notes in `cam-engine/README.md`.
