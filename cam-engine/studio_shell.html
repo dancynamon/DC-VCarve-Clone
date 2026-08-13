@@ -65,11 +65,11 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .dpane,.rpane{display:none}
 .dpane.active,.rpane.active{display:block}
 /* icon grids inside a section, VCarve-style */
-.iconrow{display:grid;grid-template-columns:repeat(6,1fr);gap:2px;width:100%;margin-bottom:2px}
-.tool{height:27px;width:auto;background:linear-gradient(#ffffff,#eef3f8);border:1px solid var(--btn-bd);border-radius:5px;color:#3a4756;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 1px rgba(20,40,70,.05);font-family:inherit;font-size:14px;line-height:1;padding:0}
+.iconrow{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;width:100%;margin-bottom:2px}
+.tool{height:34px;width:auto;background:linear-gradient(#ffffff,#eef3f8);border:1px solid var(--btn-bd);border-radius:5px;color:#3a4756;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 1px rgba(20,40,70,.05);font-family:inherit;font-size:14px;line-height:1;padding:0}
 .tool b{font-size:14px;font-weight:400}
 .tool svg{display:block;pointer-events:none}
-.tb.iconbtn{width:30px;height:27px;padding:0;display:inline-flex;align-items:center;justify-content:center}
+.tb.iconbtn{width:34px;height:31px;padding:0;display:inline-flex;align-items:center;justify-content:center}
 .tb.iconbtn svg{display:block;pointer-events:none}
 .tool .tlabel{display:none}
 .tool:hover{background:linear-gradient(#f0f6fc,#dbe7f4);color:#1d2733;border-color:#9fb1c6}
@@ -490,7 +490,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
     </div>
     <div class="rfoot">
       <label data-tip="Show simulated cut material vs. line toolpaths"><input type="checkbox" id="simSolid" checked>Show 2D previews</label>
-      <label data-tip="Simulation cell size">Res"<select id="simRes"><option value="0.08">0.08</option><option value="0.05" selected>0.05</option><option value="0.03">0.03</option><option value="0.02">0.02</option></select></label>
+      <label data-tip="Draw the toolpath moves over the 3D solid"><input type="checkbox" id="glLines" checked>Toolpaths</label><label data-tip="Include rapid (G0) moves in the 3D toolpath overlay"><input type="checkbox" id="glRapids">Rapids</label><label data-tip="Simulation cell size">Res"<select id="simRes"><option value="0.08">0.08</option><option value="0.05" selected>0.05</option><option value="0.03">0.03</option><option value="0.02">0.02</option></select></label>
     </div>
   </div>
 

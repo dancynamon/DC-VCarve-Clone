@@ -128,12 +128,38 @@ function buildHeightMesh(field, opts) {
     bounds: { x0: x0, y0: y0, x1: bx, y1: by, z0: bottom, z1: 0 } };
 }
 
+// ---------- toolpath lines ----------
+// Backplot segments {x0,y0,z0,x1,y1,z1,rapid} -> a GL LINES buffer with per-vertex colour.
+// Cut moves are lifted a hair off the machined surface (they sit exactly ON it, which z-fights).
+function buildToolpathLines(segs, opts) {
+  const o = opts || {};
+  const lift = o.lift == null ? 0.004 : o.lift;
+  const cut = o.cutColor || [1, 0.82, 0.29];
+  const rapid = o.rapidColor || [0.62, 0.66, 0.74];
+  const keepRapids = o.rapids !== false;
+  const list = (segs || []).filter(sg => keepRapids || !sg.rapid);
+  const positions = new Float32Array(list.length * 6);
+  const colors = new Float32Array(list.length * 6);
+  let k = 0, c = 0;
+  for (const sg of list) {
+    const col = sg.rapid ? rapid : cut;
+    positions[k++] = sg.x0; positions[k++] = sg.y0; positions[k++] = sg.z0 + lift;
+    positions[k++] = sg.x1; positions[k++] = sg.y1; positions[k++] = sg.z1 + lift;
+    for (let i = 0; i < 2; i++) { colors[c++] = col[0]; colors[c++] = col[1]; colors[c++] = col[2]; }
+  }
+  return { positions, colors, vertexCount: list.length * 2, segments: list.length };
+}
+
 // ---------- WebGL renderer (thin) ----------
 const VS = `attribute vec3 aPos; attribute vec3 aNrm;
 uniform mat4 uProj, uView; varying vec3 vN; varying float vD;
 uniform float uDepth;
 void main(){ vN = aNrm; vD = uDepth > 0.0 ? clamp(-aPos.z / uDepth, 0.0, 1.0) : 0.0;
   gl_Position = uProj * uView * vec4(aPos, 1.0); }`;
+const VS_LINE = `attribute vec3 aPos; attribute vec3 aCol; uniform mat4 uProj, uView;
+varying vec3 vC; void main(){ vC = aCol; gl_Position = uProj * uView * vec4(aPos, 1.0); }`;
+const FS_LINE = `precision mediump float; varying vec3 vC;
+void main(){ gl_FragColor = vec4(vC, 1.0); }`;
 const FS = `precision mediump float; varying vec3 vN; varying float vD;
 uniform vec3 uTop, uDeep, uLight;
 void main(){ vec3 n = normalize(vN);
@@ -164,7 +190,19 @@ function createRenderer(canvas) {
     proj: gl.getUniformLocation(prog, 'uProj'), view: gl.getUniformLocation(prog, 'uView'),
     top: gl.getUniformLocation(prog, 'uTop'), deep: gl.getUniformLocation(prog, 'uDeep'),
     light: gl.getUniformLocation(prog, 'uLight'), depth: gl.getUniformLocation(prog, 'uDepth') };
+  let progL = null, locL = null;
+  try {
+    progL = gl.createProgram();
+    gl.attachShader(progL, sh(gl.VERTEX_SHADER, VS_LINE));
+    gl.attachShader(progL, sh(gl.FRAGMENT_SHADER, FS_LINE));
+    gl.linkProgram(progL);
+    if (!gl.getProgramParameter(progL, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(progL));
+    locL = { pos: gl.getAttribLocation(progL, 'aPos'), col: gl.getAttribLocation(progL, 'aCol'),
+      proj: gl.getUniformLocation(progL, 'uProj'), view: gl.getUniformLocation(progL, 'uView') };
+  } catch (e) { progL = null; }
   const bufP = gl.createBuffer(), bufN = gl.createBuffer(), bufI = gl.createBuffer();
+  const bufLP = gl.createBuffer(), bufLC = gl.createBuffer();
+  let lineCount = 0;
   gl.enable(gl.DEPTH_TEST);
   let mesh = null, indexType = gl.UNSIGNED_SHORT, indexCount = 0;
   const cam = { target: [0,0,0], yaw: -Math.PI/2, pitch: 0.62, dist: 30 };
@@ -179,6 +217,12 @@ function createRenderer(canvas) {
     indexCount = m.indices.length;
     const b = m.bounds;
     cam.target = [(b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2, (b.z0 + b.z1) / 2];
+  }
+  function setLines(lm) {
+    lineCount = (lm && progL) ? lm.vertexCount : 0;
+    if (!lineCount) return;
+    gl.bindBuffer(gl.ARRAY_BUFFER, bufLP); gl.bufferData(gl.ARRAY_BUFFER, lm.positions, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, bufLC); gl.bufferData(gl.ARRAY_BUFFER, lm.colors, gl.STATIC_DRAW);
   }
   function frameAll() {
     if (!mesh) return;
@@ -213,12 +257,20 @@ function createRenderer(canvas) {
     gl.bindBuffer(gl.ARRAY_BUFFER, bufN); gl.enableVertexAttribArray(loc.nrm); gl.vertexAttribPointer(loc.nrm, 3, gl.FLOAT, false, 0, 0);
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, bufI);
     gl.drawElements(gl.TRIANGLES, indexCount, indexType, 0);
+    if (lineCount && progL) {                       // toolpaths over the solid
+      gl.useProgram(progL);
+      gl.uniformMatrix4fv(locL.proj, false, proj);
+      gl.uniformMatrix4fv(locL.view, false, view);
+      gl.bindBuffer(gl.ARRAY_BUFFER, bufLP); gl.enableVertexAttribArray(locL.pos); gl.vertexAttribPointer(locL.pos, 3, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, bufLC); gl.enableVertexAttribArray(locL.col); gl.vertexAttribPointer(locL.col, 3, gl.FLOAT, false, 0, 0);
+      gl.drawArrays(gl.LINES, 0, lineCount);
+    }
   }
   return {
-    gl: gl, cam: cam, setMesh: setMesh, setColors: setColors, frameAll: frameAll, draw: draw, resize: resize,
+    gl: gl, cam: cam, setMesh: setMesh, setLines: setLines, setColors: setColors, frameAll: frameAll, draw: draw, resize: resize,
     orbit(dx, dy) { cam.yaw -= dx; cam.pitch = clampPitch(cam.pitch + dy); },
     pan(dx, dy) {   // screen-space pan, in world units
-      const right = [Math.sin(cam.yaw) , -Math.cos(cam.yaw), 0];
+      const right = [-Math.sin(cam.yaw), Math.cos(cam.yaw), 0];   // s = f x up, i.e. screen right
       const upv = [ -Math.cos(cam.yaw) * Math.sin(cam.pitch), -Math.sin(cam.yaw) * Math.sin(cam.pitch), Math.cos(cam.pitch)];
       for (let i = 0; i < 3; i++) cam.target[i] += right[i] * dx + upv[i] * dy;
     },
@@ -227,5 +279,5 @@ function createRenderer(canvas) {
 }
 
 return { identity, multiply, perspective, lookAt, orbitEye, clampPitch, PITCH_LIMIT,
-  buildHeightMesh, createRenderer };
+  buildHeightMesh, buildToolpathLines, createRenderer };
 });

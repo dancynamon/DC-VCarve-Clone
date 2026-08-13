@@ -365,9 +365,24 @@ function createFromForm(kind){
 // Hand-drawn 24x24 stroke glyphs on one weight, inheriting currentColor so they pick up the
 // button's hover/active state. Each one shows what the tool DOES (profile = an offset path around a
 // shape; pocket = concentric clearing rings; v-carve = a V groove section), rather than a letterform.
-const ICON_SVG=(inner,extra)=>'<svg viewBox="0 0 24 24" width="17" height="17" fill="none" '+
-  'stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" '+
-  'aria-hidden="true"'+(extra||'')+'>'+inner+'</svg>';
+// Icons carry their own colour on the <svg>, so currentColor inside resolves to it and the
+// button's active/hover background still reads underneath.
+const ICON_COL={
+  'new':'#2f7d32','open':'#2f7d32','save':'#2f7d32','tracebmp':'#7b52c9','expdxf':'#b06a00','expsvg':'#b06a00',
+  fit:'#1d6fb8', fitjob:'#1d6fb8',
+  line:'#1d6fb8',polyline:'#1d6fb8',bezier:'#1d6fb8',rect:'#1d6fb8',rrect:'#1d6fb8',circle:'#1d6fb8',
+  ellipse:'#1d6fb8',arc:'#1d6fb8',polygon:'#1d6fb8',star:'#c9971d',text:'#1d6fb8',dim:'#0f8a8a',
+  measure:'#0f8a8a',pan:'#4a6a8a',select:'#7b52c9',
+  mirrorh:'#7b52c9',mirrorv:'#7b52c9',rot90:'#7b52c9',duplicate:'#7b52c9',array:'#7b52c9',nest:'#b8501d',
+  node:'#0f8a8a',fillet:'#0f8a8a',trim:'#c0392b',extend:'#0f8a8a',
+  offset:'#b8501d',join:'#0f8a8a',weld:'#2f7d32',subtract:'#c0392b',intersect:'#1d6fb8',
+  del:'#c0392b',validate:'#2f7d32',
+  alignL:'#4a6a8a',alignHC:'#4a6a8a',alignR:'#4a6a8a',alignT:'#4a6a8a',alignVC:'#4a6a8a',alignB:'#4a6a8a',
+  profile:'#b8501d',pocket:'#1d6fb8',drill:'#2f7d32',vcarve:'#7b52c9',inlay:'#b8901d'
+};
+const ICON_SVG=(inner,name,size)=>'<svg viewBox="0 0 24 24" width="'+(size||22)+'" height="'+(size||22)+'" fill="none" '+
+  'stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" '+
+  'style="color:'+((ICON_COL[name])||'#33414f')+'" aria-hidden="true">'+inner+'</svg>';
 const DOT=(x,y)=>'<circle cx="'+x+'" cy="'+y+'" r="1.5" fill="currentColor" stroke="none"/>';
 const ICONS={
   select:  '<path d="M6 3 L6 18 L10 14.2 L12.6 20 L15 19 L12.4 13.4 L17.5 13.4 Z" fill="currentColor" stroke="none"/>',
@@ -438,13 +453,13 @@ function paintIcons(){
     const b=document.getElementById(id), g=ICONS[ICON_BTNS[id]];
     if(!b||!g) continue;
     if(!b.dataset.tip && b.textContent.trim()) b.dataset.tip=b.textContent.trim();
-    b.classList.add('iconbtn'); b.innerHTML=ICON_SVG(g);
+    b.classList.add('iconbtn'); b.innerHTML=ICON_SVG(g, ICON_BTNS[id], 20);
   }
   document.querySelectorAll('.tool[data-tool]').forEach(b=>{
-    const g=ICONS[b.dataset.tool]; if(g) b.innerHTML=ICON_SVG(g);
+    const g=ICONS[b.dataset.tool]; if(g) b.innerHTML=ICON_SVG(g, b.dataset.tool);
   });
   document.querySelectorAll('.opbtn[data-op]').forEach(b=>{
-    const g=ICONS[b.dataset.op]; if(g) b.innerHTML=ICON_SVG(g);
+    const g=ICONS[b.dataset.op]; if(g) b.innerHTML=ICON_SVG(g, b.dataset.op, 24);
   });
 }
 function initCmdDock(){
@@ -957,7 +972,7 @@ function projectJSON(metaName){ return CADCORE.projectToJSON(doc, job, opsQueue,
 // The heightfield becomes a real solid in WebGL: drag to orbit, shift- or right-drag to pan,
 // wheel to zoom, double-click to reframe. Falls back to the flat top-down shading when the
 // browser has no usable WebGL, so the 3D tab always shows something.
-let gl3d = null, gl3dMesh = null, gl3dFail = false;
+let gl3d = null, gl3dMesh = null, gl3dFail = false, gl3dSegs = [];
 function hex3(h){ return [parseInt(h.slice(1,3),16)/255, parseInt(h.slice(3,5),16)/255, parseInt(h.slice(5,7),16)/255]; }
 function gl3dInit(){
   if(gl3d || gl3dFail) return gl3d;
@@ -974,6 +989,15 @@ function gl3dShow(on){
   const c=document.getElementById('gl'), h=document.getElementById('glHint');
   if(c) c.classList.toggle('on', !!on);
   if(h) h.classList.toggle('on', !!on);
+}
+function gl3dSetLines(segs){
+  if(!gl3d) return;
+  const show=document.getElementById('glLines');
+  if(show && !show.checked){ gl3d.setLines(null); return; }
+  const rapids=!!(document.getElementById('glRapids')||{}).checked;
+  const lift=Math.max(0.003,(job.thickness||0.5)*0.008);
+  gl3d.setLines(GLVIEW.buildToolpathLines(segs,{lift:lift,rapids:rapids,
+    cutColor:[1,0.82,0.29], rapidColor:[0.66,0.70,0.80]}));
 }
 function gl3dSetField(field){
   if(!gl3dInit()) return false;
@@ -996,7 +1020,7 @@ function bindGL3D(c){
   window.addEventListener('mousemove', e=>{
     if(!drag||!gl3d) return;
     const dx=e.clientX-drag.x, dy=e.clientY-drag.y; drag.x=e.clientX; drag.y=e.clientY;
-    if(drag.pan){ const k=gl3d.cam.dist*0.0016; gl3d.pan(-dx*k, dy*k); }
+    if(drag.pan){ const k=gl3d.cam.dist*0.00075; gl3d.pan(-dx*k, dy*k); }   // model follows the cursor
     else gl3d.orbit(dx*0.008, dy*0.008);
     gl3d.draw();
   });
@@ -1033,6 +1057,7 @@ function runSim(){
   const has3d=!!gl3dInit();
   gl3dShow(has3d);                      // must be visible before we size the viewport
   const solid3d=has3d && gl3dSetField(field);
+  if(solid3d){ gl3dSegs=cuts.reduce((a,c)=>a.concat(c.segs||[]),[]); gl3dSetLines(gl3dSegs); gl3d.draw(); }
   if(!solid3d) gl3dShow(false);
   simField = solid3d ? null : shadeHeightfield(field, r);
   render();
@@ -1643,6 +1668,8 @@ function wire(){
   initToolGroups();
   const simSolid=document.getElementById('simSolid'), simRes=document.getElementById('simRes');
   if(simSolid)simSolid.onchange=()=>{ if(viewMode==='preview') setView('preview'); };
+  ['glLines','glRapids'].forEach(id=>{ const el=document.getElementById(id);
+    if(el) el.onchange=()=>{ if(gl3d){ gl3dSetLines(gl3dSegs); gl3d.draw(); } }; });
   if(simRes)simRes.onchange=()=>{ if(viewMode==='preview'&&simSolid&&simSolid.checked) runSim(); };
   initCollapsibles();
   const on=(id,fn)=>{const el=document.getElementById(id); if(el)el.onclick=fn;};

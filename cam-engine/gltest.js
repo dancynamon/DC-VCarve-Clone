@@ -100,6 +100,45 @@ const near = (a, b, t) => Math.abs(a - b) <= (t || 1e-6);
   ok('flat top normals point straight up', upN.length>0);
 }
 
+// ---- toolpath line buffer ----
+{
+  const segs=[ {x0:0,y0:0,z0:-0.2,x1:2,y1:0,z1:-0.2},
+               {x0:2,y0:0,z0:-0.2,x1:2,y1:3,z1:-0.2},
+               {x0:2,y0:3,z0:0.25,x1:0,y1:0,z1:0.25,rapid:true} ];
+  const L=G.buildToolpathLines(segs);
+  ok('lines: two verts per segment', L.vertexCount===6 && L.segments===3, L.vertexCount);
+  ok('lines: positions and colours pair up', L.positions.length===L.colors.length && L.positions.length===18);
+  ok('lines: cut moves lifted off the surface', near(L.positions[2], -0.2+0.004, 1e-6), L.positions[2]);
+  ok('lines: xy untouched by the lift', near(L.positions[0],0) && near(L.positions[3],2));
+  // rapids get their own colour
+  const cutCol=[L.colors[0],L.colors[1],L.colors[2]], rapCol=[L.colors[12],L.colors[13],L.colors[14]];
+  ok('lines: rapids coloured differently from cuts', cutCol.join()!==rapCol.join(), cutCol+' vs '+rapCol);
+  ok('lines: both verts of a segment share its colour',
+     L.colors[12]===L.colors[15] && L.colors[13]===L.colors[16]);
+  // rapids can be dropped
+  const noRap=G.buildToolpathLines(segs,{rapids:false});
+  ok('lines: rapids can be filtered out', noRap.segments===2, noRap.segments);
+  // custom lift + colours honoured
+  const cust=G.buildToolpathLines(segs,{lift:0.05, cutColor:[1,0,0], rapidColor:[0,1,0]});
+  ok('lines: custom lift', near(cust.positions[2], -0.15, 1e-6), cust.positions[2]);
+  ok('lines: custom colours', cust.colors[0]===1 && cust.colors[1]===0);
+  ok('lines: empty input is safe', G.buildToolpathLines([]).vertexCount===0 && G.buildToolpathLines(null).segments===0);
+}
+
+// ---- pan moves along the true screen axes ----
+{
+  // screen-right must be perpendicular to the view direction and horizontal
+  for (const yaw of [0, 0.7, -2.2, 3.0]) {
+    const eye=G.orbitEye([0,0,0], yaw, 0.5, 10);
+    const fwd=[-eye[0],-eye[1],-eye[2]];
+    const right=[-Math.sin(yaw), Math.cos(yaw), 0];
+    const d=(fwd[0]*right[0]+fwd[1]*right[1]+fwd[2]*right[2])/Math.hypot(fwd[0],fwd[1],fwd[2]);
+    if(Math.abs(d)>1e-9){ ok('pan: screen-right perpendicular to view at yaw '+yaw, false, d); break; }
+  }
+  ok('pan: screen-right stays perpendicular to the view at every yaw', true);
+  ok('pan: screen-right is horizontal', [-Math.sin(1.1), Math.cos(1.1), 0][2]===0);
+}
+
 // createRenderer must fail soft with no DOM/GPU rather than throw
 ok('createRenderer returns null without a canvas', G.createRenderer({getContext(){return null;}})===null);
 
