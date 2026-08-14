@@ -110,11 +110,16 @@ console.log('\n(post-pp assertions added)');
   const sq = CAM.assembleContours([{closed:true,pts:[{x:0,y:0},{x:4,y:0},{x:4,y:4},{x:0,y:4}]}]);
   const pk = CAM.pocketOp(sq, {toolDia:0.5, stepover:0.5, cutDepth:0.1, passDepth:0.5, topZ:0});
   const passes = pk.ops[0].passes;
-  ok('pocket produces rings', passes.length>=2, passes.length);
+  ok('pocket produces a linked spiral (one pass per depth)', passes.length===1, passes.length);
+  const unlinked = CAM.pocketOp(sq, {toolDia:0.5, stepover:0.5, cutDepth:0.1, passDepth:0.5, topZ:0, linkRings:false}).ops[0].passes;
+  ok('pocket produces rings', unlinked.length>=2, unlinked.length);
   // every ring stays inside the wall (tool radius 0.25 clearance)
   const pb = CAM.boundsOf(passes.map(p=>p.path));
   ok('pocket rings inside wall', pb.minX>=0.25-1e-3 && pb.maxX<=3.75+1e-3, JSON.stringify(pb));
-  ok('pocket rings closed', passes.every(p=>p.closed));
+  ok('pocket rings closed when unlinked', unlinked.every(p=>p.closed));
+  ok('linked spiral is one open path', passes[0].closed===false);
+  ok('linked spiral holds every ring\'s points', passes[0].path.length >= unlinked.reduce((n,p)=>n+p.path.length,0),
+     `${passes[0].path.length} vs ${unlinked.reduce((n,p)=>n+p.path.length,0)}`);
   // climb -> CW rings
   ok('pocket climb CW', CAM.signedArea(passes[0].path.map(p=>({x:p.x,y:p.y})))<0);
   // multi-depth multiplies pass count
@@ -155,7 +160,8 @@ console.log('\n(post-pp assertions added)');
   ok('raster g-code has G0 and G1', /\bG0\b/.test(g) && /\bG1\b/.test(g), g.length);
   // default style is still concentric offset (backward compatible)
   const pkOff = CAM.pocketOp(rect, {toolDia:0.25, stepover:0.25, cutDepth:0.1, passDepth:0.5, topZ:0});
-  ok('pocket defaults to offset style (closed rings)', pkOff.ops[0].passes.every(p=>p.closed));
+  ok('pocket defaults to offset style (a spiral, not scan rows)', pkOff.ops[0].passes.length===1 &&
+     pkOff.ops[0].passes[0].path.length>20, pkOff.ops[0].passes.length);
 })();
 
 // 12c. helical (ramp) pocket entry
@@ -174,7 +180,9 @@ console.log('\n(post-pp assertions added)');
   ok('ramp entry: g-code has a helical G2/G3 + Z', /\bG[23]\b[^\r\n]*\bZ-?\d/.test(g), (g.match(/G[23][^\r\n]*Z[^\r\n]*/g)||[]).slice(0,1));
   // backward compatible: without rampEntry the first pass is still a closed ring
   const pkNo = CAM.pocketOp(rect, {toolDia:0.25, stepover:0.4, cutDepth:0.2, passDepth:0.5, topZ:0});
-  ok('ramp entry off by default (first pass closed)', pkNo.ops[0].passes[0].closed===true);
+  ok('ramp entry off by default (no ramp-tagged points)', !pkNo.ops[0].passes[0].path.some(p=>p.ramp!=null));
+  ok('ramp entry off by default: unlinked first pass is a closed ring',
+     CAM.pocketOp(rect,{toolDia:0.25,stepover:0.4,cutDepth:0.2,passDepth:0.5,topZ:0,linkRings:false}).ops[0].passes[0].closed===true);
 })();
 
 
@@ -668,6 +676,84 @@ console.log('\n(post-pp assertions added)');
   const cl=CAM.profileOp(sqc,{side:'left',toolDia:0.25,cutDepth:0.1,passDepth:0.5});
   const cb=CAM.boundsOf(cl.ops[0].passes.map(q=>q.path));
   ok('openoff: left/right on a CLOSED contour falls back to on-the-line', Math.abs(cb.minX)<1e-9 && Math.abs(cb.maxX-4)<1e-9, JSON.stringify(cb));
+})();
+
+// ---- pocket ring linking: the link move must never leave the pocket or jump between lobes ----
+(function(){
+  const mkC=(cx,cy,r,n)=>{const p=[];for(let i=0;i<n;i++){const a=i/n*Math.PI*2;p.push({x:cx+r*Math.cos(a),y:cy+r*Math.sin(a)});}return p;};
+  // sample every cut segment of every pass (ring edges AND links) — the safety property is about the
+  // swept path, and a ring edge is legitimately long, so segment LENGTH proves nothing on its own
+  const sweep=(passes,n)=>{ const out=[];
+    for(const pass of passes) for(let i=1;i<pass.path.length;i++){
+      const a=pass.path[i-1], b=pass.path[i];
+      for(let k=0;k<=(n||20);k++){const t=k/(n||20); out.push({x:a.x+(b.x-a.x)*t, y:a.y+(b.y-a.y)*t});} }
+    return out; };
+  const sq = CAM.assembleContours([{closed:true,pts:[{x:0,y:0},{x:4,y:0},{x:4,y:4},{x:0,y:4}]}]);
+  const O = {toolDia:0.5, stepover:0.5, cutDepth:0.1, passDepth:0.5, topZ:0};
+  const pk = CAM.pocketOp(sq, O), path = pk.ops[0].passes[0].path;
+
+  // 1. spiral direction: inside-out, so the single plunge lands where there is the most clearance
+  const d0=Math.hypot(path[0].x-2, path[0].y-2), dN=Math.hypot(path[path.length-1].x-2, path[path.length-1].y-2);
+  ok('link: spiral starts inside and ends at the wall', d0 < dN, `${d0.toFixed(3)} -> ${dN.toFixed(3)}`);
+
+  // 2. the swept path — links included — never crosses the tool-centre boundary
+  const swept = sweep(pk.ops[0].passes);
+  ok('link: whole swept spiral stays a tool radius inside the wall',
+     swept.every(p=>p.x>=0.25-1e-6 && p.x<=3.75+1e-6 && p.y>=0.25-1e-6 && p.y<=3.75+1e-6));
+
+  // 3. an island: no link may clip across it
+  const withHole = CAM.assembleContours([
+    {closed:true,pts:[{x:0,y:0},{x:6,y:0},{x:6,y:6},{x:0,y:6}]},
+    {closed:true,pts:[{x:2.5,y:2.5},{x:3.5,y:2.5},{x:3.5,y:3.5},{x:2.5,y:3.5}]}]);
+  const pkh = CAM.pocketOp(withHole, {toolDia:0.25, stepover:0.5, cutDepth:0.1, passDepth:0.5});
+  const hit = sweep(pkh.ops[0].passes).filter(p=>p.x>2.5+1e-6&&p.x<3.5-1e-6&&p.y>2.5+1e-6&&p.y<3.5-1e-6);
+  ok('link: nothing in the swept path enters the island', hit.length===0, JSON.stringify(hit[0]||null));
+  ok('link: island pocket still links (fewer passes than rings)',
+     pkh.ops[0].passes.length < CAM.pocketOp(withHole,{toolDia:0.25,stepover:0.5,cutDepth:0.1,passDepth:0.5,linkRings:false}).ops[0].passes.length);
+
+  // 4. two separate pockets are never linked to each other — the move between them is solid stock
+  const two = CAM.assembleContours([{closed:true,pts:mkC(0,0,1,64)},{closed:true,pts:mkC(8,0,1,64)}]);
+  const pk2 = CAM.pocketOp(two, {toolDia:0.25, stepover:0.5, cutDepth:0.1, passDepth:0.5});
+  ok('link: two disjoint pockets -> exactly two passes', pk2.ops[0].passes.length===2, pk2.ops[0].passes.length);
+  for(const pass of pk2.ops[0].passes){
+    const b=CAM.boundsOf([pass.path]);
+    ok('link: each pass covers one pocket only', (b.maxX-b.minX) < 2.1, (b.maxX-b.minX).toFixed(3));
+  }
+  // ...even when they are closer together than the link distance, but with stock between them
+  const close = CAM.assembleContours([{closed:true,pts:mkC(0,0,1,64)},{closed:true,pts:mkC(2.1,0,1,64)}]);
+  const pkC = CAM.pocketOp(close, {toolDia:0.25, stepover:0.5, cutDepth:0.1, passDepth:0.5});
+  const gap = sweep(pkC.ops[0].passes).filter(p=>Math.hypot(p.x,p.y)>1.001 && Math.hypot(p.x-2.1,p.y)>1.001);
+  ok('link: never cuts through the wall between two near pockets', gap.length===0, JSON.stringify(gap[0]||null));
+
+  // 5. linkMax=0 forbids every link, so it degrades to one pass per ring
+  const none = CAM.pocketOp(sq, Object.assign({linkMax:0}, O));
+  ok('link: linkMax 0 gives one pass per ring', none.ops[0].passes.length ===
+     CAM.pocketOp(sq, Object.assign({linkRings:false}, O)).ops[0].passes.length, none.ops[0].passes.length);
+
+  // 6. the retract saving is real: count G0 Z-retracts in the posted program
+  const post=Object.assign({},CAM.POSTS.shopsabre,{arcs:false});
+  const gL=CAM.postProcess({name:'L',units:'inch',ops:CAM.pocketOp(sq,Object.assign({},O,{cutDepth:0.5,passDepth:0.25})).ops}, post);
+  const gU=CAM.postProcess({name:'U',units:'inch',ops:CAM.pocketOp(sq,Object.assign({},O,{cutDepth:0.5,passDepth:0.25,linkRings:false})).ops}, post);
+  const retr=g=>(g.match(/^G0 Z0\.2500$/gm)||[]).length;   // clear-Z retracts only, not the final park
+  ok('link: far fewer retracts than one-ring-per-pass', retr(gL) < retr(gU), `${retr(gL)} vs ${retr(gU)}`);
+  ok('link: one retract per depth level', retr(gL)===2, `${retr(gL)} linked vs ${retr(gU)} unlinked`);
+
+  // 7. cut coverage is unchanged — the linked spiral still visits every ring point
+  const lin=CAM.pocketOp(sq,O).ops[0].passes.flatMap(p=>p.path);
+  const unl=CAM.pocketOp(sq,Object.assign({linkRings:false},O)).ops[0].passes.flatMap(p=>p.path);
+  const near=(p,S)=>S.some(q=>Math.hypot(p.x-q.x,p.y-q.y)<1e-6);
+  ok('link: every unlinked ring point is still cut', unl.every(p=>near(p,lin)));
+
+  // 8. rest machining: links, and never leaves the pocket
+  const rm=CAM.pocketOp(sq,{toolDia:0.5,cutDepth:0.2,passDepth:0.2,stepover:0.4,finishDia:0.125,finishNum:7});
+  ok('link: rest op still produced', rm.ops.length===2 && rm.ops[1].passes.length>0, rm.ops.length);
+  ok('link: rest sweep stays inside the wall', sweep(rm.ops[1].passes).every(p=>
+     p.x>=0.0625-1e-6 && p.x<=3.9375+1e-6 && p.y>=0.0625-1e-6 && p.y<=3.9375+1e-6));
+
+  // 9. ramp entry still descends into the first (innermost) ring of the spiral
+  const rp=CAM.pocketOp(sq, Object.assign({rampEntry:true}, O));
+  ok('link: ramp entry survives linking',
+     rp.ops[0].passes[0].path.some(p=>p.ramp!=null) && rp.ops[0].passes[0].closed===false);
 })();
 
 console.log(`\n${pass} passed, ${fail} failed`);

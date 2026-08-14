@@ -335,8 +335,62 @@ function scanLineSegs(fillPaths, y, xLo, xHi){
   segs.sort((a,b)=>a[0]-b[0]);
   return segs;
 }
+// ---- ring linking: turn concentric pocket rings into a continuous spiral ----------------------
+// One pass per ring means one retract-rapid-plunge cycle per ring; a 6-ring pocket at 2 depths pays
+// for 12 of them. Linking chains rings that touch into a single pass, so the tool steps from the
+// close of one ring straight into the next at cut depth. Rings are cut innermost-first (the caller
+// reverses them), which puts the one plunge where the pocket has the most clearance and makes every
+// link step outward by one stepover — the same engagement the ring itself is already taking.
+//
+// A link is only made when it is both SHORT (<= linkMax stepovers) and lies INSIDE the pocket, so
+// two disjoint lobes of a region — or a ring and an island's ring — never get joined by a move that
+// would plough through uncut stock. Anything that fails either test starts a fresh chain, which is
+// exactly the old one-pass-per-ring behaviour for that ring.
+function _nearestIdx(loop, p){ let bi=0,bd=Infinity; for(let i=0;i<loop.length;i++){const d=dist(loop[i],p); if(d<bd){bd=d;bi=i;}} return bi; }
+function _rotate(loop, i){ return loop.slice(i).concat(loop.slice(0,i)); }
+// Is the straight move a->b entirely inside the pocket? Sampling, not just the midpoint: a link that
+// clips the corner of an island can have both ends and its centre in free space.
+function _moveInside(a, b, regionPaths, n){
+  n=n||8;
+  for(let k=1;k<n;k++){ const t=k/n; if(!pointInRegion({x:a.x+(b.x-a.x)*t, y:a.y+(b.y-a.y)*t}, regionPaths)) return false; }
+  return true;
+}
+// Greedy nearest-chain, NOT list order. offsetRegion emits every lobe's ring at one offset distance
+// before stepping inward, so a two-lobe pocket arrives interleaved A,B,A,B and no two consecutive
+// rings are ever nested — order-based chaining silently links nothing. Growing each chain by
+// repeatedly taking the nearest unused ring is independent of that ordering.
+function linkRings(rings, so, regionPaths, linkMax){
+  const maxD=(linkMax==null?1.5:linkMax)*so;
+  const rest=rings.slice(), chains=[];
+  while(rest.length){
+    const chain=[rest.shift()]; chains.push(chain);
+    let end=chain[0][0];
+    if(maxD<=0) continue;
+    for(;;){
+      // candidates within reach, nearest first; the first whose link stays inside the pocket wins
+      const cand=[];
+      for(let i=0;i<rest.length;i++){ const j=_nearestIdx(rest[i], end), d=dist(rest[i][j], end); if(d<=maxD+1e-9) cand.push({i,j,d}); }
+      if(!cand.length) break;
+      cand.sort((a,b)=>a.d-b.d);
+      let took=null;
+      for(const c of cand){ if(_moveInside(end, rest[c.i][c.j], regionPaths)){ took=c; break; } }
+      if(!took) break;
+      const lp=rest.splice(took.i,1)[0], p=lp[took.j];
+      chain.push(_rotate(lp,took.j)); end=p;
+    }
+  }
+  return chains;
+}
+// a chain -> one point list; each ring is closed explicitly, and the step to the next ring's start
+// IS the link move, so the post emits it as an ordinary G1 at cut depth.
+function chainToPath(chain){
+  const out=[];
+  for(const lp of chain){ for(const p of lp) out.push({x:p.x,y:p.y,tab:false}); out.push({x:lp[0].x,y:lp[0].y,tab:false}); }
+  return out;
+}
+
 function pocketOp(contours, opts){
-  const o=Object.assign({toolNum:1,toolDia:0.25,climb:true,topZ:0,cutDepth:0.25,passDepth:0.125,safeZ:0.25,feed:120,plunge:40,rpm:18000,stepover:0.4,pocketStyle:'offset',leadType:'none',leadLen:0.25,rampLen:0,rampEntry:false,finishDia:0,finishNum:2},opts||{});
+  const o=Object.assign({toolNum:1,toolDia:0.25,climb:true,topZ:0,cutDepth:0.25,passDepth:0.125,safeZ:0.25,feed:120,plunge:40,rpm:18000,stepover:0.4,pocketStyle:'offset',leadType:'none',leadLen:0.25,rampLen:0,rampEntry:false,finishDia:0,finishNum:2,linkRings:true,linkMax:1.5},opts||{});
   const r=o.toolDia/2, warnings=[];
   const loops=contours.filter(c=>c.closed && c.pts && c.pts.length>=3).map(c=>c.pts);
   if(!loops.length){ warnings.push('Pocket needs at least one closed contour'); return {ops:[{kind:'pocket',toolNum:o.toolNum,rpm:o.rpm,feed:o.feed,plunge:o.plunge,safeZ:o.safeZ,topZ:o.topZ,passes:[]}],warnings}; }
@@ -378,20 +432,33 @@ function pocketOp(contours, opts){
     }
     if(!rings.length){ warnings.push('Tool too large to enter the pocket region'); }
     let rampEntrySkipped=false;
+    // orient first: climb/conventional decides traversal, and the link start point is picked along it
+    const oriented=rings.map(lp=>o.climb?ensureCW(lp):ensureCCW(lp));
+    // linked pockets spiral innermost-first; unlinked keeps the historical outermost-first ring order
+    const chains = o.linkRings===false ? oriented.map(lp=>[lp])
+                                       : linkRings(oriented.slice().reverse(), so, region, o.linkMax);
     depths.forEach(depth=>{
-      rings.forEach((lp,ri)=>{ const oriented=o.climb?ensureCW(lp):ensureCCW(lp);
-        const tabbed=oriented.map(p=>({x:p.x,y:p.y,tab:false}));
-        let path=tabbed, closed=true;
-        if(ri===0 && o.rampEntry){
-          // helical descent into the outer ring at each depth level (no straight plunge); shrink radius until it fits
-          const pre=helixEntry(oriented, region, [r, so, so*0.5]);
-          if(pre){ const close0={x:tabbed[0].x,y:tabbed[0].y,tab:false};
-            path=pre.concat(tabbed, [close0]); closed=false; }
-          else rampEntrySkipped=true;       // too tight for a helix -> straight plunge for this pass
+      chains.forEach(chain=>{
+        const body=chainToPath(chain);
+        let path=body, closed=false;
+        if(chain.length===1 && !o.rampEntry && !(o.leadType&&o.leadType!=='none')){ path=chain[0].map(p=>({x:p.x,y:p.y,tab:false})); closed=true; }
+        if(o.rampEntry){
+          // helical descent into the chain's first (innermost) ring — no straight plunge
+          const pre=helixEntry(chain[0], region, [r, so, so*0.5]);
+          if(pre) path=pre.concat(body);
+          else rampEntrySkipped=true;       // too tight for a helix -> straight plunge for this chain
+          closed=false;
         } else if(o.leadType && o.leadType!=='none'){
-          const interiorSign=signedArea(oriented)>0?1:-1;                 // pocket: lead into the cleared interior
-          const wl=wrapLead(oriented, tabbed, o.leadType, o.leadLen, interiorSign, o.rampLen);
-          path=wl.path; closed=wl.closed;   // small inner rings just skip the lead silently
+          const interiorSign=signedArea(chain[0])>0?1:-1;                 // pocket: lead into the cleared interior
+          if(chain.length===1){
+            const wl=wrapLead(chain[0], path, o.leadType, o.leadLen, interiorSign, o.rampLen);
+            path=wl.path; closed=wl.closed; // small inner rings just skip the lead silently
+          } else {
+            // a chain ends against the pocket wall, so lead IN only — a lead-out there would gouge
+            const ld=leadFor(chain[0], o.leadType, o.leadLen, interiorSign);
+            if(ld) path=ld.pre.map(p=>({x:p.x,y:p.y,tab:false})).concat(body);
+            closed=false;
+          }
         }
         passes.push({z:o.topZ-depth,tabHeight:0,closed,path}); });
     });
@@ -415,14 +482,23 @@ function pocketOp(contours, opts){
     // despeckle: an opening (in-out by ~2x the offset arc tolerance) drops hair-thin numeric slivers/annuli left by
     // reconstructing the morphological opening of curved walls, keeping only real corner/neck rest areas.
     if(restCenters.length){ const cl=offW(restCenters,-0.006); restCenters=cl.length?offW(cl,0.006):[]; }
-    const restPasses=[];
+    const restPasses=[], restRings=[];
+    let dd=0, g2=0;
+    while(g2++<5000){
+      const off=(dd<1e-9)?restCenters:offW(restCenters, -dd);
+      if(!off.length) break;
+      for(const lp of off) if(lp.length>=3) restRings.push(o.climb?ensureCW(lp):ensureCCW(lp));
+      dd+=soS;
+    }
+    // rest areas are separate corners; the greedy linker keeps each one's rings together and will not
+    // bridge two corners, because a move between them leaves the rest region on its way across
+    const restChains = o.linkRings===false ? restRings.map(lp=>[lp])
+                                           : linkRings(restRings.slice().reverse(), soS, region, o.linkMax);
     depths.forEach(depth=>{
-      let dd=0, g2=0;
-      while(g2++<5000){
-        const off=(dd<1e-9)?restCenters:offW(restCenters, -dd);
-        if(!off.length) break;
-        for(const lp of off) if(lp.length>=3){ const oriented=o.climb?ensureCW(lp):ensureCCW(lp); restPasses.push({z:o.topZ-depth,tabHeight:0,closed:true,path:oriented.map(p=>({x:p.x,y:p.y,tab:false}))}); }
-        dd+=soS;
+      for(const chain of restChains){
+        const single=chain.length===1;
+        restPasses.push({z:o.topZ-depth,tabHeight:0,closed:single,
+          path: single?chain[0].map(p=>({x:p.x,y:p.y,tab:false})):chainToPath(chain)});
       }
     });
     if(restPasses.length) ops.push({kind:'pocket',toolNum:o.finishNum,rpm:o.rpm,feed:o.feed,plunge:o.plunge,safeZ:o.safeZ,topZ:o.topZ,passes:restPasses,toolProfile:{type:'flat',radius:rs}});
@@ -992,7 +1068,7 @@ function stockHeightAt(field, x, y) {
   return field.z[j * field.nx + i];
 }
 
-return {SCALE,TOL,dist,signedArea,isCCW,ensureCCW,ensureCW,boundsOf,assembleContours,offsetLoop,offsetOpenPath,withTabs,fitArcs,profileOp,pocketOp,drillOp,vcarveOp,inlayOp,centroid,defaultTools,upsertTool,removeTool,slugId,orderPasses,
+return {SCALE,TOL,dist,signedArea,isCCW,ensureCCW,ensureCW,boundsOf,assembleContours,offsetLoop,offsetOpenPath,withTabs,linkRings,fitArcs,profileOp,pocketOp,drillOp,vcarveOp,inlayOp,centroid,defaultTools,upsertTool,removeTool,slugId,orderPasses,
   sanitizeTemplateParams,normalizeTemplate,templateFromQueue,applyTemplate,templateToJSON,templateFromJSON,
   upsertTemplate,removeTemplate,defaultTemplates,TEMPLATE_VERSION,TEMPLATE_FORMAT,TEMPLATE_PARAM_KEYS,postProcess,POSTS,simulateStock,stockHeightAt,estimateTime};
 });

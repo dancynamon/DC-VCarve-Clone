@@ -5,7 +5,7 @@ Single self-contained HTML — no install, offline, posts G-code for ShopSabre (
 
 ## Quick start
 ```
-npm test     # 646 checks: CAM (217) + CAD (169) + import (69) + clipart (47) + trace (45) + 3D (44) + PDF (30) + arc-fit (15) + smoke (10)
+npm test     # 665 checks: CAM (236) + CAD (169) + import (69) + clipart (47) + trace (45) + 3D (44) + PDF (30) + arc-fit (15) + smoke (10)
 npm run build # regenerates cadcam-studio.html from cam-engine/ sources
 open cadcam-studio.html
 ```
@@ -47,7 +47,8 @@ Rebuilt from screenshots of Dan's own Aspire install (`docs/vcarve-reference/`):
   preview over the image, and trace it to cuttable contours (holes come out as holes) on a `trace` layer.
 - **Clipart library:** 18 built-in shapes (basic / plaques / pool & safety) placed by dragging a box;
   save your own selections into it and share them as `.aqclip`.
-- **CAM:** Profile (outside/inside/on, climb/conv, multipass, tabs), Pocket, Drill, V-Carve, **Inlay**
+- **CAM:** Profile (outside/inside/on, **left/right of an open vector**, climb/conv, multipass, tabs),
+  Pocket (concentric rings **linked into one inside-out spiral**, or raster), Drill, V-Carve, **Inlay**
   (matched female cavity + male plug, straight or V-carve fit, with a per-side gap and a mirrored plug)
   → G2/G3 arcs → ShopSabre post → backplot → Export .tap.
 - **Toolpath templates:** save a machining recipe (settings only, no geometry) and apply it to any job's
@@ -76,6 +77,7 @@ that one vector — Vectric lets each vector in a toolpath sit on its own side o
 Every `.tap` in `CAD/` has been re-posted this way to `*-aq.tap`; the Vectric originals are left
 untouched beside them. Cut geometry matches the originals to 0.0001" on the straight-cut boards,
 0.0015" on the foam jig and 0.010" on the two pocket roughs (whose finished wall matches to 0.0004").
+Retract and plunge counts now match the Vectric originals exactly, board for board.
 
 ## Layout
 - `cadcam-studio.html` — built app (run `npm run build` to regenerate).
