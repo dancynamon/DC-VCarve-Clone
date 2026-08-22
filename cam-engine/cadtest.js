@@ -366,5 +366,21 @@ let inp=C.shapesToContoursInput([r,ci]); ok('contours input closed',inp.every(c=
   ok('dim: measureText of empty string is 0', close(C.measureText('',0.2),0));
 }
 
+// ---- export filenames: the Artifact host only accepts a fixed set of extensions ----
+(function(){
+  const f=C.saveFilename;
+  ok('savename: .tap carries a .txt alternative', f('design.tap').name==='design.tap' && f('design.tap').alt==='design.tap.txt', JSON.stringify(f('design.tap')));
+  ok('savename: .dxf carries a .txt alternative', f('design.dxf').alt==='design.dxf.txt');
+  ok('savename: project formats fall back to .json, not .txt', f('design.aqcam').alt==='design.aqcam.json' && f('t.aqtpl').alt==='t.aqtpl.json' && f('c.aqclip').alt==='c.aqclip.json');
+  ok('savename: an already-safe extension needs no alternative', f('x.json').alt===null && f('x.txt').alt===null && f('a.png').alt===null);
+  ok('savename: the real name is never altered', ['design.tap','x.json','no-extension'].every(n=>f(n).name===n));
+  ok('savename: extension test is case-insensitive', f('X.JSON').alt===null && f('D.TAP').alt==='D.TAP.txt');
+  ok('savename: a file with no extension gets .txt', f('noext').alt==='noext.txt');
+  ok('savename: a dotted name keeps its last extension', f('board 3.rev2.tap').alt==='board 3.rev2.tap.txt');
+  ok('savename: extended-set extensions still carry a fallback (may not be enabled)', f('design.svg').alt==='design.svg.txt' && f('r.pdf').alt==='r.pdf.txt');
+  ok('savename: survives junk input', f(null).name==='' && f(undefined).alt==='.txt');
+  ok('savename: the alternative is itself acceptable', ['design.tap','design.aqcam','noext'].every(n=>f(f(n).alt).alt===null));
+})();
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

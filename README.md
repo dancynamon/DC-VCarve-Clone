@@ -5,10 +5,12 @@ Single self-contained HTML — no install, offline, posts G-code for ShopSabre (
 
 ## Quick start
 ```
-npm test     # 684 checks: CAM (236) + CAD (169) + import (88) + clipart (47) + trace (45) + 3D (44) + PDF (30) + arc-fit (15) + smoke (10)
+npm test     # 695 checks: CAM (236) + CAD (180) + import (88) + clipart (47) + trace (45) + 3D (44) + PDF (30) + arc-fit (15) + smoke (10)
 npm run build # regenerates cadcam-studio.html from cam-engine/ sources
 open cadcam-studio.html
 ```
+Or run the current build in the browser with no install:
+https://claude.ai/code/artifact/0166593e-5811-4dd2-a714-4a16f6342f5e
 
 ## Layout (matched to Vectric Aspire)
 Rebuilt from screenshots of Dan's own Aspire install (`docs/vcarve-reference/`):

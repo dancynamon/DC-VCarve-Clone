@@ -890,6 +890,22 @@ function projectFromJSON(text) {
   return { shapes: o.shapes, layers: layers, job: job, opsQueue: Array.isArray(o.ops) ? o.ops : [], meta: o.meta || {} };
 }
 
+// ---- export filenames ----------------------------------------------------------------------
+// A published Artifact hands the viewer a file through the host, which only accepts a fixed set of
+// extensions — and none of this app's are on it (.tap, .dxf, .aqcam, .aqtpl, .aqclip). Rather than
+// rename every export for everyone, keep the real name and carry a safe alternative to retry with if
+// the host refuses: the file still arrives, and one rename puts it right. Locally, where the plain
+// download link works, `alt` is never used.
+const SAVE_BASE_EXT = ['gif','png','jpg','jpeg','webp','mp4','webm','txt','json','md'];
+function saveFilename(name){
+  const s = String(name == null ? '' : name);
+  const m = s.match(/\.([A-Za-z0-9]+)$/);
+  const ext = m ? m[1].toLowerCase() : '';
+  if (SAVE_BASE_EXT.indexOf(ext) >= 0) return { name: s, alt: null };
+  const isJson = ['aqcam','aqtpl','aqclip'].indexOf(ext) >= 0;
+  return { name: s, alt: s + (isJson ? '.json' : '.txt') };
+}
+
 return {
   uid, arcPolyline, arcStepFor, dist,
   mkLine, mkPoly, mkRect, mkRoundRect, mkCircle, mkEllipse, mkArc, mkPolygon, mkStar, mkText,
@@ -899,7 +915,7 @@ return {
   translate, rotate, scale, mirror,
   offsetShapes, booleanOp,
   nestShapes, placeShape,
-  svgToShapes, svgPathToShapes, dxfPolysToShapes, toDXF, toSVG,
+  svgToShapes, svgPathToShapes, dxfPolysToShapes, toDXF, toSVG, saveFilename,
   textShapes, outlineTextShapes, FONT, measureText, clone, shapesToContoursInput,
   mkDimension, dimensionGeometry, dimValue, fmtDimValue, syncDimension, DIM_STYLES, DIM_DEFAULTS,
   primParams, applyPrimParams, fitShapeTo, fitPrimTo,

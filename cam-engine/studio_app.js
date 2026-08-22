@@ -977,7 +977,50 @@ function importPDF(name, buf){
   if(loops.hasLiveText) m+='  ·  WARNING: this PDF also has live text that was NOT imported — outline the fonts to cut it.';
   setMsg(m);
 }
-function download(name, text, type){ const b=new Blob([text],{type:type||'text/plain'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); }
+// Saving a file has two routes. Opened from disk, a plain download link works and always has.
+// Published as an Artifact, the viewer sandbox makes that link inert — the host has to hand the file
+// over — so when the host is present we go through it, and every export in the app benefits because
+// they all come through here. Locally nothing changes: window.claude does not exist, so we take the
+// link path exactly as before.
+function downloadViaLink(name, text, type){
+  const b=new Blob([text],{type:type||'text/plain'}); const a=document.createElement('a');
+  a.href=URL.createObjectURL(b); a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+async function downloadViaHost(name, text, type){
+  const pick=CADCORE.saveFilename(name);
+  let dl=null;
+  try{ dl=await window.claude.use('downloads'); }catch(e){ dl=null; }
+  if(!dl){
+    // Hosted, but saving is not on offer here. The plain link is inert in that sandbox, so trying it
+    // and saying nothing would leave Export looking broken — try it, but say where the file really is.
+    downloadViaLink(name,text,type);
+    setMsg('Exporting is not available in this view — open the app from disk to save '+name);
+    return;
+  }
+  const attempt=async fn=>{ await dl.save({filename:fn, data:text}); };
+  try{ await attempt(pick.name); setMsg('Saved '+pick.name); return; }
+  catch(err){
+    const code=err&&err.code;
+    // the host allowlist has no CNC extensions; retry once under a name it will take
+    if((code==='rejected_extension'||code==='extension_not_enabled') && pick.alt){
+      try{ await attempt(pick.alt); setMsg('Saved '+pick.alt+' — rename it to '+pick.name+' before you run it'); return; }
+      catch(err2){ return reportSaveError(err2, pick); }
+    }
+    return reportSaveError(err, pick);
+  }
+}
+function reportSaveError(err, pick){
+  const code=err&&err.code;
+  if(code==='declined') return setMsg('Save cancelled');
+  if(code==='too_large') return setMsg('Too big to save from the browser — open the app from disk for '+pick.name);
+  if(code==='rate_limited') return setMsg('A save is already open — finish that one, then try again');
+  setMsg('Could not save '+pick.name+(err&&err.message?' — '+err.message:''));
+}
+function download(name, text, type){
+  if(window.claude && typeof window.claude.use==='function'){ downloadViaHost(name,text,type); return; }
+  downloadViaLink(name,text,type);
+}
 // ---- project save/load (.aqcam) ----
 const AUTOSAVE_KEY='aqcam_autosave';
 let autosaveTimer=null;
