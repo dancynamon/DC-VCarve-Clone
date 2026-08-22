@@ -5,7 +5,7 @@ Single self-contained HTML — no install, offline, posts G-code for ShopSabre (
 
 ## Quick start
 ```
-npm test     # 665 checks: CAM (236) + CAD (169) + import (69) + clipart (47) + trace (45) + 3D (44) + PDF (30) + arc-fit (15) + smoke (10)
+npm test     # 684 checks: CAM (236) + CAD (169) + import (88) + clipart (47) + trace (45) + 3D (44) + PDF (30) + arc-fit (15) + smoke (10)
 npm run build # regenerates cadcam-studio.html from cam-engine/ sources
 open cadcam-studio.html
 ```
@@ -69,6 +69,8 @@ node cam-engine/repost.js CAD/XRT-50.dxf CAD/XRT-50-aq.tap --dia 0.25 --depth 1.
 ```
 node cam-engine/repost.js --job "CAD/jobs/LGC 50 Job 1 Board 3.aqjob.json"
 ```
+With `--job`, the paths come from the spec or from `--dxf`/`--out`; a positional argument is refused.
+
 A spec is readable JSON: each op names its tool, feeds, depths and tabs, and `select`s vectors by
 `[layer, index]` (the vector's position within that layer in DXF order). A third element overrides
 that one vector — Vectric lets each vector in a toolpath sit on its own side of the line, so

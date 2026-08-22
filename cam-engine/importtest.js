@@ -169,5 +169,34 @@ try { threw = ''; RP.repostJob(dxf, { ops: [{ op: 'profile', select: [[firstLaye
 catch (e) { threw = e.message; }
 ok('jobspec: an out-of-range vector index is a clear error', /missing vector/.test(threw), threw);
 
+// --- CLI argument parsing: unknown/malformed options must fail loudly, never silently default ---
+const bad = (av, re) => { try { RP.parseArgs(av); return false; } catch (e) { return re.test(e.message) ? true : e.message; } };
+ok('args: unknown option rejected', bad(['--diameter', '0.5'], /unknown option --diameter/) === true,
+   bad(['--diameter', '0.5'], /unknown option --diameter/));
+ok('args: non-numeric value rejected', bad(['--dia', 'abc'], /needs a number/) === true);
+ok('args: negative value rejected on an unsigned flag', bad(['--dia', '-1'], /cannot be negative/) === true);
+ok('args: negative topZ allowed', RP.parseArgs(['--top', '-0.25']).flags.top === -0.25);
+ok('args: non-integer tool number rejected', bad(['--tool', '1.5'], /whole number/) === true);
+ok('args: bad enum rejected', bad(['--side', 'sideways'], /must be one of/) === true);
+ok('args: enum error lists the valid values', (function(){ try{RP.parseArgs(['--side','x']);}catch(e){return /outside\|inside\|on\|left\|right/.test(e.message);} })());
+ok('args: missing value rejected', bad(['--dia'], /needs a value/) === true);
+ok('args: a flag may not swallow the next flag', bad(['--dia', '--depth'], /--dia needs a value/) === true);
+ok('args: bool flag takes no value', (function(){ const a=RP.parseArgs(['--json','in.dxf','out.tap']);
+   return a.flags.json === true && a.pos.length === 2; })());
+ok('args: positionals kept in order', JSON.stringify(RP.parseArgs(['a.dxf','b.tap','--dia','0.5']).pos) === '["a.dxf","b.tap"]');
+ok('args: numeric flags come back as numbers', RP.parseArgs(['--dia','0.375']).flags.dia === 0.375);
+ok('args: side accepts the open-vector values', RP.parseArgs(['--side','left']).flags.side === 'left');
+
+// --- assertDxf: a non-DXF input must be an error, not an empty program ---
+const nope = (t, label) => { try { RP.assertDxf(t, label); return false; } catch (e) { return e.message; } };
+ok('assertDxf: accepts a real DXF', RP.assertDxf(dxf, 'sample.dxf') === undefined);
+ok('assertDxf: rejects g-code', /does not look like a DXF/.test(nope('G90\r\nM5\r\nG0 X1 Y1\r\n', 'x.tap')));
+ok('assertDxf: names the offending file', /x\.tap/.test(nope('G90\r\nG0 X1\r\n', 'x.tap')));
+ok('assertDxf: rejects empty input', /is empty/.test(nope('', 'x.dxf')));
+ok('assertDxf: accepts our own DXF export', RP.assertDxf(C.toDXF(shapes), 'out.dxf') === undefined);
+ok('assertDxf: a DXF with no vectors is an error, not an empty toolpath', (function(){
+  const empty = '0\nSECTION\n2\nENTITIES\n0\nENDSEC\n0\nEOF\n';
+  try { RP.dxfToContours(empty); return false; } catch (e) { return /no usable vectors/.test(e.message); } })());
+
 console.log(`\n${pass}/${pass + fail} import checks passed`);
 process.exit(fail ? 1 : 0);
