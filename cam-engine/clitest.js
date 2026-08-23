@@ -114,6 +114,131 @@ for (const [name, args] of [
   ok(`${name}: reports {ok:false,error} as JSON`, !!j && j.ok === false && typeof j.error === 'string', r.out.slice(0, 120));
 }
 
+
+// ---- recipes + the cut-list chain -------------------------------------------
+// Build a self-contained catalog: a plain part, and a part whose holes need their own inside op.
+const chain = path.join(tmp, 'chain'); fs.mkdirSync(path.join(chain, 'parts'), { recursive: true });
+const CC = require('./cadcore.js');
+fs.writeFileSync(path.join(chain, 'parts', 'plain.dxf'), CC.toDXF([CC.mkRect(0, 0, 20, 10, 'OUTLINE')]));
+const holed = [CC.mkRect(0, 0, 24, 18, 'OUTLINE')];
+for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) holed.push(CC.mkCircle({ x: 5 + i * 7, y: 5 + j * 8 }, 2, 'HOLES'));
+fs.writeFileSync(path.join(chain, 'parts', 'holed.dxf'), CC.toDXF(holed));
+fs.writeFileSync(path.join(chain, 'parts', 'huge.dxf'), CC.toDXF([CC.mkRect(0, 0, 200, 200, 'OUTLINE')]));
+
+const CAT = {
+  defaults: { sheet: '48x96', spacing: 0.5, margin: 0.25, post: 'shopsabre' },
+  recipes: {
+    plain: { ops: [{ op: 'profile', side: 'outside', tool: 1, dia: 0.25, depth: 1.5, pass: 1.5, feed: 100, rpm: 24000, clearz: 0.8 }] },
+    holes: {
+      ops: [
+        { op: 'profile', side: 'inside', layer: 'HOLES', tool: 3, dia: 0.25, depth: 1.5, pass: 1.5, feed: 90, rpm: 24000, clearz: 0.8, optional: true },
+        { op: 'profile', side: 'outside', 'exclude-layer': 'HOLES', tool: 1, dia: 0.25, depth: 1.5, pass: 1.5, feed: 100, rpm: 24000, clearz: 0.8 },
+      ],
+    },
+    sloppy: { ops: [{ op: 'profile', side: 'outside', tool: 1, dia: 0.25, depth: 1.5, pass: 1.5, feed: 100, rpm: 24000 }] },
+    backwards: {
+      ops: [
+        { op: 'profile', side: 'outside', tool: 1, dia: 0.25, depth: 1.5, pass: 1.5 },
+        { op: 'profile', side: 'inside', layer: 'HOLES', tool: 3, dia: 0.25, depth: 1.5, pass: 1.5 },
+      ],
+    },
+  },
+  parts: {
+    PLAIN: { file: 'parts/plain.dxf', recipe: 'plain' },
+    HOLED: { file: 'parts/holed.dxf', recipe: 'holes' },
+    SLOPPY: { file: 'parts/holed.dxf', recipe: 'sloppy' },
+    HUGE: { file: 'parts/huge.dxf', recipe: 'plain' },
+    PRE: { file: 'parts/plain.dxf', recipe: 'plain', prenested: true },
+    BADRECIPE: { file: 'parts/plain.dxf', recipe: 'nope' },
+    BADFILE: { file: 'parts/missing.dxf', recipe: 'plain' },
+  },
+};
+const catPath = path.join(chain, 'parts.json');
+fs.writeFileSync(catPath, JSON.stringify(CAT, null, 2));
+let clN = 0;
+const cutlist = rows => { const p = path.join(chain, `cl${++clN}.csv`); fs.writeFileSync(p, 'color,shape,qty,order,status\n' + rows.join('\n') + '\n'); return p; };
+
+// --- cut --recipe: multi-op into one file with a tool change ---
+const rec = runJSON(['cut', '--in', path.join(chain, 'parts', 'holed.dxf'), '--recipe', 'holes', '--catalog', catPath, '--out', f('rec.tap')]);
+ok('cut --recipe succeeds', rec.ok === true, rec.error || rec.parseError);
+const recG = fs.existsSync(f('rec.tap')) ? fs.readFileSync(f('rec.tap'), 'utf8') : '';
+ok('recipe posts both tools', /^T3/m.test(recG) && /^T1/m.test(recG));
+ok('recipe reports itself as the op', rec.op === 'recipe:holes', rec.op);
+ok('unknown recipe fails clearly', /not in/.test(runJSON(['cut', '--in', path.join(chain, 'parts', 'plain.dxf'), '--recipe', 'nope', '--catalog', catPath, '--dry-run']).error || ''));
+
+// holes must be cut INSIDE: a 2.000in hole with a 0.25in tool leaves a 1.875in arc radius
+const holeRadii = (recG.match(/^G[23].*I(-?[\d.]+) J(-?[\d.]+)/gm) || []).map(l => {
+  const m = l.match(/I(-?[\d.]+) J(-?[\d.]+)/); return Math.hypot(+m[1], +m[2]);
+}).filter(r => r > 1 && r < 3);
+ok('recipe cuts holes inside, not outside', holeRadii.length > 0 && holeRadii.every(r => Math.abs(r - 1.875) < 0.01),
+  holeRadii.slice(0, 3).map(r => r.toFixed(4)).join(','));
+
+// --- adjacent same-tool ops merge into one tool block ---
+const mergeCat = JSON.parse(JSON.stringify(CAT));
+mergeCat.recipes.twice = { ops: [CAT.recipes.plain.ops[0], Object.assign({}, CAT.recipes.plain.ops[0])] };
+const mergePath = path.join(chain, 'merge.json'); fs.writeFileSync(mergePath, JSON.stringify(mergeCat));
+run(['cut', '--in', path.join(chain, 'parts', 'plain.dxf'), '--recipe', 'twice', '--catalog', mergePath, '--out', f('merge.tap')]);
+ok('adjacent same-tool ops emit one tool change', (fs.readFileSync(f('merge.tap'), 'utf8').match(/^T1\r?$/gm) || []).length === 1);
+
+// --- recipe safety checks ---
+const sloppy = runJSON(['cut', '--in', path.join(chain, 'parts', 'holed.dxf'), '--recipe', 'sloppy', '--catalog', catPath, '--dry-run']);
+ok('outside profile over nested contours is flagged', (sloppy.warnings || []).some(w => /sit inside another/.test(w)), JSON.stringify(sloppy.warnings));
+const backwards = runJSON(['cut', '--in', path.join(chain, 'parts', 'holed.dxf'), '--recipe', 'backwards', '--catalog', catPath, '--dry-run']);
+ok('an outside profile before later ops is flagged', (backwards.warnings || []).some(w => /cut free before/.test(w)), JSON.stringify(backwards.warnings));
+
+// --- batch: colour grouping, mixed recipes on a sheet, holds, unknown parts ---
+const cl = cutlist(['blue,PLAIN,14,#1,paid', 'blue,HOLED,3,#2,paid', 'red,PLAIN,6,#3,paid', 'yellow,HOLED,2,#4,paid']);
+const b = runJSON(['batch', '--in', cl, '--catalog', catPath, '--outdir', path.join(chain, 'out')]);
+ok('batch succeeds', b.ok === true, b.error || b.parseError);
+ok('batch groups by colour', JSON.stringify((b.colors || []).slice().sort()) === '["blue","red","yellow"]', JSON.stringify(b.colors));
+ok('batch cuts every ready piece', b.totalPieces === 25, b.totalPieces);
+ok('batch writes a .tap and .dxf per sheet', b.sheets.every(s => fs.existsSync(s.file) && fs.existsSync(s.dxf)));
+ok('batch never mixes colours on one sheet', new Set(b.sheets.map(s => s.color)).size === 3);
+ok('mixed recipes can share a sheet', b.sheets.some(s => s.recipes.length > 1), JSON.stringify(b.sheets.map(s => s.recipes)));
+ok('batch reports machine time', b.estimatedMinutes > 0, b.estimatedMinutes);
+ok('batch carries order numbers through', b.sheets.every(s => Array.isArray(s.orders)));
+
+const held = runJSON(['batch', '--in', cutlist(['blue,PLAIN,2,#5,unpaid - hold', 'blue,PLAIN,3,#6,paid']), '--catalog', catPath, '--outdir', path.join(chain, 'out2'), '--dry-run']);
+ok('a held row is not cut', held.held.length === 1 && held.totalPieces === 3, JSON.stringify({ held: held.held, pieces: held.totalPieces }));
+const forced = runJSON(['batch', '--in', cutlist(['blue,PLAIN,2,#7,unpaid - hold', 'blue,PLAIN,3,#8,paid']), '--catalog', catPath, '--outdir', path.join(chain, 'out3'), '--include-hold', '--dry-run']);
+ok('--include-hold cuts it anyway', forced.totalPieces === 5, forced.totalPieces);
+
+const unk = runJSON(['batch', '--in', cutlist(['blue,NOSUCH,2,#9,paid', 'blue,PLAIN,1,#10,paid']), '--catalog', catPath, '--outdir', path.join(chain, 'out4'), '--dry-run']);
+ok('an uncatalogued part stops the run', unk.ok === false && /no part file for/.test(unk.error || ''), unk.error);
+const skipped = runJSON(['batch', '--in', cutlist(['blue,NOSUCH,2,#11,paid', 'blue,PLAIN,1,#12,paid']), '--catalog', catPath, '--outdir', path.join(chain, 'out5'), '--skip-unknown', '--dry-run']);
+ok('--skip-unknown cuts the rest and names what it skipped', skipped.ok === true && skipped.unknownParts.includes('NOSUCH') && skipped.totalPieces === 1, JSON.stringify(skipped.unknownParts));
+
+const pre = runJSON(['batch', '--in', cutlist(['blue,PRE,3,#13,paid']), '--catalog', catPath, '--outdir', path.join(chain, 'out6')]);
+ok('a prenested part is cut as-is, not nested', pre.ok && pre.prenested.length === 1 && pre.totalSheets === 0, JSON.stringify(pre.prenested));
+ok('a prenested part reports its repeat count', pre.prenested[0].runs === 3, pre.prenested[0].runs);
+
+const huge = runJSON(['batch', '--in', cutlist(['blue,HUGE,1,#14,paid']), '--catalog', catPath, '--outdir', path.join(chain, 'out7'), '--dry-run']);
+ok('a part too big for the sheet is reported, not silently dropped', (huge.warnings || []).some(w => /does not fit/.test(w)), JSON.stringify(huge.warnings));
+
+ok('a bad recipe reference fails clearly', /not in/.test(runJSON(['batch', '--in', cutlist(['blue,BADRECIPE,1,#15,paid']), '--catalog', catPath, '--dry-run']).error || ''));
+ok('a missing part file fails clearly', /no such file/.test(runJSON(['batch', '--in', cutlist(['blue,BADFILE,1,#16,paid']), '--catalog', catPath, '--dry-run']).error || ''));
+ok('batch --dry-run writes nothing', runJSON(['batch', '--in', cutlist(['blue,PLAIN,2,#17,paid']), '--catalog', catPath, '--outdir', path.join(chain, 'nodir'), '--dry-run']).written.length === 0 && !fs.existsSync(path.join(chain, 'nodir')));
+
+// --- batch accepts JSON as well as CSV, and a bare array ---
+const jsonCl = path.join(chain, 'cl.json');
+fs.writeFileSync(jsonCl, JSON.stringify({ sheet: '48x96', items: [{ part: 'PLAIN', color: 'blue', qty: 4, order: '#18', status: 'paid' }] }));
+ok('batch reads a JSON cut list', runJSON(['batch', '--in', jsonCl, '--catalog', catPath, '--outdir', path.join(chain, 'out8'), '--dry-run']).totalPieces === 4);
+const arrCl = path.join(chain, 'arr.json');
+fs.writeFileSync(arrCl, JSON.stringify([{ sku: 'PLAIN', color: 'red', qty: 2 }]));
+ok('batch reads a bare JSON array', runJSON(['batch', '--in', arrCl, '--catalog', catPath, '--outdir', path.join(chain, 'out9'), '--dry-run']).totalPieces === 2);
+
+// --- cut list validation ---
+const badQty = path.join(chain, 'badqty.csv');
+fs.writeFileSync(badQty, 'color,shape,qty\nblue,PLAIN,lots\n');
+ok('a non-numeric qty fails clearly', /qty/.test(runJSON(['batch', '--in', badQty, '--catalog', catPath, '--dry-run']).error || ''));
+const noPart = path.join(chain, 'nopart.csv');
+fs.writeFileSync(noPart, 'color,qty\nblue,2\n');
+ok('a row with no part column fails clearly', /part/.test(runJSON(['batch', '--in', noPart, '--catalog', catPath, '--dry-run']).error || ''));
+ok('a missing catalog fails clearly', /no parts catalog/.test(runJSON(['batch', '--in', cl, '--catalog', path.join(chain, 'nope.json'), '--dry-run']).error || ''));
+const quoted = path.join(chain, 'quoted.csv');
+fs.writeFileSync(quoted, 'color,shape,qty,order,status\n"blue","PLAIN",2,"#19, rush","paid"\n');
+ok('quoted CSV fields parse', runJSON(['batch', '--in', quoted, '--catalog', catPath, '--outdir', path.join(chain, 'out10'), '--dry-run']).totalPieces === 2);
+
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(`\n${pass}/${pass + fail} CLI checks passed`);
 process.exit(fail ? 1 : 0);

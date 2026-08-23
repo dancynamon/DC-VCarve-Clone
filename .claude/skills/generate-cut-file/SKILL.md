@@ -1,6 +1,6 @@
 ---
 name: generate-cut-file
-description: Turn a DXF, SVG or vector PDF into a ready-to-run ShopSabre .tap cut file — and nest parts onto foam/board sheets — using the Aquamentor CAD/CAM engine headlessly, with no VCarve session and no browser. Trigger whenever Dan says "make a cut file", "generate the tap file", "post this to gcode", "cut this DXF", "toolpath this", "nest these parts", "how many sheets do I need", "lay these out on a sheet", "what's the run time on this", "convert this DXF to SVG", or names a part file and a bit size. Also fire when a cut list from shopify-cut-list-by-color or aquamentor-order-dashboard needs actual machine files, and when a customer sends artwork (DXF/PDF) that has to be checked for cuttable geometry before quoting. Reads geometry and writes cut files — never touches an order, an invoice or a machine. Go do it, don't just explain.
+description: Turn a cut list — or a single DXF, SVG or vector PDF — into ready-to-run ShopSabre .tap machine files, nested onto foam/board sheets by color, using the Aquamentor CAD/CAM engine headlessly with no VCarve session and no browser. Trigger whenever Dan says "make a cut file", "generate the tap files", "cut this week's orders", "turn the cut list into machine files", "post this to gcode", "cut this DXF", "toolpath this", "nest these parts", "how many sheets do I need", "how much blue foam does this take", "what's the run time on this", "lay these out on a sheet", or names a part file and a bit size. ALWAYS fire after shopify-cut-list-by-color or aquamentor-order-dashboard produces a cut list and Dan wants the actual machine files. Also fire when a customer sends artwork (DXF/PDF) that must be checked for cuttable geometry before quoting. Reads geometry and writes cut files — never touches an order, an invoice or a machine, and never cuts foam for an unpaid order. Go do it, don't just explain.
 ---
 
 # Generate a cut file (headless CAD/CAM)
@@ -24,9 +24,58 @@ If none exists, clone it once — `git clone https://github.com/dancynamon/DC-VC
 — then continue. No `npm install` is needed; the engine has zero dependencies. Run everything as
 `node "$REPO/cam-engine/cli.js" …`.
 
+## The fast path: a whole cut list at once
+
+When the work started as a cut list (the usual case — `shopify-cut-list-by-color` or
+`aquamentor-order-dashboard` produced it), do **not** run parts one at a time. One command takes the
+list to machine files:
+
+```bash
+node "$REPO/cam-engine/cli.js" batch --in cutlist.csv --outdir "$REPO/CAD/out" --json
+```
+
+The cut list is the CSV those skills already produce — `color, shape, size, qty, order, status`. JSON
+works too (`{"items":[{"part":…,"color":…,"qty":…}]}`, or a bare array). What `batch` does:
+
+1. **Drops rows that must not be cut.** Any status matching unpaid / hold / pending / awaiting
+   artwork / proof / cancelled is held back and reported. Foam is not cut for an unpaid order.
+   `--include-hold` overrides, and only Dan decides that.
+2. **Stops on a part it doesn't know.** A row naming a part with no catalog entry aborts the run, with
+   the missing names listed. `--skip-unknown` cuts the rest and reports what it skipped — use it only
+   when Dan has seen the list of skipped parts.
+3. **Groups by color.** One color is one physical foam sheet, so colors never share a sheet. Parts of
+   different colors are nested separately.
+4. **Nests each color** onto `--sheet` (48x96 default) with real spacing, then **posts one `.tap` per
+   sheet** plus the matching nested `.dxf` so the layout can be opened and checked.
+5. **Cuts pre-nested parts as-is.** A catalog part marked `prenested` is already a laid-out sheet
+   (`CAD/XRT-50.dxf` is 16 tubes on a 49 x 95.9 sheet) — it is posted directly, never re-nested, and
+   a qty of 3 means "run this file 3 times", which the report says.
+
+Report back per sheet: color, what's on it, run time, filename — plus total machine time, utilization,
+and every held/skipped row. Those held rows are the ones Dan needs to act on.
+
+## The catalog is the wiring
+
+`parts.json` at the repo root is what makes a cut-list row into a cut file. Two halves:
+
+- **`recipes`** — HOW to cut. An ordered list of ops posted into one `.tap` with tool changes.
+- **`parts`** — WHICH file and which recipe, keyed by the SKU/shape name the cut list uses.
+
+When a cut list names a part that isn't catalogued, that is the thing to fix — add the part rather
+than working around it. Adding one needs: the DXF path, a recipe, and (if it's a pre-laid-out sheet)
+`"prenested": true`. **Never invent a recipe's numbers.** Copy an existing recipe for the same
+material, or read the parameters off a `.tap` that already ran, or ask.
+
+**Parts with holes need two ops.** An outside profile cuts a hole a full tool-diameter oversized. Put
+holes on their own DXF layer and give the recipe an inside op filtered to that layer, then the outside
+profile excluding it — interior work first, the profile that frees the part last. The CLI warns when it
+sees contours nested inside others and no inside op; if the containment is really parts inside a sheet
+boundary (a jig), set `"allowNested": true` on the op so the warning stops for a recorded reason.
+
 ## Step 1 — ALWAYS inspect before cutting
 
-Never post a file you haven't looked at. This is the step that catches the expensive mistakes.
+For a one-off file (a customer's artwork, a new part), work it a step at a time. Never post a file you
+haven't looked at — this is the step that catches the expensive mistakes.
 
 ```bash
 node "$REPO/cam-engine/cli.js" info --in "part.dxf" --json
@@ -43,7 +92,7 @@ Check and report:
 - A vector PDF that reports live text has un-cuttable type in it — the CLI says so. Tell Dan to outline
   the fonts and re-export; do not silently cut the paths that did come through.
 
-## Step 2 — pick the cut parameters
+## Step 2 — pick the cut parameters (single-file path)
 
 **Never invent a depth, feed or speed.** If Dan didn't give them and the job isn't an obvious repeat of
 one below, ask. These are the parameters his own production files actually use — cite them as the
@@ -92,6 +141,13 @@ node "$REPO/cam-engine/cli.js" cut \
 Ops: `profile` (cut a part out — `--side outside` for the part, `inside` for a hole, `on` for a line),
 `pocket` (clear an area), `drill` (a hole at each closed contour's centroid), `vcarve` (V-bit carving).
 
+If the part is already catalogued, `--recipe NAME` replaces all the cut flags and runs the whole
+multi-op recipe into one file:
+
+```bash
+node "$REPO/cam-engine/cli.js" cut --in "CAD/XRT-50.dxf" --recipe foam-2in --out "CAD/XRT-50.tap"
+```
+
 ## Step 5 — verify and report
 
 From the `--json` report, confirm and hand back:
@@ -114,15 +170,20 @@ estimated run time.
   never find again.
 - This skill reads geometry and writes cut files. It never touches Shopify, QBO, a shipping label or
   the machine itself.
+- **Never cut a held row** without Dan explicitly saying so. Unpaid, awaiting artwork and awaiting
+  proof all mean the part is not ready, and foam and machine time are not recoverable.
+- **Never quietly skip a part the catalog doesn't know.** Report it and offer to add it.
 - Use `--dry-run` freely to check numbers before writing anything.
 
 ## Chaining
 
 - **shopify-cut-list-by-color** / **aquamentor-order-dashboard** produce the *what* — parts, colors,
-  quantities. This skill produces the *how* — nested sheets and machine files. Feed the per-color part
-  list straight into `nest --in part.dxf:qty`, then `cut` each sheet.
-- **aquamentor-inventory-sync** wants sheet counts: `nest --json` gives `sheets` and `utilization` for a
-  real foam demand number instead of an estimate.
+  quantities, order numbers, status. Save that CSV and hand it straight to `batch`. Their cut list is
+  already in the right shape; no reformatting needed.
+- **aquamentor-inventory-sync** wants real foam demand: `batch --json --dry-run` returns `totalSheets`
+  per color without writing anything, which beats an estimate.
+- **aquamentor-order-dashboard**'s cut schedule wants machine minutes: `estimatedMinutes` per sheet and
+  for the whole run comes back in the same report.
 - **create-foam-product-proof** / **foam-proof-to-plate** handle the printed side; this handles the cut
   side of the same part.
 

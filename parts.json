@@ -1,0 +1,108 @@
+{
+  "_readme": "Part catalog for the headless CAD/CAM CLI. 'recipes' say HOW to cut; 'parts' say WHICH file and which recipe. The cut list only needs to name a part key, a color and a qty. Every parameter below was read off an existing production .tap file — add new recipes the same way rather than guessing.",
+  "defaults": {
+    "sheet": "48x96",
+    "spacing": 0.5,
+    "margin": 0.25,
+    "post": "shopsabre",
+    "outdir": "CAD/out"
+  },
+  "recipes": {
+    "foam-2in": {
+      "description": "2in XLPE foam, 1/4in bit, full depth in one pass. Matches CAD/XRT-50.tap.",
+      "ops": [
+        {
+          "op": "profile",
+          "side": "outside",
+          "dir": "climb",
+          "tool": 1,
+          "dia": 0.25,
+          "depth": 1.5,
+          "pass": 1.5,
+          "feed": 100,
+          "plunge": 40,
+          "rpm": 24000,
+          "clearz": 0.8,
+          "topz": 0
+        }
+      ]
+    },
+    "foam-0.75-jig": {
+      "description": "3/4in foam print jig, 1/2in bit, full depth in one pass. Matches CAD/20 piece male print jig - foam.tap.",
+      "ops": [
+        {
+          "op": "profile",
+          "side": "outside",
+          "dir": "climb",
+          "tool": 2,
+          "dia": 0.5,
+          "depth": 0.75,
+          "pass": 0.75,
+          "feed": 80,
+          "plunge": 40,
+          "rpm": 20000,
+          "clearz": 0.2,
+          "topz": 0,
+          "allowNested": true,
+          "_allowNested": "The 20 MALE parts sit inside the LAYER_1 sheet boundary; CAD/20 piece male print jig - foam.tap cuts all 21 with this one outside profile, so the containment is parts-in-a-boundary, not holes."
+        }
+      ]
+    }
+  },
+  "parts": {
+    "XRT-50": {
+      "name": "Rescue tube 50in",
+      "file": "CAD/XRT-50.dxf",
+      "recipe": "foam-2in",
+      "prenested": true,
+      "_note": "This DXF is already a laid-out 49 x 95.9 sheet of 16 tubes, so batch cuts it as-is instead of nesting it."
+    },
+    "print-jig-20": {
+      "name": "20-piece male print jig",
+      "file": "CAD/20 piece male print jig - foam.dxf",
+      "recipe": "foam-0.75-jig",
+      "prenested": true,
+      "_note": "Already laid out as a 37 x 29.8 jig sheet of 21 shapes."
+    }
+  },
+  "_howto": {
+    "add a single part": {
+      "my-part": {
+        "name": "Human name",
+        "file": "CAD/my-part.dxf",
+        "recipe": "foam-2in"
+      },
+      "_": "Leave out 'prenested' when the file holds ONE part — batch will nest it with the others by color."
+    },
+    "a part with holes": {
+      "_": "Holes must be cut with their own inside op, or an outside profile makes them a tool-diameter too big. Put the holes on their own DXF layer and give the recipe two ops:",
+      "ops": [
+        {
+          "op": "profile",
+          "side": "inside",
+          "layer": "HOLES",
+          "tool": 1,
+          "dia": 0.25,
+          "depth": 1.5,
+          "pass": 1.5,
+          "feed": 100,
+          "rpm": 24000,
+          "optional": true
+        },
+        {
+          "op": "profile",
+          "side": "outside",
+          "exclude-layer": "HOLES",
+          "tool": 1,
+          "dia": 0.25,
+          "depth": 1.5,
+          "pass": 1.5,
+          "feed": 100,
+          "rpm": 24000
+        }
+      ],
+      "__": "Ops run in order and post into ONE .tap with tool changes. Interior work first; the outside profile that frees the part goes last. 'optional' lets the op be skipped when a part has no such layer. The CLI warns if it sees nested contours and no inside op."
+    },
+    "not yet catalogued": "The LGC 50 chair boards in CAD/ are multi-tool wood jobs (T8 + T3, layers like T9_COUNTERSINK_0_6 and T3_PROFILE_INSIDE_2). Their layer-to-operation mapping needs to be confirmed before a recipe is written for them."
+  }
+}

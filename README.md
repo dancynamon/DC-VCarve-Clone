@@ -34,9 +34,30 @@ node cam-engine/cli.js nest --in "kickboard.dxf:12" --in "mat.dxf:4" \
   posted through `shopsabre` or `generic`. Reports passes, arc moves, extents and estimated run time.
 - **`nest`** — packs parts onto sheets; each input file is one part, `:N` repeats it, so outlines and
   holes stay together. Reports sheets, utilization and anything too large to place.
+- **`batch`** — a whole cut list to machine files in one pass (below).
 - **`convert`** — format conversion between DXF and SVG. **`info`** — inspect geometry before cutting.
+- **`cut --recipe NAME`** — run a catalogued multi-op recipe into one file instead of flag-by-flag.
 - Every command takes `--json` for a machine-readable report and `--dry-run` to compute without writing.
   `--layer` / `--exclude-layer` filter imported geometry.
+
+### Cut list -> machine files
+`batch` takes the by-color cut list straight through to `.tap` files:
+
+```
+node cam-engine/cli.js batch --in cutlist.csv --outdir CAD/out
+```
+
+The cut list is `color, shape, size, qty, order, status` (CSV or JSON). `batch` holds back rows whose
+status reads unpaid / hold / awaiting artwork, stops on a part with no catalog entry, groups the rest
+by color (one color = one physical sheet), nests each color, and posts one `.tap` per sheet alongside
+the nested `.dxf`. Pre-nested parts are cut as-is rather than re-nested.
+
+`parts.json` at the repo root is the wiring: `recipes` say how to cut (an ordered op list posted into
+one file with tool changes), `parts` say which DXF and which recipe, keyed by the name the cut list
+uses. A part with holes gets an inside op filtered to a HOLES layer, then an outside profile excluding
+it — an outside profile over a hole cuts it a full tool-diameter oversized, and the CLI warns when it
+sees nested contours with no inside op. Adjacent ops sharing a tool are merged so the post doesn't
+emit a pointless tool change. Output lands in `CAD/out/`, which is gitignored as regenerable.
 
 ### Using it from Claude
 `.claude/skills/generate-cut-file/` wraps the CLI as a skill, so a Claude Code session in this repo can
@@ -50,6 +71,7 @@ ln -s "$PWD/.claude/skills/generate-cut-file" ~/.claude/skills/generate-cut-file
 - `cadcam-studio.html` — built app (run `npm run build` to regenerate).
 - `cam-engine/` — sources: `cadcore.js` (CAD), `camcore.js` (CAM), `studio_app.js` (UI), `studio_shell.html` (markup/CSS), `dxfparse.js`, `pdfparse.js`, `cli.js` (headless front door), `build.js`, `package/clipper.js`, tests,
   ShopSabre `.pp`, roadmap README.
+- `parts.json` — part catalog: cut recipes, and which DXF each cut-list name maps to.
 - `.claude/skills/generate-cut-file/` — the CLI wrapped as a Claude skill.
 
 ## Roadmap (next)

@@ -3,3 +3,4 @@ node_modules/
 *.tgz
 *.log
 _verify_*
+CAD/out/
