@@ -30,5 +30,22 @@ ok('band 0 collapses to one height', (function(){
 ok('empty program refused', bad(()=>aircut(''),/empty program/)===true);
 ok('a program with no cutting moves is returned untouched', (function(){
   const g='G90\r\nG0 Z2.0000\r\nG0 X0 Y0\r\n'; const r=aircut(g); return r.gcode===g && r.stats.unchanged; })());
+// --- --retract: programs posted with a clearance too low for a sane air pass ---
+const foam=fs.readFileSync(require('path').join(__dirname,'..','CAD','20 piece male print jig - foam-aq.tap'),'utf8');
+ok('a 0.2" retract plane refuses a 0.25" air pass', bad(()=>aircut(foam),/no room under/)===true);
+ok('the refusal points at the fix', (function(){try{aircut(foam);}catch(e){return /--retract/.test(e.message);}})());
+const lifted=aircut(foam,{retract:0.9});
+ok('retract: cutting passes clear the stock', Math.min(...zs(lifted.gcode))>=0.25-1e-9, Math.min(...zs(lifted.gcode)));
+ok('retract: the low retract plane is lifted', !/Z0\.2000/.test(lifted.gcode) && /Z0\.9000/.test(lifted.gcode));
+ok('retract: every retract move was lifted', lifted.stats.raised===(foam.match(/Z0\.2000/g)||[]).length, lifted.stats.raised);
+ok('retract: park height untouched', /G0 Z2\.0000/.test(lifted.gcode));
+ok('retract: travel envelope unchanged', Math.max(...zs(lifted.gcode))===Math.max(...zs(foam)));
+ok('retract: air passes stay under the new plane', Math.max(...lifted.stats.airZ) < 0.9);
+ok('retract: XY motion still identical', lifted.gcode.replace(/Z-?\d*\.?\d+/g,'Z')===foam.replace(/Z-?\d*\.?\d+/g,'Z'));
+ok('retract above the park height is refused', bad(()=>aircut(foam,{retract:3}),/above the program's own park height/)===true);
+ok('retract of 0 is refused', bad(()=>aircut(foam,{retract:0}),/greater than 0/)===true);
+ok('retract does not lower an already-higher plane', (function(){
+  const r=aircut(prod,{retract:0.5}); return /Z0\.8000/.test(r.gcode) && r.stats.raised===0; })());
+
 console.log(`\n${pass}/${pass+fail} air-cut checks passed`);
 process.exit(fail?1:0);

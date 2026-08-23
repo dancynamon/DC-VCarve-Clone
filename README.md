@@ -5,7 +5,7 @@ Single self-contained HTML — no install, offline, posts G-code for ShopSabre (
 
 ## Quick start
 ```
-npm test     # 713 checks: CAM (236) + CAD (180) + import (88) + clipart (47) + trace (45) + 3D (44) + PDF (30) + arc-fit (15) + air-cut (18) + smoke (10)
+npm test     # 725 checks: CAM (236) + CAD (180) + import (88) + clipart (47) + trace (45) + 3D (44) + PDF (30) + arc-fit (15) + air-cut (30) + smoke (10)
 npm run build # regenerates cadcam-studio.html from cam-engine/ sources
 open cadcam-studio.html
 ```
@@ -88,8 +88,9 @@ Retract and plunge counts now match the Vectric originals exactly, board for boa
 so it cannot touch the material: every cutting Z is remapped into a thin band *above* the surface,
 while rapid and park heights stay exactly as posted, so the Z travel envelope is unchanged. The remap
 is order-preserving — the deepest pass is still the lowest air pass — so the staging reads as it runs.
-XY motion, feeds, tool changes and dwells are untouched. `CAD/LGC 50 Job 1 Board 3-aq-AIRCUT.tap` is
-the worked example.
+XY motion, feeds, tool changes and dwells are untouched. Every job in `CAD/` has a `*-AIRCUT.tap` beside it. A program posted with a low retract plane (the
+foam jig retracts to 0.2") has no room for a 0.25" air pass underneath, so `--retract N` lifts any
+retract move below N up to it; the park height and the travel envelope are unchanged.
 
 ## Layout
 - `cadcam-studio.html` — built app (run `npm run build` to regenerate).
