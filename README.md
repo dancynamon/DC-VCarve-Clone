@@ -5,7 +5,7 @@ Single self-contained HTML — no install, offline, posts G-code for ShopSabre (
 
 ## Quick start
 ```
-npm test     # 695 checks: CAM (236) + CAD (180) + import (88) + clipart (47) + trace (45) + 3D (44) + PDF (30) + arc-fit (15) + smoke (10)
+npm test     # 713 checks: CAM (236) + CAD (180) + import (88) + clipart (47) + trace (45) + 3D (44) + PDF (30) + arc-fit (15) + air-cut (18) + smoke (10)
 npm run build # regenerates cadcam-studio.html from cam-engine/ sources
 open cadcam-studio.html
 ```
@@ -82,6 +82,14 @@ Every `.tap` in `CAD/` has been re-posted this way to `*-aq.tap`; the Vectric or
 untouched beside them. Cut geometry matches the originals to 0.0001" on the straight-cut boards,
 0.0015" on the foam jig and 0.010" on the two pocket roughs (whose finished wall matches to 0.0004").
 Retract and plunge counts now match the Vectric originals exactly, board for board.
+
+## Dry-running a job
+`node cam-engine/aircut.js in.tap out.tap [--clearance 0.25] [--band 0.30]` rewrites a posted program
+so it cannot touch the material: every cutting Z is remapped into a thin band *above* the surface,
+while rapid and park heights stay exactly as posted, so the Z travel envelope is unchanged. The remap
+is order-preserving — the deepest pass is still the lowest air pass — so the staging reads as it runs.
+XY motion, feeds, tool changes and dwells are untouched. `CAD/LGC 50 Job 1 Board 3-aq-AIRCUT.tap` is
+the worked example.
 
 ## Layout
 - `cadcam-studio.html` — built app (run `npm run build` to regenerate).

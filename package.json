@@ -2,9 +2,9 @@
   "name": "aquamentor-cadcam",
   "version": "0.2.0",
   "private": true,
-  "description": "Aquamentor 2D CAD/CAM — browser CAD editor + CAM (ShopSabre/WinCNC post).",
+  "description": "Aquamentor 2D CAD/CAM \u2014 browser CAD editor + CAM (ShopSabre/WinCNC post).",
   "scripts": {
     "build": "node cam-engine/build.js",
-    "test": "node cam-engine/test.js && node cam-engine/arctest.js && node cam-engine/cadtest.js && node cam-engine/smoketest.js && node cam-engine/importtest.js && node cam-engine/pdftest.js && node cam-engine/tracetest.js && node cam-engine/cliptest.js && node cam-engine/gltest.js"
+    "test": "node cam-engine/test.js && node cam-engine/arctest.js && node cam-engine/cadtest.js && node cam-engine/smoketest.js && node cam-engine/importtest.js && node cam-engine/pdftest.js && node cam-engine/tracetest.js && node cam-engine/cliptest.js && node cam-engine/gltest.js && node cam-engine/airtest.js"
   }
 }
