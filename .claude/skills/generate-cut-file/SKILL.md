@@ -61,10 +61,18 @@ and every held/skipped row. Those held rows are the ones Dan needs to act on.
 - **`recipes`** — HOW to cut. An ordered list of ops posted into one `.tap` with tool changes.
 - **`parts`** — WHICH file and which recipe, keyed by the SKU/shape name the cut list uses.
 
+A part can instead be backed by an **existing machine file** (`"tap": "CAD/….tap"` and no recipe).
+Nothing is regenerated: batch validates the file, reports its tools, depth and run time, and schedules
+it. That is how the LGC 50 chair boards are catalogued, and it is the right shape for any part whose
+`.tap` was made in VCarve and has already proven out on the machine. `tap` and `recipe` together are
+rejected — a part is one or the other. Never replace a working `.tap` with a regenerated one unless Dan
+asks: the existing file is the one that has actually run.
+
 When a cut list names a part that isn't catalogued, that is the thing to fix — add the part rather
 than working around it. Adding one needs: the DXF path, a recipe, and (if it's a pre-laid-out sheet)
 `"prenested": true`. **Never invent a recipe's numbers.** Copy an existing recipe for the same
-material, or read the parameters off a `.tap` that already ran, or ask.
+material, or read the parameters off a `.tap` that already ran, or ask. When a part already has a
+working `.tap`, catalog it with `tap` rather than reverse-engineering a recipe for it.
 
 **Parts with holes need two ops.** An outside profile cuts a hole a full tool-diameter oversized. Put
 holes on their own DXF layer and give the recipe an inside op filtered to that layer, then the outside

@@ -123,6 +123,17 @@ function nestedCount(contours) {
   return n;
 }
 
+// Summarize an existing machine file: tools used, cut depths, run time.
+function tapSummary(g) {
+  const lines = g.replace(/\r/g, '').split('\n');
+  const tools = [], depths = new Set();
+  for (const ln of lines) {
+    const t = ln.match(/^T(\d+)\s*$/); if (t) { const n = +t[1]; if (tools[tools.length - 1] !== n) tools.push(n); }
+    const z = ln.match(/Z(-[\d.]+)/); if (z) depths.add(+(+z[1]).toFixed(4));
+  }
+  return { tools, maxDepth: depths.size ? Math.min(...depths) : 0, minutes: estimateMinutes(g), lines: lines.length };
+}
+
 // ---- catalog: part files + their cut recipes -------------------------------
 function catalogPath(args) {
   return path.resolve(args.catalog ? String(args.catalog) : path.join(__dirname, '..', 'parts.json'));
@@ -550,6 +561,14 @@ function loadCutList(file) {
   return { meta, items };
 }
 
+// A part is either cut from geometry (file + recipe) or backed by a machine file that already
+// exists (tap). Both at once is ambiguous about which one batch should honour.
+function checkPart(cat, entry, key) {
+  if (entry.tap && entry.recipe) die(`part "${key}" has both "tap" and "recipe" — a tap-backed part is used as-is, so drop one`);
+  if (!entry.tap && !entry.file) die(`part "${key}" has neither "file" nor "tap"`);
+  if (!entry.tap && !entry.recipe) die(`part "${key}" has no "recipe"`);
+}
+
 // Load one catalog part's geometry, honouring any layer filter the part declares.
 function partShapes(cat, entry, key, notes) {
   if (!entry.file) die(`part "${key}" in the catalog has no "file"`);
@@ -581,6 +600,7 @@ function cmdBatch(args) {
   for (const u of unknown) notes.push(`skipped "${u.part}"${u.order ? ' (' + u.order + ')' : ''} — not in the parts catalog`);
   for (const h of held) notes.push(`held "${h.part}"${h.order ? ' (' + h.order + ')' : ''} — status "${h.status}"`);
   if (!ready.length) die('nothing to cut — every row is held or unknown');
+  for (const it of ready) checkPart(cat, cat.parts[it.part], it.part);
 
   const sheetSpec = String(args.sheet || meta.sheet || cat.defaults.sheet || '48x96').toLowerCase().split(/[x*]/);
   const sheetW = Math.abs(num(sheetSpec[0], 48)), sheetH = Math.abs(num(sheetSpec[1], 96));
@@ -601,7 +621,7 @@ function cmdBatch(args) {
     byColor.get(k).push(it);
   }
 
-  const written = [], sheetsOut = [], prenestedOut = [];
+  const written = [], sheetsOut = [], prenestedOut = [], tapOut = [];
   let totalMinutes = 0;
 
   const postOps = (ops, name, outPath) => {
@@ -615,9 +635,24 @@ function cmdBatch(args) {
   };
 
   for (const [color, group] of byColor) {
+    // a part backed by an existing machine file is run as-is: nothing is regenerated, so the file
+    // that already proved out on the machine is the file that gets run
+    for (const it of group.filter(it => cat.parts[it.part].tap)) {
+      const entry = cat.parts[it.part];
+      const f = catFile(cat, entry.tap);
+      if (!fs.existsSync(f)) die(`part "${it.part}": no such machine file ${f}`);
+      const sum = tapSummary(fs.readFileSync(f, 'utf8'));
+      totalMinutes += sum.minutes * it.qty;
+      tapOut.push({
+        color, part: it.part, file: f, runs: it.qty, existing: true, order: it.order || null,
+        tools: sum.tools, maxDepth: sum.maxDepth, lines: sum.lines,
+        minutesPerRun: +sum.minutes.toFixed(2), minutes: +(sum.minutes * it.qty).toFixed(2),
+      });
+    }
+
     // a pre-nested part file is already a laid-out sheet — cut it as-is, never re-nest it
-    const flat = [], pre = group.filter(it => cat.parts[it.part].prenested);
-    for (const it of group.filter(it => !cat.parts[it.part].prenested)) {
+    const flat = [], pre = group.filter(it => !cat.parts[it.part].tap && cat.parts[it.part].prenested);
+    for (const it of group.filter(it => !cat.parts[it.part].tap && !cat.parts[it.part].prenested)) {
       const entry = cat.parts[it.part];
       const shapes = partShapes(cat, entry, it.part, notes);
       for (let i = 0; i < it.qty; i++) flat.push({ item: it, entry, shapes: shapes.map(C.clone) });
@@ -683,7 +718,7 @@ function cmdBatch(args) {
     ok: true, command: 'batch', cutList: path.resolve(file), catalog: cat.__path,
     outDir, sheet: `${sheetW}x${sheetH}`, spacing, margin, post: postName,
     colors: [...byColor.keys()],
-    sheets: sheetsOut, prenested: prenestedOut,
+    sheets: sheetsOut, prenested: prenestedOut, existingTaps: tapOut,
     totalSheets: sheetsOut.length, totalPieces: sheetsOut.reduce((n, s) => n + s.pieces, 0),
     estimatedMinutes: +totalMinutes.toFixed(2),
     held: held.map(h => ({ part: h.part, order: h.order || null, status: h.status })),
@@ -694,12 +729,14 @@ function cmdBatch(args) {
   if (flag(args.json)) { console.log(JSON.stringify(report, null, 2)); return; }
   const nestedBit = report.totalSheets ? `${report.totalPieces} piece(s) nested on ${report.totalSheets} sheet(s) of ${sheetW}" x ${sheetH}"` : '';
   const preBit = prenestedOut.length ? `${prenestedOut.length} pre-nested sheet file(s)` : '';
-  console.log(`cut list: ${path.basename(file)} -> ${[nestedBit, preBit].filter(Boolean).join(' + ') || 'nothing to cut'}`);
+  const tapBit = tapOut.length ? `${tapOut.length} existing machine file(s)` : '';
+  console.log(`cut list: ${path.basename(file)} -> ${[nestedBit, preBit, tapBit].filter(Boolean).join(' + ') || 'nothing to cut'}`);
   for (const s of sheetsOut) {
     const mix = Object.entries(s.parts).map(([k, v]) => `${v}x ${k}`).join(', ');
     console.log(`  ${s.color} sheet ${s.sheet}: ${mix} · ${fmtMin(s.minutes)} · ${path.basename(s.file)}`);
   }
   for (const p of prenestedOut) console.log(`  ${p.color} ${p.part}: pre-nested${p.runs > 1 ? `, run ${p.runs}x` : ''} · ${fmtMin(p.minutes)} · ${path.basename(p.file)}`);
+  for (const t of tapOut) console.log(`  ${t.color} ${t.part}: existing file, T${t.tools.join('/T')} to ${t.maxDepth}"${t.runs > 1 ? `, run ${t.runs}x` : ''} · ${fmtMin(t.minutes)} · ${path.basename(t.file)}`);
   console.log(`  total machine time ${fmtMin(totalMinutes)}`);
   for (const n of notes) console.log('  · ' + n);
   for (const w of warnings) console.log('  ! ' + w);

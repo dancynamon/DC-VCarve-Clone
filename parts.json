@@ -63,6 +63,41 @@
       "recipe": "foam-0.75-jig",
       "prenested": true,
       "_note": "Already laid out as a 37 x 29.8 jig sheet of 21 shapes."
+    },
+    "LGC-50-BOARD-1": {
+      "name": "LGC 50 lifeguard chair, Job 1 Board 1",
+      "tap": "CAD/LGC 50 Job 1 Board 1.tap",
+      "file": "CAD/LGC 50 Job 1 Board 1.dxf",
+      "_ops": "T8 drill, T3 crosscut",
+      "_note": "Backed by the existing machine file, not a recipe — see _lgc_analysis below for why."
+    },
+    "LGC-50-BOARD-2": {
+      "name": "LGC 50 lifeguard chair, Job 1 Board 2",
+      "tap": "CAD/LGC 50 Job 1 Board 2.tap",
+      "file": "CAD/LGC 50 Job 1 Board 2.dxf",
+      "_ops": "T8 drill, T3 crosscut",
+      "_note": "Backed by the existing machine file, not a recipe — see _lgc_analysis below for why."
+    },
+    "LGC-50-BOARD-3": {
+      "name": "LGC 50 lifeguard chair, Job 1 Board 3",
+      "tap": "CAD/LGC 50 Job 1 Board 3.tap",
+      "file": "CAD/LGC 50 Job 1 Board 3.dxf",
+      "_ops": "T8 drill, T3, T9, T3",
+      "_note": "Backed by the existing machine file, not a recipe — see _lgc_analysis below for why."
+    },
+    "LGC-50-BOARD-4": {
+      "name": "LGC 50 lifeguard chair, Job 1 Board 4",
+      "tap": "CAD/LGC 50 Job 1 Board 4.tap",
+      "file": "CAD/LGC 50 Job 1 Board 4.dxf",
+      "_ops": "T10 drill, T5, T8 drill, T3, T9, T3",
+      "_note": "Backed by the existing machine file, not a recipe — see _lgc_analysis below for why."
+    },
+    "LGC-50-BOARD-5": {
+      "name": "LGC 50 lifeguard chair, Job 1 Board 5",
+      "tap": "CAD/LGC 50 Job 1 Board 5.tap",
+      "file": "CAD/LGC 50 Job 1 Board 5.dxf",
+      "_ops": "T8 drill, T3 crosscut",
+      "_note": "Backed by the existing machine file, not a recipe — see _lgc_analysis below for why."
     }
   },
   "_howto": {
@@ -104,5 +139,20 @@
       "__": "Ops run in order and post into ONE .tap with tool changes. Interior work first; the outside profile that frees the part goes last. 'optional' lets the op be skipped when a part has no such layer. The CLI warns if it sees nested contours and no inside op."
     },
     "not yet catalogued": "The LGC 50 chair boards in CAD/ are multi-tool wood jobs (T8 + T3, layers like T9_COUNTERSINK_0_6 and T3_PROFILE_INSIDE_2). Their layer-to-operation mapping needs to be confirmed before a recipe is written for them."
+  },
+  "_lgc_analysis": {
+    "_": "Why the LGC boards are catalogued as existing machine files rather than regenerating recipes. Derived by parsing each .tap and matching its toolpaths back to the .dxf geometry.",
+    "what each tap actually does": {
+      "Board 1, 2, 5": "T8 @ S10000, plunge F20: drills through at 1.5in, at the centroids of the ~0.375in closed shapes. Then T3 @ S18000, plunge F20 / cut F60: cuts the 4 OPEN 2-point crosscut lines ON the line, 1.5in deep in 0.375in passes, with one tab per line (Z lifts to -1.375, so a 0.125in tab).",
+      "Board 3": "T8, T3, T9, T3 — adds a T9 op between two T3 ops.",
+      "Board 4": "T10 drill to 0.5in, T5 @ S20000 F25 to 0.1in, T8 drill to 1.5in, T3 to 0.5in, T9 to 0.5in, then T3 crosscuts to 1.5in. Six ops."
+    },
+    "why not a recipe": [
+      "The taps cut a SELECTED SUBSET of the dxf. Board 1's dxf carries pocket and countersink geometry (T9-T3_POCKET, the larger T9_COUNTERSINK_0_6 shapes) and a full 3.5x97 board outline on T3_PROFILE_INSIDE_2 that its tap never touches. A recipe that cut by layer would cut geometry Dan deliberately left alone.",
+      "The selection crosses layers rather than following them: the 8 drilled holes sit on REAR_LEG, FRONT_LEG, PART_P and T9_COUNTERSINK_0_6 alike, selected by being small closed shapes, not by layer. The 4 crosscuts are the only OPEN shapes, again spanning three layers.",
+      "Each board runs a different op sequence (2, 4 and 6 ops), so there is no single LGC recipe.",
+      "The crosscuts carry tabs on OPEN contours. camcore's profileOp only tabs CLOSED contours, so a regenerated toolpath would drop those tabs and the offcuts would come loose mid-cut."
+    ],
+    "to convert one to a recipe later": "The engine would need a geometry selector beyond layers (open-vs-closed plus a size band) and tab support on open contours. Until then the existing .tap files are both correct and already proven on the machine."
   }
 }

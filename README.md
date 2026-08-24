@@ -54,7 +54,9 @@ the nested `.dxf`. Pre-nested parts are cut as-is rather than re-nested.
 
 `parts.json` at the repo root is the wiring: `recipes` say how to cut (an ordered op list posted into
 one file with tool changes), `parts` say which DXF and which recipe, keyed by the name the cut list
-uses. A part with holes gets an inside op filtered to a HOLES layer, then an outside profile excluding
+uses. A part can instead name an existing `.tap` (`"tap": "CAD/….tap"`), in which case that file is
+scheduled and reported but never regenerated — that is how the LGC 50 chair boards are catalogued, and
+`parts.json` records the tap-vs-dxf analysis behind that choice. A part with holes gets an inside op filtered to a HOLES layer, then an outside profile excluding
 it — an outside profile over a hole cuts it a full tool-diameter oversized, and the CLI warns when it
 sees nested contours with no inside op. Adjacent ops sharing a tool are merged so the post doesn't
 emit a pointless tool change. Output lands in `CAD/out/`, which is gitignored as regenerable.

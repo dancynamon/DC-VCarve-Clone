@@ -239,6 +239,37 @@ const quoted = path.join(chain, 'quoted.csv');
 fs.writeFileSync(quoted, 'color,shape,qty,order,status\n"blue","PLAIN",2,"#19, rush","paid"\n');
 ok('quoted CSV fields parse', runJSON(['batch', '--in', quoted, '--catalog', catPath, '--outdir', path.join(chain, 'out10'), '--dry-run']).totalPieces === 2);
 
+
+// --- parts backed by an existing machine file ---
+const tapSrc = path.join(chain, 'existing.tap');
+run(['cut', '--in', path.join(chain, 'parts', 'holed.dxf'), '--recipe', 'holes', '--catalog', catPath, '--out', tapSrc]);
+const tapCat = JSON.parse(JSON.stringify(CAT));
+tapCat.parts.EXISTING = { file: 'parts/holed.dxf', tap: 'existing.tap' };
+tapCat.parts.BOTH = { file: 'parts/plain.dxf', tap: 'existing.tap', recipe: 'plain' };
+tapCat.parts.NOTAP = { tap: 'missing.tap' };
+tapCat.parts.NEITHER = { name: 'nothing' };
+const tapCatPath = path.join(chain, 'tapcat.json'); fs.writeFileSync(tapCatPath, JSON.stringify(tapCat));
+
+const tb = runJSON(['batch', '--in', cutlist(['blue,EXISTING,2,#20,paid']), '--catalog', tapCatPath, '--outdir', path.join(chain, 'out11')]);
+ok('a tap-backed part is used as-is', tb.ok === true && tb.existingTaps.length === 1 && tb.totalSheets === 0, tb.error || JSON.stringify(tb.existingTaps));
+ok('a tap-backed part is not regenerated', tb.written.length === 0, JSON.stringify(tb.written));
+ok('a tap-backed part reports its tools', tb.existingTaps[0].tools.includes(3) && tb.existingTaps[0].tools.includes(1), JSON.stringify(tb.existingTaps[0].tools));
+ok('a tap-backed part reports per-run and total time', tb.existingTaps[0].minutesPerRun > 0 &&
+  Math.abs(tb.existingTaps[0].minutes - tb.existingTaps[0].minutesPerRun * 2) < 0.02,
+  `${tb.existingTaps[0].minutesPerRun} x2 vs ${tb.existingTaps[0].minutes}`);
+ok('a tap-backed part counts toward total machine time', tb.estimatedMinutes >= tb.existingTaps[0].minutes - 0.01, tb.estimatedMinutes);
+ok('tap + recipe together is rejected as ambiguous', /both "tap" and "recipe"/.test(runJSON(['batch', '--in', cutlist(['blue,BOTH,1,#21,paid']), '--catalog', tapCatPath, '--dry-run']).error || ''));
+ok('a missing machine file fails clearly', /no such machine file/.test(runJSON(['batch', '--in', cutlist(['blue,NOTAP,1,#22,paid']), '--catalog', tapCatPath, '--dry-run']).error || ''));
+ok('a part with neither file nor tap fails clearly', /neither "file" nor "tap"/.test(runJSON(['batch', '--in', cutlist(['blue,NEITHER,1,#23,paid']), '--catalog', tapCatPath, '--dry-run']).error || ''));
+
+// the shipped catalog must stay loadable and internally consistent
+const shipped = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'parts.json'), 'utf8'));
+ok('shipped catalog: every part resolves', Object.entries(shipped.parts).every(([k, p]) => {
+  if (p.tap) return fs.existsSync(path.join(__dirname, '..', p.tap));
+  return !!shipped.recipes[p.recipe] && fs.existsSync(path.join(__dirname, '..', p.file));
+}), Object.keys(shipped.parts).join(','));
+ok('shipped catalog: no part is both tap and recipe backed',
+  Object.values(shipped.parts).every(p => !(p.tap && p.recipe)));
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(`\n${pass}/${pass + fail} CLI checks passed`);
 process.exit(fail ? 1 : 0);
