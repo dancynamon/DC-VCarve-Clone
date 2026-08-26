@@ -4,3 +4,5 @@ node_modules/
 *.log
 _verify_*
 CAD/out/
+
+# Vectric samples are reference material; large binaries go through LFS if needed
