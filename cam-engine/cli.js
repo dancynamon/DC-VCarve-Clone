@@ -134,6 +134,101 @@ function tapSummary(g) {
   return { tools, maxDepth: depths.size ? Math.min(...depths) : 0, minutes: estimateMinutes(g), lines: lines.length };
 }
 
+// ---- parametric parts ------------------------------------------------------
+// A part can be described rather than drawn. The cut list's size column drives the dimensions, so
+// one catalog entry covers every size of a shape and no dxf is needed per variant.
+const OUTLINE_LAYER = 'OUTLINE', HOLES_LAYER = 'HOLES';
+
+// '20x10' · '24 x 18' · '20" x 10"' · '18in' · '48' -> {w,h}
+function parseSize(text) {
+  if (text === undefined || text === null || text === '') return null;
+  const t = String(text).toLowerCase()
+    .replace(/["\u201d\u2019']/g, ' ')
+    .replace(/(\d)\s*(?:inches|inch|in)\b/g, '$1 ')
+    .replace(/\s+/g, ' ').trim();
+  const two = t.match(/^(\d*\.?\d+)\s*[x\u00d7*]\s*(\d*\.?\d+)/);
+  if (two) return { w: +two[1], h: +two[2] };
+  const one = t.match(/^(\d*\.?\d+)$/);
+  if (one) return { w: +one[1], h: +one[1], single: true };
+  return null;
+}
+
+function buildHoles(spec, w, h, key) {
+  const out = [];
+  for (const hl of (spec.holes || [])) {
+    const kind = String(hl.kind || 'circle').toLowerCase();
+    if (kind === 'grid') {
+      const rows = int(hl.rows, 1), cols = int(hl.cols, 1), d = Math.abs(num(hl.d, 1));
+      const mx = Math.abs(num(hl.marginX, num(hl.margin, d))), my = Math.abs(num(hl.marginY, num(hl.margin, d)));
+      if (rows < 1 || cols < 1) die(`part "${key}": hole grid needs rows and cols >= 1`);
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+        const x = cols === 1 ? w / 2 : mx + (w - 2 * mx) * c / (cols - 1);
+        const y = rows === 1 ? h / 2 : my + (h - 2 * my) * r / (rows - 1);
+        out.push(C.mkCircle({ x, y }, d / 2, HOLES_LAYER));
+      }
+    } else if (kind === 'circle') {
+      out.push(C.mkCircle({ x: num(hl.x, w / 2), y: num(hl.y, h / 2) }, Math.abs(num(hl.d, 1)) / 2, HOLES_LAYER));
+    } else if (kind === 'rect') {
+      const hw = Math.abs(num(hl.w, 1)), hh = Math.abs(num(hl.h, 1));
+      out.push(C.mkRect(num(hl.x, w / 2) - hw / 2, num(hl.y, h / 2) - hh / 2, hw, hh, HOLES_LAYER));
+    } else die(`part "${key}": unknown hole kind "${kind}" — use circle, rect or grid`);
+  }
+  return out;
+}
+
+// Build a part's geometry from its description. Outline lands on OUTLINE, holes on HOLES, so the
+// same two-op recipe pattern (inside for the holes, outside for the profile) applies unchanged.
+function buildShape(spec, sizeText, key) {
+  const kind = String(spec.kind || 'rect').toLowerCase();
+  const size = parseSize(sizeText);
+  const w = Math.abs(size ? size.w : num(spec.w, 0));
+  const h = Math.abs(size ? (size.single ? (spec.h !== undefined && spec.w === undefined ? size.w : size.h) : size.h) : num(spec.h, 0));
+  if (!(w > 0) || !(h > 0)) {
+    die(`part "${key}": no size — the cut list row has no usable size and the catalog entry has no w/h. ` +
+      `Add a size like "20x10" to the row, or w/h to the catalog entry.`);
+  }
+  let outline;
+  switch (kind) {
+    case 'rect': outline = C.mkRect(0, 0, w, h, OUTLINE_LAYER); break;
+    case 'roundrect': {
+      const r = Math.min(Math.abs(num(spec.r, Math.min(w, h) * 0.15)), Math.min(w, h) / 2);
+      outline = C.mkRoundRect(0, 0, w, h, r, OUTLINE_LAYER); break;
+    }
+    case 'capsule': case 'stadium':
+      outline = C.mkRoundRect(0, 0, w, h, Math.min(w, h) / 2, OUTLINE_LAYER); break;
+    case 'circle': {
+      const d = Math.abs(num(spec.d, Math.min(w, h)));
+      outline = C.mkCircle({ x: d / 2, y: d / 2 }, d / 2, OUTLINE_LAYER); break;
+    }
+    case 'ellipse': outline = C.mkEllipse({ x: w / 2, y: h / 2 }, w / 2, h / 2, 0, OUTLINE_LAYER); break;
+    case 'polygon': {
+      const n = int(spec.sides, 6);
+      if (n < 3) die(`part "${key}": a polygon needs at least 3 sides`);
+      outline = C.fitShapeTo(C.mkPolygon({ x: 0, y: 0 }, 1, n, undefined, OUTLINE_LAYER), 0, 0, w, h); break;
+    }
+    case 'star': {
+      const n = int(spec.points, 5), inner = Math.min(Math.max(num(spec.innerRatio, 0.5), 0.05), 0.95);
+      if (n < 3) die(`part "${key}": a star needs at least 3 points`);
+      outline = C.fitShapeTo(C.mkStar({ x: 0, y: 0 }, 1, inner, n, undefined, OUTLINE_LAYER), 0, 0, w, h); break;
+    }
+    default:
+      die(`part "${key}": unknown shape kind "${kind}" — use rect, roundrect, capsule, circle, ellipse, polygon or star`);
+  }
+  // normalize so the part sits at the origin, whatever the generator centred on
+  const b = C.bbox(outline);
+  const shapes = [C.translate(outline, -b.minX, -b.minY)];
+  const ob = C.bbox(shapes[0]);
+  const holes = buildHoles(spec, ob.maxX - ob.minX, ob.maxY - ob.minY, key);
+  for (const hole of holes) {
+    const hb = C.bbox(hole);
+    if (hb.minX < ob.minX - 1e-9 || hb.minY < ob.minY - 1e-9 || hb.maxX > ob.maxX + 1e-9 || hb.maxY > ob.maxY + 1e-9) {
+      die(`part "${key}": a hole falls outside the ${(ob.maxX - ob.minX).toFixed(2)}x${(ob.maxY - ob.minY).toFixed(2)} outline — check its position or the grid margin`);
+    }
+    shapes.push(hole);
+  }
+  return shapes;
+}
+
 // ---- catalog: part files + their cut recipes -------------------------------
 function catalogPath(args) {
   return path.resolve(args.catalog ? String(args.catalog) : path.join(__dirname, '..', 'parts.json'));
@@ -304,9 +399,21 @@ function buildOpRes(p, contours) {
 
 function cmdCut(args) {
   const ins = list(args.in).concat(args._.slice(1));
-  if (!ins.length) die('cut needs --in <file.dxf|svg|pdf|aqcam>');
+  const described = args.shape !== undefined && args.shape !== true;
+  if (!ins.length && !described) die('cut needs --in <file.dxf|svg|pdf|aqcam>, or --shape <kind> --size WxH');
   const notes = [];
   let shapes = [];
+  if (described) {
+    const spec = { kind: String(args.shape) };
+    for (const k of ['r', 'd', 'sides', 'points', 'innerRatio']) if (args[k] !== undefined) spec[k] = num(args[k], undefined);
+    if (args.holes !== undefined) {
+      // --holes 3x2@4 -> a 3-across, 2-down grid of 4in circles
+      const m = String(args.holes).match(/^(\d+)\s*[x\u00d7]\s*(\d+)\s*@\s*(\d*\.?\d+)$/);
+      if (!m) die('--holes wants COLSxROWS@DIA, e.g. --holes 3x2@4');
+      spec.holes = [{ kind: 'grid', cols: +m[1], rows: +m[2], d: +m[3], margin: num(args['hole-margin'], +m[3]) }];
+    }
+    shapes = buildShape(spec, args.size, String(args.shape));
+  }
   for (const spec of ins) {
     const { file, qty } = parseInSpec(spec);
     // :N is a nesting quantity. Repeating a part here would stack identical toolpaths on the same
@@ -328,7 +435,7 @@ function cmdCut(args) {
   if (useRecipe) {
     const cat = loadCatalog(args);
     p = camParams({});
-    res = opsFromRecipe(cat, String(args.recipe), shapes, notes, path.basename(parseInSpec(ins[0]).file));
+    res = opsFromRecipe(cat, String(args.recipe), shapes, notes, ins.length ? path.basename(parseInSpec(ins[0]).file) : String(args.shape));
   } else {
     p = camParams(args);
     if (p.op !== 'profile' && !closedN) die(`--op ${p.op} needs closed contour(s); all ${contours.length} contour(s) are open`);
@@ -340,7 +447,9 @@ function cmdCut(args) {
   post.arcs = (useRecipe || p.op !== 'drill') && !flag(args['no-arcs']);
 
   const label = useRecipe ? String(args.recipe).toUpperCase() : (p.op === 'profile' ? p.side.toUpperCase() : p.op.toUpperCase());
-  const jobName = String(args.name || path.basename(parseInSpec(ins[0]).file, path.extname(parseInSpec(ins[0]).file)));
+  const jobName = String(args.name || (ins.length
+    ? path.basename(parseInSpec(ins[0]).file, path.extname(parseInSpec(ins[0]).file))
+    : `${args.shape}${args.size ? '-' + String(args.size).replace(/\s+/g, '') : ''}`));
   const g = CAM.postProcess({ name: jobName + ' - ' + label, units: 'inch', ops: mergeOps(res.ops) }, post);
 
   const passes = res.ops.reduce((n, op) => n + op.passes.length, 0);
@@ -348,7 +457,7 @@ function cmdCut(args) {
   const estMinutes = estimateMinutes(g, p.feed);
   const bb = C.bboxAll(shapes);
   const out = args.out ? String(args.out)
-    : path.join(path.dirname(parseInSpec(ins[0]).file), jobName + '.tap');
+    : path.join(ins.length ? path.dirname(parseInSpec(ins[0]).file) : '.', jobName + '.tap');
 
   if (!flag(args['dry-run'])) fs.writeFileSync(out, g);
 
@@ -565,12 +674,17 @@ function loadCutList(file) {
 // exists (tap). Both at once is ambiguous about which one batch should honour.
 function checkPart(cat, entry, key) {
   if (entry.tap && entry.recipe) die(`part "${key}" has both "tap" and "recipe" — a tap-backed part is used as-is, so drop one`);
-  if (!entry.tap && !entry.file) die(`part "${key}" has neither "file" nor "tap"`);
+  if (entry.file && entry.shape) die(`part "${key}" has both "file" and "shape" — a part is either drawn or described, not both`);
+  if (!entry.tap && !entry.file && !entry.shape) die(`part "${key}" has none of "file", "shape" or "tap"`);
   if (!entry.tap && !entry.recipe) die(`part "${key}" has no "recipe"`);
 }
 
 // Load one catalog part's geometry, honouring any layer filter the part declares.
-function partShapes(cat, entry, key, notes) {
+function partShapes(cat, entry, key, notes, sizeText) {
+  if (entry.shape) {
+    const built = buildShape(entry.shape, sizeText !== undefined && sizeText !== '' ? sizeText : entry.shape.size, key);
+    return filterShapes(built, entry).length ? filterShapes(built, entry) : built;
+  }
   if (!entry.file) die(`part "${key}" in the catalog has no "file"`);
   const f = catFile(cat, entry.file);
   if (!fs.existsSync(f)) die(`part "${key}": no such file ${f}`);
@@ -654,13 +768,13 @@ function cmdBatch(args) {
     const flat = [], pre = group.filter(it => !cat.parts[it.part].tap && cat.parts[it.part].prenested);
     for (const it of group.filter(it => !cat.parts[it.part].tap && !cat.parts[it.part].prenested)) {
       const entry = cat.parts[it.part];
-      const shapes = partShapes(cat, entry, it.part, notes);
+      const shapes = partShapes(cat, entry, it.part, notes, it.size);
       for (let i = 0; i < it.qty; i++) flat.push({ item: it, entry, shapes: shapes.map(C.clone) });
     }
 
     for (const it of pre) {
       const entry = cat.parts[it.part];
-      const shapes = partShapes(cat, entry, it.part, notes);
+      const shapes = partShapes(cat, entry, it.part, notes, it.size);
       const label = `${slug(color)}-${slug(it.part)}`;
       const built = opsFromRecipe(cat, entry.recipe, shapes, notes, it.part);
       warnings.push(...built.warnings);
@@ -704,7 +818,10 @@ function cmdBatch(args) {
       if (!flag(args['dry-run'])) { fs.writeFileSync(dxfPath, C.toDXF(members.flatMap(m => m.placed))); written.push(dxfPath); }
       const info = postOps(ops, `${color} sheet ${n + 1}`, tapPath);
       const counts = {};
-      for (const m of members) counts[m.item.part] = (counts[m.item.part] || 0) + 1;
+      for (const m of members) {
+        const k = m.entry.shape && m.item.size ? `${m.item.part} ${m.item.size}` : m.item.part;
+        counts[k] = (counts[k] || 0) + 1;
+      }
       sheetsOut.push({
         color, sheet: n + 1, file: tapPath, dxf: dxfPath, parts: counts,
         pieces: members.length, recipes: [...byRecipe.keys()],
@@ -755,6 +872,10 @@ Input: .dxf .svg .pdf (vector) .aqcam — repeat --in to combine files.
 Quantity: append :N to a nest input to place N copies (nest only; cut would stack them in place).
 
 cut options
+  --shape KIND --size WxH            describe the part instead of importing one:
+                                     rect roundrect capsule circle ellipse polygon star
+                                     extras: --r IN --d IN --sides N --points N --innerRatio F
+                                     --holes COLSxROWS@DIA [--hole-margin IN]
   --recipe NAME                      run a multi-op recipe from the parts catalog into one file
                                      (tool changes included); the flags below describe a single op
   --op profile|pocket|drill|vcarve   (default profile)
@@ -800,6 +921,8 @@ examples
   node cli.js nest --in "part-a.dxf:12" --in "part-b.dxf:4" --sheet 48x96 --spacing 0.5 --out nested.dxf
   node cli.js cut --in "CAD/XRT-50.dxf" --recipe foam-2in --out XRT-50.tap
   node cli.js batch --in cutlist.csv --outdir CAD/out
+  node cli.js cut --shape roundrect --size 20x10 --recipe foam-2in --out kickboard.tap
+  node cli.js cut --shape rect --size 24x18 --holes 3x2@4 --recipe foam-holes --out mat.tap
 `;
 
 function main() {

@@ -61,6 +61,24 @@ and every held/skipped row. Those held rows are the ones Dan needs to act on.
 - **`recipes`** — HOW to cut. An ordered list of ops posted into one `.tap` with tool changes.
 - **`parts`** — WHICH file and which recipe, keyed by the SKU/shape name the cut list uses.
 
+A part can be **described instead of drawn** — `"shape": {"kind": "roundrect", "r": 2}` and no file.
+The cut list's **size column drives the dimensions**, so one entry covers every size that shape is ever
+ordered in, and no DXF is needed per variant. Kinds: `rect` `roundrect` `capsule` `circle` `ellipse`
+`polygon` `star`. Sizes parse as `20x10`, `24 x 18`, `30"x8"`, `18in x 9in` or a single `16`. Holes come
+from `shape.holes` (`circle`, `rect`, or a `grid` of cols/rows/diameter); they land on the `HOLES` layer
+and the outline on `OUTLINE`, so the two-op holes recipe cuts them correctly with no extra work. When a
+row has no size and the entry has no `w`/`h`, that is an error — never guess a dimension.
+
+For a genuine one-off there is no need to touch the catalog at all:
+
+```bash
+node "$REPO/cam-engine/cli.js" cut --shape roundrect --size 20x10 --recipe foam-2in --out part.tap
+node "$REPO/cam-engine/cli.js" cut --shape rect --size 24x18 --holes 3x2@4 --recipe foam-2in-holes --out mat.tap
+```
+
+Reach for a described part whenever the shape is a plain geometric family. Reserve DXF files for genuine
+silhouettes (the animal mats, customer artwork) that cannot be described.
+
 A part can instead be backed by an **existing machine file** (`"tap": "CAD/….tap"` and no recipe).
 Nothing is regenerated: batch validates the file, reports its tools, depth and run time, and schedules
 it. That is how the LGC 50 chair boards are catalogued, and it is the right shape for any part whose

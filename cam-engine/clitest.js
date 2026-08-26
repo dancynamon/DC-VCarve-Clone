@@ -260,16 +260,108 @@ ok('a tap-backed part reports per-run and total time', tb.existingTaps[0].minute
 ok('a tap-backed part counts toward total machine time', tb.estimatedMinutes >= tb.existingTaps[0].minutes - 0.01, tb.estimatedMinutes);
 ok('tap + recipe together is rejected as ambiguous', /both "tap" and "recipe"/.test(runJSON(['batch', '--in', cutlist(['blue,BOTH,1,#21,paid']), '--catalog', tapCatPath, '--dry-run']).error || ''));
 ok('a missing machine file fails clearly', /no such machine file/.test(runJSON(['batch', '--in', cutlist(['blue,NOTAP,1,#22,paid']), '--catalog', tapCatPath, '--dry-run']).error || ''));
-ok('a part with neither file nor tap fails clearly', /neither "file" nor "tap"/.test(runJSON(['batch', '--in', cutlist(['blue,NEITHER,1,#23,paid']), '--catalog', tapCatPath, '--dry-run']).error || ''));
+ok('a part with no geometry source fails clearly', /none of "file", "shape" or "tap"/.test(runJSON(['batch', '--in', cutlist(['blue,NEITHER,1,#23,paid']), '--catalog', tapCatPath, '--dry-run']).error || ''));
 
+// ---- parametric parts: described, not drawn ---------------------------------
+const shapeCat = {
+  defaults: { sheet: '48x96', spacing: 0.5, margin: 0.25, post: 'shopsabre' },
+  recipes: {
+    plain: { ops: [{ op: 'profile', side: 'outside', tool: 1, dia: 0.25, depth: 1.5, pass: 1.5, feed: 100, rpm: 24000 }] },
+    holed: {
+      ops: [
+        { op: 'profile', side: 'inside', layer: 'HOLES', tool: 3, dia: 0.25, depth: 1.5, pass: 1.5, feed: 90, rpm: 24000, optional: true },
+        { op: 'profile', side: 'outside', 'exclude-layer': 'HOLES', tool: 1, dia: 0.25, depth: 1.5, pass: 1.5, feed: 100, rpm: 24000 },
+      ],
+    },
+  },
+  parts: {
+    RECT: { shape: { kind: 'rect' }, recipe: 'plain' },
+    ROUND: { shape: { kind: 'roundrect', r: 2 }, recipe: 'plain' },
+    CAPSULE: { shape: { kind: 'capsule' }, recipe: 'plain' },
+    DISC: { shape: { kind: 'circle' }, recipe: 'plain' },
+    ELLIPSE: { shape: { kind: 'ellipse' }, recipe: 'plain' },
+    HEX: { shape: { kind: 'polygon', sides: 6 }, recipe: 'plain' },
+    FIXED: { shape: { kind: 'rect', w: 9, h: 6 }, recipe: 'plain' },
+    SWISS: { shape: { kind: 'rect', holes: [{ kind: 'grid', cols: 3, rows: 2, d: 4, margin: 5 }] }, recipe: 'holed' },
+    BADHOLE: { shape: { kind: 'rect', holes: [{ kind: 'circle', x: 1, y: 1, d: 8 }] }, recipe: 'plain' },
+    BADKIND: { shape: { kind: 'trapezoid' }, recipe: 'plain' },
+    CONFLICT: { shape: { kind: 'rect' }, file: 'parts/plain.dxf', recipe: 'plain' },
+  },
+};
+const sCatPath = path.join(chain, 'shapes.json'); fs.writeFileSync(sCatPath, JSON.stringify(shapeCat));
+const sizeCl = rows => { const p = path.join(chain, `sz${++clN}.csv`); fs.writeFileSync(p, 'color,shape,size,qty,status\n' + rows.join('\n') + '\n'); return p; };
+const sBatch = (rows, extra) => runJSON(['batch', '--in', sizeCl(rows), '--catalog', sCatPath, '--outdir', path.join(chain, 'sout' + clN), ...(extra || ['--dry-run'])]);
+
+ok('a described part needs no file at all', sBatch(['blue,RECT,20x10,2,paid']).ok === true);
+
+// the size column drives the geometry
+const sized = runJSON(['cut', '--shape', 'rect', '--size', '20x10', '--recipe', 'plain', '--catalog', sCatPath, '--dry-run']);
+ok('--shape/--size builds the right extents', sized.ok && Math.abs(sized.bbox.w - 20) < 1e-6 && Math.abs(sized.bbox.h - 10) < 1e-6,
+  sized.bbox && `${sized.bbox.w}x${sized.bbox.h}`);
+for (const [txt, w, h] of [['24 x 18', 24, 18], ['30"x8"', 30, 8], ['12X12', 12, 12], ['16', 16, 16], ['18in x 9in', 18, 9]]) {
+  const r = runJSON(['cut', '--shape', 'rect', '--size', txt, '--recipe', 'plain', '--catalog', sCatPath, '--dry-run']);
+  ok(`size "${txt}" parses to ${w}x${h}`, r.ok && Math.abs(r.bbox.w - w) < 1e-6 && Math.abs(r.bbox.h - h) < 1e-6, r.bbox && `${r.bbox.w}x${r.bbox.h}`);
+}
+
+// every kind builds something cuttable at the requested size
+for (const kind of ['rect', 'roundrect', 'capsule', 'circle', 'ellipse', 'polygon', 'star']) {
+  const r = runJSON(['cut', '--shape', kind, '--size', '12x12', '--recipe', 'plain', '--catalog', sCatPath, '--dry-run']);
+  ok(`--shape ${kind} builds a toolpath`, r.ok === true && r.passes > 0, r.error);
+  ok(`--shape ${kind} respects the size`, r.ok && r.bbox.w <= 12.001 && r.bbox.w > 11.9, r.bbox && r.bbox.w);
+}
+ok('an unknown shape kind fails clearly', /unknown shape kind/.test(runJSON(['batch', '--in', sizeCl(['blue,BADKIND,10x10,1,paid']), '--catalog', sCatPath, '--dry-run']).error || ''));
+
+// sizes come from the row, defaults from the catalog, and a missing size is an error not a guess
+const fixed = sBatch(['blue,FIXED,,1,paid']);
+ok('a catalog default size is used when the row has none', fixed.ok === true, fixed.error);
+ok('no size anywhere fails clearly', /no size/.test(sBatch(['blue,RECT,,1,paid']).error || ''));
+ok('a row size overrides the catalog default', (() => {
+  const r = runJSON(['cut', '--shape', 'rect', '--size', '5x5', '--recipe', 'plain', '--catalog', sCatPath, '--dry-run']);
+  return r.ok && Math.abs(r.bbox.w - 5) < 1e-6;
+})());
+
+// one part, several sizes, several colours — the thing the cut list actually does
+const many = sBatch(['blue,ROUND,20x10,4,paid', 'blue,ROUND,24x12,3,paid', 'red,ROUND,20x10,2,paid'], ['--outdir', path.join(chain, 'many')]);
+ok('one described part serves several sizes at once', many.ok && many.totalPieces === 9, many.totalPieces);
+ok('sizes stay distinct in the sheet manifest', many.sheets.some(s => Object.keys(s.parts).some(k => /20x10/.test(k))) &&
+  many.sheets.some(s => Object.keys(s.parts).some(k => /24x12/.test(k))), JSON.stringify(many.sheets.map(s => s.parts)));
+ok('colours still never share a sheet', new Set(many.sheets.map(s => s.color)).size === 2);
+
+// generated holes land on HOLES and get cut inside
+const swissOut = f('swiss.tap');
+const swiss = runJSON(['cut', '--shape', 'rect', '--size', '24x18', '--holes', '3x2@4', '--recipe', 'holed', '--catalog', sCatPath, '--out', swissOut]);
+ok('--holes builds a grid', swiss.ok === true && swiss.shapes === 7, swiss.shapes);
+const swissG = fs.readFileSync(swissOut, 'utf8');
+const swissR = (swissG.match(/^G[23].*I(-?[\d.]+) J(-?[\d.]+)/gm) || []).map(l => { const m = l.match(/I(-?[\d.]+) J(-?[\d.]+)/); return Math.hypot(+m[1], +m[2]); });
+ok('generated holes are cut inside at size', swissR.some(r => Math.abs(r - 1.875) < 0.01) && !swissR.some(r => Math.abs(r - 2.125) < 0.01),
+  [...new Set(swissR.map(r => r.toFixed(3)))].join(','));
+ok('generated holes use a separate tool block', /^T3/m.test(swissG) && /^T1/m.test(swissG));
+ok('--holes rejects a malformed spec', /COLSxROWS@DIA/.test(runJSON(['cut', '--shape', 'rect', '--size', '10x10', '--holes', 'lots', '--recipe', 'plain', '--catalog', sCatPath, '--dry-run']).error || ''));
+ok('a hole outside the outline fails clearly', /falls outside/.test(sBatch(['blue,BADHOLE,10x10,1,paid']).error || ''));
+ok('file + shape together is rejected', /both "file" and "shape"/.test(sBatch(['blue,CONFLICT,10x10,1,paid']).error || ''));
+
+// a described part nests and posts like any other
+const nested = sBatch(['blue,SWISS,24x18,4,paid'], ['--outdir', path.join(chain, 'swissnest')]);
+ok('described parts with holes nest and post', nested.ok && nested.totalSheets >= 1 && nested.sheets[0].recipes.includes('holed'), nested.error);
+ok('described parts report machine time', nested.estimatedMinutes > 0, nested.estimatedMinutes);
 // the shipped catalog must stay loadable and internally consistent
 const shipped = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'parts.json'), 'utf8'));
 ok('shipped catalog: every part resolves', Object.entries(shipped.parts).every(([k, p]) => {
   if (p.tap) return fs.existsSync(path.join(__dirname, '..', p.tap));
-  return !!shipped.recipes[p.recipe] && fs.existsSync(path.join(__dirname, '..', p.file));
+  if (!shipped.recipes[p.recipe]) return false;
+  if (p.shape) return typeof p.shape.kind === 'string';
+  return !!p.file && fs.existsSync(path.join(__dirname, '..', p.file));
 }), Object.keys(shipped.parts).join(','));
+ok('shipped catalog: no part is both drawn and described',
+  Object.values(shipped.parts).every(p => !(p.file && p.shape)));
+// every shipped parametric template must actually build and cut at a real size
+ok('shipped catalog: every described part builds', Object.entries(shipped.parts).filter(([, p]) => p.shape).every(([k]) =>
+  runJSON(['batch', '--in', sizeCl([`blue,${k},24x18,1,paid`]), '--catalog', path.join(__dirname, '..', 'parts.json'), '--dry-run']).ok === true),
+  Object.entries(shipped.parts).filter(([, p]) => p.shape).map(([k]) => k).join(','));
 ok('shipped catalog: no part is both tap and recipe backed',
   Object.values(shipped.parts).every(p => !(p.tap && p.recipe)));
+
+
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(`\n${pass}/${pass + fail} CLI checks passed`);
 process.exit(fail ? 1 : 0);

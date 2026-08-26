@@ -52,6 +52,12 @@ status reads unpaid / hold / awaiting artwork, stops on a part with no catalog e
 by color (one color = one physical sheet), nests each color, and posts one `.tap` per sheet alongside
 the nested `.dxf`. Pre-nested parts are cut as-is rather than re-nested.
 
+Parts can be **described rather than drawn**: `"shape": {"kind":"roundrect","r":2}` with no file, sized
+from the cut list's size column, so one entry covers every size ever ordered. Kinds are `rect`
+`roundrect` `capsule` `circle` `ellipse` `polygon` `star`, with optional holes (`circle`, `rect`, or a
+`grid`) that land on a `HOLES` layer ready for the two-op holes recipe. One-offs skip the catalog
+entirely: `cut --shape rect --size 24x18 --holes 3x2@4 --recipe foam-2in-holes`.
+
 `parts.json` at the repo root is the wiring: `recipes` say how to cut (an ordered op list posted into
 one file with tool changes), `parts` say which DXF and which recipe, keyed by the name the cut list
 uses. A part can instead name an existing `.tap` (`"tap": "CAD/….tap"`), in which case that file is

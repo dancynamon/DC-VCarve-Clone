@@ -47,6 +47,42 @@
           "_allowNested": "The 20 MALE parts sit inside the LAYER_1 sheet boundary; CAD/20 piece male print jig - foam.tap cuts all 21 with this one outside profile, so the containment is parts-in-a-boundary, not holes."
         }
       ]
+    },
+    "foam-2in-holes": {
+      "description": "Same 2in foam cut as foam-2in, but interior holes get their own inside pass first so they come out on size. Use for any part with holes.",
+      "ops": [
+        {
+          "op": "profile",
+          "side": "inside",
+          "layer": "HOLES",
+          "dir": "climb",
+          "tool": 1,
+          "dia": 0.25,
+          "depth": 1.5,
+          "pass": 1.5,
+          "feed": 100,
+          "plunge": 40,
+          "rpm": 24000,
+          "clearz": 0.8,
+          "topz": 0,
+          "optional": true
+        },
+        {
+          "op": "profile",
+          "side": "outside",
+          "exclude-layer": "HOLES",
+          "dir": "climb",
+          "tool": 1,
+          "dia": 0.25,
+          "depth": 1.5,
+          "pass": 1.5,
+          "feed": 100,
+          "plunge": 40,
+          "rpm": 24000,
+          "clearz": 0.8,
+          "topz": 0
+        }
+      ]
     }
   },
   "parts": {
@@ -98,6 +134,51 @@
       "file": "CAD/LGC 50 Job 1 Board 5.dxf",
       "_ops": "T8 drill, T3 crosscut",
       "_note": "Backed by the existing machine file, not a recipe — see _lgc_analysis below for why."
+    },
+    "FOAM-RECT": {
+      "name": "Rectangular foam part — size from the cut list",
+      "shape": {
+        "kind": "rect"
+      },
+      "recipe": "foam-2in"
+    },
+    "FOAM-ROUNDRECT": {
+      "name": "Rounded-corner foam part — size from the cut list",
+      "shape": {
+        "kind": "roundrect",
+        "r": 2
+      },
+      "recipe": "foam-2in"
+    },
+    "FOAM-CAPSULE": {
+      "name": "Stadium/capsule foam part (fully rounded ends) — size from the cut list",
+      "shape": {
+        "kind": "capsule"
+      },
+      "recipe": "foam-2in"
+    },
+    "FOAM-CIRCLE": {
+      "name": "Round foam blank — diameter from the cut list",
+      "shape": {
+        "kind": "circle"
+      },
+      "recipe": "foam-2in"
+    },
+    "FOAM-MAT-SWISS": {
+      "name": "Swiss-cheese mat — size from the cut list, 3x2 grid of 4in holes",
+      "shape": {
+        "kind": "rect",
+        "holes": [
+          {
+            "kind": "grid",
+            "cols": 3,
+            "rows": 2,
+            "d": 4,
+            "margin": 5
+          }
+        ]
+      },
+      "recipe": "foam-2in-holes"
     }
   },
   "_howto": {
@@ -138,7 +219,14 @@
       ],
       "__": "Ops run in order and post into ONE .tap with tool changes. Interior work first; the outside profile that frees the part goes last. 'optional' lets the op be skipped when a part has no such layer. The CLI warns if it sees nested contours and no inside op."
     },
-    "not yet catalogued": "The LGC 50 chair boards in CAD/ are multi-tool wood jobs (T8 + T3, layers like T9_COUNTERSINK_0_6 and T3_PROFILE_INSIDE_2). Their layer-to-operation mapping needs to be confirmed before a recipe is written for them."
+    "not yet catalogued": "The LGC 50 chair boards in CAD/ are multi-tool wood jobs (T8 + T3, layers like T9_COUNTERSINK_0_6 and T3_PROFILE_INSIDE_2). Their layer-to-operation mapping needs to be confirmed before a recipe is written for them.",
+    "parametric parts": {
+      "_": "A part with a 'shape' instead of a 'file' is generated on the fly, so one entry covers every size. The cut list's size column ('20x10', '24 x 18', '48') sets the dimensions; put w/h in the shape spec to fix a default when a row has no size.",
+      "kinds": "rect · roundrect (r) · capsule · circle (d) · ellipse · polygon (sides) · star (points, innerRatio)",
+      "holes": "shape.holes takes {kind:'circle',x,y,d}, {kind:'rect',x,y,w,h} or {kind:'grid',cols,rows,d,margin}. Holes land on the HOLES layer and the outline on OUTLINE, so foam-2in-holes cuts them correctly with no extra work.",
+      "your SKUs": "Add entries keyed by the SKU your cut list actually uses, pointing at the same shape spec — e.g. an AM-SC-KX entry with shape {kind:'roundrect', r:2}. The keys above are generic templates.",
+      "one-off": "No catalog entry needed for a one-off: node cam-engine/cli.js cut --shape roundrect --size 20x10 --recipe foam-2in --out part.tap"
+    }
   },
   "_lgc_analysis": {
     "_": "Why the LGC boards are catalogued as existing machine files rather than regenerating recipes. Derived by parsing each .tap and matching its toolpaths back to the .dxf geometry.",
