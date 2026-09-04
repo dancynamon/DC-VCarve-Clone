@@ -485,6 +485,32 @@ function fitPrimTo(shape, x, y, w, h, uniform) {
   return applyPrimParams(shape, p);
 }
 
+// ---------- anchor points (VCarve-style 9-box position reference) ----------
+// An anchor names which point of a shape's bounding box the X/Y coordinate refers to:
+//   tl tm tr      (upper left / upper middle / upper right)
+//   cl c  cr      (center left / center / center right)
+//   bl bm br      (lower left / lower middle / lower right)
+const ANCHORS = {
+  bl: { fx: 0, fy: 0, label: 'lower left' },   bm: { fx: 0.5, fy: 0, label: 'lower middle' },   br: { fx: 1, fy: 0, label: 'lower right' },
+  cl: { fx: 0, fy: 0.5, label: 'center left' }, c:  { fx: 0.5, fy: 0.5, label: 'center' },       cr: { fx: 1, fy: 0.5, label: 'center right' },
+  tl: { fx: 0, fy: 1, label: 'upper left' },   tm: { fx: 0.5, fy: 1, label: 'upper middle' },   tr: { fx: 1, fy: 1, label: 'upper right' }
+};
+function anchorFrac(anchor) { return ANCHORS[anchor] || ANCHORS.bl; }
+// The anchor point of a bbox {minX,minY,maxX,maxY}.
+function bboxAnchor(b, anchor) { const a = anchorFrac(anchor);
+  return { x: b.minX + (b.maxX - b.minX) * a.fx, y: b.minY + (b.maxY - b.minY) * a.fy }; }
+// World position of a shape's anchor point (on its axis-aligned bbox, as drawn).
+function anchorPoint(shape, anchor) { return bboxAnchor(bbox(shape), anchor); }
+// Move a shape (any kind, prims kept parametric) so that its anchor point lands at (x,y). Preserves id.
+function moveAnchorTo(shape, anchor, x, y) {
+  const a = anchorPoint(shape, anchor); const s = translate(shape, x - a.x, y - a.y); s.id = shape.id; return s;
+}
+// Same for a group of shapes (e.g. outline-text contours): moved together, group bbox anchor -> (x,y).
+function moveGroupAnchorTo(shapes, anchor, x, y) {
+  if (!shapes.length) return shapes; const a = bboxAnchor(bboxAll(shapes), anchor);
+  return shapes.map(s => { const t = translate(s, x - a.x, y - a.y); t.id = s.id; return t; });
+}
+
 // ---------- TTF outline text ----------
 // Convert an SVG-path-data string (as produced by opentype.js Path.toPathData) into
 // closed CAD contours: flip from font y-down to CAD y-up, scale so the overall height
@@ -728,6 +754,7 @@ return {
   svgToShapes, svgPathToShapes, dxfPolysToShapes, toDXF, toSVG,
   textShapes, outlineTextShapes, FONT, clone, shapesToContoursInput,
   primParams, applyPrimParams, fitShapeTo, fitPrimTo,
+  ANCHORS, anchorPoint, bboxAnchor, moveAnchorTo, moveGroupAnchorTo,
   projectToJSON, projectFromJSON, PROJECT_VERSION,
   validateShapes
 };

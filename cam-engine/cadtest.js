@@ -274,6 +274,29 @@ ok('placeShape spreads sheets',close(bb(psp).minX,1+2*(24+6)),bb(psp).minX);
   ok('validate: clean set reports nothing', clean.open.length===0 && clean.duplicate.length===0 && clean.selfIntersect.length===0, JSON.stringify(clean));
 }
 
+// anchor points (9-box position reference)
+{
+  const ar=C.mkRect(2,3,4,2);
+  ok('anchor bl', close(C.anchorPoint(ar,'bl').x,2)&&close(C.anchorPoint(ar,'bl').y,3));
+  ok('anchor c',  close(C.anchorPoint(ar,'c').x,4)&&close(C.anchorPoint(ar,'c').y,4));
+  ok('anchor tr', close(C.anchorPoint(ar,'tr').x,6)&&close(C.anchorPoint(ar,'tr').y,5));
+  ok('anchor bm/cl', close(C.anchorPoint(ar,'bm').x,4)&&close(C.anchorPoint(ar,'bm').y,3)&&close(C.anchorPoint(ar,'cl').x,2)&&close(C.anchorPoint(ar,'cl').y,4));
+  ok('anchor unknown -> bl', close(C.anchorPoint(ar,'zz').x,2));
+  const mv=C.moveAnchorTo(ar,'tr',10,10); const mb=bb(mv);
+  ok('moveAnchorTo tr: bbox', close(mb.maxX,10)&&close(mb.maxY,10)&&close(mb.minX,6)&&close(mb.minY,8), mb);
+  ok('moveAnchorTo keeps rect prim', mv.prim.kind==='rect'&&close(mv.prim.x,6)&&close(mv.prim.y,8)&&mv.id===ar.id);
+  const ac=C.moveAnchorTo(C.mkCircle({x:0,y:0},1.5),'c',5,7);
+  ok('moveAnchorTo circle center', close(ac.prim.cx,5)&&close(ac.prim.cy,7)&&close(bb(ac).minX,3.5));
+  const rr=C.applyPrimParams(C.mkRect(0,0,4,2),{kind:'rect',x:0,y:0,w:4,h:2,rot:Math.PI/2});   // rotated: anchor on the as-drawn bbox
+  const rm=C.moveAnchorTo(rr,'bl',1,1); const rmb=bb(rm);
+  ok('moveAnchorTo rotated rect bbox', close(rmb.minX,1)&&close(rmb.minY,1)&&close(rmb.maxX,3)&&close(rmb.maxY,5), rmb);
+  ok('moveAnchorTo rotated keeps rot', close(rm.prim.rot,Math.PI/2));
+  const tx=C.moveAnchorTo(C.mkText(0,0,1,'AB'),'br',8,2); const tb=bb(tx);
+  ok('moveAnchorTo text', close(tb.maxX,8)&&close(tb.minY,2), tb);
+  const grp=C.moveGroupAnchorTo([C.mkRect(0,0,1,1),C.mkRect(3,0,1,1)],'c',0,0); const gb=C.bboxAll(grp);
+  ok('moveGroupAnchorTo center', close(gb.minX,-2)&&close(gb.maxX,2)&&close(gb.minY,-0.5)&&close(gb.maxY,0.5), gb);
+}
+
 // shapesToContoursInput for CAM
 let inp=C.shapesToContoursInput([r,ci]); ok('contours input closed',inp.every(c=>c.closed));
 

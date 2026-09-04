@@ -11,7 +11,8 @@ let activeLayer = '0';
 let sel = new Set();
 let tool = 'select';
 let view = { ppi: 18, ox: 80, oy: 0 };   // oy set on resize
-let grid = { on:true, step:0.5, snap:true, objSnap:true, ortho:false };
+let grid = { on:true, step:0.5, snap:true, objSnap:true, ortho:false, rotSnap:5 };   // rotSnap = Shift rotate increment (deg)
+function snapGridPt(p){ return grid.snap&&grid.on ? { x:Math.round(p.x/grid.step)*grid.step, y:Math.round(p.y/grid.step)*grid.step } : { x:p.x, y:p.y }; }
 let history = [], future = [];
 let toolpaths = null;     // generated g-code segments overlay
 let drillMarks = null;    // drill hole centers overlay [{x,y}]
@@ -189,13 +190,22 @@ let snapMark=null;
 function updateHud(){ document.getElementById('zoomlbl').textContent = Math.round(view.ppi)+' px/in · '+doc.shapes.length+' obj · '+sel.size+' sel'; }
 function setMsg(m){ msg=m; document.getElementById('msg').textContent=m; }
 function updateCursor(scr){ const w=S2W(scr); document.getElementById('coords').textContent = w.x.toFixed(3)+', '+w.y.toFixed(3)+' in'; }
+// hover feedback for the Select tool: rotate icon over a corner grip, resize arrows over a scale handle, move over a shape
+const ROTATE_CURSOR="url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 22 22'><path d='M11 3a8 8 0 1 1-7.4 4.9' fill='none' stroke='white' stroke-width='4'/><path d='M11 3a8 8 0 1 1-7.4 4.9' fill='none' stroke='%23222' stroke-width='2'/><path d='M2 3v6h6' fill='none' stroke='white' stroke-width='4'/><path d='M2 3v6h6' fill='none' stroke='%23222' stroke-width='2'/></svg>\") 11 11, alias";
+const SCALE_CURSORS={nw:'nwse-resize',se:'nwse-resize',ne:'nesw-resize',sw:'nesw-resize',n:'ns-resize',s:'ns-resize',e:'ew-resize',w:'ew-resize'};
+function hoverCursor(scr){ if(tool!=='select'||viewMode==='preview'){ cv.style.cursor=''; return; }
+  const h=hitHandle(scr); let c='';
+  if(h&&h.type==='rotate') c=ROTATE_CURSOR; else if(h&&h.type==='scale') c=SCALE_CURSORS[h.k]||'move';
+  else { const w=S2W(scr); if(pickShapeAt(w)) c='move'; }
+  cv.style.cursor=c; }
 
 // ---- tools / interaction ----
 let draft=null;        // in-progress geometry
 let drag=null;         // active drag state
 function setTool(t){ if(t!=='measure') measure=null; tool=t; sel=(t==='node')?sel:sel; draft=null; document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active',b.dataset.tool===t));
   const active=document.querySelector('.tool[data-tool="'+t+'"]'); if(active){ const grp=active.closest('.tgrp'); if(grp)grp.classList.remove('collapsed'); }   // keep the active tool visible
-  setMsg(TOOLMSG[t]||''); render(); }
+  cv.style.cursor='';
+  setMsg((TOOLMSG[t]||'')+(CREATE_KINDS.has(t)?'  ·  Enter = create by numbers (anchor + size)':'')); render(); }
 const TOOLMSG={ select:'Click to select · drag to move · handles to scale/rotate · marquee to box-select',
   node:'Select one shape, drag its nodes · dbl-click segment adds node · dbl-click node deletes',
   line:'Click start, click end', polyline:'Click points · Enter/double-click to finish · Esc cancel',
@@ -242,10 +252,9 @@ cv.addEventListener('mousedown', e=>{
 cv.addEventListener('mousemove', e=>{
   const scr=evScr(e);
   if(viewMode==='preview'){ updateCursor(scr); if(drag&&drag.kind==='pan'){ view.ox=drag.ox+(scr.x-drag.sx); view.oy=drag.oy+(scr.y-drag.sy); render(); } return; }
-  updateCursor(scr); const snap=snapWorld(scr); snapMark = snap.kind?{x:snap.x,y:snap.y,kind:snap.kind}:null; const w={x:snap.x,y:snap.y};
+  updateCursor(scr); if(!drag) hoverCursor(scr); const snap=snapWorld(scr); snapMark = snap.kind?{x:snap.x,y:snap.y,kind:snap.kind}:null; const w={x:snap.x,y:snap.y};
   if(drag&&drag.kind==='pan'){ view.ox=drag.ox+(scr.x-drag.sx); view.oy=drag.oy+(scr.y-drag.sy); render(); return; }
-  if(drag&&drag.kind==='move'){ const dx=w.x-drag.last.x, dy=w.y-drag.last.y; drag.last=w;
-    doc.shapes=doc.shapes.map(s=> sel.has(s.id)?CADCORE.translate(s,dx,dy):s); render(); return; }
+  if(drag&&drag.kind==='move'){ doMove(S2W(scr), e.ctrlKey||e.metaKey); render(); return; }
   if(drag&&drag.kind==='scale'){ doScale(w); render(); return; }
   if(drag&&drag.kind==='rotate'){ doRotate(S2W(scr), e.shiftKey); render(); return; }
   if(drag&&drag.kind==='marquee'){ drag.b=scr; render(); drawMarquee(drag.a,drag.b); return; }
@@ -291,25 +300,67 @@ function pickShapeAt(w){ const tol=pxTol(6);
 // ---- shape properties modal (numeric edit, VCarve-style) ----
 // field spec per primitive kind: [paramKey, label, step]  (step 'text' = text input; *Deg keys are angle-in-degrees views)
 const MODAL_SPECS={
-  rect:[['x','X',0.05],['y','Y',0.05],['w','Width',0.05],['h','Height',0.05],['r','Corner radius',0.05],['rotDeg','Rotation°',1]],
-  roundrect:[['x','X',0.05],['y','Y',0.05],['w','Width',0.05],['h','Height',0.05],['r','Corner radius',0.05],['rotDeg','Rotation°',1]],
-  circle:[['cx','Center X',0.05],['cy','Center Y',0.05],['r','Radius',0.05],['rotDeg','Rotation°',1]],
-  ellipse:[['cx','Center X',0.05],['cy','Center Y',0.05],['rx','Radius X',0.05],['ry','Radius Y',0.05],['rotDeg','Rotation°',1]],
-  polygon:[['cx','Center X',0.05],['cy','Center Y',0.05],['r','Radius',0.05],['n','Sides',1],['rotDeg','Rotation°',1]],
-  star:[['cx','Center X',0.05],['cy','Center Y',0.05],['rO','Outer radius',0.05],['rI','Inner radius',0.05],['n','Points',1],['rotDeg','Rotation°',1]],
+  rect:[['ax','X',0.05],['ay','Y',0.05],['w','Width',0.05],['h','Height',0.05],['r','Corner radius',0.05],['rotDeg','Rotation°',1]],
+  roundrect:[['ax','X',0.05],['ay','Y',0.05],['w','Width',0.05],['h','Height',0.05],['r','Corner radius',0.05],['rotDeg','Rotation°',1]],
+  circle:[['ax','X',0.05],['ay','Y',0.05],['r','Radius',0.05],['rotDeg','Rotation°',1]],
+  ellipse:[['ax','X',0.05],['ay','Y',0.05],['rx','Radius X',0.05],['ry','Radius Y',0.05],['rotDeg','Rotation°',1]],
+  polygon:[['ax','X',0.05],['ay','Y',0.05],['r','Radius',0.05],['n','Sides',1],['rotDeg','Rotation°',1]],
+  star:[['ax','X',0.05],['ay','Y',0.05],['rO','Outer radius',0.05],['rI','Inner radius',0.05],['n','Points',1],['rotDeg','Rotation°',1]],
   line:[['x1','Start X',0.05],['y1','Start Y',0.05],['x2','End X',0.05],['y2','End Y',0.05],['rotDeg','Rotation°',1]],
   arc:[['cx','Center X',0.05],['cy','Center Y',0.05],['r','Radius',0.05],['a0Deg','Start angle°',1],['a1Deg','End angle°',1]],
-  text:[['text','Text','text'],['x','X',0.05],['y','Y (baseline)',0.05],['h','Height',0.05]],
-  generic:[['x','X',0.05],['y','Y',0.05],['w','Width',0.05],['h','Height',0.05],['rotDeg','Rotation°',1]]
+  text:[['text','Text','text'],['ax','X',0.05],['ay','Y',0.05],['h','Height',0.05]],
+  generic:[['ax','X',0.05],['ay','Y',0.05],['w','Width',0.05],['h','Height',0.05],['rotDeg','Rotation°',1]]
 };
+// ---- anchor (9-box position reference, VCarve-style) ----
+// 'ax'/'ay' fields are the world position of the chosen anchor point on the shape's bounding box:
+// lower/center/upper × left/middle/right. Persisted so the next dialog opens with the same reference.
+const ANCHOR_ROWS=[['tl','tm','tr'],['cl','c','cr'],['bl','bm','br']];   // drawn top row first (screen order)
+let modalAnchor=(function(){ try{ const a=localStorage.getItem('aqcam.anchor'); if(a&&CADCORE.ANCHORS[a]) return a; }catch(e){} return 'bl'; })();
+function anchorGridHTML(cur, cls){ return '<div class="agrid '+(cls||'')+'">'+ANCHOR_ROWS.map(r=>r.map(a=>'<button type="button" class="ab'+(a===cur?' on':'')+'" data-a="'+a+'" title="'+CADCORE.ANCHORS[a].label+'"></button>').join('')).join('')+'</div>'; }
+function wireAnchorGrid(host, onPick){ host.querySelectorAll('.agrid .ab').forEach(b=>{ b.onclick=e=>{ e.preventDefault(); host.querySelectorAll('.agrid .ab').forEach(x=>x.classList.toggle('on',x===b)); onPick(b.dataset.a); }; }); }
+function setModalAnchor(a){ if(!CADCORE.ANCHORS[a]) return;
+  const host=document.getElementById('modalFields'); const ix=host.querySelector('input[data-k="ax"]'), iy=host.querySelector('input[data-k="ay"]');
+  if(modalOrig && ix && iy){ const cur=buildShapeFromFields();   // re-express the SAME shape's position by the new anchor (nothing moves)
+    modalAnchor=a; const pt=CADCORE.anchorPoint(cur, a); ix.value=(+pt.x.toFixed(3)); iy.value=(+pt.y.toFixed(3)); }
+  else modalAnchor=a;
+  try{ localStorage.setItem('aqcam.anchor', a); }catch(e){}
+  const hint=host.querySelector('.ahint'); if(hint) hint.textContent='X / Y = '+CADCORE.ANCHORS[a].label+' of the shape';
+}
+const CREATE_KINDS=new Set(['rect','rrect','circle','ellipse','polygon','star','text']);
+let modalCreate=false;   // true while the dialog is creating a new shape (preview lives in doc.shapes until Create/Cancel)
+// Create-by-numbers: open the dialog on a fresh default shape parked at the job's matching anchor point.
+function openCreateModal(kind){ if(!CREATE_KINDS.has(kind)) kind='rect';
+  const gv=(id,d)=>{ const el=document.getElementById(id); const v=el?parseFloat(el.value):NaN; return isFinite(v)?v:d; };
+  const r=jobRect(); const jp=CADCORE.bboxAnchor({minX:r.x0,minY:r.y0,maxX:r.x1,maxY:r.y1}, modalAnchor);
+  const n=Math.max(3,Math.round(gv('polyN',6))); let s;
+  switch(kind){
+    case 'rect': s=CADCORE.mkRect(0,0,4,3,activeLayer); break;
+    case 'rrect': s=CADCORE.mkRoundRect(0,0,4,3,Math.max(0.01,gv('rrectR',0.25)),activeLayer); break;
+    case 'circle': s=CADCORE.mkCircle({x:0,y:0},1,activeLayer); break;
+    case 'ellipse': s=CADCORE.mkEllipse({x:0,y:0},2,1,0,activeLayer); break;
+    case 'polygon': s=CADCORE.mkPolygon({x:0,y:0},1.5,n,undefined,activeLayer); break;
+    case 'star': s=CADCORE.mkStar({x:0,y:0},1.5,0.675,n,undefined,activeLayer); break;
+    case 'text': { const t=document.getElementById('txtVal'); s=CADCORE.mkText(0,0,gv('txtH',1),(t&&t.value)||'TEXT',activeLayer); break; }
+  }
+  s=CADCORE.moveAnchorTo(s, modalAnchor, jp.x, jp.y);
+  modalCreate=true; doc.shapes.push(s); sel=new Set([s.id]); render();
+  openShapeModal(s);
+}
 let modalShape=null, modalOrig=null;   // modalOrig = pristine clone (live-preview baseline / revert target)
 function openShapeModal(shape){ if(!shape)return; modalShape=shape; modalOrig=CADCORE.clone(shape);
   let p=CADCORE.primParams(shape), kind;
   if(p){ kind=p.kind; } else { const b=CADCORE.bbox(shape); p={x:b.minX,y:b.minY,w:b.maxX-b.minX,h:b.maxY-b.minY}; kind='generic'; }
   const host=document.getElementById('modalFields'); host.innerHTML=''; host.dataset.kind=kind;
-  document.getElementById('modalTitle').textContent='Edit '+(kind==='generic'?(shape.type==='text'?'text':'shape'):kind);
+  const kname=(kind==='generic'?(shape.type==='text'?'text':'shape'):kind);
+  document.getElementById('modalTitle').textContent=(modalCreate?'Create ':'Edit ')+kname;
+  const ab=document.getElementById('modalApply'); if(ab) ab.textContent=modalCreate?'Create':'Apply';
+  const hasAnchor=MODAL_SPECS[kind].some(f=>f[0]==='ax');
+  if(hasAnchor){ const row=document.createElement('div'); row.className='mfield arow';
+    row.innerHTML='<span>Anchor<br><small class="ahint">X / Y = '+CADCORE.ANCHORS[modalAnchor].label+' of the shape</small></span>'+anchorGridHTML(modalAnchor);
+    host.appendChild(row); wireAnchorGrid(row, setModalAnchor); }
+  const apt=hasAnchor?CADCORE.anchorPoint(shape, modalAnchor):null;
   for(const [key,label,step] of MODAL_SPECS[kind]){
-    let val = key==='rotDeg'?(p.rot||0)*180/Math.PI : key==='a0Deg'?(p.a0||0)*180/Math.PI : key==='a1Deg'?(p.a1||0)*180/Math.PI : p[key];
+    let val = key==='ax'?apt.x : key==='ay'?apt.y : key==='rotDeg'?(p.rot||0)*180/Math.PI : key==='a0Deg'?(p.a0||0)*180/Math.PI : key==='a1Deg'?(p.a1||0)*180/Math.PI : p[key];
     const row=document.createElement('label'); row.className='mfield';
     let inp;
     if(step==='text') inp='<input type="text" data-k="'+key+'" value="'+String(val==null?'':val).replace(/"/g,'&quot;')+'">';
@@ -322,25 +373,72 @@ function openShapeModal(shape){ if(!shape)return; modalShape=shape; modalOrig=CA
   document.getElementById('shapeModal').style.display='block';
   const f=host.querySelector('input'); if(f){ f.focus(); f.select&&f.select(); }
 }
+function modalAnchorXY(vals){ return { x: isFinite(vals.ax)?vals.ax:0, y: isFinite(vals.ay)?vals.ay:0 }; }
 // rebuild the edited shape from the current field values (always from the pristine baseline, so previews don't drift)
 function buildShapeFromFields(){ const host=document.getElementById('modalFields'); const kind=host.dataset.kind; const vals={};
   host.querySelectorAll('input').forEach(inp=>{ vals[inp.dataset.k]= inp.type==='number'?(parseFloat(inp.value)||0):inp.value; });
-  if(kind==='generic'){ let s=CADCORE.fitShapeTo(modalOrig, vals.x, vals.y, vals.w, vals.h);
-    if(vals.rotDeg){ const b=CADCORE.bbox(s); s=CADCORE.rotate(s,(b.minX+b.maxX)/2,(b.minY+b.maxY)/2, vals.rotDeg*Math.PI/180); s.id=modalOrig.id; }
-    return s; }
+  const hasAnchor=('ax' in vals)&&('ay' in vals); const A=modalAnchorXY(vals);
+  if(kind==='generic'){ let s=CADCORE.fitShapeTo(modalOrig, null, null, vals.w, vals.h);   // size first (position kept)...
+    if(vals.rotDeg){ const b=CADCORE.bbox(s); s=CADCORE.rotate(s,(b.minX+b.maxX)/2,(b.minY+b.maxY)/2, vals.rotDeg*Math.PI/180); }
+    if(hasAnchor) s=CADCORE.moveAnchorTo(s, modalAnchor, A.x, A.y);   // ...then park the chosen anchor at X/Y
+    s.id=modalOrig.id; return s; }
   const p=Object.assign({}, CADCORE.primParams(modalOrig)||{kind});
-  for(const k in vals){ if(k==='rotDeg')p.rot=vals.rotDeg*Math.PI/180; else if(k==='a0Deg')p.a0=vals.a0Deg*Math.PI/180; else if(k==='a1Deg')p.a1=vals.a1Deg*Math.PI/180; else p[k]=vals[k]; }
+  for(const k in vals){ if(k==='ax'||k==='ay')continue; if(k==='rotDeg')p.rot=vals.rotDeg*Math.PI/180; else if(k==='a0Deg')p.a0=vals.a0Deg*Math.PI/180; else if(k==='a1Deg')p.a1=vals.a1Deg*Math.PI/180; else p[k]=vals[k]; }
   if(p.kind==='rect' && p.r>0) p.kind='roundrect';   // entering a corner radius makes it a rounded rect
-  return CADCORE.applyPrimParams(modalOrig, p);
+  let s=CADCORE.applyPrimParams(modalOrig, p);
+  if(hasAnchor) s=CADCORE.moveAnchorTo(s, modalAnchor, A.x, A.y);   // anchor stays put while size/rotation change
+  return s;
 }
 function previewShapeModal(){ if(!modalOrig)return; const ns=buildShapeFromFields();
   doc.shapes=doc.shapes.map(s=>s.id===modalOrig.id?ns:s); sel=new Set([modalOrig.id]); render(); }   // live, no history
 function applyShapeModal(){ if(!modalOrig){ hideModal(); return; } const ns=buildShapeFromFields();
+  if(modalCreate){   // new shape: drop the preview, snapshot, then add for real (one undo step)
+    doc.shapes=doc.shapes.filter(s=>s.id!==modalOrig.id); pushHistory();
+    let out=[ns];
+    if(ns.type==='text' && textOutline && ttFont){   // TTF outline text: trace glyphs, then park the group's anchor where the preview's was
+      try{ const d=ttFont.getPath(ns.text,0,0,1000).toPathData(4); const shapes=CADCORE.outlineTextShapes(d,0,0,ns.h,activeLayer);
+        if(shapes.length){ const a=CADCORE.anchorPoint(ns, modalAnchor); out=CADCORE.moveGroupAnchorTo(shapes, modalAnchor, a.x, a.y); } }
+      catch(err){ setMsg('Font render failed: '+err.message+' — placed single-stroke text'); }
+    }
+    addShapes(out); sel=new Set(out.map(s=>s.id)); const kind=ns.prim?ns.prim.kind:ns.type;
+    hideModal(); render(); syncPanels(); setMsg('Created '+kind+' · '+CADCORE.ANCHORS[modalAnchor].label+' at '+(+CADCORE.anchorPoint(out[0],modalAnchor).x.toFixed(3))+', '+(+CADCORE.anchorPoint(out[0],modalAnchor).y.toFixed(3)));
+    return; }
   doc.shapes=doc.shapes.map(s=>s.id===modalOrig.id?modalOrig:s); pushHistory();   // baseline = original, one undo step
   doc.shapes=doc.shapes.map(s=>s.id===modalOrig.id?ns:s); sel=new Set([modalOrig.id]);
   hideModal(); render(); syncPanels(); }
-function closeShapeModal(){ if(modalOrig){ doc.shapes=doc.shapes.map(s=>s.id===modalOrig.id?modalOrig:s); } hideModal(); render(); syncPanels(); }   // revert preview
-function hideModal(){ document.getElementById('shapeModal').style.display='none'; modalShape=null; modalOrig=null; }
+function closeShapeModal(){ if(modalOrig){ doc.shapes=modalCreate ? doc.shapes.filter(s=>s.id!==modalOrig.id) : doc.shapes.map(s=>s.id===modalOrig.id?modalOrig:s); if(modalCreate) sel.clear(); } hideModal(); render(); syncPanels(); }   // revert preview
+function hideModal(){ document.getElementById('shapeModal').style.display='none'; modalShape=null; modalOrig=null; modalCreate=false; }
+
+// ---- rotate dialog (angle + direction + pivot, live preview) ----
+let rotBase=null, rotIds=null, rotAnchor='c';
+function rotateShapeAbout(o, cx, cy, d){   // parametric prims accumulate prim.rot (stay editable) and orbit the pivot; others rotate points
+  if(o.prim && ROT_PARAM_KINDS.has(o.prim.kind)){
+    const p=CADCORE.primParams(o); const c0 = ('cx' in p) ? {x:p.cx,y:p.cy} : {x:p.x+p.w/2,y:p.y+p.h/2};
+    p.rot=(p.rot||0)+d; let ns=CADCORE.applyPrimParams(o, p);
+    const ca=Math.cos(d), sa=Math.sin(d); const c1={ x: cx+(c0.x-cx)*ca-(c0.y-cy)*sa, y: cy+(c0.x-cx)*sa+(c0.y-cy)*ca };
+    if(Math.hypot(c1.x-c0.x,c1.y-c0.y)>1e-12){ ns=CADCORE.translate(ns, c1.x-c0.x, c1.y-c0.y); ns.id=o.id; }
+    return ns; }
+  return CADCORE.rotate(o, cx, cy, d);
+}
+function rotDeltaFromDialog(){ const g=id=>document.getElementById(id); const deg=parseFloat(g('rotAngle').value)||0; const dir=g('rotDir').value;
+  return (dir==='cw'?-1:1)*deg*Math.PI/180; }
+function previewRotateModal(){ if(!rotBase)return; const d=rotDeltaFromDialog(); const b=CADCORE.bboxAll(rotBase); const pv=CADCORE.bboxAnchor(b, rotAnchor);
+  const map=new Map(rotBase.map(o=>[o.id,o])); doc.shapes=doc.shapes.map(s=>map.has(s.id)?rotateShapeAbout(map.get(s.id),pv.x,pv.y,d):s); render(); }
+function openRotateModal(){ const sh=selectedShapes(); if(!sh.length){ setMsg('Select something to rotate'); return; }
+  rotBase=CADCORE.clone(sh); rotIds=sh.map(s=>s.id);
+  const grid=document.getElementById('rotAnchorHost'); grid.innerHTML=anchorGridHTML(rotAnchor,'small'); wireAnchorGrid(grid, a=>{ rotAnchor=a; previewRotateModal(); });
+  const hint=document.getElementById('rotHint'); if(hint) hint.textContent=sh.length+' shape'+(sh.length>1?'s':'')+' · pivot = '+CADCORE.ANCHORS[rotAnchor].label+' of selection';
+  const m=document.getElementById('rotModal'); m.style.display='block'; const a=document.getElementById('rotAngle'); a.focus(); a.select();
+  previewRotateModal(); }
+function applyRotateModal(){ if(!rotBase){ hideRotateModal(); return; }
+  const map=new Map(rotBase.map(o=>[o.id,o])); doc.shapes=doc.shapes.map(s=>map.has(s.id)?map.get(s.id):s); pushHistory();   // baseline = original
+  previewRotateModal(); const d=rotDeltaFromDialog(); hideRotateModal(); syncPanels(); setMsg('Rotated '+(+Math.abs(d*180/Math.PI).toFixed(2))+'° '+(d<0?'CW':'CCW')); }
+function closeRotateModal(){ if(rotBase){ const map=new Map(rotBase.map(o=>[o.id,o])); doc.shapes=doc.shapes.map(s=>map.has(s.id)?map.get(s.id):s); } hideRotateModal(); render(); }
+function hideRotateModal(){ document.getElementById('rotModal').style.display='none'; rotBase=null; rotIds=null; }
+
+// ---- job size & position dialog (Edit menu) ----
+function openJobModal(){ applyJobInputs(); document.getElementById('jobModal').style.display='block'; const w=document.getElementById('jobW'); if(w){ w.focus(); w.select(); } }
+function closeJobModal(){ document.getElementById('jobModal').style.display='none'; }
 
 // ---- z-order ----
 function bringToFront(){ if(!sel.size)return; pushHistory(); const a=doc.shapes.filter(s=>sel.has(s.id)), rest=doc.shapes.filter(s=>!sel.has(s.id)); doc.shapes=rest.concat(a); render(); syncPanels(); }
@@ -385,11 +483,12 @@ function shapeContextMenu(e){
     { label:'Array…', fn:opArray }
   ];
   if(multi) items.push({ sep:true }, { label:'Weld (union)', fn:()=>opBool('union') }, { label:'Subtract', fn:()=>opBool('diff') }, { label:'Intersect', fn:()=>opBool('intersect') });
+  items.push({ label:'Rotate…', fn:openRotateModal });
   items.push({ sep:true }, { label:'Bring to front', fn:bringToFront }, { label:'Send to back', fn:sendToBack });
   showCtxMenu(e.clientX, e.clientY, items);
 }
 function hitHandle(scr){ if(!sel.size)return null; const bs=bboxScreen(selectedShapes());
-  for(const g of rotateGripPts(bs)) if(Math.hypot(scr.x-g.x,scr.y-g.y)<9) return {type:'rotate'};
+  for(const g of rotateGripPts(bs)) if(Math.hypot(scr.x-g.x,scr.y-g.y)<11) return {type:'rotate',k:g.k};
   for(const h of handlePts(bs)) if(Math.abs(scr.x-h.x)<6&&Math.abs(scr.y-h.y)<6) return {type:'scale',k:h.k,bs};
   return null; }
 function selectDown(scr,w,e){
@@ -403,9 +502,25 @@ function selectDown(scr,w,e){
   for(let i=doc.shapes.length-1;i>=0;i--){ const s=doc.shapes[i]; if(!layerVisible(s.layer))continue; if(CADCORE.hitTest(s,w,tol)){ hitId=s.id; break; } }
   if(!hitId){ for(let i=doc.shapes.length-1;i>=0;i--){ const s=doc.shapes[i]; if(!layerVisible(s.layer)||!s.closed)continue; if(shapeInside(s,w)){ hitId=s.id; break; } } }
   if(hitId){ if(e.shiftKey){ sel.has(hitId)?sel.delete(hitId):sel.add(hitId); } else if(!sel.has(hitId)){ sel=new Set([hitId]); }
-    pushHistory(); drag={kind:'move',last:w}; }
+    pushHistory(); const base=JSON.parse(JSON.stringify(selectedShapes())); const raw=S2W(scr); const a0=CADCORE.bboxAnchor(CADCORE.bboxAll(base), modalAnchor);
+    drag={kind:'move',grab:raw,a0,base,ids:[...sel]}; }
   else { if(!e.shiftKey) sel.clear(); drag={kind:'marquee',a:scr,b:scr}; }
   syncPanels();
+}
+// Move drag: the selection's ANCHOR point (same 9-box choice as the dialogs) is what snaps — to the grid, and to object/job
+// snap points when Obj-snap is on — so a shape lands exactly on a grid line or a corner. Ctrl = free move (no snap).
+function doMove(raw, free){ const {grab,a0,base}=drag; let tx=a0.x+(raw.x-grab.x), ty=a0.y+(raw.y-grab.y); let kind=null;
+  if(!free){ const g=snapGridPt({x:tx,y:ty}); if(grid.snap&&grid.on){ tx=g.x; ty=g.y; kind='grid'; }
+    if(grid.objSnap){ let best=null,bestD=pxTol(11); const ids=new Set(drag.ids); const cand=[];
+      if(job.show){ const r=jobRect(); cand.push(...CADCORE.rectSnapPoints(r.x0,r.y0,r.x1,r.y1)); }
+      for(const s of doc.shapes){ if(ids.has(s.id)||!layerVisible(s.layer))continue; cand.push(...CADCORE.snapPoints(s)); }
+      const want={x:a0.x+(raw.x-grab.x),y:a0.y+(raw.y-grab.y)};
+      for(const sp of cand){ const d=Math.hypot(sp.x-want.x,sp.y-want.y); if(d<bestD){bestD=d;best=sp;} }
+      if(best){ tx=best.x; ty=best.y; kind=best.kind||'obj'; } } }
+  snapMark = kind?{x:tx,y:ty,kind}:null;
+  const dx=tx-a0.x, dy=ty-a0.y; const map=new Map(base.map(o=>[o.id,o]));
+  doc.shapes=doc.shapes.map(s=>{ const o=map.get(s.id); if(!o)return s; const t=CADCORE.translate(o,dx,dy); t.id=o.id; return t; });
+  setMsg('Move '+(dx>=0?'+':'')+dx.toFixed(3)+', '+(dy>=0?'+':'')+dy.toFixed(3)+'  ·  '+CADCORE.ANCHORS[modalAnchor].label+(kind?' snapped to '+kind:'')+'  ·  Ctrl = no snap');
 }
 function doScale(w){ const {k,b0,base}=drag;
   const ax = k.includes('w')?b0.maxX : k.includes('e')?b0.minX : (b0.minX+b0.maxX)/2;
@@ -430,16 +545,12 @@ function doScale(w){ const {k,b0,base}=drag;
 }
 const ROT_PARAM_KINDS=new Set(['rect','roundrect','circle','ellipse','polygon','star']);  // rotate-in-place about prim center, keeps prim
 function doRotate(w, shift){ const {c,base,last}=drag; let d=Math.atan2(w.y-c.y,w.x-c.x)-last;
-  if(shift){ const step=15*Math.PI/180; d=Math.round(d/step)*step; }   // Shift = snap to 15° increments
-  setMsg('Rotate '+(d*180/Math.PI).toFixed(shift?0:1)+'°'+(shift?' (15° snap)':'  ·  hold Shift = 15° steps'));
-  // single parametric shape: rebuild via applyPrimParams (accumulate prim.rot) so it stays editable; else generic rotate
-  if(base.length===1 && base[0].prim && ROT_PARAM_KINDS.has(base[0].prim.kind)){
-    const o=base[0]; const p=CADCORE.primParams(o); p.rot=(p.rot||0)+d;   // base rotation + drag delta, about the prim's own center
-    const ns=CADCORE.applyPrimParams(o, p);
-    doc.shapes = doc.shapes.map(s=>s.id===o.id?ns:s);
-  } else {
-    doc.shapes = doc.shapes.map(s=>{ const o=base.find(x=>x.id===s.id); return o?CADCORE.rotate(o,c.x,c.y,d):s; });
-  }
+  const stepDeg=Math.max(0.1,grid.rotSnap||5);
+  if(shift){ const step=stepDeg*Math.PI/180; d=Math.round(d/step)*step; }   // Shift = snap to rotSnap° increments (topbar "Rot °")
+  let deg=d*180/Math.PI; deg=((deg+180)%360+360)%360-180;
+  setMsg('Rotate '+(deg>=0?'+':'')+deg.toFixed(shift?1:2)+'° '+(deg<0?'CW':'CCW')+(shift?' ('+stepDeg+'° snap)':'  ·  hold Shift = '+stepDeg+'° steps'));
+  const map=new Map(base.map(o=>[o.id,o]));
+  doc.shapes = doc.shapes.map(s=>{ const o=map.get(s.id); return o?rotateShapeAbout(o,c.x,c.y,d):s; });   // parametric shapes stay editable
 }
 function drawMarquee(a,b){ ctx.strokeStyle='rgba(255,154,60,0.8)'; ctx.setLineDash([4,3]); ctx.strokeRect(Math.min(a.x,b.x),Math.min(a.y,b.y),Math.abs(b.x-a.x),Math.abs(b.y-a.y)); ctx.setLineDash([]); }
 function marqueeSelect(a,b,add){ const w0=S2W({x:Math.min(a.x,b.x),y:Math.max(a.y,b.y)}), w1=S2W({x:Math.max(a.x,b.x),y:Math.min(a.y,b.y)});
@@ -973,17 +1084,39 @@ function drawMeasure(a,b,persist){ ctx.save(); ctx.strokeStyle=persist?'#7fd0ff'
 
 // ---- panels ----
 function syncPanels(){ buildLayers(); buildProps(); }
+const LYR_PALETTE=['#9fe7ff','#ffb27a','#a8f0a8','#f7a8e0','#ffe27a','#c8b6ff','#8fd6c6','#ff9a9a'];
+function addLayer(name){ name=(name||'').trim(); if(!name){ name=prompt('New layer name:', 'Layer '+(doc.layers.size+1)); if(!name)return; name=name.trim(); }
+  if(!name||doc.layers.has(name)){ if(name) setMsg('Layer "'+name+'" already exists'); return; }
+  doc.layers.set(name,{visible:true,color:LYR_PALETTE[doc.layers.size%LYR_PALETTE.length]}); activeLayer=name; buildLayers(); scheduleAutosave(); setMsg('Added layer "'+name+'" (active)'); }
+function renameLayer(old){ const nn=prompt('Rename layer "'+old+'" to:', old); if(!nn||nn.trim()===old)return; const name=nn.trim(); if(doc.layers.has(name)){ setMsg('Layer "'+name+'" already exists'); return; }
+  pushHistory(); const info=doc.layers.get(old); const entries=[...doc.layers].map(([k,v])=>[k===old?name:k,v]); doc.layers=new Map(entries);
+  doc.shapes.forEach(s=>{ if(s.layer===old) s.layer=name; }); if(activeLayer===old)activeLayer=name; render(); syncPanels(); }
+function deleteLayer(name){ if(doc.layers.size<=1){ setMsg('Cannot delete the last layer'); return; }
+  const n=doc.shapes.filter(s=>s.layer===name).length; const fallback=[...doc.layers.keys()].find(k=>k!==name);
+  if(n && !confirm('Delete layer "'+name+'"? Its '+n+' shape(s) move to "'+fallback+'".')) return;
+  pushHistory(); doc.shapes.forEach(s=>{ if(s.layer===name) s.layer=fallback; }); doc.layers.delete(name); if(activeLayer===name)activeLayer=fallback; render(); syncPanels(); }
+function moveSelToLayer(name){ const sh=selectedShapes(); if(!sh.length)return; pushHistory(); sh.forEach(s=>{ s.layer=name; }); render(); syncPanels(); setMsg('Moved '+sh.length+' shape(s) to layer "'+name+'"'); }
 function buildLayers(){ const el=document.getElementById('layerList'); if(!el)return; el.innerHTML='';
+  const hasSel=sel.size>0;
   for(const [name,info] of doc.layers){ const row=document.createElement('div'); row.className='lyr'+(name===activeLayer?' act':'');
-    row.innerHTML='<input type="checkbox" '+(info.visible!==false?'checked':'')+'><span class="sw" style="background:'+(info.color||'#9fe7ff')+'"></span><span class="ln">'+name+'</span>';
-    row.querySelector('input').onchange=e=>{info.visible=e.target.checked; render();}; row.querySelector('.ln').onclick=()=>{activeLayer=name; buildLayers();}; el.appendChild(row); } }
+    const cnt=doc.shapes.filter(s=>s.layer===name).length;
+    row.innerHTML='<input type="checkbox" title="Show / hide" '+(info.visible!==false?'checked':'')+'><input type="color" class="swc" title="Layer color" value="'+(info.color||'#9fe7ff')+'"><span class="ln" title="Click = make active · double-click = rename">'+name+'</span><span class="lc">'+cnt+'</span>'
+      +(hasSel&&name!==activeLayer?'<button class="lb" title="Move selected shapes to this layer">→</button>':'')+'<button class="lb lx" title="Delete layer">×</button>';
+    row.querySelector('input[type=checkbox]').onchange=e=>{info.visible=e.target.checked; render();};
+    row.querySelector('.swc').oninput=e=>{info.color=e.target.value; render(); scheduleAutosave();};
+    const ln=row.querySelector('.ln'); ln.onclick=()=>{activeLayer=name; buildLayers();}; ln.ondblclick=()=>renameLayer(name);
+    const mv=row.querySelector('.lb:not(.lx)'); if(mv) mv.onclick=()=>moveSelToLayer(name);
+    row.querySelector('.lx').onclick=()=>deleteLayer(name);
+    el.appendChild(row); }
+  const add=document.createElement('button'); add.className='tb'; add.textContent='+ Add layer'; add.title='Create a new layer and make it active'; add.onclick=()=>addLayer(); el.appendChild(add);
+  const hint=document.createElement('div'); hint.className='muted'; hint.style.width='100%'; hint.textContent='New shapes go on the active (highlighted) layer.'; el.appendChild(hint); }
 function buildProps(){ const el=document.getElementById('props'); if(!el)return; const sh=selectedShapes();
   if(!sh.length){ el.innerHTML='<div class="muted">No selection</div>'; return; }
   if(sh.length>1){ const b=CADCORE.bboxAll(sh); el.innerHTML='<div class="muted">'+sh.length+' selected</div><div class="prow">W '+(b.maxX-b.minX).toFixed(3)+'"  H '+(b.maxY-b.minY).toFixed(3)+'"</div>'; return; }
   const s=sh[0]; const b=CADCORE.bbox(s); let h='<div class="prow">type: '+(s.prim?s.prim.kind:s.type)+'</div>';
   h+='<div class="prow">X '+b.minX.toFixed(3)+'  Y '+b.minY.toFixed(3)+'</div>';
   h+='<div class="prow">W '+(b.maxX-b.minX).toFixed(3)+'"  H '+(b.maxY-b.minY).toFixed(3)+'"</div>';
-  h+='<div class="prow">closed: '+(s.closed?'yes':'no')+(s.type==='text'?(' · "'+s.text+'"'):'')+'</div>';
+  h+='<div class="prow">closed: '+(s.closed?'yes':'no')+(s.type==='text'?(' · "'+s.text+'"'):'')+' · layer: '+s.layer+'</div>';
   h+='<button class="tb" id="btnEditShape" data-tip="Edit exact dimensions (or double-click the shape)" style="margin-top:5px">Edit…</button>';
   el.innerHTML=h;
   const eb=document.getElementById('btnEditShape'); if(eb)eb.onclick=()=>openShapeModal(s); }
@@ -994,7 +1127,9 @@ window.addEventListener('keydown', e=>{
   if((e.ctrlKey||e.metaKey)&&e.key==='z'){ e.preventDefault(); undo(); return; }
   if((e.ctrlKey||e.metaKey)&&(e.key==='y'||(e.shiftKey&&e.key==='z'))){ e.preventDefault(); redo(); return; }
   if(e.key==='Delete'||e.key==='Backspace'){ e.preventDefault(); deleteSelected(); return; }
-  if(e.key==='Escape'){ hideCtxMenu(); draft=null; render(); return; }
+  if(e.key==='Escape'){ hideCtxMenu(); hideMenus(); if(modalOrig){ closeShapeModal(); return; } if(rotBase){ closeRotateModal(); return; } closeJobModal(); draft=null; render(); return; }
+  if(e.key==='Enter'&&CREATE_KINDS.has(tool)&&!draft&&!modalOrig){ e.preventDefault(); openCreateModal(tool); return; }
+  if((e.ctrlKey||e.metaKey)&&e.key==='a'){ e.preventDefault(); sel=new Set(doc.shapes.filter(s=>layerVisible(s.layer)).map(s=>s.id)); render(); syncPanels(); return; }
   if(e.key==='Enter'&&tool==='polyline'&&draft){ commitPolyline(); return; }
   if(e.key==='Enter'&&tool==='bezier'&&draft){ commitBezier(false); return; }
   const map={v:'select',n:'node',l:'line',p:'polyline',b:'bezier',r:'rect',c:'circle',e:'ellipse',a:'arc',g:'polygon',t:'text',m:'measure'};
@@ -1004,7 +1139,7 @@ window.addEventListener('keydown', e=>{
 
 // ---- collapsible right-panel sections ----
 function initCollapsibles(){
-  const DEFAULT_COLLAPSED = { 'Nest':1, 'Align':1, 'Layers':1 };   // others open by default
+  const DEFAULT_COLLAPSED = { 'Nest':1, 'Align':1 };   // others (Layers included) open by default
   document.querySelectorAll('.right .sectn').forEach(sec=>{
     const h=sec.querySelector('h3'); if(!h||h.dataset.coll)return;
     const title=h.textContent.trim();
@@ -1048,12 +1183,23 @@ function wire(){
   const nw=document.getElementById('nestW'), nh=document.getElementById('nestH');
   if(nw)nw.value=job.w; if(nh)nh.value=job.h;
   on('btnOffset',opOffset); on('btnUnion',()=>opBool('union')); on('btnDiff',()=>opBool('diff')); on('btnInt',()=>opBool('intersect'));
-  on('btnMirrorH',()=>opMirror('x')); on('btnMirrorV',()=>opMirror('y')); on('btnDup',opDuplicate); on('btnArray',opArray); on('btnRot90',opRotate90); on('btnJoin',opJoin);
+  on('btnMirrorH',()=>opMirror('x')); on('btnMirrorV',()=>opMirror('y')); on('btnDup',opDuplicate); on('btnArray',opArray); on('btnRotate',openRotateModal); on('btnJoin',opJoin);
+  on('btnCreateNum',()=>openCreateModal(tool));
+  const rs=document.getElementById('rotSnap'); if(rs)rs.onchange=e=>{ grid.rotSnap=Math.max(0.1,parseFloat(e.target.value)||5); };
+  // rotate dialog
+  on('rotApply',applyRotateModal); on('rotCancel',closeRotateModal); on('rotX',closeRotateModal);
+  ['rotAngle','rotDir'].forEach(id=>{ const el=document.getElementById(id); if(el){ el.addEventListener('input',previewRotateModal); el.addEventListener('change',previewRotateModal); } });
+  const ra=document.getElementById('rotAngle'); if(ra) ra.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); applyRotateModal(); } });
+  document.querySelectorAll('#rotModal .rq').forEach(b=>{ b.onclick=()=>{ document.getElementById('rotAngle').value=b.dataset.deg; previewRotateModal(); }; });
+  // job size & position dialog
+  on('jobOk',()=>{ setJob(); closeJobModal(); }); on('jobCancel',closeJobModal); on('jobX',closeJobModal);
+  // menus (File / Edit / View / Help)
+  initMenus();
   on('btnCheckVec',opCheckVectors);
   on('restoreYes',()=>dismissRestore(true)); on('restoreNo',()=>dismissRestore(false));
   on('btnAlignL',()=>opAlign('left')); on('btnAlignR',()=>opAlign('right')); on('btnAlignT',()=>opAlign('top')); on('btnAlignB',()=>opAlign('bottom')); on('btnAlignHC',()=>opAlign('hcenter')); on('btnAlignVC',()=>opAlign('vcenter'));
   on('btnSaveProj',saveProject); on('btnExpDXF',exportDXF); on('btnExpSVG',exportSVG);
-  on('btnJobSet',setJob); on('btnFitJob',fitJob);
+  on('btnFitJob',fitJob);
   const js=document.getElementById('jobShow'); if(js)js.onchange=e=>{job.show=e.target.checked; render();};
   // live job dimension updates (no view refit — use "Set job"/"Fit job" to re-zoom)
   const jobLive=()=>{ const g=id=>document.getElementById(id); job.w=Math.abs(parseFloat(g('jobW').value)||24); job.h=Math.abs(parseFloat(g('jobH').value)||18); job.thickness=Math.abs(parseFloat(g('jobT').value)||0.5); job.origin=g('jobOrigin').value; render(); };
@@ -1078,7 +1224,8 @@ function wire(){
   // shape properties modal
   on('modalApply',applyShapeModal); on('modalCancel',closeShapeModal); on('modalX',closeShapeModal);
   const mb=document.getElementById('shapeModal');
-  const mf=document.getElementById('modalFields'); if(mf) mf.addEventListener('input', previewShapeModal);   // live preview as you type
+  const mf=document.getElementById('modalFields'); if(mf){ mf.addEventListener('input', previewShapeModal);   // live preview as you type
+    mf.addEventListener('keydown', e=>{ if(e.key==='Enter'&&e.target.tagName==='INPUT'){ e.preventDefault(); applyShapeModal(); } }); }
   if(mb){ mb.addEventListener('mousedown',e=>{ if(e.target===mb)closeShapeModal(); });
     mb.addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();applyShapeModal();} else if(e.key==='Escape'){e.preventDefault();closeShapeModal();} });
     // drag the dialog by its header so it never hides the shape
@@ -1131,5 +1278,50 @@ function dismissRestore(apply){
   if(apply&&pendingRestore) applyProject(pendingRestore,'autosave');
   pendingRestore=null;
 }
+// ---- menu bar (File / Edit / View / Help) ----
+let menuOpen=null;
+function hideMenus(){ if(menuOpen){ menuOpen.el.remove(); menuOpen.btn.classList.remove('open'); menuOpen=null; } }
+function menuItems(name){
+  const hasSel=sel.size>0;
+  switch(name){
+    case 'File': return [
+      { label:'New', fn:()=>document.getElementById('btnNew').click() },
+      { label:'Open / Import…', key:'.aqcam .dxf .svg .pdf', fn:()=>document.getElementById('fileInput').click() },
+      { label:'Save job…', key:'.aqcam', fn:saveProject }, { sep:true },
+      { label:'Export DXF', fn:exportDXF, disabled:!doc.shapes.length }, { label:'Export SVG', fn:exportSVG, disabled:!doc.shapes.length } ];
+    case 'Edit': return [
+      { label:'Undo', key:'Ctrl+Z', fn:undo, disabled:!history.length }, { label:'Redo', key:'Ctrl+Y', fn:redo, disabled:!future.length }, { sep:true },
+      { label:'Job Size and Position…', fn:openJobModal }, { sep:true },
+      { label:'Select all', key:'Ctrl+A', fn:()=>{ sel=new Set(doc.shapes.filter(s=>layerVisible(s.layer)).map(s=>s.id)); render(); syncPanels(); }, disabled:!doc.shapes.length },
+      { label:'Edit dimensions…', key:'dbl-click', fn:()=>openShapeModal(selectedShapes()[0]), disabled:sel.size!==1 },
+      { label:'Rotate…', fn:openRotateModal, disabled:!hasSel },
+      { label:'Duplicate', fn:opDuplicate, disabled:!hasSel }, { label:'Delete', key:'Del', fn:deleteSelected, disabled:!hasSel }, { sep:true },
+      { label:'Create shape by numbers…', key:'Enter', fn:()=>openCreateModal(tool) } ];
+    case 'View': return [
+      { label:'Fit all', key:'F', fn:fitAll }, { label:'Fit job', fn:fitJob }, { sep:true },
+      { label:'2D Design', fn:()=>setView('2d') }, { label:'Preview', fn:()=>setView('preview') } ];
+    case 'Help': return [
+      { label:'Keyboard shortcuts', fn:()=>{ document.getElementById('keysModal').style.display='block'; } },
+      { label:'Self-test (CAM ops)', fn:runSelfTest }, { sep:true },
+      { title:(document.getElementById('appVer')||{textContent:''}).textContent } ];
+  }
+  return []; }
+function openMenu(btn){ hideMenus(); hideCtxMenu();
+  const m=document.createElement('div'); m.className='ctxmenu menu';
+  for(const it of menuItems(btn.dataset.menu)){
+    if(it.sep){ const s=document.createElement('div'); s.className='sep'; m.appendChild(s); continue; }
+    if(it.title!==undefined){ const t=document.createElement('div'); t.className='ttl'; t.textContent=it.title; m.appendChild(t); continue; }
+    const d=document.createElement('div'); d.className='ci'+(it.disabled?' disabled':'');
+    d.innerHTML='<span>'+it.label+'</span>'+(it.key?'<span class="k">'+it.key+'</span>':'');
+    if(!it.disabled) d.onclick=()=>{ hideMenus(); it.fn(); };
+    m.appendChild(d); }
+  document.body.appendChild(m); const r=btn.getBoundingClientRect(); m.style.left=r.left+'px'; m.style.top=(r.bottom+2)+'px';
+  btn.classList.add('open'); menuOpen={el:m,btn}; }
+function initMenus(){ document.querySelectorAll('.menubtn').forEach(b=>{
+    b.onclick=e=>{ e.stopPropagation(); if(menuOpen&&menuOpen.btn===b) hideMenus(); else openMenu(b); };
+    b.onmouseenter=()=>{ if(menuOpen&&menuOpen.btn!==b) openMenu(b); }; });
+  window.addEventListener('mousedown', e=>{ if(menuOpen && !menuOpen.el.contains(e.target) && !e.target.classList.contains('menubtn')) hideMenus(); }, true);
+  window.addEventListener('blur', hideMenus); }
 wire(); resize(); setTool('select'); syncPanels(); render();
-window.AQ_STUDIO = { doc, get sel(){return sel;}, get view(){return viewMode;}, CADCORE, CAM, importText, importPDF, openProject, saveProject, projectJSON, setView, camBuild, setTool, addShapes, render };
+window.AQ_STUDIO = { doc, get sel(){return sel;}, get view(){return viewMode;}, CADCORE, CAM, importText, importPDF, openProject, saveProject, projectJSON, setView, camBuild, setTool, addShapes, render,
+  openCreateModal, openShapeModal, applyShapeModal, closeShapeModal, setModalAnchor, get anchor(){return modalAnchor;}, openRotateModal, applyRotateModal, openJobModal, addLayer, moveSelToLayer, get grid(){return grid;}, selectedShapes };

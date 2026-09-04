@@ -97,6 +97,31 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .modal-foot{display:flex;justify-content:flex-end;gap:8px;padding:10px 14px;border-top:1px solid var(--bd-soft)}
 .modal-foot .tb.primary{background:linear-gradient(var(--accent-bright),#178a54);border-color:var(--accent-bd);color:#fff}
 .modal-foot .tb.primary:hover{background:linear-gradient(#23a86a,#15804d)}
+.mfield select{width:130px;background:var(--bg-input);border:1px solid var(--btn-bd);color:var(--ink);border-radius:4px;padding:5px 7px;font-family:inherit;font-size:12px}
+.mfield input[type=checkbox]{width:auto}
+.mfield.arow{align-items:flex-start}
+.mfield small{display:block;color:var(--ink-dim);font-size:9.5px;margin-top:2px;max-width:150px}
+.mhint{font-size:10px;color:var(--ink-dim)}
+/* 9-box anchor picker: which point of the shape X/Y refers to */
+.agrid{display:grid;grid-template-columns:repeat(3,22px);grid-template-rows:repeat(3,22px);gap:2px;padding:4px;background:var(--bg-input);border:1px solid var(--btn-bd);border-radius:4px}
+.agrid.small{grid-template-columns:repeat(3,18px);grid-template-rows:repeat(3,18px)}
+.agrid .ab{border:1px solid var(--btn-bd);background:linear-gradient(#ffffff,#eef3f8);border-radius:3px;cursor:pointer;padding:0;position:relative}
+.agrid .ab::after{content:'';position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:#b9c5d3}
+.agrid .ab:hover{border-color:#9fb1c6;background:linear-gradient(#f0f6fc,#dbe7f4)}
+.agrid .ab.on{background:var(--accent-soft);border-color:var(--accent-bd)}
+.agrid .ab.on::after{background:var(--accent);width:8px;height:8px;margin:-4px 0 0 -4px}
+.rq{font-size:10px;padding:3px 6px}
+/* menu bar */
+.menubtn{background:none;border:1px solid transparent;border-radius:4px;color:#2f3d4c;font-family:inherit;font-size:11.5px;padding:4px 9px;cursor:pointer}
+.menubtn:hover,.menubtn.open{background:var(--accent-soft);border-color:var(--accent-bd);color:var(--accent)}
+.ctxmenu.menu{min-width:200px}
+/* layers */
+.lyr .swc{width:16px;height:16px;padding:0;border:1px solid rgba(20,40,70,.18);border-radius:3px;background:none;cursor:pointer}
+.lyr .lc{color:var(--ink-dim);font-size:9.5px;margin-left:auto;font-variant-numeric:tabular-nums}
+.lyr .lb{background:none;border:1px solid transparent;border-radius:3px;color:var(--ink-dim);cursor:pointer;font-size:12px;line-height:1;padding:1px 4px}
+.lyr .lb:hover{color:var(--accent);border-color:var(--accent-bd);background:var(--bg-card)}
+.lyr .lb.lx:hover{color:#e0524f;border-color:#e0524f}
+.status .ver{margin-left:auto;color:var(--ink-dim);font-variant-numeric:tabular-nums;letter-spacing:.3px}
 /* hotkey reference table */
 .keys-modal{max-width:380px}
 .keys-table{width:100%;border-collapse:collapse;font-size:11px}
@@ -143,22 +168,25 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 <div class="app">
   <div class="topbar">
     <span class="brand">AQUAMENTOR CAD/CAM</span>
-    <button class="tb" id="btnNew" data-tip="Clear the design">New</button>
-    <button class="tb" id="btnImport" data-tip="Open an .aqcam project, or import DXF / SVG / vector PDF">Open / Import</button>
-    <button class="tb" id="btnSaveProj" data-tip="Save this job as an .aqcam project file (shapes, layers, material, toolpaths)">Save job…</button>
-    <button class="tb" id="btnExpDXF" data-tip="Export design as DXF">Export DXF</button>
-    <button class="tb" id="btnExpSVG" data-tip="Export design as SVG">Export SVG</button>
+    <button class="menubtn" data-menu="File">File</button>
+    <button class="menubtn" data-menu="Edit">Edit</button>
+    <button class="menubtn" data-menu="View">View</button>
+    <button class="menubtn" data-menu="Help">Help</button>
     <span class="sep"></span>
     <button class="tb" id="btnUndo" data-tip="Undo (Ctrl+Z)">↶ Undo</button>
     <button class="tb" id="btnRedo" data-tip="Redo (Ctrl+Y)">↷ Redo</button>
     <button class="tb" id="btnFit" data-tip="Fit view to all (F)">Fit (F)</button>
-    <button class="tb" id="btnSelfTest" data-tip="Build a sample design and run every CAM op (Profile/Pocket/Drill/V-Carve) as a smoke test">Self-test</button>
-    <button class="tb" id="btnKeys" data-tip="Keyboard shortcuts reference">Keys?</button>
+    <button class="tb" id="btnFitJob" data-tip="Zoom to the material">Fit job</button>
     <span class="sep"></span>
-    <label><input type="checkbox" id="chkGrid" checked> Grid</label>
-    <label>step<input type="number" id="gridStep" value="0.5" step="0.25" min="0.0625"></label>
-    <label><input type="checkbox" id="chkSnap" checked> Grid-snap</label>
-    <label><input type="checkbox" id="chkObjSnap" checked> Obj-snap</label>
+    <label data-tip="Draw the grid"><input type="checkbox" id="chkGrid" checked> Grid</label>
+    <label data-tip="Grid spacing (inches)">step<input type="number" id="gridStep" value="0.5" step="0.25" min="0.0625"></label>
+    <label data-tip="Snap drawing clicks and the moved selection's anchor point to the grid (Ctrl-drag = no snap)"><input type="checkbox" id="chkSnap" checked> Grid-snap</label>
+    <label data-tip="Snap to endpoints, midpoints, centers and job corners"><input type="checkbox" id="chkObjSnap" checked> Obj-snap</label>
+    <span class="sep"></span>
+    <label data-tip="Shift while dragging a rotate grip snaps the angle to this increment">Rot °<input type="number" id="rotSnap" value="5" step="1" min="0.1" style="width:40px"></label>
+    <button class="tb" id="btnNew" style="display:none">New</button><button class="tb" id="btnImport" style="display:none">Open</button>
+    <button class="tb" id="btnSaveProj" style="display:none">Save</button><button class="tb" id="btnExpDXF" style="display:none">DXF</button><button class="tb" id="btnExpSVG" style="display:none">SVG</button>
+    <button class="tb" id="btnSelfTest" style="display:none">Self-test</button><button class="tb" id="btnKeys" style="display:none">Keys</button>
     <input type="file" id="fileInput" accept=".aqcam,.dxf,.svg,.pdf" style="display:none">
   </div>
 
@@ -195,16 +223,8 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
     <canvas id="cv"></canvas><canvas id="hud"></canvas></div>
 
   <div class="right">
-    <div class="sectn"><h3>Job / Material</h3><div class="body">
-      <label data-tip="Material width (X)">W"<input type="number" id="jobW" value="24" step="0.5" style="width:56px"></label>
-      <label data-tip="Material height (Y)">H"<input type="number" id="jobH" value="18" step="0.5" style="width:56px"></label>
-      <label data-tip="Material thickness (Z)">Thick"<input type="number" id="jobT" value="0.5" step="0.05" style="width:54px"></label>
-      <label data-tip="Where X0 Y0 sits on the material">Origin<select id="jobOrigin"><option value="bl">Bottom-L</option><option value="br">Bottom-R</option><option value="tl">Top-L</option><option value="tr">Top-R</option><option value="center">Center</option></select></label>
-      <label data-tip="Show/hide the material outline"><input type="checkbox" id="jobShow" checked>Show</label>
-      <button class="tb" id="btnJobSet" data-tip="Apply size and fit the view to the material">Set job</button>
-      <button class="tb" id="btnFitJob" data-tip="Zoom to the material">Fit job</button>
-    </div></div>
     <div class="sectn"><h3>Shape params</h3><div class="body">
+      <button class="tb" id="btnCreateNum" data-tip="Create the active shape (rect / round / circle / ellipse / polygon / star / text) by exact size and 9-box anchor position — or press Enter with the tool active" style="width:100%">Create by numbers… (Enter)</button>
       <label>Sides<input type="number" id="polyN" value="6" min="3" max="64" style="width:48px"></label>
       <label data-tip="Corner radius for rounded rectangle">Corner r"<input type="number" id="rrectR" value="0.25" step="0.05" min="0" style="width:50px"></label>
       <label data-tip="Radius for the Fillet tool">Fillet r"<input type="number" id="filletR" value="0.25" step="0.05" min="0" style="width:50px"></label>
@@ -223,7 +243,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
       <button class="tb" id="btnJoin" data-tip="Join touching vectors into contours">Join</button>
       <button class="tb" id="btnMirrorH" data-tip="Mirror horizontally">Mirror H</button>
       <button class="tb" id="btnMirrorV" data-tip="Mirror vertically">Mirror V</button>
-      <button class="tb" id="btnRot90" data-tip="Rotate 90 degrees">Rotate 90°</button>
+      <button class="tb" id="btnRotate" data-tip="Rotate selection by an exact angle, CW or CCW, about a chosen pivot">Rotate…</button>
       <button class="tb" id="btnDup" data-tip="Duplicate selected">Duplicate</button>
       <button class="tb" id="btnArray" data-tip="Grid array (rows x cols)">Array</button>
       <button class="tb" id="btnDelete" data-tip="Delete selected (Del)">Delete</button>
@@ -289,6 +309,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
     <span>Pos <span class="v" id="coords">0, 0 in</span></span>
     <span><span class="v" id="zoomlbl"></span></span>
     <span id="msg" class="v"></span>
+    <span class="ver" id="appVer" title="Build version">v<!--VER--></span>
   </div>
 </div>
 <div class="modal-bg" id="shapeModal">
@@ -296,6 +317,33 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
     <div class="modal-h"><span class="mt" id="modalTitle">Edit shape</span><button class="mx" id="modalX" title="Close">×</button></div>
     <div class="modal-body" id="modalFields"></div>
     <div class="modal-foot"><button class="tb" id="modalCancel">Cancel</button><button class="tb primary" id="modalApply">Apply</button></div>
+  </div>
+</div>
+<div class="modal-bg" id="jobModal">
+  <div class="modal">
+    <div class="modal-h"><span class="mt">Job Size and Position</span><button class="mx" id="jobX" title="Close">×</button></div>
+    <div class="modal-body">
+      <label class="mfield"><span>Width (X)"</span><input type="number" id="jobW" value="24" step="0.5" min="0.1"></label>
+      <label class="mfield"><span>Height (Y)"</span><input type="number" id="jobH" value="18" step="0.5" min="0.1"></label>
+      <label class="mfield"><span>Thickness (Z)"</span><input type="number" id="jobT" value="0.5" step="0.05" min="0.01"></label>
+      <label class="mfield"><span>X0 Y0 origin</span><select id="jobOrigin"><option value="bl">Bottom-left</option><option value="br">Bottom-right</option><option value="tl">Top-left</option><option value="tr">Top-right</option><option value="center">Center</option></select></label>
+      <label class="mfield"><span>Show material outline</span><input type="checkbox" id="jobShow" checked></label>
+      <div class="mhint">Updates live on the canvas. OK also re-fits the view to the material.</div>
+    </div>
+    <div class="modal-foot"><button class="tb" id="jobCancel">Close</button><button class="tb primary" id="jobOk">OK</button></div>
+  </div>
+</div>
+<div class="modal-bg" id="rotModal">
+  <div class="modal">
+    <div class="modal-h"><span class="mt">Rotate</span><button class="mx" id="rotX" title="Close">×</button></div>
+    <div class="modal-body">
+      <label class="mfield"><span>Angle°</span><input type="number" id="rotAngle" value="90" step="1" min="0"></label>
+      <label class="mfield"><span>Direction</span><select id="rotDir"><option value="ccw">Counter-clockwise</option><option value="cw">Clockwise</option></select></label>
+      <div class="mfield" style="justify-content:flex-start;gap:4px"><span style="margin-right:6px">Quick</span><button class="tb rq" data-deg="15">15</button><button class="tb rq" data-deg="30">30</button><button class="tb rq" data-deg="45">45</button><button class="tb rq" data-deg="90">90</button><button class="tb rq" data-deg="180">180</button></div>
+      <div class="mfield arow"><span>Pivot<br><small id="rotHint"></small></span><div id="rotAnchorHost"></div></div>
+      <div class="mhint">Live preview. Enter = apply, Esc = cancel. Drag a corner grip on the canvas to rotate freehand (Shift = snap to the Rot ° increment).</div>
+    </div>
+    <div class="modal-foot"><button class="tb" id="rotCancel">Cancel</button><button class="tb primary" id="rotApply">Rotate</button></div>
   </div>
 </div>
 <div class="modal-bg" id="keysModal">
@@ -327,7 +375,11 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
         <tr><td>Shift (while drawing)</td><td>Ortho / 15° angle snap</td></tr>
         <tr><td>Enter (in Polyline)</td><td>Commit polyline</td></tr>
         <tr><td>Escape</td><td>Cancel / close menu</td></tr>
-        <tr><td>Double-click shape</td><td>Edit dimensions…</td></tr>
+        <tr><td>Double-click shape</td><td>Edit dimensions… (X/Y by 9-box anchor)</td></tr>
+        <tr><td>Enter (shape tool)</td><td>Create shape by numbers (anchor + size)</td></tr>
+        <tr><td>Drag corner grip</td><td>Rotate · Shift = snap to Rot ° increment</td></tr>
+        <tr><td>Ctrl-drag</td><td>Move without snapping</td></tr>
+        <tr><td>Ctrl+A</td><td>Select all</td></tr>
       </table>
     </div>
   </div>
