@@ -168,7 +168,32 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .lyr .lb:hover{color:var(--accent);border-color:var(--accent-bd);background:var(--bg-card)}
 .lyr .lb.lx:hover{color:#e0524f;border-color:#e0524f}
 /* status-bar version (lower right) */
-.status .ver{margin-left:auto;color:var(--ink-dim);font-variant-numeric:tabular-nums;letter-spacing:.3px}
+.status .ver{margin-left:10px;color:var(--ink-dim);font-variant-numeric:tabular-nums;letter-spacing:.3px}
+.mdrop button .chk{display:inline-block;width:14px;color:var(--accent)}
+body.rulers .viewtabs{top:21px;left:21px;border-radius:6px}
+/* ---- dark mode: swap the palette, then the few gradients / literal colours the light theme hard-codes ---- */
+body.dark{--bg-chrome:#1c2129;--bg-card:#232a34;--bg-head:#2a323e;--bg-input:#161b22;--bd:#3a4656;--bd-soft:#2f3946;--ink:#dbe4ee;--ink-dim:#8fa2ba;--accent:#3ccf86;--accent-bright:#2fb872;--accent-soft:#1d3a2c;--accent-bd:#2f9d66;--val:#6fb3ff;--btn-bd:#465364;--btn-hover:#2c3745;--panel:#1f2630}
+body.dark .tb{background:linear-gradient(#2c3541,#222a34);color:#dbe4ee;box-shadow:none}
+body.dark .tb:hover{background:linear-gradient(#34404e,#28323d);border-color:#5a6b80;color:#fff}
+body.dark .tb:active{background:#1c2430}
+body.dark .tool,body.dark .agrid .ab{background:linear-gradient(#2c3541,#222a34);color:#dbe4ee;box-shadow:none}
+body.dark .tool:hover,body.dark .agrid .ab:hover{background:linear-gradient(#34404e,#28323d);color:#fff;border-color:#5a6b80}
+body.dark .tool.active{background:var(--accent-soft);color:var(--accent)}
+body.dark .agrid .ab::after{background:#5a6b80}
+body.dark .dockhead,body.dark .rfoot,body.dark .status{background:linear-gradient(#232a34,#1c2129)}
+body.dark .prow,body.dark .qrow,body.dark .keys-table td{color:#c3cfdc}
+body.dark .qrow{background:#1c2129;border-color:var(--bd-soft)}
+body.dark .keys-table tr:hover td{background:#2a323e}
+body.dark .ctxmenu .ci:hover,body.dark .mdrop button:hover{color:#fff}
+body.dark .ctxmenu .ci.disabled{color:#5a6b80}
+body.dark .ctab:hover{background:rgba(255,255,255,.06)}
+body.dark .clipcell{background:var(--bg-input)}
+body.dark .formfoot .tb.primary,body.dark .modal-foot .tb.primary{background:linear-gradient(#2fb872,#1e8a55);color:#fff}
+body.dark .mdrop .hs input,body.dark .modal input,body.dark .modal select{color:var(--ink)}
+body.dark .cam-hint{color:var(--ink-dim)}
+body.dark [data-tip]:hover::after{background:#e9eef4;color:#1b2b3f;border-color:#b7c4d3}
+body.dark .glhint{background:rgba(233,238,244,.9);color:#1b2b3f}
+body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollbar-thumb{background:#3a4656;border-radius:5px}body.dark ::-webkit-scrollbar-track{background:#1c2129}
 /* help search */
 .mdrop .hs{padding:4px 8px 6px}
 .mdrop .hs input{width:100%;min-width:230px;background:var(--bg-input);border:1px solid var(--btn-bd);border-radius:4px;padding:5px 7px;font-family:inherit;font-size:11px;color:var(--ink)}
@@ -254,7 +279,8 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
       <button data-act="recalc">Preview Visible Toolpaths</button><button data-act="post">Save Toolpaths…</button></div></div>
     <div class="menu" data-menu="view">View<div class="mdrop">
       <button data-act="v2d">2D View</button><button data-act="v3d">3D View</button><div class="msep"></div>
-      <button data-act="fit">Zoom to Fit</button><button data-act="fitjob">Zoom to Job</button></div></div>
+      <button data-act="fit">Zoom to Fit</button><button data-act="fitjob">Zoom to Job</button><div class="msep"></div>
+      <button data-act="rulers"><span class="chk">✓</span>Rulers</button><button data-act="dark"><span class="chk"></span>Dark Mode</button></div></div>
     <div class="menu" data-menu="help">Help<div class="mdrop">
       <div class="hs"><input type="text" id="helpSearch" placeholder="Search menus, tools, forms…  (Ctrl+K)" autocomplete="off"></div>
       <div class="hres" id="helpResults"></div>
@@ -550,7 +576,8 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
     <span>Pos <span class="v" id="coords">0, 0 in</span></span>
     <span><span class="v" id="zoomlbl"></span></span>
     <span id="msg" class="v"></span>
-    <span class="ver" id="appVer" title="Build version">v0.3.0 · build 260904.1828</span>
+    <button class="tb" id="btnTheme" title="Switch to dark mode" style="margin-left:auto;font-size:10px;padding:1px 7px">☾ Dark</button>
+    <span class="ver" id="appVer" title="Build version">v0.3.0 · build 260904.1833</span>
   </div>
 </div>
 <div class="modal-bg" id="shapeModal">
@@ -628,6 +655,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
         <tr><td>Ctrl+S / Ctrl+Shift+S</td><td>Save / Save As… (Chrome/Edge: real save dialog, Save writes back to the file)</td></tr>
         <tr><td>Ctrl+O</td><td>Open / Import…</td></tr>
         <tr><td>Ctrl+K</td><td>Help search — type what you want, jump to the menu item / tool</td></tr>
+        <tr><td>View → Rulers / Dark Mode</td><td>X/Y rulers with a cursor marker · light / dark theme (also the ☾/☀ button in the status bar)</td></tr>
         <tr><td>3D View · Option/Alt-drag</td><td>Orbit (left-drag = pan, wheel = zoom, dbl-click = reframe)</td></tr>
       </table>
     </div>
@@ -11926,8 +11954,8 @@ const INK={ ink:'#1b2b3f', sel:'#e8590c', annot:'#0f7a46',
   drill:'#0f7a46', cut:'#0f7a46', rapid:'rgba(110,110,110,0.55)',
   legendBd:'rgba(20,40,70,0.22)', legendInk:'#33414f', legendSub:'#5c6a7c',
   origin:'#d63a3a', dimLbl:'#3a5f8f', simBd:'rgba(30,45,70,0.4)' };
-const THEMES={
-  '2d': Object.assign({}, INK, { bg:'#fbfbfd', gradTop:null,
+const THEMES_LIGHT={
+  '2d': Object.assign({}, INK, { bg:'#fbfbfd', gradTop:null, rulerBg:'rgba(236,241,247,0.94)', rulerInk:'#33414f', rulerTick:'rgba(30,45,70,0.55)', rulerBd:'#b7c4d3', rulerMark:'#e8590c',
     grid:'rgba(30,45,70,0.08)', axis:'rgba(60,90,200,0.28)',
     jobFace:'rgba(255,255,255,0.96)', jobShadow:'rgba(30,45,70,0.28)',
     jobEdge:'#5c7ea8', jobKey:'rgba(30,45,70,0.35)', jobCorner:'#3f6fa0',
@@ -11939,7 +11967,70 @@ const THEMES={
     jobEdge:'#2732c8', jobKey:'rgba(20,28,90,0.45)', jobCorner:'#8f97ff',
     labelBg:'rgba(238,240,255,0.96)', labelBd:'#8b93e0', labelInk:'#1e2350' })
 };
+// Dark mode: same structure, inks lifted for a near-black ground; the 3D stock keeps its Aspire blue.
+const INK_DARK={ ink:'#dbe4ee', sel:'#ff8a3d', annot:'#5ad19a',
+  node:'#f0b04a', nodeSmooth:'#4ad98a', handle:'#6fb3ff',
+  snap:'#ffd27a', draft:'#ffd27a', marquee:'rgba(255,154,60,0.85)',
+  measure:'#7fd0ff', measureBg:'rgba(20,26,34,0.92)', measureInk:'#dbe4ee',
+  drill:'#5ad19a', cut:'#5ad19a', rapid:'rgba(170,170,170,0.5)',
+  legendBd:'rgba(255,255,255,0.25)', legendInk:'#cdd6e2', legendSub:'#8fa2ba',
+  origin:'#ff5c5c', dimLbl:'#9cc4ff', simBd:'rgba(200,210,230,0.4)' };
+const THEMES_DARK={
+  '2d': Object.assign({}, INK_DARK, { bg:'#15191f', gradTop:null, rulerBg:'rgba(28,34,44,0.94)', rulerInk:'#c3cfdc', rulerTick:'rgba(220,230,245,0.55)', rulerBd:'#3a4656', rulerMark:'#ff8a3d',
+    grid:'rgba(255,255,255,0.055)', axis:'rgba(120,150,255,0.35)',
+    jobFace:'rgba(30,36,46,0.96)', jobShadow:'rgba(0,0,0,0.5)',
+    jobEdge:'#7fa4d0', jobKey:'rgba(255,255,255,0.25)', jobCorner:'#8fb8e8',
+    labelBg:'rgba(24,30,40,0.96)', labelBd:'#4a6a90', labelInk:'#dbe4ee' }),
+  preview: Object.assign({}, INK_DARK, { bg:'#2a2c5a', gradTop:'#22245a', gradBot:'#3a3d80',
+    stockTop:[56,67,245], stockDeep:[14,18,104],
+    grid:'rgba(255,255,255,0.05)', axis:'rgba(140,160,255,0.3)',
+    jobFace:'rgba(56,67,245,0.92)', jobShadow:'rgba(0,0,20,0.5)',
+    jobEdge:'#5a64e8', jobKey:'rgba(200,205,255,0.35)', jobCorner:'#a8aeff',
+    labelBg:'rgba(30,32,70,0.96)', labelBd:'#6b74c8', labelInk:'#e0e4ff' })
+};
+const THEMES={ '2d':THEMES_LIGHT['2d'], preview:THEMES_LIGHT.preview };
+let darkMode=(function(){ try{ return localStorage.getItem('aqcam.theme')==='dark'; }catch(e){ return false; } })();
+function setTheme(dark){ darkMode=!!dark; const T=darkMode?THEMES_DARK:THEMES_LIGHT; THEMES['2d']=T['2d']; THEMES.preview=T.preview;
+  document.body.classList.toggle('dark', darkMode); try{ localStorage.setItem('aqcam.theme', darkMode?'dark':'light'); }catch(e){}
+  const b=document.getElementById('btnTheme'); if(b){ b.textContent=darkMode?'☀ Light':'☾ Dark'; b.title=darkMode?'Switch to light mode':'Switch to dark mode'; }
+  if(gl3d){ const th=THEMES.preview; gl3d.setColors({ clear:hex3(th.gradBot), top:[th.stockTop[0]/255,th.stockTop[1]/255,th.stockTop[2]/255], deep:[th.stockDeep[0]/255,th.stockDeep[1]/255,th.stockDeep[2]/255] }); gl3d.draw(); }
+  render(); }
 function TH(){ return viewMode==='preview' ? THEMES.preview : THEMES['2d']; }
+// Layer colours were picked for a white ground; on the dark ground lift any colour too dark to read (keeps the hue).
+function layerInk(c){ if(!darkMode) return c; const m=/^#([0-9a-f]{6})$/i.exec(c||''); if(!m) return c;
+  const v=parseInt(m[1],16); let r=(v>>16)&255, g=(v>>8)&255, b=v&255; const lum=(0.299*r+0.587*g+0.114*b)/255;
+  if(lum>=0.45) return c; const t=0.62; r=Math.round(r+(255-r)*t); g=Math.round(g+(255-g)*t); b=Math.round(b+(255-b)*t);
+  return '#'+((1<<24)|(r<<16)|(g<<8)|b).toString(16).slice(1); }
+// ---- rulers (X along the top, Y down the left; a marker follows the cursor) ----
+const RULER_W=20;
+let rulers=(function(){ try{ return localStorage.getItem('aqcam.rulers')!=='0'; }catch(e){ return true; } })();
+function setRulers(on){ rulers=!!on; try{ localStorage.setItem('aqcam.rulers', rulers?'1':'0'); }catch(e){} document.body.classList.toggle('rulers', rulers); render(); drawRulerMarks(lastScr); }
+function rulerStep(){ const want=64/view.ppi;   // inches per major label so labels sit >= 64px apart
+  const steps=[0.0625,0.125,0.25,0.5,1,2,4,5,10,20,50,100]; for(const st of steps){ if(st>=want) return st; } return 100; }
+function drawRulers(){ const th=TH(); const W=cv.width, H=cv.height, R=RULER_W;
+  const major=rulerStep(), minor=major/4;
+  ctx.save(); ctx.fillStyle=th.rulerBg; ctx.fillRect(0,0,W,R); ctx.fillRect(0,0,R,H);
+  ctx.strokeStyle=th.rulerBd; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(0,R+0.5); ctx.lineTo(W,R+0.5); ctx.moveTo(R+0.5,0); ctx.lineTo(R+0.5,H); ctx.stroke();
+  ctx.strokeStyle=th.rulerTick; ctx.fillStyle=th.rulerInk; ctx.font='9px monospace';
+  const fmt=v=>{ const r=Math.round(v*1000)/1000; return (Math.abs(r)<1e-9?0:r).toString(); };
+  const w0=S2W({x:R,y:H}), w1=S2W({x:W,y:R});
+  ctx.beginPath(); ctx.textAlign='left'; ctx.textBaseline='top';
+  for(let x=Math.floor(w0.x/minor)*minor; x<=w1.x; x+=minor){ const sx=Math.round(W2S({x,y:0}).x)+0.5; if(sx<R)continue;
+    const isMajor=Math.abs(x/major-Math.round(x/major))<1e-6; const len=isMajor?R:(Math.abs(x/(major/2)-Math.round(x/(major/2)))<1e-6?R*0.55:R*0.3);
+    ctx.moveTo(sx,R-len); ctx.lineTo(sx,R); if(isMajor) ctx.fillText(fmt(x), sx+2, 1); }
+  for(let y=Math.floor(w0.y/minor)*minor; y<=w1.y; y+=minor){ const sy=Math.round(W2S({x:0,y}).y)+0.5; if(sy<R)continue;
+    const isMajor=Math.abs(y/major-Math.round(y/major))<1e-6; const len=isMajor?R:(Math.abs(y/(major/2)-Math.round(y/(major/2)))<1e-6?R*0.55:R*0.3);
+    ctx.moveTo(R-len,sy); ctx.lineTo(R,sy);
+    if(isMajor){ ctx.save(); ctx.translate(1,sy-2); ctx.rotate(-Math.PI/2); ctx.textAlign='left'; ctx.textBaseline='top'; ctx.fillText(fmt(y),0,0); ctx.restore(); } }
+  ctx.stroke();
+  ctx.fillStyle=th.rulerBg; ctx.fillRect(0,0,R,R); ctx.fillStyle=th.rulerInk; ctx.font='8px monospace'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('in', R/2, R/2);
+  ctx.restore(); }
+// cursor marker on the overlay canvas (cheap: no scene re-render on every mouse move)
+let lastScr=null; const hctx=overlay.getContext('2d');
+function drawRulerMarks(scr){ if(overlay.width!==cv.width||overlay.height!==cv.height){ overlay.width=cv.width; overlay.height=cv.height; }
+  hctx.clearRect(0,0,overlay.width,overlay.height); if(!rulers||viewMode==='preview'||!scr) return;
+  const th=TH(); hctx.strokeStyle=th.rulerMark; hctx.lineWidth=1.5; hctx.beginPath();
+  if(scr.x>RULER_W){ hctx.moveTo(scr.x,0); hctx.lineTo(scr.x,RULER_W); } if(scr.y>RULER_W){ hctx.moveTo(0,scr.y); hctx.lineTo(RULER_W,scr.y); } hctx.stroke(); }
 function W2S(p){ return { x: view.ox + p.x*view.ppi, y: view.oy - p.y*view.ppi }; }
 function S2W(p){ return { x: (p.x - view.ox)/view.ppi, y: (view.oy - p.y)/view.ppi }; }
 function pxTol(px){ return px/view.ppi; }
@@ -11974,7 +12065,8 @@ function snapWorld(scr){
 
 // ---- rendering ----
 function resize(){ const r=cv.parentElement.getBoundingClientRect(); cv.width=r.width; cv.height=r.height;
-  if(gl3d){ gl3d.resize(); gl3d.draw(); } if(!view._init){ view.oy=cv.height-60; view._init=true; } render(); }
+  overlay.width=r.width; overlay.height=r.height;
+  if(gl3d){ gl3d.resize(); gl3d.draw(); } if(!view._init){ view.oy=cv.height-60; view._init=true; } render(); drawRulerMarks(lastScr); }
 function render(){
   const pv = viewMode==='preview';
   ctx.clearRect(0,0,cv.width,cv.height);
@@ -12001,6 +12093,7 @@ function render(){
     if(tracePreview) drawTracePreview();
     if(measure) drawMeasure(measure.a, measure.b, true);
     if(snapMark) drawSnapMark(snapMark);
+    if(rulers) drawRulers();
   }
   updateHud();
 }
@@ -12038,7 +12131,7 @@ function drawSimField(){
 function drawShape(s, selected, dimmed){
   const isDim = s.type==='dim';   // annotation: own colour, solid arrowheads, never cut
   const th=TH();
-  const col = selected ? th.sel : (isDim ? th.annot : (doc.layers.get(s.layer)?.color || th.ink));
+  const col = selected ? th.sel : (isDim ? th.annot : layerInk(doc.layers.get(s.layer)?.color || th.ink));
   ctx.save();
   if(dimmed) ctx.globalAlpha=0.28;   // Preview: faint reference outline under the toolpaths
   ctx.strokeStyle=col; ctx.fillStyle=col; ctx.lineWidth=selected?2:(isDim?1.1:1.3);
@@ -12119,7 +12212,7 @@ let snapMark=null;
 // ---- HUD / status ----
 function updateHud(){ document.getElementById('zoomlbl').textContent = Math.round(view.ppi)+' px/in · '+doc.shapes.length+' obj · '+sel.size+' sel'; }
 function setMsg(m){ msg=m; document.getElementById('msg').textContent=m; }
-function updateCursor(scr){ const w=S2W(scr); document.getElementById('coords').textContent = w.x.toFixed(3)+', '+w.y.toFixed(3)+' in'; }
+function updateCursor(scr){ const w=S2W(scr); document.getElementById('coords').textContent = w.x.toFixed(3)+', '+w.y.toFixed(3)+' in'; lastScr=scr; drawRulerMarks(scr); }
 // hover feedback for the Select tool: rotate icon over a corner grip, resize arrows over a scale handle, move over a shape
 const ROTATE_CURSOR="url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 22 22'><path d='M11 3a8 8 0 1 1-7.4 4.9' fill='none' stroke='white' stroke-width='4'/><path d='M11 3a8 8 0 1 1-7.4 4.9' fill='none' stroke='%23222' stroke-width='2'/><path d='M2 3v6h6' fill='none' stroke='white' stroke-width='4'/><path d='M2 3v6h6' fill='none' stroke='%23222' stroke-width='2'/></svg>\") 11 11, alias";
 const SCALE_CURSORS={nw:'nwse-resize',se:'nwse-resize',ne:'nesw-resize',sw:'nesw-resize',n:'ns-resize',s:'ns-resize',e:'ew-resize',w:'ew-resize'};
@@ -12222,10 +12315,12 @@ const MENU_ACTIONS={
   'check':()=>document.getElementById('btnCheckVec').click(),
   'recalc':()=>recalcAll(), 'post':()=>postJob(),
   'v2d':()=>setView('2d'), 'v3d':()=>setView('preview'),
+  'rulers':()=>{ setRulers(!rulers); syncViewMenu(); }, 'dark':()=>{ setTheme(!darkMode); syncViewMenu(); },
   'fit':()=>fitAll(), 'fitjob':()=>fitJob(),
   'keys':()=>{document.getElementById('keysModal').style.display='block';},
   'selftest':()=>selfTest()
 };
+function syncViewMenu(){ const set=(act,on)=>{ const b=document.querySelector('.mdrop button[data-act="'+act+'"] .chk'); if(b) b.textContent=on?'✓':''; }; set('rulers',rulers); set('dark',darkMode); }
 function closeMenus(){ document.querySelectorAll('.menu.open').forEach(m=>m.classList.remove('open')); }
 // ---- Help search ----
 // Like the macOS Help menu: type what you want and the matching menu items, tools, forms and buttons are listed;
@@ -13155,6 +13250,7 @@ function setView(mode){
   if(viewMode==='preview'){ const solid=document.getElementById('simSolid');
     if(solid&&solid.checked) runSim(); else { gl3dShow(false); simField=null; recalcAll(); } }
   else { gl3dShow(false); simField=null; render(); }
+  drawRulerMarks(viewMode==='preview'?null:lastScr);
 }
 // Build the tool profile + cut segments for one toolpath, for the material sim.
 // One toolpath may post to multiple ops (vcarve flat-depth = endmill + V-bit) — build a sim cut per op.
@@ -13942,6 +14038,8 @@ function wire(){
   // 3D view presets + help search
   on('simTop',()=>gl3dPreset('top')); on('simIso',()=>gl3dPreset('iso')); on('simFront',()=>gl3dPreset('front'));
   initHelpSearch();
+  on('btnTheme',()=>{ setTheme(!darkMode); syncViewMenu(); });
+  setTheme(darkMode); document.body.classList.toggle('rulers', rulers); syncViewMenu();
   const gs=document.getElementById('gridStep'); if(gs)gs.onchange=e=>{grid.step=parseFloat(e.target.value)||0.5; render();};
   const gg=document.getElementById('chkGrid'); if(gg)gg.onchange=e=>{grid.on=e.target.checked;render();};
   const sn=document.getElementById('chkSnap'); if(sn)sn.onchange=e=>{grid.snap=e.target.checked;};
@@ -13982,6 +14080,6 @@ wire(); resize(); setTool('select'); syncPanels(); render();
 window.AQ_STUDIO = { doc, get sel(){return sel;}, get view(){return viewMode;}, CADCORE, CAM, importText, importPDF, openProject, saveProject, saveProjectAs, projectJSON, setView, camBuild, setTool, addShapes, render,
   opCopy, opCut, opPaste, get clip(){return clip;}, createFromForm, openShapeModal, applyShapeModal, closeShapeModal, setModalAnchor, setRotAnchor, get anchor(){return modalAnchor;}, get rotAnchor(){return rotAnchor;},
   openRotateModal, applyRotateModal, addLayer, moveSelToLayer, get grid(){return grid;}, selectedShapes, get projectFile(){return projectFile;},
-  get gl3d(){return gl3d;}, gl3dPreset, get simField(){return simField;}, openHelpSearch, helpSearchRun, showForm, runSim, recalcAll, get opsQueue(){return opsQueue;} };
+  get gl3d(){return gl3d;}, setTheme, setRulers, get darkMode(){return darkMode;}, get rulers(){return rulers;}, gl3dPreset, get simField(){return simField;}, openHelpSearch, helpSearchRun, showForm, runSim, recalcAll, get opsQueue(){return opsQueue;} };
 
 </script></body></html>

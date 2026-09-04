@@ -46,6 +46,8 @@ Rebuilt from screenshots of Dan's own Aspire install (`docs/vcarve-reference/`):
   "Rot °" increment (default 5°). Moving a selection snaps its anchor point to the grid / object snaps (Ctrl = free).
 - **Cut / Copy / Paste** (Edit menu, right-click, ⌘/Ctrl+X · C · V): pastes in place, repeated pastes step 0.5"; the copy is
   also written to the system clipboard so it survives a reload and pastes into another tab of the app.
+- **Rulers** (View menu): X along the top, Y down the left, in inches, with a marker that follows the cursor.
+- **Dark mode** (View menu or the ☾/☀ button in the status bar): whole UI plus both canvases; remembered between sessions.
 - **Help search** (Help menu or Ctrl+K): type what you want and it lists matching menu items, tools, forms and buttons;
   Enter / click takes you there (opens the menu with the item highlighted, or the form) without running anything.
 - **Save / Save As…** (Ctrl+S / Ctrl+Shift+S, Ctrl+O to open): in Chrome/Edge a real save dialog, and Save writes back to
