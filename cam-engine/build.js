@@ -1,6 +1,6 @@
 const fs=require('fs'), p=require('path'), d=__dirname;
 const shell=fs.readFileSync(p.join(d,'studio_shell.html'),'utf8');
-const order=['package/clipper.js','package/opentype.js','camcore.js','cadcore.js','dxfparse.js','pdfparse.js','studio_app.js'];
+const order=['package/clipper.js','package/opentype.js','camcore.js','cadcore.js','dxfparse.js','pdfparse.js','bitmaptrace.js','clipart.js','glview.js','studio_app.js'];
 const libs=order.map(f=>'<script>\n'+fs.readFileSync(p.join(d,f),'utf8')+'\n</script>').join('\n');
 const pkg=JSON.parse(fs.readFileSync(p.join(d,'..','package.json'),'utf8'));
 const now=new Date(); const pad=n=>String(n).padStart(2,'0');

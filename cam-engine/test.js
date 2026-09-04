@@ -110,11 +110,16 @@ console.log('\n(post-pp assertions added)');
   const sq = CAM.assembleContours([{closed:true,pts:[{x:0,y:0},{x:4,y:0},{x:4,y:4},{x:0,y:4}]}]);
   const pk = CAM.pocketOp(sq, {toolDia:0.5, stepover:0.5, cutDepth:0.1, passDepth:0.5, topZ:0});
   const passes = pk.ops[0].passes;
-  ok('pocket produces rings', passes.length>=2, passes.length);
+  ok('pocket produces a linked spiral (one pass per depth)', passes.length===1, passes.length);
+  const unlinked = CAM.pocketOp(sq, {toolDia:0.5, stepover:0.5, cutDepth:0.1, passDepth:0.5, topZ:0, linkRings:false}).ops[0].passes;
+  ok('pocket produces rings', unlinked.length>=2, unlinked.length);
   // every ring stays inside the wall (tool radius 0.25 clearance)
   const pb = CAM.boundsOf(passes.map(p=>p.path));
   ok('pocket rings inside wall', pb.minX>=0.25-1e-3 && pb.maxX<=3.75+1e-3, JSON.stringify(pb));
-  ok('pocket rings closed', passes.every(p=>p.closed));
+  ok('pocket rings closed when unlinked', unlinked.every(p=>p.closed));
+  ok('linked spiral is one open path', passes[0].closed===false);
+  ok('linked spiral holds every ring\'s points', passes[0].path.length >= unlinked.reduce((n,p)=>n+p.path.length,0),
+     `${passes[0].path.length} vs ${unlinked.reduce((n,p)=>n+p.path.length,0)}`);
   // climb -> CW rings
   ok('pocket climb CW', CAM.signedArea(passes[0].path.map(p=>({x:p.x,y:p.y})))<0);
   // multi-depth multiplies pass count
@@ -155,7 +160,8 @@ console.log('\n(post-pp assertions added)');
   ok('raster g-code has G0 and G1', /\bG0\b/.test(g) && /\bG1\b/.test(g), g.length);
   // default style is still concentric offset (backward compatible)
   const pkOff = CAM.pocketOp(rect, {toolDia:0.25, stepover:0.25, cutDepth:0.1, passDepth:0.5, topZ:0});
-  ok('pocket defaults to offset style (closed rings)', pkOff.ops[0].passes.every(p=>p.closed));
+  ok('pocket defaults to offset style (a spiral, not scan rows)', pkOff.ops[0].passes.length===1 &&
+     pkOff.ops[0].passes[0].path.length>20, pkOff.ops[0].passes.length);
 })();
 
 // 12c. helical (ramp) pocket entry
@@ -174,7 +180,9 @@ console.log('\n(post-pp assertions added)');
   ok('ramp entry: g-code has a helical G2/G3 + Z', /\bG[23]\b[^\r\n]*\bZ-?\d/.test(g), (g.match(/G[23][^\r\n]*Z[^\r\n]*/g)||[]).slice(0,1));
   // backward compatible: without rampEntry the first pass is still a closed ring
   const pkNo = CAM.pocketOp(rect, {toolDia:0.25, stepover:0.4, cutDepth:0.2, passDepth:0.5, topZ:0});
-  ok('ramp entry off by default (first pass closed)', pkNo.ops[0].passes[0].closed===true);
+  ok('ramp entry off by default (no ramp-tagged points)', !pkNo.ops[0].passes[0].path.some(p=>p.ramp!=null));
+  ok('ramp entry off by default: unlinked first pass is a closed ring',
+     CAM.pocketOp(rect,{toolDia:0.25,stepover:0.4,cutDepth:0.2,passDepth:0.5,topZ:0,linkRings:false}).ops[0].passes[0].closed===true);
 })();
 
 
@@ -379,7 +387,10 @@ console.log('\n(post-pp assertions added)');
   ok('job: T2 first (header, Z2 follows)', t2i<t1i && lines[t2i+1]==='Z2', lines[t2i+1]);
   ok('job: T1 toolchange (no Z2, S follows)', lines[t1i+1]!=='Z2' && /^S\d/.test(lines[t1i+1]||''), lines[t1i+1]);
   ok('job: single program (one G90, ends m51, no M30)', (g.match(/^G90$/gm)||[]).length===1 && /m51\s*$/.test(g) && !/M30/.test(g));
-  ok('job: profile tabs present (T1 op cut)', profile.ops[0].passes[0].path.some(p=>p.tab));
+  // tabs only bite on passes that reach into them: cutDepth .5, tab .06 -> only the final -.5 pass
+  const pp=profile.ops[0].passes;
+  ok('job: profile tabs present on the final pass', pp[pp.length-1].path.some(p=>p.tab) && pp[pp.length-1].tabHeight===0.06);
+  ok('job: no tabs on the shallow pass', !pp[0].path.some(p=>p.tab) && pp[0].tabHeight===0, pp[0].tabHeight);
 })();
 
 // 14. toolpath ordering (nearest-neighbor minimizes rapids)
@@ -452,6 +463,297 @@ console.log('\n(post-pp assertions added)');
   ], {feed:120,plunge:40,rapid:300});
   ok('time: combined = 10s', near(allT.seconds,10), allT.seconds);
   ok('time: distances split by kind', near(allT.plungeDist,2)&&near(allT.feedDist,10)&&near(allT.rapidDist,10), JSON.stringify(allT));
+})();
+
+// ---- C5: inlay toolpaths (matched female cavity + male plug) ----
+(function(){
+  const near=(a,b,t)=>Math.abs(a-b)<=(t||0.01);
+  const sq=[{x:2,y:2},{x:6,y:2},{x:6,y:5},{x:2,y:5}];
+  const cont=[{pts:sq,closed:true,area:12,ccw:true}];
+  const base={toolDia:0.125,pocketDepth:0.12,maleDepth:0.12,passDepth:0.12,topZ:0};
+  const bnds=ops=>CAM.boundsOf(ops.flatMap(o=>o.passes.map(p=>p.path)));
+
+  // --- pocket-style inlay: both parts in one call ---
+  const r=CAM.inlayOp(cont, Object.assign({style:'pocket',clearance:0.005},base));
+  ok('inlay: emits both parts', r.parts.female.length>0 && r.parts.male.length>0,
+     JSON.stringify({f:r.parts.female.length,m:r.parts.male.length,w:r.warnings}));
+  ok('inlay: ops are tagged female/male', r.ops.every(o=>o.part==='female'||o.part==='male'));
+  ok('inlay: female is a pocket, male is a profile',
+     r.parts.female[0].kind==='pocket' && r.parts.male[0].kind==='profile',
+     r.parts.female[0].kind+'/'+r.parts.male[0].kind);
+  ok('inlay: every pass reaches the requested depth',
+     r.ops.every(o=>o.passes.every(p=>p.z<=-0.12+1e-9)), JSON.stringify(r.ops.map(o=>o.passes.map(p=>p.z)[0])));
+
+  // clearance goes into the female by default -> the cavity is bigger than the design
+  const fb=bnds(r.parts.female);
+  ok('inlay: female pocket sits inside the enlarged cavity wall',
+     fb.minX>2-1e-9 && fb.maxX<6+1e-9, JSON.stringify(fb));
+  // ...and the male profile rides one tool radius outside the nominal design
+  const mb=bnds(r.parts.male);
+  ok('inlay: male profile is an outside cut', (mb.maxX-mb.minX) > 4, mb.maxX-mb.minX);
+
+  // clearance on the male instead: the plug shrinks, the cavity stays true to the design
+  const rm=CAM.inlayOp(cont, Object.assign({style:'pocket',clearance:0.02,clearanceOn:'male',mirrorMale:false},base));
+  const mb2=bnds(rm.parts.male);
+  const rn=CAM.inlayOp(cont, Object.assign({style:'pocket',clearance:0,clearanceOn:'male',mirrorMale:false},base));
+  const mb3=bnds(rn.parts.male);
+  ok('inlay: clearanceOn male shrinks the plug', (mb2.maxX-mb2.minX) < (mb3.maxX-mb3.minX)-0.03,
+     (mb3.maxX-mb3.minX)-(mb2.maxX-mb2.minX));
+  ok('inlay: zero clearance warns about a press fit', rn.warnings.some(w=>/press fit/.test(w)), JSON.stringify(rn.warnings));
+
+  // --- the male is mirrored (it gets flipped face-down into the cavity) ---
+  const asym=[{x:0,y:0},{x:4,y:0},{x:4,y:1},{x:1,y:1},{x:1,y:3},{x:0,y:3}];   // an L, so mirroring is visible
+  const ac=[{pts:asym,closed:true,area:7,ccw:true}];
+  const noMir=CAM.inlayOp(ac, Object.assign({},base,{style:'pocket',clearance:0,mirrorMale:false}));
+  const mir  =CAM.inlayOp(ac, Object.assign({},base,{style:'pocket',clearance:0,mirrorMale:true}));
+  const p0=noMir.parts.male[0].passes[0].path, p1=mir.parts.male[0].passes[0].path;
+  const cxm=(CAM.boundsOf([asym]).minX+CAM.boundsOf([asym]).maxX)/2;
+  ok('inlay: mirrored male is the X-reflection of the unmirrored one',
+     p1.length===p0.length && p0.every(q=>p1.some(w=>near(w.x,2*cxm-q.x,1e-6)&&near(w.y,q.y,1e-6))));
+  ok('inlay: mirrored closed pass keeps its cut direction',
+     Math.sign(CAM.signedArea(p0))===Math.sign(CAM.signedArea(p1)),
+     CAM.signedArea(p0)+'/'+CAM.signedArea(p1));
+  ok('inlay: mirroring does not move the female', near(bnds(noMir.parts.female).minX, bnds(mir.parts.female).minX, 1e-9));
+
+  // --- part filtering ---
+  const fOnly=CAM.inlayOp(cont, Object.assign({},base,{style:'pocket',part:'female'}));
+  ok('inlay: part=female emits only the cavity', fOnly.parts.male.length===0 && fOnly.parts.female.length>0);
+  const mOnly=CAM.inlayOp(cont, Object.assign({},base,{style:'pocket',part:'male'}));
+  ok('inlay: part=male emits only the plug', mOnly.parts.female.length===0 && mOnly.parts.male.length>0);
+
+  // --- V-carve inlay: tapered walls ---
+  const v=CAM.inlayOp(cont, Object.assign({},base,{style:'vcarve',bitAngle:90,step:0.05,startDepth:0.02,clearance:0.005}));
+  ok('inlay: vcarve female is a v-carve', v.parts.female.some(o=>o.kind==='vcarve'), JSON.stringify(v.parts.female.map(o=>o.kind)));
+  ok('inlay: vcarve male is a v-carve', v.parts.male.some(o=>o.kind==='vcarve'));
+  ok('inlay: vcarve female floor is flat at the pocket depth',
+     v.parts.female.every(o=>o.passes.every(p=>p.z>=-0.12-1e-9)), JSON.stringify(v.parts.female.map(o=>Math.min(...o.passes.map(p=>p.z)))));
+  // the male field is cut around the design, so it reaches well outside the design bbox
+  const vmb=bnds(v.parts.male);
+  ok('inlay: vcarve male clears the field around the design', (vmb.maxX-vmb.minX) > 4.3, vmb.maxX-vmb.minX);
+  // startDepth sinks the whole male cut below the surface
+  const vTop=Math.max(...v.parts.male.flatMap(o=>o.passes.map(p=>p.z)));
+  ok('inlay: startDepth sinks the male cut', vTop <= -0.02+1e-9, vTop);
+  const v0=CAM.inlayOp(cont, Object.assign({},base,{style:'vcarve',bitAngle:90,step:0.05,startDepth:0}));
+  ok('inlay: startDepth 0 warns the plug will bottom out', v0.warnings.some(w=>/bottoms out/.test(w)), JSON.stringify(v0.warnings));
+  const v0Top=Math.max(...v0.parts.male.flatMap(o=>o.passes.map(p=>p.z)));
+  ok('inlay: startDepth shifts the male by exactly that amount', near(v0Top-vTop, 0.02, 1e-6), v0Top+'/'+vTop);
+
+  // --- degenerate input ---
+  const open=CAM.inlayOp([{pts:[{x:0,y:0},{x:1,y:1}],closed:false}], Object.assign({},base,{style:'pocket'}));
+  ok('inlay: open contours are rejected with a warning', open.ops.length===0 && open.warnings.some(w=>/closed contour/.test(w)));
+  const tiny=CAM.inlayOp([{pts:[{x:0,y:0},{x:0.05,y:0},{x:0.05,y:0.05},{x:0,y:0.05}],closed:true}],
+    Object.assign({},base,{style:'pocket',clearance:0.2,clearanceOn:'male'}));
+  ok('inlay: clearance bigger than the detail warns', tiny.warnings.some(w=>/collapsed/.test(w)), JSON.stringify(tiny.warnings));
+
+  // --- the pair posts as G-code ---
+  const g=CAM.postProcess({name:'INLAY',units:'inch',ops:r.ops}, CAM.POSTS.shopsabre);
+  ok('inlay: pair posts to G-code', /G1|G01/.test(g) && g.length>200, g.length);
+})();
+
+// ---- C6: toolpath templates (geometry-free machining recipes) ----
+(function(){
+  const near=(a,b,t)=>Math.abs(a-b)<=(t||1e-9);
+  // a live queue, complete with document-bound selection ids
+  const queue=[
+    {p:{op:'vcarve',toolNum:3,toolDia:0.5,bitAngle:60,cutDepth:0.125}, ids:['g1','g2'], name:'V-carve text', visible:true},
+    {p:{op:'profile',toolNum:1,toolDia:0.25,side:'outside',cutDepth:0.75,tabs:{count:4,length:0.5,height:0.1}}, ids:['g3'], name:'Cut out', visible:false}
+  ];
+  const t=CAM.templateFromQueue('Sign recipe', queue);
+  ok('tpl: captures every toolpath in order', t.entries.length===2 && t.entries[0].name==='V-carve text' && t.entries[1].name==='Cut out');
+  ok('tpl: is versioned + formatted', t.format==='aqtpl' && t.version===CAM.TEMPLATE_VERSION);
+  ok('tpl: gets an id from the name', t.id==='sign-recipe', t.id);
+  ok('tpl: keeps the machining params', t.entries[0].p.op==='vcarve' && near(t.entries[0].p.bitAngle,60) && near(t.entries[1].p.cutDepth,0.75));
+  ok('tpl: keeps nested tab settings', t.entries[1].p.tabs.count===4 && near(t.entries[1].p.tabs.length,0.5));
+  // the whole point: no document state travels with a recipe
+  ok('tpl: carries no selection ids', JSON.stringify(t).indexOf('g1')<0 && JSON.stringify(t).indexOf('ids')<0, JSON.stringify(t).slice(0,120));
+  ok('tpl: carries no visibility state', t.entries.every(e=>!('visible' in e.p)));
+
+  // partial entries are filled out from the defaults, so a hand-written template is still usable
+  const partial=CAM.normalizeTemplate({name:'Bare', entries:[{p:{op:'pocket'}}]});
+  ok('tpl: partial entry filled from defaults', partial.entries[0].p.toolDia>0 && partial.entries[0].p.tabs && partial.entries[0].p.stepover>0,
+     JSON.stringify(partial.entries[0].p).slice(0,80));
+  ok('tpl: unnamed entry gets a name', partial.entries[0].name==='Toolpath 1', partial.entries[0].name);
+
+  // unknown / hostile keys are dropped by the whitelist
+  const dirty=CAM.sanitizeTemplateParams({op:'pocket', ids:['g9'], evil:function(){}, nested:{a:1}, cutDepth:0.3});
+  ok('tpl: strips unknown keys', !('ids' in dirty) && !('evil' in dirty) && !('nested' in dirty), Object.keys(dirty).join(','));
+  ok('tpl: keeps whitelisted keys', dirty.op==='pocket' && near(dirty.cutDepth,0.3));
+  ok('tpl: every whitelisted key is present', CAM.TEMPLATE_PARAM_KEYS.every(k=>k in dirty));
+
+  // applying binds the recipe to whatever is selected NOW
+  const q2=CAM.applyTemplate(t, ['gA','gB']);
+  ok('tpl: apply produces one queue entry per toolpath', q2.length===2);
+  ok('tpl: apply binds the current selection', q2.every(e=>e.ids.join()==='gA,gB'));
+  ok('tpl: applied entries are visible + named', q2.every(e=>e.visible===true) && q2[1].name==='Cut out');
+  ok('tpl: applied params survive', q2[0].p.op==='vcarve' && q2[1].p.tabs.count===4);
+  const q3=CAM.applyTemplate(t, []);
+  ok('tpl: empty selection means "all visible"', q3.every(e=>e.ids.length===0));
+  q3[0].ids.push('x');
+  ok('tpl: applying twice does not share arrays', CAM.applyTemplate(t,[])[0].ids.length===0);
+
+  // ...and the applied params really drive the CAM ops
+  const sq=[{pts:[{x:0,y:0},{x:4,y:0},{x:4,y:3},{x:0,y:3}],closed:true,area:12,ccw:true}];
+  const built=CAM.profileOp(sq, q2[1].p);
+  ok('tpl: applied profile params build a real toolpath', built.ops[0].passes.length>0);
+  const bp=built.ops[0].passes;
+  ok('tpl: applied tab count reaches the toolpath', bp[bp.length-1].path.some(p=>p.tab===true));
+
+  // JSON round-trip + validation
+  const json=CAM.templateToJSON(t);
+  const back=CAM.templateFromJSON(json);
+  ok('tpl: JSON round-trip is lossless', JSON.stringify(back)===JSON.stringify(CAM.normalizeTemplate(t)));
+  let threw=false; try{ CAM.templateFromJSON('{"format":"aqtpl","version":99,"entries":[]}'); }catch(e){ threw=/version/.test(e.message); }
+  ok('tpl: rejects an unknown version', threw);
+  threw=false; try{ CAM.templateFromJSON('{"format":"aqcam","version":1}'); }catch(e){ threw=/Not a toolpath template/.test(e.message); }
+  ok('tpl: rejects a non-template file', threw);
+  threw=false; try{ CAM.templateFromJSON('not json'); }catch(e){ threw=/invalid JSON/.test(e.message); }
+  ok('tpl: rejects garbage', threw);
+  threw=false; try{ CAM.templateFromJSON('{"format":"aqtpl","version":1}'); }catch(e){ threw=/no toolpaths/.test(e.message); }
+  ok('tpl: rejects a template with no entries array', threw);
+
+  // library management mirrors the tool library
+  let lib=CAM.defaultTemplates();
+  ok('tpl: ships starter recipes', lib.length>=4 && lib.every(x=>x.entries.length>0), lib.length);
+  ok('tpl: starter recipes are all valid', lib.every(x=>{ try{ CAM.templateFromJSON(CAM.templateToJSON(x)); return true; }catch(e){ return false; } }));
+  ok('tpl: starter ids are unique', new Set(lib.map(x=>x.id)).size===lib.length);
+  const n0=lib.length;
+  lib=CAM.upsertTemplate(lib, t);
+  ok('tpl: upsert adds a new recipe', lib.length===n0+1);
+  lib=CAM.upsertTemplate(lib, CAM.templateFromQueue('Sign recipe', [queue[0]]));
+  ok('tpl: upsert replaces by id, not appends', lib.length===n0+1 && lib.find(x=>x.id==='sign-recipe').entries.length===1);
+  lib=CAM.removeTemplate(lib,'sign-recipe');
+  ok('tpl: remove drops it', lib.length===n0 && !lib.find(x=>x.id==='sign-recipe'));
+
+  // the inlay recipe round-trips its inlay-specific params
+  const inl=CAM.defaultTemplates().find(x=>/inlay/i.test(x.name));
+  ok('tpl: inlay recipe keeps its own params',
+     inl && inl.entries[0].p.op==='inlay' && inl.entries[0].p.part==='female' && inl.entries[1].p.part==='male'
+     && inl.entries[1].p.mirrorMale===true, JSON.stringify(inl&&inl.entries.map(e=>e.p.part)));
+})();
+
+// ---- open-vector side offset (Vectric's profile Left/Right of an open line) ----
+(function(){
+  const line=[{x:0,y:0},{x:3.5,y:0}];
+  const L=CAM.offsetOpenPath(line, 0.1875,'round'), R=CAM.offsetOpenPath(line,-0.1875,'round');
+  ok('openoff: left of +X vector is +Y', L.length===2 && Math.abs(L[0].y-0.1875)<1e-6 && Math.abs(L[1].y-0.1875)<1e-6, JSON.stringify(L));
+  ok('openoff: right of +X vector is -Y', R.length===2 && Math.abs(R[0].y+0.1875)<1e-6, JSON.stringify(R));
+  ok('openoff: keeps the source direction', L[0].x<L[1].x && R[0].x<R[1].x, JSON.stringify([L[0].x,R[0].x]));
+  ok('openoff: butt ends, no overshoot', Math.abs(L[0].x-0)<1e-6 && Math.abs(L[1].x-3.5)<1e-6, JSON.stringify([L[0].x,L[1].x]));
+  ok('openoff: zero delta is the source', JSON.stringify(CAM.offsetOpenPath(line,0,'round'))===JSON.stringify(line.map(p=>({x:p.x,y:p.y}))));
+  ok('openoff: degenerate input yields nothing', CAM.offsetOpenPath([{x:0,y:0}],0.1,'round').length===0);
+
+  // an L-bend: the outside of the corner gets a tool-radius arc, the inside gets a sharp intersection
+  const bend=[{x:0,y:0},{x:2,y:0},{x:2,y:2}];
+  const out=CAM.offsetOpenPath(bend,-0.25,'round');   // right of the travel = outside of this left turn
+  const inn=CAM.offsetOpenPath(bend, 0.25,'round');
+  const onArc=out.filter(p=>Math.abs(Math.hypot(p.x-2,p.y-0)-0.25)<1e-3).length;
+  ok('openoff: convex corner rounds at tool radius', onArc>=3, onArc);
+  ok('openoff: concave corner is a single miter point', inn.length===3, inn.length);
+  ok('openoff: concave corner sits at the offset intersection', Math.abs(inn[1].x-1.75)<1e-6 && Math.abs(inn[1].y-0.25)<1e-6, JSON.stringify(inn[1]));
+  const far=p=>Math.min(...bend.map((q,i)=>i?Math.hypot(p.x-q.x,p.y-q.y):Infinity));
+  ok('openoff: every point is >= r from the source', out.every(p=>far(p)>=0.2499), 'ok');
+
+  // profileOp drives it, with tabs, on an open contour
+  const cs=[{closed:false,pts:line}];
+  const lp=CAM.profileOp(cs,{side:'left',toolDia:0.375,cutDepth:1.5,passDepth:0.375,tabs:{count:3,length:0.4,height:0.125}});
+  const P=lp.ops[0].passes;
+  ok('openoff: profileOp left => 4 depth passes', P.length===4, P.length);
+  ok('openoff: profileOp left offsets by tool radius', Math.abs(P[0].path[0].y-0.1875)<1e-6, P[0].path[0].y);
+  ok('openoff: open pass stays open', P.every(q=>!q.closed));
+  ok('openoff: tabs on the final pass only', P[3].path.some(q=>q.tab) && !P[0].path.some(q=>q.tab));
+  ok('openoff: tab count honoured', (function(){let n=0,prev=false;for(const q of P[3].path){if(q.tab&&!prev)n++;prev=q.tab;}return n===3;})());
+  ok('openoff: open path keeps its last vertex', Math.abs(P[3].path[P[3].path.length-1].x-3.5)<1e-6, P[3].path[P[3].path.length-1].x);
+  const rp=CAM.profileOp(cs,{side:'right',toolDia:0.375,cutDepth:0.25,passDepth:0.25});
+  ok('openoff: profileOp right mirrors left', Math.abs(rp.ops[0].passes[0].path[0].y+0.1875)<1e-6, rp.ops[0].passes[0].path[0].y);
+  const rev=CAM.profileOp([{closed:false,pts:line}],{side:'left',toolDia:0.375,cutDepth:0.25,passDepth:0.25,reverse:true});
+  ok('openoff: reverse flips the vector, so "left" flips side', Math.abs(rev.ops[0].passes[0].path[0].y+0.1875)<1e-6, rev.ops[0].passes[0].path[0].y);
+  const onp=CAM.profileOp(cs,{side:'on',toolDia:0.375,cutDepth:0.25,passDepth:0.25});
+  ok('openoff: side=on still cuts the line itself', Math.abs(onp.ops[0].passes[0].path[0].y)<1e-9);
+  const huge=CAM.profileOp([{closed:false,pts:[{x:0,y:0},{x:0.001,y:0}]}],{side:'left',toolDia:0.375,cutDepth:0.25,passDepth:0.25});
+  ok('openoff: no crash on a degenerate vector', Array.isArray(huge.ops[0].passes));
+  // closed contours are unaffected by the new side values
+  const sqc=CAM.assembleContours([{closed:true,pts:[{x:0,y:0},{x:4,y:0},{x:4,y:3},{x:0,y:3}]}]);
+  const cl=CAM.profileOp(sqc,{side:'left',toolDia:0.25,cutDepth:0.1,passDepth:0.5});
+  const cb=CAM.boundsOf(cl.ops[0].passes.map(q=>q.path));
+  ok('openoff: left/right on a CLOSED contour falls back to on-the-line', Math.abs(cb.minX)<1e-9 && Math.abs(cb.maxX-4)<1e-9, JSON.stringify(cb));
+})();
+
+// ---- pocket ring linking: the link move must never leave the pocket or jump between lobes ----
+(function(){
+  const mkC=(cx,cy,r,n)=>{const p=[];for(let i=0;i<n;i++){const a=i/n*Math.PI*2;p.push({x:cx+r*Math.cos(a),y:cy+r*Math.sin(a)});}return p;};
+  // sample every cut segment of every pass (ring edges AND links) — the safety property is about the
+  // swept path, and a ring edge is legitimately long, so segment LENGTH proves nothing on its own
+  const sweep=(passes,n)=>{ const out=[];
+    for(const pass of passes) for(let i=1;i<pass.path.length;i++){
+      const a=pass.path[i-1], b=pass.path[i];
+      for(let k=0;k<=(n||20);k++){const t=k/(n||20); out.push({x:a.x+(b.x-a.x)*t, y:a.y+(b.y-a.y)*t});} }
+    return out; };
+  const sq = CAM.assembleContours([{closed:true,pts:[{x:0,y:0},{x:4,y:0},{x:4,y:4},{x:0,y:4}]}]);
+  const O = {toolDia:0.5, stepover:0.5, cutDepth:0.1, passDepth:0.5, topZ:0};
+  const pk = CAM.pocketOp(sq, O), path = pk.ops[0].passes[0].path;
+
+  // 1. spiral direction: inside-out, so the single plunge lands where there is the most clearance
+  const d0=Math.hypot(path[0].x-2, path[0].y-2), dN=Math.hypot(path[path.length-1].x-2, path[path.length-1].y-2);
+  ok('link: spiral starts inside and ends at the wall', d0 < dN, `${d0.toFixed(3)} -> ${dN.toFixed(3)}`);
+
+  // 2. the swept path — links included — never crosses the tool-centre boundary
+  const swept = sweep(pk.ops[0].passes);
+  ok('link: whole swept spiral stays a tool radius inside the wall',
+     swept.every(p=>p.x>=0.25-1e-6 && p.x<=3.75+1e-6 && p.y>=0.25-1e-6 && p.y<=3.75+1e-6));
+
+  // 3. an island: no link may clip across it
+  const withHole = CAM.assembleContours([
+    {closed:true,pts:[{x:0,y:0},{x:6,y:0},{x:6,y:6},{x:0,y:6}]},
+    {closed:true,pts:[{x:2.5,y:2.5},{x:3.5,y:2.5},{x:3.5,y:3.5},{x:2.5,y:3.5}]}]);
+  const pkh = CAM.pocketOp(withHole, {toolDia:0.25, stepover:0.5, cutDepth:0.1, passDepth:0.5});
+  const hit = sweep(pkh.ops[0].passes).filter(p=>p.x>2.5+1e-6&&p.x<3.5-1e-6&&p.y>2.5+1e-6&&p.y<3.5-1e-6);
+  ok('link: nothing in the swept path enters the island', hit.length===0, JSON.stringify(hit[0]||null));
+  ok('link: island pocket still links (fewer passes than rings)',
+     pkh.ops[0].passes.length < CAM.pocketOp(withHole,{toolDia:0.25,stepover:0.5,cutDepth:0.1,passDepth:0.5,linkRings:false}).ops[0].passes.length);
+
+  // 4. two separate pockets are never linked to each other — the move between them is solid stock
+  const two = CAM.assembleContours([{closed:true,pts:mkC(0,0,1,64)},{closed:true,pts:mkC(8,0,1,64)}]);
+  const pk2 = CAM.pocketOp(two, {toolDia:0.25, stepover:0.5, cutDepth:0.1, passDepth:0.5});
+  ok('link: two disjoint pockets -> exactly two passes', pk2.ops[0].passes.length===2, pk2.ops[0].passes.length);
+  for(const pass of pk2.ops[0].passes){
+    const b=CAM.boundsOf([pass.path]);
+    ok('link: each pass covers one pocket only', (b.maxX-b.minX) < 2.1, (b.maxX-b.minX).toFixed(3));
+  }
+  // ...even when they are closer together than the link distance, but with stock between them
+  const close = CAM.assembleContours([{closed:true,pts:mkC(0,0,1,64)},{closed:true,pts:mkC(2.1,0,1,64)}]);
+  const pkC = CAM.pocketOp(close, {toolDia:0.25, stepover:0.5, cutDepth:0.1, passDepth:0.5});
+  const gap = sweep(pkC.ops[0].passes).filter(p=>Math.hypot(p.x,p.y)>1.001 && Math.hypot(p.x-2.1,p.y)>1.001);
+  ok('link: never cuts through the wall between two near pockets', gap.length===0, JSON.stringify(gap[0]||null));
+
+  // 5. linkMax=0 forbids every link, so it degrades to one pass per ring
+  const none = CAM.pocketOp(sq, Object.assign({linkMax:0}, O));
+  ok('link: linkMax 0 gives one pass per ring', none.ops[0].passes.length ===
+     CAM.pocketOp(sq, Object.assign({linkRings:false}, O)).ops[0].passes.length, none.ops[0].passes.length);
+
+  // 6. the retract saving is real: count G0 Z-retracts in the posted program
+  const post=Object.assign({},CAM.POSTS.shopsabre,{arcs:false});
+  const gL=CAM.postProcess({name:'L',units:'inch',ops:CAM.pocketOp(sq,Object.assign({},O,{cutDepth:0.5,passDepth:0.25})).ops}, post);
+  const gU=CAM.postProcess({name:'U',units:'inch',ops:CAM.pocketOp(sq,Object.assign({},O,{cutDepth:0.5,passDepth:0.25,linkRings:false})).ops}, post);
+  const retr=g=>(g.match(/^G0 Z0\.2500$/gm)||[]).length;   // clear-Z retracts only, not the final park
+  ok('link: far fewer retracts than one-ring-per-pass', retr(gL) < retr(gU), `${retr(gL)} vs ${retr(gU)}`);
+  ok('link: one retract per depth level', retr(gL)===2, `${retr(gL)} linked vs ${retr(gU)} unlinked`);
+
+  // 7. cut coverage is unchanged — the linked spiral still visits every ring point
+  const lin=CAM.pocketOp(sq,O).ops[0].passes.flatMap(p=>p.path);
+  const unl=CAM.pocketOp(sq,Object.assign({linkRings:false},O)).ops[0].passes.flatMap(p=>p.path);
+  const near=(p,S)=>S.some(q=>Math.hypot(p.x-q.x,p.y-q.y)<1e-6);
+  ok('link: every unlinked ring point is still cut', unl.every(p=>near(p,lin)));
+
+  // 8. rest machining: links, and never leaves the pocket
+  const rm=CAM.pocketOp(sq,{toolDia:0.5,cutDepth:0.2,passDepth:0.2,stepover:0.4,finishDia:0.125,finishNum:7});
+  ok('link: rest op still produced', rm.ops.length===2 && rm.ops[1].passes.length>0, rm.ops.length);
+  ok('link: rest sweep stays inside the wall', sweep(rm.ops[1].passes).every(p=>
+     p.x>=0.0625-1e-6 && p.x<=3.9375+1e-6 && p.y>=0.0625-1e-6 && p.y<=3.9375+1e-6));
+
+  // 9. ramp entry still descends into the first (innermost) ring of the spiral
+  const rp=CAM.pocketOp(sq, Object.assign({rampEntry:true}, O));
+  ok('link: ramp entry survives linking',
+     rp.ops[0].passes[0].path.some(p=>p.ramp!=null) && rp.ops[0].passes[0].closed===false);
 })();
 
 console.log(`\n${pass} passed, ${fail} failed`);

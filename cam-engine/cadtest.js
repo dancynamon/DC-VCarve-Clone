@@ -300,5 +300,110 @@ ok('placeShape spreads sheets',close(bb(psp).minX,1+2*(24+6)),bb(psp).minX);
 // shapesToContoursInput for CAM
 let inp=C.shapesToContoursInput([r,ci]); ok('contours input closed',inp.every(c=>c.closed));
 
+// ---------- B3: dimension annotations ----------
+{
+  const d=C.mkDimension({x:0,y:0},{x:4,y:0},{style:'horizontal',off:0.5,textH:0.2});
+  ok('dim: type + annotation flag', d.type==='dim' && d.annotation===true && d.prim.kind==='dim');
+  ok('dim: defining pts tracked', d.pts.length===2 && close(d.pts[1].x,4));
+  const g=C.dimensionGeometry(d.prim);
+  ok('dim: horizontal value', close(g.value,4), g.value);
+  ok('dim: label formatted with inch mark', g.text==='4.000"', g.text);
+  ok('dim: geometry has ext lines + dim line + 2 arrows + text', g.loops.length>=6, g.loops.length);
+  const arrows=g.loops.filter(l=>l.closed);
+  ok('dim: two solid arrowheads', arrows.length===2, arrows.length);
+  // the dimension line sits `off` above the highest measured point
+  const db=C.bbox(d);
+  ok('dim: offset places geometry above the points', db.maxY>0.5-1e-9 && db.minY>=-1e-6, JSON.stringify(db));
+
+  // aligned measures true distance; horizontal/vertical measure the axis components
+  const pa={x:0,y:0}, pb={x:3,y:4};
+  ok('dim: aligned value = 5', close(C.dimValue({style:'aligned',a:pa,b:pb}),5));
+  ok('dim: horizontal value = 3', close(C.dimValue({style:'horizontal',a:pa,b:pb}),3));
+  ok('dim: vertical value = 4', close(C.dimValue({style:'vertical',a:pa,b:pb}),4));
+
+  // radius / diameter
+  const dr=C.mkDimension({x:0,y:0},{x:2,y:0},{style:'radius'});
+  const gr=C.dimensionGeometry(dr.prim);
+  ok('dim: radius value + R prefix', close(gr.value,2) && gr.text.indexOf('R')===0, gr.text);
+  const dd=C.mkDimension({x:0,y:0},{x:2,y:0},{style:'diameter'});
+  const gd=C.dimensionGeometry(dd.prim);
+  ok('dim: diameter doubles the radius', close(gd.value,4) && gd.text.indexOf('Ø')===0, gd.text);
+  ok('dim: diameter draws arrows at both ends', gd.loops.filter(l=>l.closed).length===2);
+
+  // angle (3-point)
+  const da=C.mkDimension({x:0,y:0},{x:1,y:0},{style:'angle',c:{x:0,y:1},off:0.5});
+  const ga=C.dimensionGeometry(da.prim);
+  ok('dim: angle value 90°', close(ga.value,90,1e-6), ga.value);
+  ok('dim: angle label has degree sign', ga.text.indexOf('°')>0, ga.text);
+  ok('dim: angle keeps 3 defining pts', da.pts.length===3);
+
+  // units + precision + manual override
+  ok('dim: mm units', C.fmtDimValue(1,2,'mm')==='25.40 MM', C.fmtDimValue(1,2,'mm'));
+  ok('dim: precision honoured', C.fmtDimValue(1.23456,1,'in')==='1.2"', C.fmtDimValue(1.23456,1,'in'));
+  const dl=C.mkDimension({x:0,y:0},{x:4,y:0},{style:'horizontal',label:'TYP 4X'});
+  ok('dim: manual label overrides the measurement', C.dimensionGeometry(dl.prim).text==='TYP 4X');
+
+  // transforms move the defining points and the drawn geometry with them
+  const dt=C.translate(d,10,5);
+  ok('dim: translate moves defining pts', close(dt.prim.a.x,10) && close(dt.prim.a.y,5) && close(dt.pts[0].x,10));
+  ok('dim: translate keeps it a dimension', dt.type==='dim' && dt.prim.kind==='dim');
+  ok('dim: translated bbox shifts', close(C.bbox(dt).minX-db.minX,10,1e-6));
+  const dm=C.mirror(d,'x',2);
+  ok('dim: mirror keeps prim + value', dm.prim.kind==='dim' && close(C.dimValue(dm.prim),4));
+  const drot=C.rotate(d,0,0,Math.PI/2);
+  ok('dim: rotate keeps the measured length', close(C.dimValue(Object.assign({},drot.prim,{style:'aligned'})),4,1e-6));
+
+  // annotations never reach CAM
+  const camIn=C.shapesToContoursInput([r,d]);
+  ok('dim: excluded from CAM contours', camIn.length===C.shapesToContoursInput([r]).length, camIn.length);
+  // ...but they do export as plain geometry
+  ok('dim: exports to DXF as polylines', C.toDXF([d]).indexOf('LWPOLYLINE')>0);
+  ok('dim: exports to SVG', C.toSVG([d]).indexOf('<path')>0);
+  // Check vectors ignores annotations
+  const vd=C.validateShapes([d]);
+  ok('dim: not flagged as an open vector', vd.open.length===0);
+
+  // numeric edit round-trip through the properties dialog
+  const pp=C.primParams(d);
+  ok('dim: primParams exposes style + offset', pp.kind==='dim' && pp.style==='horizontal' && close(pp.off,0.5));
+  const d2=C.applyPrimParams(d, Object.assign({},pp,{style:'vertical',x2:4,y2:3,prec:2}));
+  ok('dim: applyPrimParams rebuilds with new style', d2.prim.style==='vertical' && d2.id===d.id, d2.prim.style);
+  ok('dim: rebuilt value follows the new style', close(C.dimValue(d2.prim),3), C.dimValue(d2.prim));
+
+  // hit test picks the dimension line itself
+  ok('dim: hit test on the dimension line', C.hitTest(d,{x:2,y:0.5},0.02));
+  ok('dim: hit test misses empty space', !C.hitTest(d,{x:2,y:-1},0.02));
+
+  // project round-trip keeps dimensions
+  const proj=C.projectFromJSON(C.projectToJSON({shapes:[d],layers:new Map([['0',{visible:true}]])},null,[],{}));
+  ok('dim: survives .aqcam round-trip', proj.shapes.length===1 && proj.shapes[0].type==='dim' && close(C.dimValue(proj.shapes[0].prim),4));
+
+  // tight dimensions flip their arrows outside instead of overlapping
+  const tight=C.mkDimension({x:0,y:0},{x:0.05,y:0},{style:'horizontal',textH:0.2});
+  const gt=C.dimensionGeometry(tight.prim);
+  const dimLine=gt.loops.find(l=>!l.closed && l.pts.length===2 && Math.abs(l.pts[0].y-l.pts[1].y)<1e-9 && Math.abs(l.pts[1].x-l.pts[0].x)>0.05);
+  ok('dim: tight span extends the dimension line past the arrows', !!dimLine, gt.loops.length);
+
+  // text metrics back the label centring
+  ok('dim: measureText grows with height', C.measureText('12.000"',0.4) > C.measureText('12.000"',0.2));
+  ok('dim: measureText of empty string is 0', close(C.measureText('',0.2),0));
+}
+
+// ---- export filenames: the Artifact host only accepts a fixed set of extensions ----
+(function(){
+  const f=C.saveFilename;
+  ok('savename: .tap carries a .txt alternative', f('design.tap').name==='design.tap' && f('design.tap').alt==='design.tap.txt', JSON.stringify(f('design.tap')));
+  ok('savename: .dxf carries a .txt alternative', f('design.dxf').alt==='design.dxf.txt');
+  ok('savename: project formats fall back to .json, not .txt', f('design.aqcam').alt==='design.aqcam.json' && f('t.aqtpl').alt==='t.aqtpl.json' && f('c.aqclip').alt==='c.aqclip.json');
+  ok('savename: an already-safe extension needs no alternative', f('x.json').alt===null && f('x.txt').alt===null && f('a.png').alt===null);
+  ok('savename: the real name is never altered', ['design.tap','x.json','no-extension'].every(n=>f(n).name===n));
+  ok('savename: extension test is case-insensitive', f('X.JSON').alt===null && f('D.TAP').alt==='D.TAP.txt');
+  ok('savename: a file with no extension gets .txt', f('noext').alt==='noext.txt');
+  ok('savename: a dotted name keeps its last extension', f('board 3.rev2.tap').alt==='board 3.rev2.tap.txt');
+  ok('savename: extended-set extensions still carry a fallback (may not be enabled)', f('design.svg').alt==='design.svg.txt' && f('r.pdf').alt==='r.pdf.txt');
+  ok('savename: survives junk input', f(null).name==='' && f(undefined).alt==='.txt');
+  ok('savename: the alternative is itself acceptable', ['design.tap','design.aqcam','noext'].every(n=>f(f(n).alt).alt===null));
+})();
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

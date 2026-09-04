@@ -1,0 +1,89 @@
+{
+  "name": "LGC 50 Job 1 Board 5",
+  "dxf": "../LGC 50 Job 1 Board 5.dxf",
+  "out": "../LGC 50 Job 1 Board 5-aq.tap",
+  "note": "4 through holes, then 4 crosscuts offset 3/16in off the line, 4 passes to 1.5in, one 0.875in tab each.",
+  "ops": [
+    {
+      "op": "drill",
+      "toolNum": 8,
+      "toolDia": 0.375,
+      "rpm": 10000,
+      "feed": 62.5,
+      "plunge": 20,
+      "cutDepth": 1.5,
+      "clearZ": 0.8,
+      "label": "Through holes",
+      "select": [
+        [
+          "FRONT_LEG",
+          0
+        ],
+        [
+          "REAR_LEG",
+          0
+        ],
+        [
+          "T9_COUNTERSINK_0_6",
+          6
+        ],
+        [
+          "T9_COUNTERSINK_0_6",
+          5
+        ]
+      ]
+    },
+    {
+      "op": "profile",
+      "climb": false,
+      "toolNum": 3,
+      "toolDia": 0.375,
+      "rpm": 18000,
+      "feed": 60,
+      "plunge": 20,
+      "cutDepth": 1.5,
+      "passDepth": 0.375,
+      "clearZ": 0.8,
+      "side": "right",
+      "tabs": {
+        "count": 1,
+        "length": 0.875,
+        "height": 0.125
+      },
+      "label": "Crosscuts",
+      "select": [
+        [
+          "BOTTOM_STEP_1",
+          0,
+          {
+            "side": "right",
+            "reverse": true
+          }
+        ],
+        [
+          "TOP_STEP_4",
+          0,
+          {
+            "side": "right",
+            "reverse": true
+          }
+        ],
+        [
+          "TOP_STEP_4",
+          1,
+          {
+            "side": "right",
+            "reverse": true
+          }
+        ],
+        [
+          "T9_COUNTERSINK_0_6",
+          7,
+          {
+            "side": "right"
+          }
+        ]
+      ]
+    }
+  ]
+}

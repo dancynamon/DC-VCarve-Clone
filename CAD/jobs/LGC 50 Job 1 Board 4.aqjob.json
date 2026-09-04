@@ -1,0 +1,220 @@
+{
+  "name": "LGC 50 Job 1 Board 4",
+  "dxf": "../LGC 50 Job 1 Board 4.dxf",
+  "out": "../LGC 50 Job 1 Board 4-aq.tap",
+  "note": "T10 pilot holes, a 0.1in scoring pass on the two stabilizer cuts, 6 through holes, the 1.5in pocket + wall, then 7 crosscuts.",
+  "ops": [
+    {
+      "op": "drill",
+      "toolNum": 10,
+      "toolDia": 0.375,
+      "rpm": 10000,
+      "feed": 62.5,
+      "plunge": 20,
+      "cutDepth": 0.5,
+      "clearZ": 0.8,
+      "label": "Pilot holes",
+      "select": [
+        [
+          "5TH-6TH_STABILIZER",
+          0
+        ],
+        [
+          "5TH-6TH_STABILIZER",
+          1
+        ],
+        [
+          "5TH-6TH_STABILIZER",
+          4
+        ],
+        [
+          "5TH-6TH_STABILIZER",
+          3
+        ]
+      ]
+    },
+    {
+      "op": "profile",
+      "label": "Scoring pass",
+      "side": "right",
+      "climb": false,
+      "toolNum": 5,
+      "toolDia": 0.375,
+      "rpm": 20000,
+      "feed": 100,
+      "plunge": 25,
+      "cutDepth": 0.1,
+      "passDepth": 0.1,
+      "clearZ": 0.8,
+      "tabs": {
+        "count": 0,
+        "length": 0,
+        "height": 0
+      },
+      "select": [
+        [
+          "5TH-6TH_STABILIZER",
+          2
+        ],
+        [
+          "5TH-6TH_STABILIZER",
+          5
+        ]
+      ]
+    },
+    {
+      "op": "drill",
+      "toolNum": 8,
+      "toolDia": 0.375,
+      "rpm": 10000,
+      "feed": 62.5,
+      "plunge": 20,
+      "cutDepth": 1.5,
+      "clearZ": 0.8,
+      "label": "Through holes",
+      "select": [
+        [
+          "T9_COUNTERSINK_0_6",
+          0
+        ],
+        [
+          "FRONT_LEG",
+          3
+        ],
+        [
+          "FRONT_LEG",
+          2
+        ],
+        [
+          "SEAT",
+          0
+        ],
+        [
+          "SEAT",
+          1
+        ],
+        [
+          "T3_PROFILE_INSIDE_2",
+          0
+        ]
+      ]
+    },
+    {
+      "op": "pocket",
+      "label": "1.5in pocket (rough)",
+      "toolNum": 3,
+      "toolDia": 0.375,
+      "rpm": 18000,
+      "feed": 60,
+      "plunge": 20,
+      "cutDepth": 0.5,
+      "passDepth": 0.25,
+      "clearZ": 0.8,
+      "stepover": 0.25,
+      "climb": false,
+      "pocketStyle": "offset",
+      "select": [
+        [
+          "T3_PROFILE_INSIDE_2",
+          1
+        ]
+      ]
+    },
+    {
+      "op": "profile",
+      "label": "Pocket wall (finish)",
+      "side": "inside",
+      "climb": false,
+      "toolNum": 9,
+      "toolDia": 0.125,
+      "rpm": 18000,
+      "feed": 100,
+      "plunge": 30,
+      "cutDepth": 0.5,
+      "passDepth": 0.5,
+      "clearZ": 0.8,
+      "select": [
+        [
+          "T3_PROFILE_INSIDE_2",
+          1
+        ]
+      ]
+    },
+    {
+      "op": "profile",
+      "climb": false,
+      "toolNum": 3,
+      "toolDia": 0.375,
+      "rpm": 18000,
+      "feed": 60,
+      "plunge": 20,
+      "cutDepth": 1.5,
+      "passDepth": 0.375,
+      "clearZ": 0.8,
+      "side": "right",
+      "tabs": {
+        "count": 1,
+        "length": 0.875,
+        "height": 0.125
+      },
+      "label": "Crosscuts",
+      "select": [
+        [
+          "T3_PROFILE_INSIDE_2",
+          2,
+          {
+            "side": "right",
+            "reverse": true,
+            "tabs": {
+              "count": 3,
+              "length": 0.875,
+              "height": 0.125
+            }
+          }
+        ],
+        [
+          "T9_COUNTERSINK_0_6",
+          1,
+          {
+            "side": "right"
+          }
+        ],
+        [
+          "FRONT_LEG",
+          4,
+          {
+            "side": "right"
+          }
+        ],
+        [
+          "T9_COUNTERSINK_0_6",
+          2,
+          {
+            "side": "right"
+          }
+        ],
+        [
+          "5TH-6TH_STABILIZER",
+          2,
+          {
+            "side": "right"
+          }
+        ],
+        [
+          "T9_COUNTERSINK_0_6",
+          3,
+          {
+            "side": "right"
+          }
+        ],
+        [
+          "5TH-6TH_STABILIZER",
+          5,
+          {
+            "side": "right"
+          }
+        ]
+      ]
+    }
+  ]
+}

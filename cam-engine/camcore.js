@@ -7,6 +7,9 @@
 })(typeof self !== 'undefined' ? self : this, function (ClipperLib) {
 'use strict';
 const SCALE = 100000, TOL = 1e-4;
+const ARC_TOL = 0.001;        // ClipperOffset arc tolerance: how far an offset round join may sit off true
+const ARC_CHORD_RATIO = 12;    // max chord / median chord inside one fitted arc — a real curve is near-uniform
+const ARC_MAX_SAG = 0.05;      // hard cap (in) on how far a fitted arc may depart from the polyline it replaces
 function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
 function near(a,b,t){return dist(a,b)<=(t==null?TOL:t);}
 function signedArea(pts){let s=0;for(let i=0,n=pts.length;i<n;i++){const a=pts[i],b=pts[(i+1)%n];s+=a.x*b.y-b.x*a.y;}return s/2;}
@@ -57,7 +60,7 @@ function assembleContours(polys, tol){
 }
 
 function offsetLoop(loop, delta, joinType){
-  const co=new ClipperLib.ClipperOffset(2, 0.003*SCALE);
+  const co=new ClipperLib.ClipperOffset(2, ARC_TOL*SCALE);
   const path=loop.map(p=>new ClipperLib.IntPoint(Math.round(p.x*SCALE),Math.round(p.y*SCALE)));
   const jt = joinType==='miter'?ClipperLib.JoinType.jtMiter : joinType==='square'?ClipperLib.JoinType.jtSquare : ClipperLib.JoinType.jtRound;
   co.AddPath(path, jt, ClipperLib.EndType.etClosedPolygon);
@@ -66,17 +69,63 @@ function offsetLoop(loop, delta, joinType){
   return sol.map(p=>p.map(pt=>({x:pt.X/SCALE,y:pt.Y/SCALE})));
 }
 
-function withTabs(loop, count, tabLen){
+// ---- one-sided offset of an OPEN vector (Vectric's "profile left/right of the line") ----
+// Clipper only offsets an open path into a closed "racetrack" that wraps both sides. Rather than
+// re-derive corner joins by hand (and get the self-intersection cleanup wrong), offset with butt ends
+// and then keep the run of the result that lies on the wanted side of the source. delta>0 = left of
+// travel direction, delta<0 = right. Returns the run oriented along the source, or [] if it vanished.
+function _sideOf(pts, v){          // signed side of v w.r.t. the nearest segment of the open path pts
+  let bestD=Infinity, bestC=0;
+  for(let i=0;i<pts.length-1;i++){
+    const a=pts[i], b=pts[i+1], vx=b.x-a.x, vy=b.y-a.y, L2=vx*vx+vy*vy;
+    let t=L2?((v.x-a.x)*vx+(v.y-a.y)*vy)/L2:0; t=Math.max(0,Math.min(1,t));
+    const d=Math.hypot(v.x-a.x-t*vx, v.y-a.y-t*vy);
+    if(d<bestD){ bestD=d; bestC=vx*(v.y-a.y)-vy*(v.x-a.x); }
+  }
+  return bestC>0?1:(bestC<0?-1:0);
+}
+function offsetOpenPath(pts, delta, joinType){
+  if(!pts || pts.length<2) return [];
+  if(Math.abs(delta)<1e-9) return pts.map(p=>({x:p.x,y:p.y}));
+  const co=new ClipperLib.ClipperOffset(2, ARC_TOL*SCALE);
+  const jt = joinType==='miter'?ClipperLib.JoinType.jtMiter : joinType==='square'?ClipperLib.JoinType.jtSquare : ClipperLib.JoinType.jtRound;
+  co.AddPath(toIntPath(pts), jt, ClipperLib.EndType.etOpenButt);
+  const sol=new ClipperLib.Paths();
+  co.Execute(sol, Math.abs(delta)*SCALE);
+  if(!sol.length) return [];
+  let ring=null, bestA=-1;
+  for(const p of sol){ const r=fromIntPath(p), a=Math.abs(signedArea(r)); if(a>bestA){bestA=a; ring=r;} }
+  if(!ring || ring.length<2) return [];
+  const want = delta>0?1:-1;
+  const side = ring.map(v=>_sideOf(pts,v));
+  // longest contiguous cyclic run on the wanted side (the racetrack has exactly one per side)
+  const n=ring.length; let bestStart=-1,bestLen=0,i=0;
+  while(i<n){
+    if(side[i]!==want){i++;continue;}
+    let len=0; while(len<n && side[(i+len)%n]===want) len++;
+    if(len>bestLen){bestLen=len;bestStart=i;}
+    i+=len;
+  }
+  if(bestStart<0) return [];
+  const run=[]; for(let k=0;k<bestLen;k++) run.push(ring[(bestStart+k)%n]);
+  const s=pts[0], e=pts[pts.length-1];
+  if(dist(run[0],s)>dist(run[0],e)) run.reverse();   // travel the same way as the source vector
+  return run;
+}
+
+function withTabs(loop, count, tabLen, closed){
+  closed = closed!==false;
   if(!count||count<1||!tabLen) return loop.map(p=>({x:p.x,y:p.y,tab:false}));
   const n=loop.length, segLen=[]; let total=0;
-  for(let i=0;i<n;i++){const a=loop[i],b=loop[(i+1)%n];const L=dist(a,b);segLen.push(L);total+=L;}
+  const last = closed?n:n-1;
+  for(let i=0;i<last;i++){const a=loop[i],b=loop[(i+1)%n];const L=dist(a,b);segLen.push(L);total+=L;}
   if(total===0) return loop.map(p=>({x:p.x,y:p.y,tab:false}));
   const centers=[]; for(let k=0;k<count;k++) centers.push((k+0.5)/count*total);
   const half=Math.min(tabLen, total/count*0.9)/2;
   const iv=centers.map(c=>[c-half,c+half]);
   function inTab(pos){for(const [s,e] of iv){let a=((s%total)+total)%total,b=((e%total)+total)%total;if(a<=b){if(pos>=a&&pos<=b)return true;}else{if(pos>=a||pos<=b)return true;}}return false;}
   const out=[]; let acc=0;
-  for(let i=0;i<n;i++){
+  for(let i=0;i<last;i++){
     const a=loop[i],b=loop[(i+1)%n],L=segLen[i];
     out.push({x:a.x,y:a.y,tab:inTab(acc)});
     const steps=Math.max(1,Math.ceil(L/0.02));
@@ -86,6 +135,7 @@ function withTabs(loop, count, tabLen){
     }
     acc+=L;
   }
+  if(!closed) out.push({x:loop[n-1].x, y:loop[n-1].y, tab:inTab(total)});   // open paths keep their last vertex
   return out;
 }
 
@@ -138,29 +188,50 @@ function profileOp(contours, opts){
   const r=o.toolDia/2, warnings=[], passesAll=[]; let leadSkipped=false;
   const depths=[]; let d=Math.min(o.passDepth,o.cutDepth);
   while(d<o.cutDepth-1e-9){depths.push(d);d+=o.passDepth;} depths.push(o.cutDepth);
+  const openSide = (o.side==='left'||o.side==='right');
   for(const c of contours){
-    let loops;
-    if(o.side==='on'||!c.closed) loops=[c.pts];
+    let loops, pts=(o.reverse && !c.closed)?reversed(c.pts):c.pts;
+    if(!c.closed){
+      // open vector: cut on the line, or offset to one side of it (Vectric's Left/Right)
+      if(!openSide) loops=[pts];
+      else{
+        const run=offsetOpenPath(pts, o.side==='left'?+r:-r, o.joinType);
+        if(!run.length){warnings.push('Open-vector offset vanished (tool too big) on a contour');continue;}
+        loops=[run];
+      }
+    } else if(o.side==='on'||openSide) loops=[pts];
     else{
-      const base=ensureCCW(c.pts);
+      const base=ensureCCW(pts);
       const delta=o.side==='outside'?+r:-r;
       loops=offsetLoop(base,delta,o.joinType);
       if(!loops.length){warnings.push('Inside profile collapsed (tool too big) on a contour');continue;}
     }
     for(let lp of loops){
-      if(c.closed && o.side!=='on'){
+      if(c.closed && o.side!=='on' && !openSide){
         const wantCCW=(o.side==='outside')?!o.climb:o.climb;
         lp=wantCCW?ensureCCW(lp):ensureCW(lp);
       }
-      const tabbed=(c.closed && o.tabs && o.tabs.count>0)?withTabs(lp,o.tabs.count,o.tabs.length):lp.map(p=>({x:p.x,y:p.y,tab:false}));
-      let path=tabbed, closed=c.closed&&o.side!=='on';
-      if(closed && o.leadType && o.leadType!=='none'){
+      const tabH=(o.tabs&&o.tabs.count>0&&o.tabs.height)||0;
+      const wantTabs=(o.tabs && o.tabs.count>0 && (c.closed || openSide || o.side==='on'));
+      const plain=lp.map(p=>({x:p.x,y:p.y,tab:false}));
+      const tabbed=wantTabs?withTabs(lp,o.tabs.count,o.tabs.length,c.closed):plain;
+      let closed=c.closed&&o.side!=='on';
+      const lead=pts0=>{
+        if(!(closed && o.leadType && o.leadType!=='none')) return {path:pts0, closed};
         const interiorSign=signedArea(lp)>0?1:-1;                       // left normal = interior when CCW
         const sideSign=(o.side==='outside')?-interiorSign:interiorSign; // outside profile leads away from part; inside leads into the hole
-        const wl=wrapLead(lp,tabbed,o.leadType,o.leadLen,sideSign,o.rampLen);
-        path=wl.path; closed=wl.closed; if(wl.skipped) leadSkipped=true;
-      }
-      depths.forEach(depth=>passesAll.push({z:o.topZ-depth,tabHeight:(o.tabs&&o.tabs.height)||0,closed,path}));
+        const wl=wrapLead(lp,pts0,o.leadType,o.leadLen,sideSign,o.rampLen);
+        if(wl.skipped) leadSkipped=true;
+        return {path:wl.path, closed:wl.closed};
+      };
+      const wTab=lead(tabbed), noTab=lead(plain);
+      // Tabs only bite on passes that reach into the tab: a pass shallower than (cutDepth - tabHeight)
+      // is entirely above the tab top, so lifting there would just leave stock for the next pass to hit.
+      depths.forEach(depth=>{
+        const bites = tabH>0 && depth > o.cutDepth-tabH+1e-9;
+        const w = bites?wTab:noTab;
+        passesAll.push({z:o.topZ-depth, tabHeight:bites?tabH:0, closed:w.closed, path:w.path});
+      });
     }
   }
   if(leadSkipped) warnings.push('Lead-in/out skipped on a contour too small for the lead length');
@@ -192,7 +263,7 @@ function regionFromLoops(loops){
 }
 // offset an oriented region (IntPoint paths) by delta inches; returns array of point-loops
 function offsetRegion(region, delta){
-  const co=new ClipperLib.ClipperOffset(2, 0.003*SCALE);
+  const co=new ClipperLib.ClipperOffset(2, ARC_TOL*SCALE);
   for(const path of region) co.AddPath(path, ClipperLib.JoinType.jtRound, ClipperLib.EndType.etClosedPolygon);
   const sol=new ClipperLib.Paths(); co.Execute(sol, delta*SCALE);
   return sol.map(fromIntPath);
@@ -264,8 +335,62 @@ function scanLineSegs(fillPaths, y, xLo, xHi){
   segs.sort((a,b)=>a[0]-b[0]);
   return segs;
 }
+// ---- ring linking: turn concentric pocket rings into a continuous spiral ----------------------
+// One pass per ring means one retract-rapid-plunge cycle per ring; a 6-ring pocket at 2 depths pays
+// for 12 of them. Linking chains rings that touch into a single pass, so the tool steps from the
+// close of one ring straight into the next at cut depth. Rings are cut innermost-first (the caller
+// reverses them), which puts the one plunge where the pocket has the most clearance and makes every
+// link step outward by one stepover — the same engagement the ring itself is already taking.
+//
+// A link is only made when it is both SHORT (<= linkMax stepovers) and lies INSIDE the pocket, so
+// two disjoint lobes of a region — or a ring and an island's ring — never get joined by a move that
+// would plough through uncut stock. Anything that fails either test starts a fresh chain, which is
+// exactly the old one-pass-per-ring behaviour for that ring.
+function _nearestIdx(loop, p){ let bi=0,bd=Infinity; for(let i=0;i<loop.length;i++){const d=dist(loop[i],p); if(d<bd){bd=d;bi=i;}} return bi; }
+function _rotate(loop, i){ return loop.slice(i).concat(loop.slice(0,i)); }
+// Is the straight move a->b entirely inside the pocket? Sampling, not just the midpoint: a link that
+// clips the corner of an island can have both ends and its centre in free space.
+function _moveInside(a, b, regionPaths, n){
+  n=n||8;
+  for(let k=1;k<n;k++){ const t=k/n; if(!pointInRegion({x:a.x+(b.x-a.x)*t, y:a.y+(b.y-a.y)*t}, regionPaths)) return false; }
+  return true;
+}
+// Greedy nearest-chain, NOT list order. offsetRegion emits every lobe's ring at one offset distance
+// before stepping inward, so a two-lobe pocket arrives interleaved A,B,A,B and no two consecutive
+// rings are ever nested — order-based chaining silently links nothing. Growing each chain by
+// repeatedly taking the nearest unused ring is independent of that ordering.
+function linkRings(rings, so, regionPaths, linkMax){
+  const maxD=(linkMax==null?1.5:linkMax)*so;
+  const rest=rings.slice(), chains=[];
+  while(rest.length){
+    const chain=[rest.shift()]; chains.push(chain);
+    let end=chain[0][0];
+    if(maxD<=0) continue;
+    for(;;){
+      // candidates within reach, nearest first; the first whose link stays inside the pocket wins
+      const cand=[];
+      for(let i=0;i<rest.length;i++){ const j=_nearestIdx(rest[i], end), d=dist(rest[i][j], end); if(d<=maxD+1e-9) cand.push({i,j,d}); }
+      if(!cand.length) break;
+      cand.sort((a,b)=>a.d-b.d);
+      let took=null;
+      for(const c of cand){ if(_moveInside(end, rest[c.i][c.j], regionPaths)){ took=c; break; } }
+      if(!took) break;
+      const lp=rest.splice(took.i,1)[0], p=lp[took.j];
+      chain.push(_rotate(lp,took.j)); end=p;
+    }
+  }
+  return chains;
+}
+// a chain -> one point list; each ring is closed explicitly, and the step to the next ring's start
+// IS the link move, so the post emits it as an ordinary G1 at cut depth.
+function chainToPath(chain){
+  const out=[];
+  for(const lp of chain){ for(const p of lp) out.push({x:p.x,y:p.y,tab:false}); out.push({x:lp[0].x,y:lp[0].y,tab:false}); }
+  return out;
+}
+
 function pocketOp(contours, opts){
-  const o=Object.assign({toolNum:1,toolDia:0.25,climb:true,topZ:0,cutDepth:0.25,passDepth:0.125,safeZ:0.25,feed:120,plunge:40,rpm:18000,stepover:0.4,pocketStyle:'offset',leadType:'none',leadLen:0.25,rampLen:0,rampEntry:false,finishDia:0,finishNum:2},opts||{});
+  const o=Object.assign({toolNum:1,toolDia:0.25,climb:true,topZ:0,cutDepth:0.25,passDepth:0.125,safeZ:0.25,feed:120,plunge:40,rpm:18000,stepover:0.4,pocketStyle:'offset',leadType:'none',leadLen:0.25,rampLen:0,rampEntry:false,finishDia:0,finishNum:2,linkRings:true,linkMax:1.5},opts||{});
   const r=o.toolDia/2, warnings=[];
   const loops=contours.filter(c=>c.closed && c.pts && c.pts.length>=3).map(c=>c.pts);
   if(!loops.length){ warnings.push('Pocket needs at least one closed contour'); return {ops:[{kind:'pocket',toolNum:o.toolNum,rpm:o.rpm,feed:o.feed,plunge:o.plunge,safeZ:o.safeZ,topZ:o.topZ,passes:[]}],warnings}; }
@@ -307,20 +432,33 @@ function pocketOp(contours, opts){
     }
     if(!rings.length){ warnings.push('Tool too large to enter the pocket region'); }
     let rampEntrySkipped=false;
+    // orient first: climb/conventional decides traversal, and the link start point is picked along it
+    const oriented=rings.map(lp=>o.climb?ensureCW(lp):ensureCCW(lp));
+    // linked pockets spiral innermost-first; unlinked keeps the historical outermost-first ring order
+    const chains = o.linkRings===false ? oriented.map(lp=>[lp])
+                                       : linkRings(oriented.slice().reverse(), so, region, o.linkMax);
     depths.forEach(depth=>{
-      rings.forEach((lp,ri)=>{ const oriented=o.climb?ensureCW(lp):ensureCCW(lp);
-        const tabbed=oriented.map(p=>({x:p.x,y:p.y,tab:false}));
-        let path=tabbed, closed=true;
-        if(ri===0 && o.rampEntry){
-          // helical descent into the outer ring at each depth level (no straight plunge); shrink radius until it fits
-          const pre=helixEntry(oriented, region, [r, so, so*0.5]);
-          if(pre){ const close0={x:tabbed[0].x,y:tabbed[0].y,tab:false};
-            path=pre.concat(tabbed, [close0]); closed=false; }
-          else rampEntrySkipped=true;       // too tight for a helix -> straight plunge for this pass
+      chains.forEach(chain=>{
+        const body=chainToPath(chain);
+        let path=body, closed=false;
+        if(chain.length===1 && !o.rampEntry && !(o.leadType&&o.leadType!=='none')){ path=chain[0].map(p=>({x:p.x,y:p.y,tab:false})); closed=true; }
+        if(o.rampEntry){
+          // helical descent into the chain's first (innermost) ring — no straight plunge
+          const pre=helixEntry(chain[0], region, [r, so, so*0.5]);
+          if(pre) path=pre.concat(body);
+          else rampEntrySkipped=true;       // too tight for a helix -> straight plunge for this chain
+          closed=false;
         } else if(o.leadType && o.leadType!=='none'){
-          const interiorSign=signedArea(oriented)>0?1:-1;                 // pocket: lead into the cleared interior
-          const wl=wrapLead(oriented, tabbed, o.leadType, o.leadLen, interiorSign, o.rampLen);
-          path=wl.path; closed=wl.closed;   // small inner rings just skip the lead silently
+          const interiorSign=signedArea(chain[0])>0?1:-1;                 // pocket: lead into the cleared interior
+          if(chain.length===1){
+            const wl=wrapLead(chain[0], path, o.leadType, o.leadLen, interiorSign, o.rampLen);
+            path=wl.path; closed=wl.closed; // small inner rings just skip the lead silently
+          } else {
+            // a chain ends against the pocket wall, so lead IN only — a lead-out there would gouge
+            const ld=leadFor(chain[0], o.leadType, o.leadLen, interiorSign);
+            if(ld) path=ld.pre.map(p=>({x:p.x,y:p.y,tab:false})).concat(body);
+            closed=false;
+          }
         }
         passes.push({z:o.topZ-depth,tabHeight:0,closed,path}); });
     });
@@ -344,14 +482,23 @@ function pocketOp(contours, opts){
     // despeckle: an opening (in-out by ~2x the offset arc tolerance) drops hair-thin numeric slivers/annuli left by
     // reconstructing the morphological opening of curved walls, keeping only real corner/neck rest areas.
     if(restCenters.length){ const cl=offW(restCenters,-0.006); restCenters=cl.length?offW(cl,0.006):[]; }
-    const restPasses=[];
+    const restPasses=[], restRings=[];
+    let dd=0, g2=0;
+    while(g2++<5000){
+      const off=(dd<1e-9)?restCenters:offW(restCenters, -dd);
+      if(!off.length) break;
+      for(const lp of off) if(lp.length>=3) restRings.push(o.climb?ensureCW(lp):ensureCCW(lp));
+      dd+=soS;
+    }
+    // rest areas are separate corners; the greedy linker keeps each one's rings together and will not
+    // bridge two corners, because a move between them leaves the rest region on its way across
+    const restChains = o.linkRings===false ? restRings.map(lp=>[lp])
+                                           : linkRings(restRings.slice().reverse(), soS, region, o.linkMax);
     depths.forEach(depth=>{
-      let dd=0, g2=0;
-      while(g2++<5000){
-        const off=(dd<1e-9)?restCenters:offW(restCenters, -dd);
-        if(!off.length) break;
-        for(const lp of off) if(lp.length>=3){ const oriented=o.climb?ensureCW(lp):ensureCCW(lp); restPasses.push({z:o.topZ-depth,tabHeight:0,closed:true,path:oriented.map(p=>({x:p.x,y:p.y,tab:false}))}); }
-        dd+=soS;
+      for(const chain of restChains){
+        const single=chain.length===1;
+        restPasses.push({z:o.topZ-depth,tabHeight:0,closed:single,
+          path: single?chain[0].map(p=>({x:p.x,y:p.y,tab:false})):chainToPath(chain)});
       }
     });
     if(restPasses.length) ops.push({kind:'pocket',toolNum:o.finishNum,rpm:o.rpm,feed:o.feed,plunge:o.plunge,safeZ:o.safeZ,topZ:o.topZ,passes:restPasses,toolProfile:{type:'flat',radius:rs}});
@@ -435,6 +582,174 @@ function vcarveOp(contours, opts){
   return {ops,warnings};
 }
 
+// ---- inlay: a matched pair of toolpaths — the female cavity and the male plug that drops into it ----
+// One design, two parts. FEMALE is the cavity machined into the base board; MALE is the plug machined
+// from the contrasting board, flipped over and glued in. The fit gap (`clearance`, per side) is machined
+// into ONE side only — the female by default, so the plug keeps the design's true size.
+//   style 'pocket' : straight walls. female = pocket to pocketDepth; male = outside profile of the same
+//                    shape to maleDepth (use tabs — the plug is a loose part once it's cut free).
+//   style 'vcarve' : tapered walls that wedge together. female = V-carve with a flat floor at pocketDepth;
+//                    male = V-carve of the FIELD around the design (a frame `maleMargin` outside its
+//                    bounding box, with the design as islands), which leaves the design raised on
+//                    V-tapered walls. `startDepth` sinks the male's V start below the surface — that is
+//                    what makes the plug seat on its taper instead of bottoming out on the cavity floor.
+// The male is mirrored in X by default (`mirrorMale`) because the plug is flipped face-down into the
+// cavity; mirrored closed passes are reversed too, so climb/conventional direction survives the flip.
+function _mirrorPass(p, cx){
+  const path=p.path.map(q=>Object.assign({},q,{x:2*cx-q.x}));
+  if(p.closed) path.reverse();          // mirroring flips handedness; reversing restores climb/conventional
+  return Object.assign({},p,{path});
+}
+function _shiftOpZ(op, dz){
+  return Object.assign({},op,{topZ:op.topZ+dz, passes:op.passes.map(p=>Object.assign({},p,{z:p.z+dz}))});
+}
+function _rectLoop(b){ return [{x:b.minX,y:b.minY},{x:b.maxX,y:b.minY},{x:b.maxX,y:b.maxY},{x:b.minX,y:b.maxY}]; }
+function _loopsToContours(loops){ return loops.map(lp=>({closed:true, pts:lp.map(p=>({x:p.x,y:p.y}))})); }
+
+function inlayOp(contours, opts){
+  const o=Object.assign({
+    style:'pocket', part:'both', clearance:0.005, clearanceOn:'female',
+    pocketDepth:0.125, maleDepth:0.125, startDepth:0, mirrorMale:true, maleMargin:0.25,
+    toolNum:1, toolDia:0.125, maleNum:0, bitAngle:90, climb:true, topZ:0, passDepth:0.125, safeZ:0.25,
+    feed:120, plunge:40, rpm:18000, stepover:0.4, pocketStyle:'offset', step:0.02,
+    clearDia:0, clearNum:2, tabs:{count:0,length:0.4,height:0.06}, joinType:'round'
+  }, opts||{});
+  const warnings=[], ops=[], parts={female:[],male:[]};
+  const loops=contours.filter(c=>c.closed && c.pts && c.pts.length>=3).map(c=>c.pts);
+  if(!loops.length){ warnings.push('Inlay needs closed contour(s)'); return {ops,warnings,parts}; }
+  if(!(o.clearance>0)) warnings.push('Clearance is 0 — the plug will be a press fit with no glue gap');
+
+  const region=regionFromLoops(loops);
+  const gap=Math.max(0,o.clearance);
+  // the clearance goes into exactly one side, so the pair still measures the design nominally
+  const femLoops=(o.clearanceOn==='female' && gap>0) ? offsetRegion(region,+gap).filter(lp=>lp.length>=3) : loops;
+  const malLoops=(o.clearanceOn==='male'   && gap>0) ? offsetRegion(region,-gap).filter(lp=>lp.length>=3) : loops;
+  if(!femLoops.length) warnings.push('Female geometry collapsed at this clearance');
+  if(!malLoops.length) warnings.push('Male geometry collapsed at this clearance — clearance larger than the smallest detail');
+
+  const shared={toolNum:o.toolNum,toolDia:o.toolDia,climb:o.climb,topZ:o.topZ,passDepth:o.passDepth,
+    safeZ:o.safeZ,feed:o.feed,plunge:o.plunge,rpm:o.rpm,stepover:o.stepover,pocketStyle:o.pocketStyle,
+    leadType:'none',leadLen:0,rampLen:0};     // no leads: the male is mirrored+reversed, leads wouldn't survive it
+
+  // ---------- female: the cavity ----------
+  if((o.part==='female'||o.part==='both') && femLoops.length){
+    let res;
+    if(o.style==='vcarve'){
+      res=vcarveOp(_loopsToContours(femLoops), Object.assign({},shared,
+        {bitAngle:o.bitAngle,maxDepth:o.pocketDepth,flatDepth:o.pocketDepth,step:o.step,clearDia:o.clearDia,clearNum:o.clearNum}));
+    } else {
+      res=pocketOp(_loopsToContours(femLoops), Object.assign({},shared,{cutDepth:o.pocketDepth}));
+    }
+    for(const w of res.warnings||[]) warnings.push('female: '+w);
+    for(const op of res.ops){ if(!op.passes||!op.passes.length) continue;
+      const tagged=Object.assign({},op,{part:'female',inlayStyle:o.style}); parts.female.push(tagged); ops.push(tagged); }
+  }
+
+  // ---------- male: the plug ----------
+  if((o.part==='male'||o.part==='both') && malLoops.length){
+    let res, mOps=[];
+    if(o.style==='vcarve'){
+      // V-carve the field AROUND the design: a frame maleMargin outside the bbox, design loops as islands.
+      const b=boundsOf(malLoops), m=Math.max(0.01,o.maleMargin);
+      const frame=_rectLoop({minX:b.minX-m,minY:b.minY-m,maxX:b.maxX+m,maxY:b.maxY+m});
+      res=vcarveOp(_loopsToContours([frame].concat(malLoops)), Object.assign({},shared,
+        {bitAngle:o.bitAngle,maxDepth:o.maleDepth,flatDepth:o.maleDepth,step:o.step,clearDia:o.clearDia,clearNum:o.clearNum}));
+      // startDepth sinks the whole male cut, so the V walls begin below the plug's face and seat on the taper
+      mOps=res.ops.map(op=>o.startDepth>0?_shiftOpZ(op,-o.startDepth):op);
+    } else {
+      res=profileOp(_loopsToContours(malLoops), Object.assign({},shared,
+        {side:'outside',cutDepth:o.maleDepth,tabs:o.tabs,joinType:o.joinType}));
+      mOps=res.ops;
+    }
+    for(const w of res.warnings||[]) warnings.push('male: '+w);
+    let cx=0;
+    if(o.mirrorMale){ const mb=boundsOf(malLoops); cx=(mb.minX+mb.maxX)/2; }
+    for(const op of mOps){ if(!op.passes||!op.passes.length) continue;
+      let t=Object.assign({},op,{part:'male',inlayStyle:o.style,toolNum:o.maleNum>0?o.maleNum:op.toolNum});
+      if(o.mirrorMale) t=Object.assign({},t,{passes:t.passes.map(p=>_mirrorPass(p,cx))});
+      parts.male.push(t); ops.push(t); }
+    if(o.style==='vcarve' && !(o.startDepth>0)) warnings.push('male: start depth 0 — the plug bottoms out on the cavity floor before its taper seats');
+  }
+  if(!ops.length) warnings.push('Inlay produced no toolpaths — check depths and clearance');
+  return {ops,warnings,parts};
+}
+
+// ---- toolpath templates (C6): a reusable machining recipe, with no geometry in it ----
+// A template is a named, ordered list of toolpath parameter sets. It deliberately carries NO shape ids
+// and no document state, so the same recipe (V-carve the text, then profile it out with tabs) can be
+// dropped onto a different job's vectors. Versioned like .aqcam; unknown versions are rejected rather
+// than silently half-read. Params are whitelisted on the way in AND out, so a hand-edited or
+// foreign file can never smuggle selection ids, functions or junk keys into the CAM panel.
+const TEMPLATE_FORMAT='aqtpl', TEMPLATE_VERSION=1;
+const TEMPLATE_PARAM_KEYS=['op','toolNum','toolDia','side','climb','cutDepth','passDepth','feed','plunge','rpm','topZ',
+  'stepover','pocketStyle','rampEntry','finishDia','finishNum','peck','bitAngle','vstep','flatDepth','clearDia','clearNum',
+  'leadType','leadLen','rampLen','tabs',
+  'style','part','clearance','clearanceOn','pocketDepth','maleDepth','startDepth','maleMargin','mirrorMale'];
+const TEMPLATE_DEFAULT_PARAMS={op:'profile',toolNum:1,toolDia:0.25,side:'outside',climb:true,cutDepth:0.25,passDepth:0.125,
+  feed:120,plunge:40,rpm:18000,topZ:0,stepover:0.4,pocketStyle:'offset',rampEntry:false,finishDia:0,finishNum:2,peck:0,
+  bitAngle:90,vstep:0.02,flatDepth:0,clearDia:0,clearNum:2,leadType:'none',leadLen:0.25,rampLen:0,
+  tabs:{count:0,length:0.4,height:0.1},
+  style:'pocket',part:'both',clearance:0.005,clearanceOn:'female',pocketDepth:0.125,maleDepth:0.125,startDepth:0.02,
+  maleMargin:0.25,mirrorMale:true};
+// Keep only known CAM params, filled out from the defaults, so every template entry is self-contained.
+function sanitizeTemplateParams(p){
+  const src=p&&typeof p==='object'?p:{}, out={};
+  for(const k of TEMPLATE_PARAM_KEYS){
+    const v=Object.prototype.hasOwnProperty.call(src,k)?src[k]:TEMPLATE_DEFAULT_PARAMS[k];
+    if(k==='tabs'){ const t=(v&&typeof v==='object')?v:TEMPLATE_DEFAULT_PARAMS.tabs;
+      out.tabs={count:+t.count||0, length:+t.length||0.4, height:+t.height||0.1}; }
+    else out[k]=v;
+  }
+  return out;
+}
+function normalizeTemplate(t){
+  t=t&&typeof t==='object'?t:{};
+  const name=String(t.name||'Template');
+  const entries=(Array.isArray(t.entries)?t.entries:[]).map((e,i)=>({
+    name:String((e&&e.name)||('Toolpath '+(i+1))), p:sanitizeTemplateParams(e&&e.p) }));
+  return {format:TEMPLATE_FORMAT, version:TEMPLATE_VERSION, id:t.id||slugId(name), name:name, entries:entries};
+}
+// Strip a live toolpath queue ([{p,ids,name,...}]) down to a reusable recipe.
+function templateFromQueue(name, queue){
+  return normalizeTemplate({name:name, entries:(Array.isArray(queue)?queue:[]).map((q,i)=>({
+    name:(q&&(q.name||q.label))||('Toolpath '+(i+1)), p:q&&q.p }))});
+}
+// Bind a recipe to a selection -> queue entries ready to push. ids [] means "all visible vectors".
+function applyTemplate(t, ids){
+  const tpl=normalizeTemplate(t);
+  return tpl.entries.map(e=>({p:sanitizeTemplateParams(e.p), ids:Array.isArray(ids)?ids.slice():[],
+    name:e.name, label:'', visible:true}));
+}
+function templateToJSON(t){ return JSON.stringify(normalizeTemplate(t), null, 2); }
+function templateFromJSON(text){
+  let o; try{ o=JSON.parse(text); }catch(e){ throw new Error('Not a toolpath template (invalid JSON)'); }
+  if(!o||o.format!==TEMPLATE_FORMAT) throw new Error('Not a toolpath template');
+  if(o.version!==TEMPLATE_VERSION) throw new Error('Unsupported template version '+o.version);
+  if(!Array.isArray(o.entries)) throw new Error('Template has no toolpaths');
+  return normalizeTemplate(o);
+}
+function upsertTemplate(list, t){ const n=normalizeTemplate(t); const out=(list||[]).filter(x=>x.id!==n.id); out.push(n); return out; }
+function removeTemplate(list, id){ return (list||[]).filter(x=>x.id!==id); }
+// Starter recipes for a sign/job shop — the shapes they run on come from whatever you have selected.
+function defaultTemplates(){ return [
+  normalizeTemplate({name:'Sign — V-carve + cut out', entries:[
+    {name:'V-carve text', p:{op:'vcarve',toolNum:3,toolDia:0.5,bitAngle:60,vstep:0.02,cutDepth:0.125,feed:80,plunge:25}},
+    {name:'Profile out (tabs)', p:{op:'profile',toolNum:1,toolDia:0.25,side:'outside',cutDepth:0.75,passDepth:0.25,
+      leadType:'arc',leadLen:0.25,rampLen:0.15,tabs:{count:4,length:0.5,height:0.1}}}]}),
+  normalizeTemplate({name:'Pocket + corner finish', entries:[
+    {name:'Pocket 1/4"', p:{op:'pocket',toolNum:1,toolDia:0.25,cutDepth:0.25,passDepth:0.125,stepover:0.4,finishDia:0.125,finishNum:2}}]}),
+  normalizeTemplate({name:'Through cut 1/4" w/ tabs', entries:[
+    {name:'Profile outside', p:{op:'profile',toolNum:1,toolDia:0.25,side:'outside',cutDepth:0.75,passDepth:0.25,
+      leadType:'arc',leadLen:0.25,tabs:{count:4,length:0.5,height:0.1}}}]}),
+  normalizeTemplate({name:'V-inlay pair', entries:[
+    {name:'Inlay cavity', p:{op:'inlay',style:'vcarve',part:'female',toolNum:3,toolDia:0.5,bitAngle:60,vstep:0.02,
+      clearance:0.005,pocketDepth:0.15,maleDepth:0.15,startDepth:0.02}},
+    {name:'Inlay plug', p:{op:'inlay',style:'vcarve',part:'male',toolNum:3,toolDia:0.5,bitAngle:60,vstep:0.02,
+      clearance:0.005,pocketDepth:0.15,maleDepth:0.15,startDepth:0.02,maleMargin:0.25,mirrorMale:true}}]}),
+  normalizeTemplate({name:'Peck drill 1/8"', entries:[
+    {name:'Drill', p:{op:'drill',toolNum:5,toolDia:0.125,cutDepth:0.5,peck:0.1,feed:20,plunge:20,rpm:12000}}]})
+]; }
+
 // ---- arc fitting: turn a dense polyline into line + G2/G3 arc moves ----
 function circleFrom3(a,b,c){
   const ax=a.x,ay=a.y,bx=b.x,by=b.y,cx=c.x,cy=c.y;
@@ -449,6 +764,23 @@ function arcCovers(P,i,j,arc,tol,maxStep){
   const {cx,cy,r}=arc;
   if(r>1e5||r<1e-4) return false;          // essentially straight / degenerate
   maxStep = maxStep || (35*Math.PI/180);   // max angle between consecutive samples
+  // The input is a POLYLINE: consecutive pairs are STRAIGHT segments, and a tessellated curve has
+  // near-uniform chords. A long straight edge carrying no intermediate samples does not: fitting an
+  // arc across it swallows one enormous chord beside fine ones. That is how a 46" rounded rect's 44"
+  // side got replaced by a 250"-radius arc that bowed the cut out by an inch — every sampled point
+  // sat on the circle, so the cover test alone passed. Reject a window whose chords are wildly
+  // uneven, and cap the absolute departure from the polyline as a backstop.
+  const chords=[];
+  for(let k=i;k<j;k++) chords.push(Math.hypot(P[k+1].x-P[k].x, P[k+1].y-P[k].y));
+  if(chords.length){
+    const sorted=chords.slice().sort((a,b)=>a-b);
+    const med=sorted[Math.floor(sorted.length/2)]||0;
+    const max=sorted[sorted.length-1];
+    if(med>0 && max>ARC_CHORD_RATIO*med) return false;          // one run dwarfs the rest: not a curve
+    if(max>2*r) return false;                                    // chord longer than the diameter
+    const sag=r-Math.sqrt(Math.max(0,r*r-max*max/4));
+    if(sag>ARC_MAX_SAG) return false;                            // departs too far from the polyline
+  }
   let prevAng=null, dir=0;
   for(let k=i;k<=j;k++){
     const dd=Math.hypot(P[k].x-cx,P[k].y-cy);
@@ -736,5 +1068,7 @@ function stockHeightAt(field, x, y) {
   return field.z[j * field.nx + i];
 }
 
-return {SCALE,TOL,dist,signedArea,isCCW,ensureCCW,ensureCW,boundsOf,assembleContours,offsetLoop,withTabs,fitArcs,profileOp,pocketOp,drillOp,vcarveOp,centroid,defaultTools,upsertTool,removeTool,slugId,orderPasses,postProcess,POSTS,simulateStock,stockHeightAt,estimateTime};
+return {SCALE,TOL,dist,signedArea,isCCW,ensureCCW,ensureCW,boundsOf,assembleContours,offsetLoop,offsetOpenPath,withTabs,linkRings,fitArcs,profileOp,pocketOp,drillOp,vcarveOp,inlayOp,centroid,defaultTools,upsertTool,removeTool,slugId,orderPasses,
+  sanitizeTemplateParams,normalizeTemplate,templateFromQueue,applyTemplate,templateToJSON,templateFromJSON,
+  upsertTemplate,removeTemplate,defaultTemplates,TEMPLATE_VERSION,TEMPLATE_FORMAT,TEMPLATE_PARAM_KEYS,postProcess,POSTS,simulateStock,stockHeightAt,estimateTime};
 });

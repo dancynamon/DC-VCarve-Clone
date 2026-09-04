@@ -7,9 +7,9 @@ function ok(name, cond, extra) { if (cond) { pass++; } else { fail++; console.lo
 
 // dxfparse.js is a browser-concatenated script (no module.exports), so run it in a vm context to grab
 // the same parseDxf + entityToPolys the studio's importText uses; fall back to CADCORE for poly->shapes.
-let parseDxf, entityToPolys;
+let parseDxf, entityToPolys, dxfCtx;
 try {
-  const ctx = {}; vm.createContext(ctx);
+  const ctx = {}; vm.createContext(ctx); dxfCtx = ctx;
   vm.runInContext(fs.readFileSync(path.join(__dirname, 'dxfparse.js'), 'utf8'), ctx);
   parseDxf = ctx.parseDxf; entityToPolys = ctx.entityToPolys;
 } catch (e) { /* leave undefined -> check below fails clearly */ }
@@ -92,6 +92,111 @@ const svgOut = C.toSVG(shapes);
 const shapesRTsvg = C.svgToShapes(svgOut);
 ok('svg round-trip: >=2 shapes', shapesRTsvg.length >= 2, shapesRTsvg.length);
 ok('svg round-trip: >=1 closed shape', shapesRTsvg.some(s => s.closed), JSON.stringify(shapesRTsvg.map(s => s.closed)));
+
+// --- adaptive arc tessellation: chord sag must stay <= ~0.004" regardless of radius ---
+// A fixed angular step made the flat-sidedness scale with radius (a 2.875" round end came in 0.0138"
+// off, a 12" one 0.058"). Measure the worst departure of each chord from the true arc.
+function maxSag(pts, cx, cy, r) {
+  let worst = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const c = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+    worst = Math.max(worst, r - Math.sqrt(Math.max(0, r * r - c * c / 4)));
+  }
+  return worst;
+}
+function radial(pts, cx, cy, r) { let w = 0; for (const p of pts) w = Math.max(w, Math.abs(Math.hypot(p.x - cx, p.y - cy) - r)); return w; }
+const SAG_LIMIT = 0.0045;
+for (const r of [0.5, 2.875, 12, 40]) {
+  const cp = dxfCtx.circlePts(0, 0, r);
+  ok(`circlePts r=${r}: sag <= ${SAG_LIMIT}"`, maxSag(cp, 0, 0, r) <= SAG_LIMIT, maxSag(cp, 0, 0, r).toFixed(5));
+  ok(`circlePts r=${r}: on circle`, radial(cp, 0, 0, r) < 1e-9);
+  const ap = dxfCtx.arcPts(0, 0, r, 0, 90);
+  ok(`arcPts r=${r}: sag <= ${SAG_LIMIT}"`, maxSag(ap, 0, 0, r) <= SAG_LIMIT, maxSag(ap, 0, 0, r).toFixed(5));
+  // 90-degree bulge (tan(90/4)) from (r,0) to (0,r) about the origin
+  const bp = dxfCtx.bulgeArcPts({ x: r, y: 0 }, { x: 0, y: r }, Math.tan(Math.PI / 8));
+  ok(`bulgeArcPts r=${r}: sag <= ${SAG_LIMIT}"`, maxSag(bp, 0, 0, r) <= SAG_LIMIT, maxSag(bp, 0, 0, r).toFixed(5));
+  ok(`bulgeArcPts r=${r}: on circle`, radial(bp, 0, 0, r) < 1e-6, radial(bp, 0, 0, r));
+  const ep = dxfCtx.ellipsePts({ cx: 0, cy: 0, majorX: r, majorY: 0, ratio: 1 });
+  ok(`ellipsePts r=${r}: sag <= ${SAG_LIMIT}"`, maxSag(ep, 0, 0, r) <= SAG_LIMIT, maxSag(ep, 0, 0, r).toFixed(5));
+}
+// small radii must not explode into needless points
+ok('circlePts r=0.5 stays compact', dxfCtx.circlePts(0, 0, 0.5).length <= 80, dxfCtx.circlePts(0, 0, 0.5).length);
+ok('circlePts r=40 refines', dxfCtx.circlePts(0, 0, 40).length > 64, dxfCtx.circlePts(0, 0, 40).length);
+
+// --- repost.js: DXF -> CAM -> G-code with no browser (used to regenerate jobs whose only source is a .dxf) ---
+const RP = require('./repost.js');
+const rp = RP.repost(dxf, { toolDia: 0.25, side: 'outside', climb: false, cutDepth: 0.25, passDepth: 0.25,
+                            feed: 100, plunge: 30, rpm: 24000, clearZ: 0.8, leadType: 'line', leadLen: 0.25 });
+ok('repost: contours found', rp.contours >= 2, rp.contours);
+ok('repost: emits g-code', /G90/.test(rp.gcode) && /M50/.test(rp.gcode), rp.gcode.length);
+ok('repost: one pass per closed contour', rp.passes === rp.closed, `${rp.passes} vs ${rp.closed}`);
+ok('repost: rapids retract to clearZ', /G0 Z0\.8000/.test(rp.gcode));
+ok('repost: cut depth honoured', /Z-0\.2500/.test(rp.gcode));
+ok('repost: plunge feed applied', /F30\.0/.test(rp.gcode));
+ok('repost: spindle speed applied', /S24000/.test(rp.gcode));
+ok('repost: no warnings on sample.dxf', rp.warnings.length === 0, JSON.stringify(rp.warnings));
+
+// --- repost job specs: several ops over hand-picked DXF vectors ---
+const idx = RP.dxfIndex(dxf);
+const layerNames = Object.keys(idx);
+ok('jobspec: dxfIndex groups vectors by layer', layerNames.length >= 1, JSON.stringify(layerNames));
+const firstLayer = layerNames.find(L => idx[L].some(e => e.pts.length >= 4));
+const firstIdx = idx[firstLayer].findIndex(e => e.pts.length >= 4);
+const job = RP.repostJob(dxf, { name: 'spec', reorder: false, ops: [
+  { op: 'drill', label: 'holes', toolNum: 8, toolDia: 0.375, rpm: 10000, feed: 62.5, plunge: 20,
+    cutDepth: 1.5, clearZ: 0.8, select: [[firstLayer, firstIdx]] },
+  { op: 'profile', label: 'cut', side: 'outside', climb: false, toolNum: 3, toolDia: 0.375,
+    rpm: 18000, feed: 60, plunge: 20, cutDepth: 1.5, passDepth: 0.375, clearZ: 0.8,
+    tabs: { count: 1, length: 0.875, height: 0.125 }, select: [[firstLayer, firstIdx]] } ] });
+ok('jobspec: one summary row per op', job.ops.length === 2, JSON.stringify(job.ops));
+ok('jobspec: ops post in spec order (T8 before T3)', /\r?\nT8\r?\n[\s\S]*\r?\nT3\r?\n/.test(job.gcode));
+ok('jobspec: each op gets its own spindle speed', /S10000/.test(job.gcode) && /S18000/.test(job.gcode));
+ok('jobspec: 4 depth passes on the profile op', job.ops[1].passes === 4, job.ops[1].passes);
+ok('jobspec: tab lift appears at cutDepth - tabHeight', /Z-1\.3750/.test(job.gcode));
+ok('jobspec: only one tab lift per pass', (job.gcode.match(/Z-1\.3750/g) || []).length === 1,
+   (job.gcode.match(/Z-1\.3750/g) || []).length);
+ok('jobspec: per-vector override changes the side', (function () {
+  const a = RP.repostJob(dxf, { ops: [{ op: 'profile', side: 'outside', toolNum: 1, toolDia: 0.5,
+              cutDepth: 0.1, passDepth: 0.1, select: [[firstLayer, firstIdx]] }] });
+  const b = RP.repostJob(dxf, { ops: [{ op: 'profile', side: 'outside', toolNum: 1, toolDia: 0.5,
+              cutDepth: 0.1, passDepth: 0.1, select: [[firstLayer, firstIdx, { side: 'inside' }]] }] });
+  return a.gcode !== b.gcode; })());
+let threw = '';
+try { RP.repostJob(dxf, { ops: [{ op: 'profile', select: [['NO_SUCH_LAYER', 0]] }] }); }
+catch (e) { threw = e.message; }
+ok('jobspec: a missing layer is a clear error, not silence', /missing layer/.test(threw), threw);
+try { threw = ''; RP.repostJob(dxf, { ops: [{ op: 'profile', select: [[firstLayer, 9999]] }] }); }
+catch (e) { threw = e.message; }
+ok('jobspec: an out-of-range vector index is a clear error', /missing vector/.test(threw), threw);
+
+// --- CLI argument parsing: unknown/malformed options must fail loudly, never silently default ---
+const bad = (av, re) => { try { RP.parseArgs(av); return false; } catch (e) { return re.test(e.message) ? true : e.message; } };
+ok('args: unknown option rejected', bad(['--diameter', '0.5'], /unknown option --diameter/) === true,
+   bad(['--diameter', '0.5'], /unknown option --diameter/));
+ok('args: non-numeric value rejected', bad(['--dia', 'abc'], /needs a number/) === true);
+ok('args: negative value rejected on an unsigned flag', bad(['--dia', '-1'], /cannot be negative/) === true);
+ok('args: negative topZ allowed', RP.parseArgs(['--top', '-0.25']).flags.top === -0.25);
+ok('args: non-integer tool number rejected', bad(['--tool', '1.5'], /whole number/) === true);
+ok('args: bad enum rejected', bad(['--side', 'sideways'], /must be one of/) === true);
+ok('args: enum error lists the valid values', (function(){ try{RP.parseArgs(['--side','x']);}catch(e){return /outside\|inside\|on\|left\|right/.test(e.message);} })());
+ok('args: missing value rejected', bad(['--dia'], /needs a value/) === true);
+ok('args: a flag may not swallow the next flag', bad(['--dia', '--depth'], /--dia needs a value/) === true);
+ok('args: bool flag takes no value', (function(){ const a=RP.parseArgs(['--json','in.dxf','out.tap']);
+   return a.flags.json === true && a.pos.length === 2; })());
+ok('args: positionals kept in order', JSON.stringify(RP.parseArgs(['a.dxf','b.tap','--dia','0.5']).pos) === '["a.dxf","b.tap"]');
+ok('args: numeric flags come back as numbers', RP.parseArgs(['--dia','0.375']).flags.dia === 0.375);
+ok('args: side accepts the open-vector values', RP.parseArgs(['--side','left']).flags.side === 'left');
+
+// --- assertDxf: a non-DXF input must be an error, not an empty program ---
+const nope = (t, label) => { try { RP.assertDxf(t, label); return false; } catch (e) { return e.message; } };
+ok('assertDxf: accepts a real DXF', RP.assertDxf(dxf, 'sample.dxf') === undefined);
+ok('assertDxf: rejects g-code', /does not look like a DXF/.test(nope('G90\r\nM5\r\nG0 X1 Y1\r\n', 'x.tap')));
+ok('assertDxf: names the offending file', /x\.tap/.test(nope('G90\r\nG0 X1\r\n', 'x.tap')));
+ok('assertDxf: rejects empty input', /is empty/.test(nope('', 'x.dxf')));
+ok('assertDxf: accepts our own DXF export', RP.assertDxf(C.toDXF(shapes), 'out.dxf') === undefined);
+ok('assertDxf: a DXF with no vectors is an error, not an empty toolpath', (function(){
+  const empty = '0\nSECTION\n2\nENTITIES\n0\nENDSEC\n0\nEOF\n';
+  try { RP.dxfToContours(empty); return false; } catch (e) { return /no usable vectors/.test(e.message); } })());
 
 console.log(`\n${pass}/${pass + fail} import checks passed`);
 process.exit(fail ? 1 : 0);

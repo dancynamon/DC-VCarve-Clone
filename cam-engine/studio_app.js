@@ -6,7 +6,7 @@ const ctx = cv.getContext('2d');
 const overlay = document.getElementById('hud');
 
 // ---- document & state ----
-let doc = { shapes: [], layers: new Map([['0',{visible:true,color:'#9fe7ff'}]]) };
+let doc = { shapes: [], layers: new Map([['0',{visible:true,color:'#1b2b3f'}]]) };
 let activeLayer = '0';
 let sel = new Set();
 let tool = 'select';
@@ -19,17 +19,41 @@ let drillMarks = null;    // drill hole centers overlay [{x,y}]
 let drillDia = 0.25;      // tool dia for drill marker size
 let lastGcode = '';
 let msg = '';
-let job = { w:24, h:18, thickness:0.5, origin:'bl', show:true };
+let job = { w:48.5, h:97, thickness:1.5, origin:'bl', show:true };   // Dan's standard sheet
 let measure = null;   // persisted measurement {a,b}
 let viewMode = '2d';  // '2d' design canvas | 'preview' machining backplot (VCarve-style view tabs)
-let simField = null;  // {canvas, field, x0,y0,x1,y1} — shaded material-removal heightfield for Preview
-let orbit = { yaw:0, pitch:90 };   // 3D cut camera: yaw about Z (deg), pitch = elevation (90 = straight down = matches 2D view)
+let simField = null;  // {canvas, x0,y0,x1,y1} — shaded material-removal heightfield for Preview
 let pendingRestore = null;   // parsed autosave awaiting the non-blocking Restore banner
 function fmtTime(s){ s=Math.round(s||0); if(s<=0)return '—'; if(s<60)return s+'s'; const m=Math.floor(s/60); return m+':'+String(s%60).padStart(2,'0'); }
 let ttFont = null;        // loaded opentype.js font (for TTF outline text)
 let textOutline = false;  // text tool mode: true=TTF outline contours, false=single-stroke
 
 // ---- transforms ----
+// ---- canvas theme ----------------------------------------------------------
+// 2D View: a near-white ground with dark ink, like Aspire's drawing view.
+// 3D View: the lavender gradient + blue material sampled straight out of Dan's
+// Aspire screenshots (docs/vcarve-reference) — bg #babbf4 -> #e0e0f8, stock #3843f5.
+const INK={ ink:'#1b2b3f', sel:'#e8590c', annot:'#0f7a46',
+  node:'#b86a12', nodeSmooth:'#0f9d58', handle:'#2b7fd0',
+  snap:'#b06a00', draft:'#b06a00', marquee:'rgba(232,89,12,0.85)',
+  measure:'#2b7fd0', measureBg:'rgba(255,255,255,0.92)', measureInk:'#1b2b3f',
+  drill:'#0f7a46', cut:'#0f7a46', rapid:'rgba(110,110,110,0.55)',
+  legendBd:'rgba(20,40,70,0.22)', legendInk:'#33414f', legendSub:'#5c6a7c',
+  origin:'#d63a3a', dimLbl:'#3a5f8f', simBd:'rgba(30,45,70,0.4)' };
+const THEMES={
+  '2d': Object.assign({}, INK, { bg:'#fbfbfd', gradTop:null,
+    grid:'rgba(30,45,70,0.08)', axis:'rgba(60,90,200,0.28)',
+    jobFace:'rgba(255,255,255,0.96)', jobShadow:'rgba(30,45,70,0.28)',
+    jobEdge:'#5c7ea8', jobKey:'rgba(30,45,70,0.35)', jobCorner:'#3f6fa0',
+    labelBg:'rgba(244,248,252,0.96)', labelBd:'#8fb0d4', labelInk:'#22384f' }),
+  preview: Object.assign({}, INK, { bg:'#c9cbf4', gradTop:'#babbf4', gradBot:'#e0e0f8',
+    stockTop:[56,67,245], stockDeep:[14,18,104],   // measured Aspire material blue, darkened with depth
+    grid:'rgba(30,45,70,0.06)', axis:'rgba(60,90,200,0.22)',
+    jobFace:'rgba(56,67,245,0.92)', jobShadow:'rgba(30,40,90,0.35)',
+    jobEdge:'#2732c8', jobKey:'rgba(20,28,90,0.45)', jobCorner:'#8f97ff',
+    labelBg:'rgba(238,240,255,0.96)', labelBd:'#8b93e0', labelInk:'#1e2350' })
+};
+function TH(){ return viewMode==='preview' ? THEMES.preview : THEMES['2d']; }
 function W2S(p){ return { x: view.ox + p.x*view.ppi, y: view.oy - p.y*view.ppi }; }
 function S2W(p){ return { x: (p.x - view.ox)/view.ppi, y: (view.oy - p.y)/view.ppi }; }
 function pxTol(px){ return px/view.ppi; }
@@ -63,14 +87,19 @@ function snapWorld(scr){
 }
 
 // ---- rendering ----
-function resize(){ const r=cv.parentElement.getBoundingClientRect(); cv.width=r.width; cv.height=r.height; if(!view._init){ view.oy=cv.height-60; view._init=true; } render(); }
+function resize(){ const r=cv.parentElement.getBoundingClientRect(); cv.width=r.width; cv.height=r.height;
+  if(gl3d){ gl3d.resize(); gl3d.draw(); } if(!view._init){ view.oy=cv.height-60; view._init=true; } render(); }
 function render(){
   const pv = viewMode==='preview';
   ctx.clearRect(0,0,cv.width,cv.height);
-  ctx.fillStyle='#0c0f14'; ctx.fillRect(0,0,cv.width,cv.height);
-  if(pv && simField){ if(GL3D.ok) drawSim3D(); else drawSimField(); updateHud(); return; }   // solid material-removal view
+  const th=TH();
+  if(th.gradTop){ const g=ctx.createLinearGradient(0,0,0,cv.height); g.addColorStop(0,th.gradTop); g.addColorStop(1,th.gradBot); ctx.fillStyle=g; }
+  else ctx.fillStyle=th.bg;
+  ctx.fillRect(0,0,cv.width,cv.height);
+  if(pv && simField){ drawSimField(); updateHud(); return; }   // solid material-removal view
   if(!pv) drawGrid();          // Preview: clean material, no grid
   drawJob();
+  if(bgImage) drawBgImage();   // reference bitmap over the stock panel, under the vectors
   // shapes — dimmed reference lines in Preview, no selection colour
   for(const s of doc.shapes){
     if(!layerVisible(s.layer))continue;
@@ -83,6 +112,7 @@ function render(){
     if(sel.size && tool==='select') drawSelectionHandles();
     if(tool==='node' && sel.size===1) drawNodes(selectedShapes()[0]);
     if(draft) drawDraft();
+    if(tracePreview) drawTracePreview();
     if(measure) drawMeasure(measure.a, measure.b, true);
     if(snapMark) drawSnapMark(snapMark);
   }
@@ -92,156 +122,78 @@ function drawGrid(){
   const w0=S2W({x:0,y:cv.height}), w1=S2W({x:cv.width,y:0});
   let step=grid.step; const px=step*view.ppi; while(step*view.ppi<8) step*=2; 
   ctx.lineWidth=1;
-  ctx.strokeStyle='rgba(255,255,255,0.045)';
+  ctx.strokeStyle=TH().grid;
   ctx.beginPath();
   for(let x=Math.floor(w0.x/step)*step; x<=w1.x; x+=step){ const sx=W2S({x,y:0}).x; ctx.moveTo(sx,0); ctx.lineTo(sx,cv.height); }
   for(let y=Math.floor(w0.y/step)*step; y<=w1.y; y+=step){ const sy=W2S({x:0,y}).y; ctx.moveTo(0,sy); ctx.lineTo(cv.width,sy); }
   ctx.stroke();
   // axes
-  ctx.strokeStyle='rgba(90,130,255,0.35)'; ctx.beginPath();
+  ctx.strokeStyle=TH().axis; ctx.beginPath();
   const o=W2S({x:0,y:0}); ctx.moveTo(o.x,0);ctx.lineTo(o.x,cv.height); ctx.moveTo(0,o.y);ctx.lineTo(cv.width,o.y); ctx.stroke();
+}
+function drawBgImage(){
+  const a=W2S({x:bgImage.x,y:bgImage.y+bgImage.h}), b=W2S({x:bgImage.x+bgImage.w,y:bgImage.y});
+  ctx.save(); ctx.globalAlpha=bgImage.alpha; ctx.imageSmoothingEnabled=true;
+  ctx.drawImage(bgImage.canvas, a.x, a.y, b.x-a.x, b.y-a.y);
+  ctx.restore();
+}
+function drawTracePreview(){
+  ctx.save(); ctx.strokeStyle=TH().draft; ctx.lineWidth=1.4;
+  for(const l of tracePreview){ ctx.beginPath(); l.pts.forEach((p,i)=>{const q=W2S(p); i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y);}); ctx.closePath(); ctx.stroke(); }
+  ctx.restore();
 }
 function drawSimField(){
   const a=W2S({x:simField.x0,y:simField.y1}), b=W2S({x:simField.x1,y:simField.y0});
   ctx.save(); ctx.imageSmoothingEnabled=true;
   ctx.drawImage(simField.canvas, a.x, a.y, b.x-a.x, b.y-a.y);
-  ctx.strokeStyle='rgba(20,30,45,0.55)'; ctx.lineWidth=1; ctx.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y);
+  ctx.strokeStyle=TH().simBd; ctx.lineWidth=1; ctx.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y);
   ctx.restore();
 }
-// ---- 3D cut view (WebGL, orbitable) ----
-// Orthographic camera that coincides with the 2D view at yaw 0 / pitch 90, so pan + zoom (view.ox/oy/ppi) carry over
-// unchanged and orbiting just tilts the same picture. Rotation is about the screen-center world point at mid-thickness.
-const GL3D = { ok:false, gl:null, cv:null, prog:null, mesh:null, lines:null, tried:false };
-const GL_VS=`attribute vec3 aPos; attribute vec3 aNrm; attribute vec3 aCol;
-uniform mat3 uRot; uniform vec3 uCenter; uniform vec2 uScale; uniform float uDepth; uniform float uLit; uniform float uNudge;
-varying vec3 vCol;
-void main(){ vec3 q=uRot*(aPos-uCenter); gl_Position=vec4(q.x*uScale.x, q.y*uScale.y, -(q.z+uNudge)*uDepth, 1.0);
-  vec3 n=normalize(uRot*aNrm); float lam=clamp(dot(n, normalize(vec3(-0.5,-0.55,0.67))),0.35,1.15);
-  vCol = uLit>0.5 ? aCol*(0.55+0.45*lam) : aCol; }`;
-const GL_FS=`precision mediump float; varying vec3 vCol; void main(){ gl_FragColor=vec4(vCol,1.0); }`;
-function glInit(){ if(GL3D.tried) return GL3D.ok; GL3D.tried=true;
-  try{ const c=document.createElement('canvas'); let gl=c.getContext('webgl2',{antialias:true,alpha:false,preserveDrawingBuffer:true}); let idx32=true;
-    if(!gl){ gl=c.getContext('webgl',{antialias:true,alpha:false,preserveDrawingBuffer:true}); idx32=!!(gl&&gl.getExtension('OES_element_index_uint')); }
-    if(!gl||!idx32) return false;
-    const sh=(t,src)=>{ const o=gl.createShader(t); gl.shaderSource(o,src); gl.compileShader(o); if(!gl.getShaderParameter(o,gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; };
-    const pr=gl.createProgram(); gl.attachShader(pr,sh(gl.VERTEX_SHADER,GL_VS)); gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,GL_FS)); gl.linkProgram(pr);
-    if(!gl.getProgramParameter(pr,gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr));
-    GL3D.gl=gl; GL3D.cv=c; GL3D.prog=pr; GL3D.ok=true;
-    GL3D.a={pos:gl.getAttribLocation(pr,'aPos'),nrm:gl.getAttribLocation(pr,'aNrm'),col:gl.getAttribLocation(pr,'aCol')};
-    GL3D.u={}; for(const n of ['uRot','uCenter','uScale','uDepth','uLit','uNudge']) GL3D.u[n]=gl.getUniformLocation(pr,n);
-  }catch(e){ GL3D.ok=false; console.warn('WebGL 3D view unavailable:',e); }
-  return GL3D.ok; }
-function glBuffer(gl, data, target){ const b=gl.createBuffer(); gl.bindBuffer(target||gl.ARRAY_BUFFER,b); gl.bufferData(target||gl.ARRAY_BUFFER,data,gl.STATIC_DRAW); return b; }
-// Heightfield -> lit triangle mesh (top surface + 4 side walls + bottom). Colors = wood depth ramp; normals from the z gradient.
-function buildSimMesh(field){ const gl=GL3D.gl; const {nx,ny,res,x0,y0,w,h,floor,z}=field;
-  let maxD=1e-4; for(let i=0;i<z.length;i++){ const d=-z[i]; if(d>maxD)maxD=d; }
-  const at=(i,j)=>z[Math.min(ny-1,Math.max(0,j))*nx+Math.min(nx-1,Math.max(0,i))];
-  const nv=nx*ny; const pos=new Float32Array(nv*3), nrm=new Float32Array(nv*3), col=new Float32Array(nv*3);
-  for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){ const k=j*nx+i, o=k*3; const zz=z[k];
-    pos[o]=x0+Math.min(w,(i+0.5)*res); pos[o+1]=y0+Math.min(h,(j+0.5)*res); pos[o+2]=zz;
-    const gx=(at(i+1,j)-at(i-1,j))/(2*res), gy=(at(i,j+1)-at(i,j-1))/(2*res); const nz=1/Math.sqrt(gx*gx+gy*gy+1);
-    nrm[o]=-gx*nz; nrm[o+1]=-gy*nz; nrm[o+2]=nz;
-    const frac=Math.min(1,(-zz)/maxD); col[o]=(198-frac*120)/255; col[o+1]=(168-frac*118)/255; col[o+2]=(120-frac*82)/255; }
-  const idx=new Uint32Array((nx-1)*(ny-1)*6); let q=0;
-  for(let j=0;j<ny-1;j++)for(let i=0;i<nx-1;i++){ const a=j*nx+i,b=a+1,c=a+nx,d=c+1; idx[q++]=a;idx[q++]=b;idx[q++]=d; idx[q++]=a;idx[q++]=d;idx[q++]=c; }
-  const mesh={ vbo:glBuffer(gl,pos), nbo:glBuffer(gl,nrm), cbo:glBuffer(gl,col), ibo:glBuffer(gl,idx,gl.ELEMENT_ARRAY_BUFFER), n:idx.length };
-  // stock walls + bottom: true stock boundary, top edge follows the perimeter heights, darker wood tone
-  const wp=[], wn=[], wc=[]; const tone=[0.62,0.50,0.34];
-  const push=(x,y,zz,n)=>{ wp.push(x,y,zz); wn.push(n[0],n[1],n[2]); wc.push(tone[0],tone[1],tone[2]); };
-  const quad=(a,b,c,d,n)=>{ push(...a,n);push(...b,n);push(...c,n); push(...a,n);push(...c,n);push(...d,n); };
-  const x1=x0+w, y1=y0+h;
-  const edge=(fn,count,n)=>{ for(let k=0;k<count;k++){ const [ax,ay,az]=fn(k), [bx,by,bz]=fn(k+1); quad([ax,ay,az],[bx,by,bz],[bx,by,floor],[ax,ay,floor],n); } };
-  const ex=(j,yy)=>k=>[Math.min(x1,x0+k*res), yy, at(Math.min(nx-1,k),j)];   // walls along X (front j=0, back j=ny-1)
-  const ey=(i,xx)=>k=>[xx, Math.min(y1,y0+k*res), at(i,Math.min(ny-1,k))];   // walls along Y (left i=0, right i=nx-1)
-  edge(ex(0,y0),nx,[0,-1,0]); edge(ex(ny-1,y1),nx,[0,1,0]); edge(ey(0,x0),ny,[-1,0,0]); edge(ey(nx-1,x1),ny,[1,0,0]);
-  quad([x0,y0,floor],[x1,y0,floor],[x1,y1,floor],[x0,y1,floor],[0,0,-1]);
-  mesh.walls={ vbo:glBuffer(gl,new Float32Array(wp)), nbo:glBuffer(gl,new Float32Array(wn)), cbo:glBuffer(gl,new Float32Array(wc)), n:wp.length/3 };
-  return mesh; }
-function hexRGB(c){ const m=/^#?([0-9a-f]{6})$/i.exec(c); if(!m){ const r=/rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(c); return r?[+r[1]/255,+r[2]/255,+r[3]/255]:[0.3,0.9,0.5]; } const v=parseInt(m[1],16); return [((v>>16)&255)/255,((v>>8)&255)/255,(v&255)/255]; }
-// Toolpath backplot as 3D lines at their real Z (depth-tinted like the 2D backplot; rapids grey).
-function buildLineMesh(segs){ const gl=GL3D.gl; if(!segs||!segs.length) return null;
-  let zTop=-Infinity, zBot=Infinity; for(const s of segs){ if(s.rapid)continue; zTop=Math.max(zTop,s.z0,s.z1); zBot=Math.min(zBot,s.z0,s.z1); }
-  const hasRange=isFinite(zTop)&&isFinite(zBot)&&(zTop-zBot)>1e-6; const pos=[], col=[];
-  for(const s of segs){ const c=s.rapid?[0.47,0.47,0.47]:(hasRange?hexRGB(depthColor(((s.z0+s.z1)/2-zBot)/(zTop-zBot))):[0.22,0.85,0.54]);
-    pos.push(s.x0,s.y0,s.z0, s.x1,s.y1,s.z1); col.push(...c,...c); }
-  const nrm=new Float32Array(pos.length); return { vbo:glBuffer(gl,new Float32Array(pos)), nbo:glBuffer(gl,nrm), cbo:glBuffer(gl,new Float32Array(col)), n:pos.length/3, zTop, zBot, hasRange }; }
-function orbitMatrix(){ const yw=orbit.yaw*Math.PI/180, pt=orbit.pitch*Math.PI/180; const c=Math.cos(yw), s=Math.sin(yw), sp=Math.sin(pt), cp=Math.cos(pt);
-  // M = Tilt(pitch) * Rz(yaw); rows: X_view=[c,-s,0]  Y_view=[s*sp, c*sp, cp]  Z_view(toward viewer)=[-s*cp, -c*cp, sp]
-  const r=[ c,-s,0,  s*sp,c*sp,cp,  -s*cp,-c*cp,sp ];
-  return new Float32Array([ r[0],r[3],r[6], r[1],r[4],r[7], r[2],r[5],r[8] ]); }   // column-major for GLSL
-// Project a world point with the current orbit (for 2D overlays drawn on top of the GL image).
-function P3(x,y,zz){ const f=simField.field; const C=S2W({x:cv.width/2,y:cv.height/2}); const cz=(f.floor||0)/2;
-  const yw=orbit.yaw*Math.PI/180, pt=orbit.pitch*Math.PI/180; const c=Math.cos(yw), s=Math.sin(yw), sp=Math.sin(pt), cp=Math.cos(pt);
-  const qx=x-C.x, qy=y-C.y, qz=zz-cz; const vx=c*qx-s*qy, vy=(s*qx+c*qy)*sp+qz*cp;
-  return { x:cv.width/2+vx*view.ppi, y:cv.height/2-vy*view.ppi }; }
-function drawSim3D(){ const gl=GL3D.gl, g=GL3D.cv; if(g.width!==cv.width||g.height!==cv.height){ g.width=cv.width; g.height=cv.height; }
-  if(!simField.mesh) simField.mesh=buildSimMesh(simField.field);
-  if(simField.linesFor!==toolpaths){ simField.lines=buildLineMesh(toolpaths); simField.linesFor=toolpaths; }
-  const f=simField.field; const C=S2W({x:cv.width/2,y:cv.height/2}); const diag=Math.hypot(f.w,f.h,f.thickness)*2+1;
-  gl.viewport(0,0,g.width,g.height); gl.clearColor(0.047,0.059,0.078,1); gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
-  gl.useProgram(GL3D.prog); const u=GL3D.u, a=GL3D.a;
-  gl.uniformMatrix3fv(u.uRot,false,orbitMatrix()); gl.uniform3f(u.uCenter,C.x,C.y,f.floor/2);
-  gl.uniform2f(u.uScale, 2*view.ppi/g.width, 2*view.ppi/g.height); gl.uniform1f(u.uDepth, 1/diag);
-  const bind=(m)=>{ gl.bindBuffer(gl.ARRAY_BUFFER,m.vbo); gl.enableVertexAttribArray(a.pos); gl.vertexAttribPointer(a.pos,3,gl.FLOAT,false,0,0);
-    gl.bindBuffer(gl.ARRAY_BUFFER,m.nbo); gl.enableVertexAttribArray(a.nrm); gl.vertexAttribPointer(a.nrm,3,gl.FLOAT,false,0,0);
-    gl.bindBuffer(gl.ARRAY_BUFFER,m.cbo); gl.enableVertexAttribArray(a.col); gl.vertexAttribPointer(a.col,3,gl.FLOAT,false,0,0); };
-  gl.uniform1f(u.uLit,1); gl.uniform1f(u.uNudge,0);
-  const m=simField.mesh; bind(m); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,m.ibo); gl.drawElements(gl.TRIANGLES,m.n,gl.UNSIGNED_INT,0);
-  bind(m.walls); gl.drawArrays(gl.TRIANGLES,0,m.walls.n);
-  if(simField.lines){ gl.uniform1f(u.uLit,0); gl.uniform1f(u.uNudge,0.004); bind(simField.lines); gl.drawArrays(gl.LINES,0,simField.lines.n); }
-  ctx.drawImage(g,0,0);
-  // overlays: origin axes (X red, Y green, Z blue), depth legend, orbit readout
-  ctx.save(); ctx.lineWidth=1.5; const o=P3(0,0,0), L=Math.max(0.5,Math.min(f.w,f.h)*0.12);
-  [[L,0,0,'#ff6b6b','X'],[0,L,0,'#5ce38a','Y'],[0,0,L,'#6fa8ff','Z']].forEach(([x,y,zz,c,t])=>{ const p=P3(x,y,zz); ctx.strokeStyle=c; ctx.fillStyle=c; ctx.beginPath(); ctx.moveTo(o.x,o.y); ctx.lineTo(p.x,p.y); ctx.stroke(); ctx.font='10px monospace'; ctx.fillText(t,p.x+3,p.y-3); });
-  ctx.restore();
-  if(simField.lines&&simField.lines.hasRange) drawDepthLegend(simField.lines.zTop, simField.lines.zBot);
-  ctx.save(); ctx.fillStyle='#8fa2ba'; ctx.font='10px monospace'; ctx.textAlign='right';
-  ctx.fillText('orbit '+Math.round(((orbit.yaw%360)+360)%360)+'° / tilt '+Math.round(90-orbit.pitch)+'°  ·  drag = pan · Option/Alt-drag = orbit · wheel = zoom', cv.width-12, cv.height-10); ctx.restore();
-}
-function setOrbit(yaw,pitch){ orbit.yaw=yaw; orbit.pitch=Math.max(2,Math.min(90,pitch)); render(); }
-function drawShape(s, selected, dim){
-  const col = selected ? '#ff9a3c' : (doc.layers.get(s.layer)?.color || '#9fe7ff');
+function drawShape(s, selected, dimmed){
+  const isDim = s.type==='dim';   // annotation: own colour, solid arrowheads, never cut
+  const th=TH();
+  const col = selected ? th.sel : (isDim ? th.annot : (doc.layers.get(s.layer)?.color || th.ink));
   ctx.save();
-  if(dim) ctx.globalAlpha=0.28;   // Preview: faint reference outline under the toolpaths
-  ctx.strokeStyle=col; ctx.lineWidth=selected?2:1.3;
+  if(dimmed) ctx.globalAlpha=0.28;   // Preview: faint reference outline under the toolpaths
+  ctx.strokeStyle=col; ctx.fillStyle=col; ctx.lineWidth=selected?2:(isDim?1.1:1.3);
   for(const loop of CADCORE.flatten(s)){
     ctx.beginPath();
     loop.pts.forEach((p,i)=>{ const q=W2S(p); i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y); });
-    ctx.stroke();
+    if(isDim && loop.closed) ctx.fill(); else ctx.stroke();
   }
   ctx.restore();
 }
 function drawNodes(s){
   if(!s||s.type==='text')return;
   if(s.prim&&s.prim.kind==='bezier'){ return drawBezierNodes(s); }
-  ctx.fillStyle='#ffcf6b';
+  ctx.fillStyle=TH().node;
   for(const p of s.pts){ const q=W2S(p); ctx.fillRect(q.x-3,q.y-3,6,6); }
 }
 function drawBezierNodes(s){
-  ctx.strokeStyle='rgba(127,208,255,0.75)'; ctx.lineWidth=1;
+  ctx.strokeStyle=TH().handle; ctx.lineWidth=1;
   for(const nd of s.prim.nodes){ const a=W2S(nd);
-    [[nd.hx0,nd.hy0],[nd.hx1,nd.hy1]].forEach(h=>{ if(Math.hypot(h[0]-nd.x,h[1]-nd.y)>1e-6){ const hs=W2S({x:h[0],y:h[1]}); ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(hs.x,hs.y);ctx.stroke(); ctx.fillStyle='#7fd0ff'; ctx.beginPath();ctx.arc(hs.x,hs.y,3.5,0,TAU);ctx.fill(); } });
+    [[nd.hx0,nd.hy0],[nd.hx1,nd.hy1]].forEach(h=>{ if(Math.hypot(h[0]-nd.x,h[1]-nd.y)>1e-6){ const hs=W2S({x:h[0],y:h[1]}); ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(hs.x,hs.y);ctx.stroke(); ctx.fillStyle=TH().handle; ctx.beginPath();ctx.arc(hs.x,hs.y,3.5,0,TAU);ctx.fill(); } });
   }
-  for(const nd of s.prim.nodes){ const a=W2S(nd); ctx.fillStyle = nd.type==='smooth' ? '#39d98a' : '#ffcf6b'; ctx.fillRect(a.x-3.5,a.y-3.5,7,7); }
+  for(const nd of s.prim.nodes){ const a=W2S(nd); ctx.fillStyle = nd.type==='smooth' ? TH().nodeSmooth : TH().node; ctx.fillRect(a.x-3.5,a.y-3.5,7,7); }
 }
 function bboxScreen(shapes){ const b=CADCORE.bboxAll(shapes); const a=W2S({x:b.minX,y:b.maxY}), c=W2S({x:b.maxX,y:b.minY}); return {x0:a.x,y0:a.y,x1:c.x,y1:c.y,b}; }
 function rotateGripPts(bs){ const d=13; return [
   {x:bs.x0-d,y:bs.y0-d,k:'nw'},{x:bs.x1+d,y:bs.y0-d,k:'ne'},
   {x:bs.x0-d,y:bs.y1+d,k:'sw'},{x:bs.x1+d,y:bs.y1+d,k:'se'} ]; }
 function drawSelectionHandles(){
-  const bs=bboxScreen(selectedShapes()); ctx.strokeStyle='rgba(255,154,60,0.7)'; ctx.setLineDash([4,3]);
+  const bs=bboxScreen(selectedShapes()); ctx.strokeStyle=TH().sel; ctx.setLineDash([4,3]);
   ctx.strokeRect(bs.x0,bs.y0,bs.x1-bs.x0,bs.y1-bs.y0); ctx.setLineDash([]);
-  ctx.fillStyle='#ff9a3c';
+  ctx.fillStyle=TH().sel;
   handlePts(bs).forEach(h=>ctx.fillRect(h.x-4,h.y-4,8,8));
   // rotation grips just outside each corner — drag any to rotate about the center
-  ctx.strokeStyle='#ffcf6b'; ctx.lineWidth=1.5;
+  ctx.strokeStyle=TH().node; ctx.lineWidth=1.5;
   for(const g of rotateGripPts(bs)){ ctx.beginPath(); ctx.arc(g.x,g.y,5,Math.PI*0.35,Math.PI*1.85); ctx.stroke(); }
 }
 function handlePts(bs){ return [
   {x:bs.x0,y:bs.y0,k:'nw'},{x:bs.x1,y:bs.y0,k:'ne'},{x:bs.x0,y:bs.y1,k:'sw'},{x:bs.x1,y:bs.y1,k:'se'},
   {x:(bs.x0+bs.x1)/2,y:bs.y0,k:'n'},{x:(bs.x0+bs.x1)/2,y:bs.y1,k:'s'},{x:bs.x0,y:(bs.y0+bs.y1)/2,k:'w'},{x:bs.x1,y:(bs.y0+bs.y1)/2,k:'e'} ]; }
 function depthColor(t){ t=Math.max(0,Math.min(1,t));   // t=1 shallow, t=0 deep
-  const deep=[22,96,122], shallow=[140,255,192], c=i=>Math.round(deep[i]+(shallow[i]-deep[i])*t);
+  const deep=[12,60,80], shallow=[64,190,130], c=i=>Math.round(deep[i]+(shallow[i]-deep[i])*t);
   return 'rgb('+c(0)+','+c(1)+','+c(2)+')'; }
 function drawToolpaths(){
   // depth range across cut (non-rapid) segments
@@ -250,8 +202,8 @@ function drawToolpaths(){
   const hasRange=isFinite(zTop)&&isFinite(zBot)&&(zTop-zBot)>1e-6;
   ctx.lineWidth=1;
   for(const seg of toolpaths){
-    if(seg.rapid){ ctx.strokeStyle='rgba(120,120,120,0.5)'; ctx.setLineDash([3,3]); }
-    else { ctx.setLineDash([]); const zm=(seg.z0+seg.z1)/2; ctx.strokeStyle = hasRange ? depthColor((zm-zBot)/(zTop-zBot)) : '#39d98a'; }
+    if(seg.rapid){ ctx.strokeStyle=TH().rapid; ctx.setLineDash([3,3]); }
+    else { ctx.setLineDash([]); const zm=(seg.z0+seg.z1)/2; ctx.strokeStyle = hasRange ? depthColor((zm-zBot)/(zTop-zBot)) : TH().cut; }
     const a=W2S({x:seg.x0,y:seg.y0}), b=W2S({x:seg.x1,y:seg.y1}); ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
   }
   ctx.setLineDash([]);
@@ -262,17 +214,17 @@ function drawDepthLegend(zTop,zBot){
   ctx.save();
   const grad=ctx.createLinearGradient(0,y,0,y+h); grad.addColorStop(0,depthColor(1)); grad.addColorStop(1,depthColor(0));
   ctx.fillStyle=grad; ctx.fillRect(x,y,w,h);
-  ctx.strokeStyle='rgba(255,255,255,0.25)'; ctx.lineWidth=1; ctx.strokeRect(x+0.5,y+0.5,w,h);
-  ctx.fillStyle='#cdd6e2'; ctx.font='10px monospace'; ctx.textAlign='left'; ctx.textBaseline='middle';
+  ctx.strokeStyle=TH().legendBd; ctx.lineWidth=1; ctx.strokeRect(x+0.5,y+0.5,w,h);
+  ctx.fillStyle=TH().legendInk; ctx.font='10px monospace'; ctx.textAlign='left'; ctx.textBaseline='middle';
   ctx.fillText('Z '+zTop.toFixed(2)+'"', x+w+5, y+5);
   ctx.fillText(zBot.toFixed(2)+'"', x+w+5, y+h-5);
-  ctx.textBaseline='alphabetic'; ctx.fillStyle='#7f93ad'; ctx.fillText('depth', x-1, y-6);
+  ctx.textBaseline='alphabetic'; ctx.fillStyle=TH().legendSub; ctx.fillText('depth', x-1, y-6);
   ctx.restore();
 }
-function drawDrillMarks(){ const rpx=Math.max(3,drillDia/2*view.ppi); ctx.lineWidth=1.4; ctx.strokeStyle='#39d98a';
+function drawDrillMarks(){ const rpx=Math.max(3,drillDia/2*view.ppi); ctx.lineWidth=1.4; ctx.strokeStyle=TH().drill;
   for(const m of drillMarks){ const q=W2S(m); ctx.beginPath(); ctx.arc(q.x,q.y,rpx,0,TAU); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(q.x-rpx-3,q.y); ctx.lineTo(q.x+rpx+3,q.y); ctx.moveTo(q.x,q.y-rpx-3); ctx.lineTo(q.x,q.y+rpx+3); ctx.stroke(); } }
-function drawSnapMark(m){ const q=W2S(m); ctx.strokeStyle='#ffe27a'; ctx.lineWidth=1.2;
+function drawSnapMark(m){ const q=W2S(m); ctx.strokeStyle=TH().snap; ctx.lineWidth=1.2;
   if(m.kind==='center'){ ctx.beginPath();ctx.arc(q.x,q.y,5,0,TAU);ctx.stroke(); }
   else if(m.kind==='corner'){ ctx.beginPath();ctx.moveTo(q.x,q.y-6);ctx.lineTo(q.x+6,q.y);ctx.lineTo(q.x,q.y+6);ctx.lineTo(q.x-6,q.y);ctx.closePath();ctx.stroke(); }
   else { ctx.strokeRect(q.x-4,q.y-4,8,8); } }
@@ -296,28 +248,325 @@ let draft=null;        // in-progress geometry
 let drag=null;         // active drag state
 function setTool(t){ if(t!=='measure') measure=null; tool=t; sel=(t==='node')?sel:sel; draft=null; document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active',b.dataset.tool===t));
   const active=document.querySelector('.tool[data-tool="'+t+'"]'); if(active){ const grp=active.closest('.tgrp'); if(grp)grp.classList.remove('collapsed'); }   // keep the active tool visible
+  const form=TOOL_FORMS[t];
+  if(form) showForm(form,'drawing');            // the tool's options take over the dock
+  else if(formOpen() && t!=='clipart' && t!=='select') setCmdTab(cmdTab);
   cv.style.cursor='';
-  setMsg((TOOLMSG[t]||'')+(CREATE_KINDS.has(t)?'  ·  Enter = create by numbers (anchor + size)':'')); render(); }
+  setMsg((TOOLMSG[t]||'')+(t in FORM_CREATE?'  ·  Enter = Create from the form (anchor + size)':'')); render(); }
+const FORM_CREATE={rect:1,rrect:1,circle:1,ellipse:1,polygon:1,star:1,text:1};
 const TOOLMSG={ select:'Click to select · drag to move · handles to scale/rotate · marquee to box-select',
   node:'Select one shape, drag its nodes · dbl-click segment adds node · dbl-click node deletes',
   line:'Click start, click end', polyline:'Click points · Enter/double-click to finish · Esc cancel',
   rect:'Click-drag opposite corners', circle:'Click center, drag radius', ellipse:'Click-drag bounding box',
   arc:'Click center, click start, click end', polygon:'Click center, drag radius (sides in panel)', star:'Click center, drag radius',
   text:'Click placement point, type in panel', measure:'Click two points', pan:'Drag to pan',
+  clipart:'Clipart — drag a box on the canvas to place the selected shape (a single click drops it at 2")',
+  dim:'Dimension — click the two measured points, then click to place the line (radius/Ø: centre then edge · angle: vertex, ray, ray, radius)',
   bezier:'Click anchors, drag to shape handles · Enter to finish · click start to close',
   fillet:'Click a corner to round it (set radius in "Fillet r")',
   trim:'Click the part of an open vector to cut back to where it crosses another',
   extend:'Click near an open vector endpoint to stretch it to the next vector ahead' };
+
+// ---- VCarve-style command dock: tab strip + form-in-panel ----
+// Picking a tool does not open a floating dialog; its options REPLACE the dock contents, with
+// Close (and Calculate / OK where it applies) at the bottom. Everything lives in one place.
+const TOOL_FORMS={rect:'rect',rrect:'rrect',circle:'circle',ellipse:'ellipse',polygon:'polygon',star:'star',text:'text',dim:'dim',fillet:'fillet'};
+const CAM_TITLES={profile:'Profile Toolpath',pocket:'Pocket Toolpath',drill:'Drilling Toolpath',
+  vcarve:'V-Carve / Engraving Toolpath',inlay:'Inlay Toolpath'};
+const ORIGIN_LABEL={bl:'bottom-left',br:'bottom-right',tl:'top-left',tr:'top-right',center:'centre'};
+let cmdTab='drawing';
+// LEFT dock = Drawing / Clipart / Layers (tabs at the bottom, Aspire-style).
+// RIGHT dock = Toolpaths: Material Setup + Toolpath Operations, swapped for a toolpath form,
+// with the Toolpath List always visible underneath.
+function setCmdTab(name){
+  cmdTab=name;
+  document.querySelectorAll('.dtab').forEach(b=>b.classList.toggle('active',b.dataset.ctab===name));
+  document.querySelectorAll('#paneForm .tform').forEach(f=>f.classList.remove('active'));
+  document.querySelectorAll('.dpane').forEach(p=>p.classList.remove('active'));
+  const pane=document.getElementById('pane'+name.charAt(0).toUpperCase()+name.slice(1));
+  if(pane) pane.classList.add('active');
+  const t=document.getElementById('ldockTitle'); if(t) t.textContent=name.charAt(0).toUpperCase()+name.slice(1);
+}
+function showForm(name, tab){
+  document.querySelectorAll('#paneForm .tform').forEach(f=>f.classList.toggle('active',f.dataset.form===name));
+  document.querySelectorAll('.dpane').forEach(p=>p.classList.remove('active'));
+  const host=document.getElementById('paneForm'); if(host) host.classList.add('active');
+  if(tab) cmdTab=tab;
+  const body=document.querySelector('.dockbody'); if(body) body.scrollTop=0;
+}
+function closeForm(){ setCmdTab(cmdTab); }
+function formOpen(){ const h=document.getElementById('paneForm'); return !!(h&&h.classList.contains('active')); }
+function showCamForm(){
+  document.querySelectorAll('.rpane').forEach(p=>p.classList.remove('active'));
+  const f=document.getElementById('paneCamForm'); if(f) f.classList.add('active');
+  const tf=document.querySelector('#paneCamForm .tform'); if(tf) tf.classList.add('active');
+  const rt=document.querySelector('.rtop'); if(rt) rt.scrollTop=0;
+}
+function closeCamForm(){
+  document.querySelectorAll('.rpane').forEach(p=>p.classList.remove('active'));
+  const o=document.getElementById('paneOps'); if(o) o.classList.add('active');
+}
+function openCamForm(op){
+  const el=document.getElementById('camOp'); if(!el)return;
+  el.value=op||'profile'; el.dispatchEvent(new Event('change',{bubbles:true}));
+  const t=document.getElementById('camFormTitle'); if(t) t.textContent=CAM_TITLES[el.value]||'Toolpath';
+  document.querySelectorAll('.opbtn').forEach(b=>b.classList.toggle('active',b.dataset.op===el.value));
+  showCamForm();
+}
+function updateMatSummary(){
+  const set=(id,txt)=>{const el=document.getElementById(id); if(el) el.textContent=txt;};
+  set('matSummary', job.w.toFixed(2)+'" \u00d7 '+job.h.toFixed(2)+'"  \u00b7  Z0 top, '+job.thickness.toFixed(3)+'" thick');
+  set('matDatum', 'XY Datum: '+(ORIGIN_LABEL[job.origin]||job.origin));
+  set('jobDims', 'Job Dimensions\n  Width  (X): '+job.w.toFixed(3)+' inches\n  Height (Y): '+job.h.toFixed(3)+' inches\n  Depth  (Z): '+job.thickness.toFixed(3)+' inches');
+}
+// ---- menu bar ----
+const MENU_ACTIONS={
+  'new':()=>document.getElementById('btnNew').click(),
+  'open':()=>openProjectDialog(),
+  'save':()=>saveProject(), 'saveas':()=>saveProjectAs(),
+  'job':()=>showForm('job','drawing'), 'rotate':()=>openRotateModal(),
+  'selall':()=>{ sel=new Set(doc.shapes.filter(s=>layerVisible(s.layer)).map(s=>s.id)); render(); syncPanels(); },
+  'editdims':()=>{ const s=selectedShapes()[0]; if(s) openShapeModal(s); else setMsg('Select one shape first'); },
+  'createnum':()=>{ const t=(tool in FORM_CREATE)?tool:'rect'; setTool(t); const f=document.querySelector('.tform[data-form="'+t+'"] input'); if(f){ f.focus(); f.select(); } },
+  'helpsearch':()=>openHelpSearch(),
+  'expdxf':()=>exportDXF(), 'expsvg':()=>exportSVG(),
+  'trace':()=>openTraceModal(),
+  'undo':()=>undo(), 'redo':()=>redo(), 'dup':()=>opDuplicate(), 'del':()=>deleteSelected(),
+  'check':()=>document.getElementById('btnCheckVec').click(),
+  'recalc':()=>recalcAll(), 'post':()=>postJob(),
+  'v2d':()=>setView('2d'), 'v3d':()=>setView('preview'),
+  'fit':()=>fitAll(), 'fitjob':()=>fitJob(),
+  'keys':()=>{document.getElementById('keysModal').style.display='block';},
+  'selftest':()=>selfTest()
+};
+function closeMenus(){ document.querySelectorAll('.menu.open').forEach(m=>m.classList.remove('open')); }
+// ---- Help search ----
+// Like the macOS Help menu: type what you want and the matching menu items, tools, forms and buttons are listed;
+// pick one and the app TAKES YOU THERE (opens the menu with the item highlighted, or switches to the dock pane /
+// form and flashes the control). It navigates, it does not execute — you still click the item yourself.
+let helpIndex=null;
+function buildHelpIndex(){ const idx=[]; const seen=new Set();
+  const add=(label, where, go, extra)=>{ const key=(label+'|'+where).toLowerCase(); if(!label||seen.has(key))return; seen.add(key); idx.push({label,where,go,text:(label+' '+where+' '+(extra||'')).toLowerCase()}); };
+  document.querySelectorAll('.menubar .menu').forEach(m=>{ const mname=m.childNodes[0].textContent.trim();
+    m.querySelectorAll('.mdrop button[data-act]').forEach(b=>add(b.textContent.trim(), mname+' menu', ()=>{ closeMenus(); m.classList.add('open'); flashEl(b); }, b.dataset.act)); });
+  document.querySelectorAll('.ldock .tool[data-tool]').forEach(b=>{ const name=(b.title||b.dataset.tip||b.dataset.tool).split(' — ')[0].split(' (')[0];
+    add(name, 'Drawing tool', ()=>{ setTool(b.dataset.tool); flashEl(b); }, b.dataset.tip||''); });
+  document.querySelectorAll('.opbtn[data-op]').forEach(b=>add(b.title||b.dataset.op, 'Toolpath operation', ()=>{ openCamForm(b.dataset.op); flashEl(b); }, b.dataset.tip||''));
+  document.querySelectorAll('.tform[data-form] h4').forEach(h=>{ const f=h.parentElement.dataset.form; if(f==='cam')return; add(h.textContent.trim(), 'Form', ()=>{ showForm(f,'drawing'); flashEl(h); }); });
+  document.querySelectorAll('.ldock .secgrp .tb[id], .rdock .secgrp .tb[id], .rfoot label').forEach(b=>{ const pane=b.closest('.dpane'); const sec=b.closest('.secgrp'); const secName=sec&&sec.querySelector('h3')?sec.querySelector('h3').textContent.trim():'';
+    const label=b.dataset.tip&&b.textContent.trim().length<3?b.dataset.tip:b.textContent.trim(); if(!label)return;
+    add(label, (secName||'Panel'), ()=>{ if(pane){ const tab=pane.id.replace(/^pane/,'').toLowerCase(); setCmdTab(tab); } flashEl(b); }, b.dataset.tip||''); });
+  document.querySelectorAll('.dtab').forEach(b=>add(b.textContent.trim()+' tab', 'Left dock', ()=>{ setCmdTab(b.dataset.ctab); flashEl(b); }));
+  add('Layers','Left dock',()=>{ setCmdTab('layers'); flashEl(document.getElementById('layerList')); },'layer add rename color delete');
+  add('Job Size and Position','Edit menu',()=>{ showForm('job','drawing'); flashEl(document.querySelector('.tform[data-form="job"] h4')); },'material thickness datum origin');
+  add('Rotate about a corner','Edit menu',()=>openRotateModal(),'pivot anchor angle cw ccw');
+  add('Orbit the 3D view','3D View',()=>{ setView('preview'); setMsg('Option/Alt-drag (or middle button) orbits · left-drag pans · wheel zooms'); },'option alt drag pan zoom');
+  add('Save As…','File menu',()=>{ closeMenus(); const m=document.querySelector('.menu[data-menu="file"]'); m.classList.add('open'); flashEl(m.querySelector('[data-act="saveas"]')); },'save file name location');
+  return idx; }
+function flashEl(el){ if(!el)return; try{ el.scrollIntoView({block:'center'}); }catch(e){} el.classList.add('flash'); setTimeout(()=>el.classList.remove('flash'),2200); }
+function helpSearchRun(q){ const res=document.getElementById('helpResults'); if(!res)return; if(!helpIndex) helpIndex=buildHelpIndex();
+  q=(q||'').trim().toLowerCase(); res.innerHTML=''; if(!q){ res.style.display='none'; return; }
+  const words=q.split(/\s+/); const hits=helpIndex.filter(it=>words.every(w=>it.text.indexOf(w)>=0)).slice(0,12);
+  res.style.display='block';
+  if(!hits.length){ res.innerHTML='<div class="hr none">No match — try another word (e.g. "rotate", "pocket", "layer", "save")</div>'; return; }
+  hits.forEach((it,i)=>{ const d=document.createElement('div'); d.className='hr'+(i===0?' sel':''); d.innerHTML='<span>'+it.label+'</span><span class="hw">'+it.where+'</span>';
+    d.onmousedown=e=>{ e.preventDefault(); e.stopPropagation(); closeMenus(); it.go(); }; res.appendChild(d); }); }
+function openHelpSearch(){ closeMenus(); const m=document.querySelector('.menu[data-menu="help"]'); if(!m)return; m.classList.add('open');
+  const inp=document.getElementById('helpSearch'); if(inp){ inp.value=''; helpSearchRun(''); inp.focus(); } }
+function initHelpSearch(){ const inp=document.getElementById('helpSearch'); if(!inp)return;
+  inp.onmousedown=e=>e.stopPropagation(); inp.onclick=e=>e.stopPropagation();
+  inp.addEventListener('input',()=>helpSearchRun(inp.value));
+  inp.addEventListener('keydown',e=>{ e.stopPropagation(); const res=document.getElementById('helpResults'); const rows=res?[...res.querySelectorAll('.hr:not(.none)')]:[]; let i=rows.findIndex(r=>r.classList.contains('sel'));
+    if(e.key==='ArrowDown'){ e.preventDefault(); if(rows.length){ rows.forEach(r=>r.classList.remove('sel')); rows[Math.min(rows.length-1,i+1)].classList.add('sel'); } }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); if(rows.length){ rows.forEach(r=>r.classList.remove('sel')); rows[Math.max(0,i-1)].classList.add('sel'); } }
+    else if(e.key==='Enter'){ e.preventDefault(); const r=rows[Math.max(0,i)]; if(r) r.onmousedown(e); }
+    else if(e.key==='Escape'){ e.preventDefault(); closeMenus(); inp.blur(); } });
+  const m=document.querySelector('.menu[data-menu="help"]'); if(m) m.addEventListener('mousedown',e=>{ if(!e.target.closest('.mdrop')) setTimeout(()=>{ if(m.classList.contains('open')){ helpIndex=null; inp.value=''; helpSearchRun(''); inp.focus(); } },0); });
+  const v=document.getElementById('helpVer'), av=document.getElementById('appVer'); if(v&&av) v.textContent=av.textContent; }
+function initMenuBar(){
+  document.querySelectorAll('.menu').forEach(m=>{
+    m.addEventListener('mousedown',e=>{
+      if(e.target.closest('.mdrop')) return;
+      e.stopPropagation(); const was=m.classList.contains('open'); closeMenus(); if(!was) m.classList.add('open');
+    });
+    m.addEventListener('mouseenter',()=>{ if(document.querySelector('.menu.open')){ closeMenus(); m.classList.add('open'); } });
+  });
+  document.querySelectorAll('.mdrop button').forEach(b=>{
+    b.onmousedown=e=>e.stopPropagation();
+    b.onclick=()=>{ closeMenus(); const a=b.dataset.act;
+      if(a&&a.indexOf('op:')===0) return openCamForm(a.slice(3));
+      const fn=MENU_ACTIONS[a]; if(fn) try{ fn(); }catch(err){ setMsg('Menu action failed: '+err.message); } };
+  });
+  window.addEventListener('mousedown',e=>{ if(!e.target.closest('.menu')) closeMenus(); });
+}
+// Create a shape straight from its form's numeric fields — Aspire lets you type it, not just drag it.
+function createFromForm(kind){
+  const n=(id,d)=>{const el=document.getElementById(id); const v=el?parseFloat(el.value):NaN; return isFinite(v)?v:d;};
+  const K=kind.charAt(0).toUpperCase()+kind.slice(1);
+  const x=n('f'+K+'X',6), y=n('f'+K+'Y',6);   // X/Y = the chosen anchor point (9-box) of the new shape
+  let sh=null;
+  if(kind==='rect'){ const w=n('fRectW',4),h=n('fRectH',3); if(w>0&&h>0) sh=CADCORE.mkRect(0,0,w,h,activeLayer); }
+  else if(kind==='rrect'){ const w=n('fRrectW',4),h=n('fRrectH',3),r=n('rrectR',0.25);
+    if(w>0&&h>0) sh=CADCORE.mkRoundRect(0,0,w,h,Math.min(r,Math.min(w,h)/2),activeLayer); }
+  else if(kind==='circle'){ const d=n('fCircleD',2); if(d>0) sh=CADCORE.mkCircle({x:0,y:0},d/2,activeLayer); }
+  else if(kind==='ellipse'){ const w=n('fEllipseW',4),h=n('fEllipseH',2); if(w>0&&h>0) sh=CADCORE.mkEllipse({x:0,y:0},w/2,h/2,0,activeLayer); }
+  else if(kind==='polygon'){ const d=n('fPolygonD',3),k=Math.max(3,Math.round(n('polyN',6))); if(d>0) sh=CADCORE.mkPolygon({x:0,y:0},d/2,k,undefined,activeLayer); }
+  else if(kind==='star'){ const d=n('fStarD',3),k=Math.max(3,Math.round(n('fStarN',5))),ip=Math.min(95,Math.max(5,n('fStarInner',45)))/100;
+    if(d>0) sh=CADCORE.mkStar({x:0,y:0},d/2,d/2*ip,k,undefined,activeLayer); }
+  else if(kind==='text'){ const el=document.getElementById('txtVal');
+    if(!el||!el.value.trim()) return setMsg('Type some text first');
+    placeText({x:0,y:0}); const placed=selectedShapes(); if(!placed.length) return;   // placeText pushed history + added the contours
+    const moved=CADCORE.moveGroupAnchorTo(placed, modalAnchor, x, y); const mm=new Map(moved.map(m=>[m.id,m]));
+    doc.shapes=doc.shapes.map(s=>mm.get(s.id)||s); render(); syncPanels();
+    setMsg('Created text · '+CADCORE.ANCHORS[modalAnchor].label+' at '+x.toFixed(3)+', '+y.toFixed(3)); return; }
+  if(!sh) return setMsg('Check the size values');
+  sh=CADCORE.moveAnchorTo(sh, modalAnchor, x, y);
+  pushHistory(); addShapes([sh]); sel=new Set([sh.id]); render(); syncPanels();
+  setMsg('Created '+kind+' · '+CADCORE.ANCHORS[modalAnchor].label+' at '+x.toFixed(3)+', '+y.toFixed(3));
+}
+// ---- tool icon set ------------------------------------------------------------
+// Hand-drawn 24x24 stroke glyphs on one weight, inheriting currentColor so they pick up the
+// button's hover/active state. Each one shows what the tool DOES (profile = an offset path around a
+// shape; pocket = concentric clearing rings; v-carve = a V groove section), rather than a letterform.
+// Icons carry their own colour on the <svg>, so currentColor inside resolves to it and the
+// button's active/hover background still reads underneath.
+const ICON_COL={
+  'new':'#2f7d32','open':'#2f7d32','save':'#2f7d32','tracebmp':'#7b52c9','expdxf':'#b06a00','expsvg':'#b06a00',
+  fit:'#1d6fb8', fitjob:'#1d6fb8',
+  line:'#1d6fb8',polyline:'#1d6fb8',bezier:'#1d6fb8',rect:'#1d6fb8',rrect:'#1d6fb8',circle:'#1d6fb8',
+  ellipse:'#1d6fb8',arc:'#1d6fb8',polygon:'#1d6fb8',star:'#c9971d',text:'#1d6fb8',dim:'#0f8a8a',
+  measure:'#0f8a8a',pan:'#4a6a8a',select:'#7b52c9',
+  mirrorh:'#7b52c9',mirrorv:'#7b52c9',rot90:'#7b52c9',duplicate:'#7b52c9',array:'#7b52c9',nest:'#b8501d',
+  node:'#0f8a8a',fillet:'#0f8a8a',trim:'#c0392b',extend:'#0f8a8a',
+  offset:'#b8501d',join:'#0f8a8a',weld:'#2f7d32',subtract:'#c0392b',intersect:'#1d6fb8',
+  del:'#c0392b',validate:'#2f7d32',
+  alignL:'#4a6a8a',alignHC:'#4a6a8a',alignR:'#4a6a8a',alignT:'#4a6a8a',alignVC:'#4a6a8a',alignB:'#4a6a8a',
+  profile:'#b8501d',pocket:'#1d6fb8',drill:'#2f7d32',vcarve:'#7b52c9',inlay:'#b8901d'
+};
+// Accent hue per icon: elements marked stroke/fill="var(--a)" pick it up, so each glyph reads
+// as two tones instead of one flat colour.
+const ICON_ACC={
+  'new':'#1d6fb8','open':'#c9971d','save':'#1d6fb8','tracebmp':'#1d6fb8','expdxf':'#2f7d32','expsvg':'#2f7d32',
+  fit:'#c9971d', fitjob:'#c9971d',
+  line:'#c9971d',polyline:'#c9971d',bezier:'#c9971d',rect:'#7b52c9',rrect:'#7b52c9',circle:'#7b52c9',
+  ellipse:'#7b52c9',arc:'#c9971d',polygon:'#7b52c9',star:'#b8501d',text:'#c9971d',dim:'#c0392b',
+  measure:'#c9971d',pan:'#1d6fb8',select:'#c9971d',
+  mirrorh:'#1d6fb8',mirrorv:'#1d6fb8',rot90:'#c9971d',duplicate:'#1d6fb8',array:'#1d6fb8',nest:'#2f7d32',
+  node:'#c9971d',fillet:'#c9971d',trim:'#4a6a8a',extend:'#c9971d',
+  offset:'#1d6fb8',join:'#c9971d',weld:'#1d6fb8',subtract:'#c0392b',intersect:'#2f7d32',
+  del:'#c0392b',validate:'#1d6fb8',
+  alignL:'#1d6fb8',alignHC:'#1d6fb8',alignR:'#1d6fb8',alignT:'#1d6fb8',alignVC:'#1d6fb8',alignB:'#1d6fb8',
+  profile:'#1d6fb8',pocket:'#c9971d',drill:'#c0392b',vcarve:'#c9971d',inlay:'#2f7d32'
+};
+const ICON_SVG=(inner,name,size)=>'<svg viewBox="0 0 24 24" width="'+(size||28)+'" height="'+(size||28)+'" fill="none" '+
+  'stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" '+
+  'style="color:'+((ICON_COL[name])||'#33414f')+';--a:'+((ICON_ACC[name])||'#c9971d')+'" aria-hidden="true">'+inner+'</svg>';
+const DOT=(x,y)=>'<circle cx="'+x+'" cy="'+y+'" r="1.7" fill="var(--a)" stroke="none"/>';
+const ICONS={
+  select:  '<path d="M6 3 L6 18 L10 14.2 L12.6 20 L15 19 L12.4 13.4 L17.5 13.4 Z" fill="currentColor" stroke="none"/>',
+  node:    '<path d="M4 17 C 8 7, 15 7, 20 13"/><rect x="2.4" y="15.4" width="3.2" height="3.2" fill="currentColor" stroke="none"/><rect x="18.4" y="11.4" width="3.2" height="3.2" fill="currentColor" stroke="none"/><rect x="10.4" y="7.6" width="3.2" height="3.2" fill="none"/>',
+  fillet:  '<path d="M4 20 V11 A7 7 0 0 1 11 4 H20"/><path d="M4 4 H11 M4 4 V11" stroke-dasharray="2 2" opacity=".5"/>',
+  trim:    '<path d="M6.5 3.5 L16.8 16.2"/><path d="M17.5 3.5 L7.2 16.2"/><circle cx="5.6" cy="18.6" r="2.5" fill="var(--a)" fill-opacity=".32" stroke="var(--a)"/><circle cx="18.4" cy="18.6" r="2.5" fill="var(--a)" fill-opacity=".32" stroke="var(--a)"/>',
+  extend:  '<path d="M3 12 H14"/><path d="M11 9 L14.5 12 L11 15"/><path d="M19 5 V19"/>',
+  line:    '<path d="M5.5 18.5 L18.5 5.5"/>'+DOT(5.5,18.5)+DOT(18.5,5.5),
+  polyline:'<path d="M4 18 L9 8.5 L14.5 14 L20 5.5"/>'+DOT(4,18)+DOT(20,5.5),
+  bezier:  '<path d="M4 18 C 8 7, 16 7, 20 13"/><path d="M4 18 L8.5 11" opacity=".5"/><path d="M20 13 L15.5 8" opacity=".5"/>'+DOT(4,18)+DOT(20,13)+DOT(8.5,11)+DOT(15.5,8),
+  rect:    '<rect x="3.5" y="6" width="17" height="12" fill="var(--a)" fill-opacity=".16"/>',
+  rrect:   '<rect x="3.5" y="6" width="17" height="12" rx="3.5" fill="var(--a)" fill-opacity=".16"/>',
+  circle:  '<circle cx="12" cy="12" r="8.2" fill="var(--a)" fill-opacity=".16"/>',
+  ellipse: '<ellipse cx="12" cy="12" rx="9" ry="6" fill="var(--a)" fill-opacity=".16"/>',
+  arc:     '<path d="M3.5 17.5 A 9.5 9.5 0 0 1 20.5 17.5"/>'+DOT(3.5,17.5)+DOT(20.5,17.5),
+  polygon: '<path d="M12 3.4 L20 8 L20 16 L12 20.6 L4 16 L4 8 Z" fill="var(--a)" fill-opacity=".16"/>',
+  star:    '<path d="M12 3 L14.5 9.4 L21.3 9.8 L16 14 L17.8 20.6 L12 16.8 L6.2 20.6 L8 14 L2.7 9.8 L9.5 9.4 Z" fill="currentColor" fill-opacity=".3"/>',
+  text:    '<path d="M4.5 6 H19.5"/><path d="M12 6 V19"/><path d="M9 19 H15"/>',
+  dim:     '<path d="M5 5.5 V13.5 M19 5.5 V13.5"/><path d="M5 18 H19"/><path d="M8 15.6 L5 18 L8 20.4 Z" fill="currentColor"/><path d="M16 15.6 L19 18 L16 20.4 Z" fill="currentColor"/>',
+  measure: '<rect x="2.6" y="9" width="18.8" height="6" rx="1"/><path d="M7 9 V12 M12 9 V13 M17 9 V12"/>',
+  pan:     '<path d="M12 3.5 V20.5 M3.5 12 H20.5"/><path d="M12 3.5 L9.6 6.4 M12 3.5 L14.4 6.4 M12 20.5 L9.6 17.6 M12 20.5 L14.4 17.6 M3.5 12 L6.4 9.6 M3.5 12 L6.4 14.4 M20.5 12 L17.6 9.6 M20.5 12 L17.6 14.4"/>',
+  // toolpath operations
+  profile: '<rect x="7" y="8" width="10" height="8" rx="1" fill="currentColor" fill-opacity=".2"/><rect x="3.6" y="4.6" width="16.8" height="14.8" rx="2.6" stroke-dasharray="3 2.2" stroke="var(--a)"/>',
+  pocket:  '<rect x="3.4" y="5.4" width="17.2" height="13.2" rx="1.4" fill="currentColor" fill-opacity=".16"/><rect x="6.3" y="8.3" width="11.4" height="7.4" rx="1" stroke="var(--a)"/><rect x="9.2" y="11.2" width="5.6" height="1.6" rx=".8" stroke="var(--a)"/>',
+  drill:   '<circle cx="12" cy="12" r="7.6" fill="currentColor" fill-opacity=".14"/><circle cx="12" cy="12" r="2.8" fill="var(--a)" stroke="none"/><path d="M12 1.8 V5 M12 19 V22.2 M1.8 12 H5 M19 12 H22.2" stroke="var(--a)"/>',
+  vcarve:  '<path d="M2.6 7 V17 H21.4 V7 Z" fill="currentColor" fill-opacity=".16"/><path d="M7.4 7 L12 15.6 L16.6 7 Z" fill="var(--a)" fill-opacity=".55" stroke="var(--a)"/>',
+  inlay:   '<path d="M2.8 18.4 V9 H8 L11 13.4 L14 9 H19.2 V18.4 Z" fill="currentColor" fill-opacity=".18"/><path d="M8 5.6 L11 1.6 L14 5.6 Z" fill="var(--a)" fill-opacity=".6" stroke="var(--a)"/>',
+  // ---- command buttons (File Operations / View / Transform / Edit / Align / Layout) ----
+  'new':     '<path d="M6 3.2 H14 L18.6 8 V20.8 H6 Z" fill="currentColor" fill-opacity=".12"/><path d="M14 3.2 V8 H18.6" stroke="var(--a)"/><path d="M9 13.4 H15.6 M12.3 10.1 V16.7" stroke="var(--a)"/>',
+  'open':    '<path d="M2.8 18.6 V6.4 H9.4 L11.4 8.8 H17.6 V11"/><path d="M2.8 18.6 L6.2 11 H21.6 L18.2 18.6 Z" fill="var(--a)" fill-opacity=".28" stroke="var(--a)"/>',
+  'save':    '<path d="M4 4.4 H17.2 L20 7.2 V19.6 H4 Z" fill="currentColor" fill-opacity=".12"/><path d="M7.4 4.4 V10 H15.6 V4.4" stroke="var(--a)"/><rect x="7.4" y="13.4" width="8.2" height="6.2" fill="var(--a)" fill-opacity=".3" stroke="var(--a)"/>',
+  'tracebmp':'<rect x="2.8" y="4.6" width="10.6" height="10.6" rx="1"/><path d="M5 12.6 L7.6 9.4 L9.6 11.6 L11.4 9.6" opacity=".65"/><path d="M9.6 20.4 C 13 20.4, 13.6 12.4, 21 12.4"/>'+DOT(9.6,20.4)+DOT(21,12.4),
+  'expdxf':  '<path d="M5 3.4 H12.6 L16.6 7.4 V13"/><path d="M12.6 3.4 V7.4 H16.6"/><path d="M5 3.4 V16.6 H10"/><path d="M13.6 20.2 L17.4 16.4 L21.2 20.2 Z"/><path d="M13.6 20.2 H21.2" opacity=".6"/>',
+  'expsvg':  '<path d="M5 3.4 H12.6 L16.6 7.4 V12"/><path d="M12.6 3.4 V7.4 H16.6"/><path d="M5 3.4 V16.6 H9.4"/><path d="M12 20.4 C 15 14.6, 18.6 20.4, 21.4 15"/>'+DOT(12,20.4)+DOT(21.4,15),
+  'fit':     '<rect x="3.2" y="5.4" width="17.6" height="13.2" rx="1.4" stroke-dasharray="2.6 2"/><path d="M8.6 10 L11.4 12.8 M8.6 14 V10 H12.6"/><path d="M15.4 14 L12.6 11.2 M15.4 10 V14 H11.4"/>',
+  'fitjob':  '<rect x="2.8" y="5" width="18.4" height="14" rx="1.4" stroke-dasharray="2.6 2"/><rect x="7.4" y="9" width="9.2" height="6" fill="currentColor" fill-opacity=".2"/>',
+  'mirrorh': '<path d="M12 2.6 V21.4" stroke-dasharray="2.4 2.2"/><path d="M9.4 6.4 L2.8 12 L9.4 17.6 Z"/><path d="M14.6 6.4 L21.2 12 L14.6 17.6 Z" fill="var(--a)" fill-opacity=".4" stroke="var(--a)"/>',
+  'mirrorv': '<path d="M2.6 12 H21.4" stroke-dasharray="2.4 2.2"/><path d="M6.4 9.4 L12 2.8 L17.6 9.4 Z"/><path d="M6.4 14.6 L12 21.2 L17.6 14.6 Z" fill="var(--a)" fill-opacity=".4" stroke="var(--a)"/>',
+  'rot90':   '<path d="M12 4.2 A7.8 7.8 0 1 1 4.6 14.6"/><path d="M8.4 2.2 L12 4.2 L8.4 6.6"/><rect x="9" y="9" width="6" height="6" fill="currentColor" fill-opacity=".22"/>',
+  'duplicate':'<rect x="3.2" y="7.4" width="11.6" height="11.6" rx="1"/><path d="M7.6 7.4 V4 H20.8 V17.2 H17.4" opacity=".7"/>',
+  'array':   '<rect x="3" y="3" width="6.4" height="6.4" fill="currentColor" fill-opacity=".28"/><rect x="14.6" y="3" width="6.4" height="6.4" fill="var(--a)" fill-opacity=".28" stroke="var(--a)"/><rect x="3" y="14.6" width="6.4" height="6.4" fill="var(--a)" fill-opacity=".28" stroke="var(--a)"/><rect x="14.6" y="14.6" width="6.4" height="6.4" fill="currentColor" fill-opacity=".28"/>',
+  'nest':    '<rect x="2.6" y="4" width="18.8" height="16" rx="1" stroke-dasharray="2.6 2"/><rect x="4.6" y="6" width="7.4" height="5.4" fill="currentColor" fill-opacity=".18"/><circle cx="17" cy="9.2" r="3.2" fill="currentColor" fill-opacity=".18"/><rect x="4.6" y="13.4" width="12" height="4.6" fill="currentColor" fill-opacity=".18"/>',
+  'offset':  '<rect x="7.6" y="8.6" width="8.8" height="6.8" rx="1"/><rect x="3.6" y="4.6" width="16.8" height="14.8" rx="3" stroke-dasharray="3 2.2" opacity=".8"/>',
+  'join':    '<path d="M3 17.4 C 6.4 17.4, 8.4 12, 11.6 12"/><path d="M21 17.4 C 17.6 17.4, 15.6 12, 12.4 12"/>'+DOT(12,12)+DOT(3,17.4)+DOT(21,17.4),
+  'weld':    '<circle cx="9.4" cy="12" r="5.6" fill="currentColor" fill-opacity=".34"/><circle cx="14.6" cy="12" r="5.6" fill="var(--a)" fill-opacity=".34" stroke="var(--a)"/>',
+  'subtract':'<circle cx="9.4" cy="12" r="5.6" fill="#1d6fb8" fill-opacity=".32" stroke="#1d6fb8"/><circle cx="14.6" cy="12" r="5.6" stroke-dasharray="2.4 2" stroke="var(--a)" fill="none"/>',
+  'intersect':'<circle cx="9.5" cy="12" r="5.5"/><circle cx="14.5" cy="12" r="5.5" stroke="var(--a)"/><path d="M12 7.1 A5.5 5.5 0 0 0 12 16.9 A5.5 5.5 0 0 0 12 7.1 Z" fill="var(--a)" fill-opacity=".6" stroke="none"/>',
+  'del':     '<path d="M4.4 6.6 H19.6"/><path d="M9.6 6.6 V4.2 H14.4 V6.6"/><path d="M6.4 6.6 L7.4 20.4 H16.6 L17.6 6.6" fill="currentColor" fill-opacity=".16"/><path d="M10.4 10 V17 M13.6 10 V17"/>',
+  'validate':'<path d="M2.8 16.6 C 6.6 16.6, 8.2 7.4, 12 7.4 C 14.6 7.4, 15.8 11, 17 13" opacity=".9"/><circle cx="16.4" cy="15.6" r="4.6"/><path d="M14.4 15.6 L15.9 17.1 L18.6 13.9"/>',
+  'alignL':  '<path d="M3.6 3.4 V20.6"/><rect x="6.6" y="6" width="13.4" height="4.4" fill="var(--a)" fill-opacity=".28"/><rect x="6.6" y="13.6" width="8.4" height="4.4" fill="currentColor" fill-opacity=".22"/>',
+  'alignR':  '<path d="M20.4 3.4 V20.6"/><rect x="4" y="6" width="13.4" height="4.4" fill="var(--a)" fill-opacity=".28"/><rect x="9" y="13.6" width="8.4" height="4.4" fill="currentColor" fill-opacity=".22"/>',
+  'alignHC': '<path d="M12 3.4 V20.6" stroke-dasharray="2.4 2"/><rect x="5.3" y="6" width="13.4" height="4.4" fill="var(--a)" fill-opacity=".28"/><rect x="7.8" y="13.6" width="8.4" height="4.4" fill="currentColor" fill-opacity=".22"/>',
+  'alignT':  '<path d="M3.4 3.6 H20.6"/><rect x="6" y="6.6" width="4.4" height="13.4" fill="var(--a)" fill-opacity=".28"/><rect x="13.6" y="6.6" width="4.4" height="8.4" fill="currentColor" fill-opacity=".22"/>',
+  'alignB':  '<path d="M3.4 20.4 H20.6"/><rect x="6" y="4" width="4.4" height="13.4" fill="var(--a)" fill-opacity=".28"/><rect x="13.6" y="9" width="4.4" height="8.4" fill="currentColor" fill-opacity=".22"/>',
+  'alignVC': '<path d="M3.4 12 H20.6" stroke-dasharray="2.4 2"/><rect x="6" y="5.3" width="4.4" height="13.4" fill="var(--a)" fill-opacity=".28"/><rect x="13.6" y="7.8" width="4.4" height="8.4" fill="currentColor" fill-opacity=".22"/>',
+};
+// Left-dock command buttons become icon buttons too, the way Aspire lays them out.
+// Their data-tip tooltips carry the naming, so nothing becomes unguessable.
+const ICON_BTNS={ btnNew:'new', btnImport:'open', btnSaveProj:'save', btnTrace:'tracebmp',
+  btnExpDXF:'expdxf', btnExpSVG:'expsvg', btnFit:'fit', btnFitJob:'fitjob',
+  btnMirrorH:'mirrorh', btnMirrorV:'mirrorv', btnRot90:'rot90', btnDup:'duplicate',
+  btnArray:'array', btnNestForm:'nest', btnOffset:'offset', btnJoin:'join', btnUnion:'weld',
+  btnDiff:'subtract', btnInt:'intersect', btnDelete:'del', btnCheckVec:'validate',
+  btnAlignL:'alignL', btnAlignHC:'alignHC', btnAlignR:'alignR',
+  btnAlignT:'alignT', btnAlignVC:'alignVC', btnAlignB:'alignB' };
+function paintIcons(){
+  for(const id in ICON_BTNS){
+    const b=document.getElementById(id), g=ICONS[ICON_BTNS[id]];
+    if(!b||!g) continue;
+    if(!b.dataset.tip && b.textContent.trim()) b.dataset.tip=b.textContent.trim();
+    b.classList.add('iconbtn'); b.innerHTML=ICON_SVG(g, ICON_BTNS[id], 24);
+  }
+  document.querySelectorAll('.tool[data-tool]').forEach(b=>{
+    const g=ICONS[b.dataset.tool]; if(g) b.innerHTML=ICON_SVG(g, b.dataset.tool);
+  });
+  document.querySelectorAll('.opbtn[data-op]').forEach(b=>{
+    const g=ICONS[b.dataset.op]; if(g) b.innerHTML=ICON_SVG(g, b.dataset.op, 30);
+  });
+}
+function initCmdDock(){
+  paintIcons();
+  const jd=document.getElementById('jobDims'); if(jd) jd.style.whiteSpace='pre';
+  document.querySelectorAll('[data-create]').forEach(b=>b.onclick=()=>createFromForm(b.dataset.create));
+  // Enter inside a draw form's field = Create (the canvas Enter shortcut is ignored while an input has focus)
+  document.querySelectorAll('.tform[data-form]').forEach(f=>{ const cb=f.querySelector('[data-create]'); if(!cb)return;
+    f.querySelectorAll('input').forEach(inp=>inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); createFromForm(cb.dataset.create); } })); });
+  initFormAnchors();
+  document.querySelectorAll('.dtab').forEach(b=>b.onclick=()=>setCmdTab(b.dataset.ctab));
+  initMenuBar();
+  document.querySelectorAll('[data-formclose]').forEach(b=>b.onclick=e=>{
+    if(e.target.closest('#paneCamForm')) closeCamForm(); else closeForm(); });
+  document.querySelectorAll('.opbtn').forEach(b=>b.onclick=()=>openCamForm(b.dataset.op));
+  const jf=()=>showForm('job','drawing');
+  const a=document.getElementById('btnJobForm'); if(a)a.onclick=jf;
+  const b=document.getElementById('btnJobForm2'); if(b)b.onclick=jf;
+  const n=document.getElementById('btnNestForm'); if(n)n.onclick=()=>showForm('nest','drawing');
+  updateMatSummary();
+}
 
 function evScr(e){ const r=cv.getBoundingClientRect(); return { x:e.clientX-r.left, y:e.clientY-r.top }; }
 
 cv.addEventListener('mousedown', e=>{
   if(e.button===2) return;   // right-click handled by contextmenu
   const scr=evScr(e); const snap=snapWorld(scr); const w={x:snap.x,y:snap.y};
-  if(viewMode==='preview'){   // Preview is read-only: left-drag pans; Option/Alt-drag (or middle button) orbits the 3D cut
-    if(simField && GL3D.ok && (e.altKey || e.button===1)){ drag={kind:'orbit', sx:scr.x, sy:scr.y, yaw:orbit.yaw, pitch:orbit.pitch}; e.preventDefault(); return; }
-    drag={kind:'pan', sx:scr.x, sy:scr.y, ox:view.ox, oy:view.oy}; return; }
   if(e.button===1 || tool==='pan' || e.altKey){ drag={kind:'pan', sx:scr.x, sy:scr.y, ox:view.ox, oy:view.oy}; return; }
+  if(viewMode==='preview') return;   // Preview is read-only (pan/zoom only)
   if(tool==='select'){ return selectDown(scr,w,e); }
   if(tool==='node'){ return nodeDown(scr,w,e); }
   if(tool==='fillet'){ return filletAt(w); }
@@ -340,15 +589,14 @@ cv.addEventListener('mousedown', e=>{
   }
   else if(tool==='arc'){ if(!draft){draft={kind:'arc',c:w,p1:null,p2:null};} else if(!draft.p1){draft.p1=w;} else {draft.p2=w; commitArc();} }
   else if(tool==='text'){ placeText(w); }
+  else if(tool==='dim'){ dimDown(w); }
+  else if(tool==='clipart'){ if(!clipArmed){ setMsg('Pick a clipart shape in the CLIPART panel first'); } else { draft={kind:'clip',a:w,b:w}; drag={kind:'draw'}; } }
   else if(tool==='measure'){ if(!draft){ measure=null; draft={kind:'measure',a:w,b:w}; } else { measure={a:draft.a,b:w}; draft=null; } }
   render();
 });
 cv.addEventListener('mousemove', e=>{
   const scr=evScr(e);
-  if(viewMode==='preview'){ updateCursor(scr); cv.style.cursor=(simField&&GL3D.ok&&e.altKey)?'grab':'';
-    if(drag&&drag.kind==='pan'){ view.ox=drag.ox+(scr.x-drag.sx); view.oy=drag.oy+(scr.y-drag.sy); render(); }
-    else if(drag&&drag.kind==='orbit'){ setOrbit(drag.yaw+(scr.x-drag.sx)*0.4, drag.pitch+(scr.y-drag.sy)*0.4); }   // 0.4°/px
-    return; }
+  if(viewMode==='preview'){ updateCursor(scr); if(drag&&drag.kind==='pan'){ view.ox=drag.ox+(scr.x-drag.sx); view.oy=drag.oy+(scr.y-drag.sy); render(); } return; }
   updateCursor(scr); if(!drag) hoverCursor(scr); const snap=snapWorld(scr); snapMark = snap.kind?{x:snap.x,y:snap.y,kind:snap.kind}:null; const w={x:snap.x,y:snap.y};
   if(drag&&drag.kind==='pan'){ view.ox=drag.ox+(scr.x-drag.sx); view.oy=drag.oy+(scr.y-drag.sy); render(); return; }
   if(drag&&drag.kind==='move'){ doMove(S2W(scr), e.ctrlKey||e.metaKey); render(); return; }
@@ -394,6 +642,29 @@ function pickShapeAt(w){ const tol=pxTol(6);
   for(let i=doc.shapes.length-1;i>=0;i--){ const s=doc.shapes[i]; if(!layerVisible(s.layer)||!s.closed)continue; if(shapeInside(s,w)) return s; }
   return null; }
 
+// ---- anchor (9-box position reference, VCarve-style) ----
+// An anchor names which point of a shape's bounding box an X/Y coordinate refers to:
+// lower/center/upper x left/middle/right. Used by the draw forms (Create), the edit dialog, the Rotate
+// dialog (pivot), the rotate grips (pivot) and move-drag snapping (the point that snaps).
+const ANCHOR_ROWS=[['tl','tm','tr'],['cl','c','cr'],['bl','bm','br']];   // drawn top row first (screen order)
+function loadAnchor(key, dflt){ try{ const a=localStorage.getItem(key); if(a&&CADCORE.ANCHORS[a]) return a; }catch(e){} return dflt; }
+let modalAnchor=loadAnchor('aqcam.anchor','bl');      // draw forms + edit dialog + move snapping
+let rotAnchor=loadAnchor('aqcam.rotAnchor','c');      // rotate pivot (dialog + grips)
+function anchorGridHTML(cur, cls){ return '<div class="agrid '+(cls||'')+'">'+ANCHOR_ROWS.map(r=>r.map(a=>'<button type="button" class="ab'+(a===cur?' on':'')+'" data-a="'+a+'" title="'+CADCORE.ANCHORS[a].label+'"></button>').join('')).join('')+'</div>'; }
+function wireAnchorGrid(host, onPick){ host.querySelectorAll('.agrid .ab').forEach(b=>{ b.onclick=e=>{ e.preventDefault(); host.querySelectorAll('.agrid .ab').forEach(x=>x.classList.toggle('on',x===b)); onPick(b.dataset.a); }; }); }
+function setModalAnchor(a){ if(!CADCORE.ANCHORS[a]) return;
+  const host=document.getElementById('modalFields'); const ix=host&&host.querySelector('input[data-k="ax"]'), iy=host&&host.querySelector('input[data-k="ay"]');
+  if(modalOrig && ix && iy){ const cur=buildShapeFromFields();   // re-express the SAME shape's position by the new anchor (nothing moves)
+    modalAnchor=a; const pt=CADCORE.anchorPoint(cur, a); ix.value=(+pt.x.toFixed(3)); iy.value=(+pt.y.toFixed(3)); }
+  else modalAnchor=a;
+  try{ localStorage.setItem('aqcam.anchor', a); }catch(e){}
+  document.querySelectorAll('.ahint').forEach(h=>{ h.textContent='X / Y = '+CADCORE.ANCHORS[a].label+' of the shape'; });
+  document.querySelectorAll('.fanchor .agrid .ab, #modalFields .agrid .ab').forEach(b=>b.classList.toggle('on', b.dataset.a===a));
+}
+// The draw forms share one anchor grid: every form gets a copy, all kept in sync with modalAnchor.
+function initFormAnchors(){ document.querySelectorAll('.fanchor').forEach(host=>{
+  host.innerHTML=anchorGridHTML(modalAnchor,'small')+'<span class="ahint">X / Y = '+CADCORE.ANCHORS[modalAnchor].label+' of the shape</span>';
+  wireAnchorGrid(host, setModalAnchor); }); }
 // ---- shape properties modal (numeric edit, VCarve-style) ----
 // field spec per primitive kind: [paramKey, label, step]  (step 'text' = text input; *Deg keys are angle-in-degrees views)
 const MODAL_SPECS={
@@ -406,51 +677,18 @@ const MODAL_SPECS={
   line:[['x1','Start X',0.05],['y1','Start Y',0.05],['x2','End X',0.05],['y2','End Y',0.05],['rotDeg','Rotation°',1]],
   arc:[['cx','Center X',0.05],['cy','Center Y',0.05],['r','Radius',0.05],['a0Deg','Start angle°',1],['a1Deg','End angle°',1]],
   text:[['text','Text','text'],['ax','X',0.05],['ay','Y',0.05],['h','Height',0.05]],
+  dim:[['style','Style',['aligned','horizontal','vertical','radius','diameter','angle']],
+    ['x1','From X',0.05],['y1','From Y',0.05],['x2','To X',0.05],['y2','To Y',0.05],
+    ['off','Offset / arc r',0.05],['textH','Text height',0.02],['prec','Decimals',1],
+    ['unit','Units',['in','mm','none']],['label','Label override','text']],
   generic:[['ax','X',0.05],['ay','Y',0.05],['w','Width',0.05],['h','Height',0.05],['rotDeg','Rotation°',1]]
 };
-// ---- anchor (9-box position reference, VCarve-style) ----
-// 'ax'/'ay' fields are the world position of the chosen anchor point on the shape's bounding box:
-// lower/center/upper × left/middle/right. Persisted so the next dialog opens with the same reference.
-const ANCHOR_ROWS=[['tl','tm','tr'],['cl','c','cr'],['bl','bm','br']];   // drawn top row first (screen order)
-let modalAnchor=(function(){ try{ const a=localStorage.getItem('aqcam.anchor'); if(a&&CADCORE.ANCHORS[a]) return a; }catch(e){} return 'bl'; })();
-function anchorGridHTML(cur, cls){ return '<div class="agrid '+(cls||'')+'">'+ANCHOR_ROWS.map(r=>r.map(a=>'<button type="button" class="ab'+(a===cur?' on':'')+'" data-a="'+a+'" title="'+CADCORE.ANCHORS[a].label+'"></button>').join('')).join('')+'</div>'; }
-function wireAnchorGrid(host, onPick){ host.querySelectorAll('.agrid .ab').forEach(b=>{ b.onclick=e=>{ e.preventDefault(); host.querySelectorAll('.agrid .ab').forEach(x=>x.classList.toggle('on',x===b)); onPick(b.dataset.a); }; }); }
-function setModalAnchor(a){ if(!CADCORE.ANCHORS[a]) return;
-  const host=document.getElementById('modalFields'); const ix=host.querySelector('input[data-k="ax"]'), iy=host.querySelector('input[data-k="ay"]');
-  if(modalOrig && ix && iy){ const cur=buildShapeFromFields();   // re-express the SAME shape's position by the new anchor (nothing moves)
-    modalAnchor=a; const pt=CADCORE.anchorPoint(cur, a); ix.value=(+pt.x.toFixed(3)); iy.value=(+pt.y.toFixed(3)); }
-  else modalAnchor=a;
-  try{ localStorage.setItem('aqcam.anchor', a); }catch(e){}
-  const hint=host.querySelector('.ahint'); if(hint) hint.textContent='X / Y = '+CADCORE.ANCHORS[a].label+' of the shape';
-}
-const CREATE_KINDS=new Set(['rect','rrect','circle','ellipse','polygon','star','text']);
-let modalCreate=false;   // true while the dialog is creating a new shape (preview lives in doc.shapes until Create/Cancel)
-// Create-by-numbers: open the dialog on a fresh default shape parked at the job's matching anchor point.
-function openCreateModal(kind){ if(!CREATE_KINDS.has(kind)) kind='rect';
-  const gv=(id,d)=>{ const el=document.getElementById(id); const v=el?parseFloat(el.value):NaN; return isFinite(v)?v:d; };
-  const r=jobRect(); const jp=CADCORE.bboxAnchor({minX:r.x0,minY:r.y0,maxX:r.x1,maxY:r.y1}, modalAnchor);
-  const n=Math.max(3,Math.round(gv('polyN',6))); let s;
-  switch(kind){
-    case 'rect': s=CADCORE.mkRect(0,0,4,3,activeLayer); break;
-    case 'rrect': s=CADCORE.mkRoundRect(0,0,4,3,Math.max(0.01,gv('rrectR',0.25)),activeLayer); break;
-    case 'circle': s=CADCORE.mkCircle({x:0,y:0},1,activeLayer); break;
-    case 'ellipse': s=CADCORE.mkEllipse({x:0,y:0},2,1,0,activeLayer); break;
-    case 'polygon': s=CADCORE.mkPolygon({x:0,y:0},1.5,n,undefined,activeLayer); break;
-    case 'star': s=CADCORE.mkStar({x:0,y:0},1.5,0.675,n,undefined,activeLayer); break;
-    case 'text': { const t=document.getElementById('txtVal'); s=CADCORE.mkText(0,0,gv('txtH',1),(t&&t.value)||'TEXT',activeLayer); break; }
-  }
-  s=CADCORE.moveAnchorTo(s, modalAnchor, jp.x, jp.y);
-  modalCreate=true; doc.shapes.push(s); sel=new Set([s.id]); render();
-  openShapeModal(s);
-}
 let modalShape=null, modalOrig=null;   // modalOrig = pristine clone (live-preview baseline / revert target)
 function openShapeModal(shape){ if(!shape)return; modalShape=shape; modalOrig=CADCORE.clone(shape);
   let p=CADCORE.primParams(shape), kind;
   if(p){ kind=p.kind; } else { const b=CADCORE.bbox(shape); p={x:b.minX,y:b.minY,w:b.maxX-b.minX,h:b.maxY-b.minY}; kind='generic'; }
   const host=document.getElementById('modalFields'); host.innerHTML=''; host.dataset.kind=kind;
-  const kname=(kind==='generic'?(shape.type==='text'?'text':'shape'):kind);
-  document.getElementById('modalTitle').textContent=(modalCreate?'Create ':'Edit ')+kname;
-  const ab=document.getElementById('modalApply'); if(ab) ab.textContent=modalCreate?'Create':'Apply';
+  document.getElementById('modalTitle').textContent='Edit '+(kind==='generic'?(shape.type==='text'?'text':'shape'):kind);
   const hasAnchor=MODAL_SPECS[kind].some(f=>f[0]==='ax');
   if(hasAnchor){ const row=document.createElement('div'); row.className='mfield arow';
     row.innerHTML='<span>Anchor<br><small class="ahint">X / Y = '+CADCORE.ANCHORS[modalAnchor].label+' of the shape</small></span>'+anchorGridHTML(modalAnchor);
@@ -460,7 +698,8 @@ function openShapeModal(shape){ if(!shape)return; modalShape=shape; modalOrig=CA
     let val = key==='ax'?apt.x : key==='ay'?apt.y : key==='rotDeg'?(p.rot||0)*180/Math.PI : key==='a0Deg'?(p.a0||0)*180/Math.PI : key==='a1Deg'?(p.a1||0)*180/Math.PI : p[key];
     const row=document.createElement('label'); row.className='mfield';
     let inp;
-    if(step==='text') inp='<input type="text" data-k="'+key+'" value="'+String(val==null?'':val).replace(/"/g,'&quot;')+'">';
+    if(Array.isArray(step)) inp='<select data-k="'+key+'">'+step.map(o=>'<option value="'+o+'"'+(String(val)===o?' selected':'')+'>'+o+'</option>').join('')+'</select>';
+    else if(step==='text') inp='<input type="text" data-k="'+key+'" value="'+String(val==null?'':val).replace(/"/g,'&quot;')+'">';
     else { const dp=(key==='rotDeg'||key==='a0Deg'||key==='a1Deg')?1:(key==='n'?0:3);   // angles 0.1°, counts integer, lengths/positions 0.001"
       const dv=(typeof val==='number'&&isFinite(val))?+val.toFixed(dp):0;
       inp='<input type="number" data-k="'+key+'" step="'+step+'" value="'+dv+'">'; }
@@ -470,11 +709,11 @@ function openShapeModal(shape){ if(!shape)return; modalShape=shape; modalOrig=CA
   document.getElementById('shapeModal').style.display='block';
   const f=host.querySelector('input'); if(f){ f.focus(); f.select&&f.select(); }
 }
-function modalAnchorXY(vals){ return { x: isFinite(vals.ax)?vals.ax:0, y: isFinite(vals.ay)?vals.ay:0 }; }
 // rebuild the edited shape from the current field values (always from the pristine baseline, so previews don't drift)
 function buildShapeFromFields(){ const host=document.getElementById('modalFields'); const kind=host.dataset.kind; const vals={};
   host.querySelectorAll('input').forEach(inp=>{ vals[inp.dataset.k]= inp.type==='number'?(parseFloat(inp.value)||0):inp.value; });
-  const hasAnchor=('ax' in vals)&&('ay' in vals); const A=modalAnchorXY(vals);
+  host.querySelectorAll('select').forEach(sl=>{ vals[sl.dataset.k]=sl.value; });
+  const hasAnchor=('ax' in vals)&&('ay' in vals); const A={ x:isFinite(vals.ax)?vals.ax:0, y:isFinite(vals.ay)?vals.ay:0 };
   if(kind==='generic'){ let s=CADCORE.fitShapeTo(modalOrig, null, null, vals.w, vals.h);   // size first (position kept)...
     if(vals.rotDeg){ const b=CADCORE.bbox(s); s=CADCORE.rotate(s,(b.minX+b.maxX)/2,(b.minY+b.maxY)/2, vals.rotDeg*Math.PI/180); }
     if(hasAnchor) s=CADCORE.moveAnchorTo(s, modalAnchor, A.x, A.y);   // ...then park the chosen anchor at X/Y
@@ -489,25 +728,17 @@ function buildShapeFromFields(){ const host=document.getElementById('modalFields
 function previewShapeModal(){ if(!modalOrig)return; const ns=buildShapeFromFields();
   doc.shapes=doc.shapes.map(s=>s.id===modalOrig.id?ns:s); sel=new Set([modalOrig.id]); render(); }   // live, no history
 function applyShapeModal(){ if(!modalOrig){ hideModal(); return; } const ns=buildShapeFromFields();
-  if(modalCreate){   // new shape: drop the preview, snapshot, then add for real (one undo step)
-    doc.shapes=doc.shapes.filter(s=>s.id!==modalOrig.id); pushHistory();
-    let out=[ns];
-    if(ns.type==='text' && textOutline && ttFont){   // TTF outline text: trace glyphs, then park the group's anchor where the preview's was
-      try{ const d=ttFont.getPath(ns.text,0,0,1000).toPathData(4); const shapes=CADCORE.outlineTextShapes(d,0,0,ns.h,activeLayer);
-        if(shapes.length){ const a=CADCORE.anchorPoint(ns, modalAnchor); out=CADCORE.moveGroupAnchorTo(shapes, modalAnchor, a.x, a.y); } }
-      catch(err){ setMsg('Font render failed: '+err.message+' — placed single-stroke text'); }
-    }
-    addShapes(out); sel=new Set(out.map(s=>s.id)); const kind=ns.prim?ns.prim.kind:ns.type;
-    hideModal(); render(); syncPanels(); setMsg('Created '+kind+' · '+CADCORE.ANCHORS[modalAnchor].label+' at '+(+CADCORE.anchorPoint(out[0],modalAnchor).x.toFixed(3))+', '+(+CADCORE.anchorPoint(out[0],modalAnchor).y.toFixed(3)));
-    return; }
   doc.shapes=doc.shapes.map(s=>s.id===modalOrig.id?modalOrig:s); pushHistory();   // baseline = original, one undo step
   doc.shapes=doc.shapes.map(s=>s.id===modalOrig.id?ns:s); sel=new Set([modalOrig.id]);
   hideModal(); render(); syncPanels(); }
-function closeShapeModal(){ if(modalOrig){ doc.shapes=modalCreate ? doc.shapes.filter(s=>s.id!==modalOrig.id) : doc.shapes.map(s=>s.id===modalOrig.id?modalOrig:s); if(modalCreate) sel.clear(); } hideModal(); render(); syncPanels(); }   // revert preview
-function hideModal(){ document.getElementById('shapeModal').style.display='none'; modalShape=null; modalOrig=null; modalCreate=false; }
+function closeShapeModal(){ if(modalOrig){ doc.shapes=doc.shapes.map(s=>s.id===modalOrig.id?modalOrig:s); } hideModal(); render(); syncPanels(); }   // revert preview
+function hideModal(){ document.getElementById('shapeModal').style.display='none'; modalShape=null; modalOrig=null; }
 
 // ---- rotate dialog (angle + direction + pivot, live preview) ----
-let rotBase=null, rotIds=null, rotAnchor='c';
+// Pivot = one of the 9 anchor points of the selection's bounding box (corners included), shared with the grips.
+let rotBase=null;
+function setRotAnchor(a){ if(!CADCORE.ANCHORS[a])return; rotAnchor=a; try{ localStorage.setItem('aqcam.rotAnchor',a); }catch(e){} }
+function rotatePivot(shapes){ return CADCORE.bboxAnchor(CADCORE.bboxAll(shapes), rotAnchor); }
 function rotateShapeAbout(o, cx, cy, d){   // parametric prims accumulate prim.rot (stay editable) and orbit the pivot; others rotate points
   if(o.prim && ROT_PARAM_KINDS.has(o.prim.kind)){
     const p=CADCORE.primParams(o); const c0 = ('cx' in p) ? {x:p.cx,y:p.cy} : {x:p.x+p.w/2,y:p.y+p.h/2};
@@ -519,23 +750,19 @@ function rotateShapeAbout(o, cx, cy, d){   // parametric prims accumulate prim.r
 }
 function rotDeltaFromDialog(){ const g=id=>document.getElementById(id); const deg=parseFloat(g('rotAngle').value)||0; const dir=g('rotDir').value;
   return (dir==='cw'?-1:1)*deg*Math.PI/180; }
-function previewRotateModal(){ if(!rotBase)return; const d=rotDeltaFromDialog(); const b=CADCORE.bboxAll(rotBase); const pv=CADCORE.bboxAnchor(b, rotAnchor);
-  const map=new Map(rotBase.map(o=>[o.id,o])); doc.shapes=doc.shapes.map(s=>map.has(s.id)?rotateShapeAbout(map.get(s.id),pv.x,pv.y,d):s); render(); }
+function previewRotateModal(){ if(!rotBase)return; const d=rotDeltaFromDialog(); const pv=rotatePivot(rotBase);
+  const map=new Map(rotBase.map(o=>[o.id,o])); doc.shapes=doc.shapes.map(s=>map.has(s.id)?rotateShapeAbout(map.get(s.id),pv.x,pv.y,d):s); render();
+  const hint=document.getElementById('rotHint'); if(hint) hint.textContent=rotBase.length+' shape'+(rotBase.length>1?'s':'')+' · pivot = '+CADCORE.ANCHORS[rotAnchor].label+' ('+pv.x.toFixed(3)+', '+pv.y.toFixed(3)+')'; }
 function openRotateModal(){ const sh=selectedShapes(); if(!sh.length){ setMsg('Select something to rotate'); return; }
-  rotBase=CADCORE.clone(sh); rotIds=sh.map(s=>s.id);
-  const grid=document.getElementById('rotAnchorHost'); grid.innerHTML=anchorGridHTML(rotAnchor,'small'); wireAnchorGrid(grid, a=>{ rotAnchor=a; previewRotateModal(); });
-  const hint=document.getElementById('rotHint'); if(hint) hint.textContent=sh.length+' shape'+(sh.length>1?'s':'')+' · pivot = '+CADCORE.ANCHORS[rotAnchor].label+' of selection';
+  rotBase=CADCORE.clone(sh);
+  const grid=document.getElementById('rotAnchorHost'); grid.innerHTML=anchorGridHTML(rotAnchor,'small'); wireAnchorGrid(grid, a=>{ setRotAnchor(a); previewRotateModal(); });
   const m=document.getElementById('rotModal'); m.style.display='block'; const a=document.getElementById('rotAngle'); a.focus(); a.select();
   previewRotateModal(); }
 function applyRotateModal(){ if(!rotBase){ hideRotateModal(); return; }
   const map=new Map(rotBase.map(o=>[o.id,o])); doc.shapes=doc.shapes.map(s=>map.has(s.id)?map.get(s.id):s); pushHistory();   // baseline = original
-  previewRotateModal(); const d=rotDeltaFromDialog(); hideRotateModal(); syncPanels(); setMsg('Rotated '+(+Math.abs(d*180/Math.PI).toFixed(2))+'° '+(d<0?'CW':'CCW')); }
+  previewRotateModal(); const d=rotDeltaFromDialog(); hideRotateModal(); syncPanels(); setMsg('Rotated '+(+Math.abs(d*180/Math.PI).toFixed(2))+'° '+(d<0?'CW':'CCW')+' about '+CADCORE.ANCHORS[rotAnchor].label); }
 function closeRotateModal(){ if(rotBase){ const map=new Map(rotBase.map(o=>[o.id,o])); doc.shapes=doc.shapes.map(s=>map.has(s.id)?map.get(s.id):s); } hideRotateModal(); render(); }
-function hideRotateModal(){ document.getElementById('rotModal').style.display='none'; rotBase=null; rotIds=null; }
-
-// ---- job size & position dialog (Edit menu) ----
-function openJobModal(){ applyJobInputs(); document.getElementById('jobModal').style.display='block'; const w=document.getElementById('jobW'); if(w){ w.focus(); w.select(); } }
-function closeJobModal(){ document.getElementById('jobModal').style.display='none'; }
+function hideRotateModal(){ document.getElementById('rotModal').style.display='none'; rotBase=null; }
 
 // ---- z-order ----
 function bringToFront(){ if(!sel.size)return; pushHistory(); const a=doc.shapes.filter(s=>sel.has(s.id)), rest=doc.shapes.filter(s=>!sel.has(s.id)); doc.shapes=rest.concat(a); render(); syncPanels(); }
@@ -575,12 +802,12 @@ function shapeContextMenu(e){
     { sep:true },
     { label:'Mirror horizontal', fn:()=>opMirror('x') },
     { label:'Mirror vertical', fn:()=>opMirror('y') },
+    { label:'Rotate…', fn:openRotateModal },
     { label:'Rotate 90°', fn:opRotate90 },
     { label:'Offset…', fn:opOffset },
     { label:'Array…', fn:opArray }
   ];
   if(multi) items.push({ sep:true }, { label:'Weld (union)', fn:()=>opBool('union') }, { label:'Subtract', fn:()=>opBool('diff') }, { label:'Intersect', fn:()=>opBool('intersect') });
-  items.push({ label:'Rotate…', fn:openRotateModal });
   items.push({ sep:true }, { label:'Bring to front', fn:bringToFront }, { label:'Send to back', fn:sendToBack });
   showCtxMenu(e.clientX, e.clientY, items);
 }
@@ -591,7 +818,8 @@ function hitHandle(scr){ if(!sel.size)return null; const bs=bboxScreen(selectedS
 function selectDown(scr,w,e){
   const h=hitHandle(scr);
   if(h){ pushHistory(); const bs=bboxScreen(selectedShapes());
-    if(h.type==='rotate'){ const c=S2W({x:(bs.x0+bs.x1)/2,y:(bs.y0+bs.y1)/2}); const rw=S2W(scr); drag={kind:'rotate',c,last:Math.atan2(rw.y-c.y,rw.x-c.x),base:JSON.parse(JSON.stringify(selectedShapes())),ids:[...sel]}; }
+    if(h.type==='rotate'){ const base=JSON.parse(JSON.stringify(selectedShapes())); const c=rotatePivot(base); const rw=S2W(scr);   // pivot = rotate anchor (center by default, corners via Rotate…)
+      drag={kind:'rotate',c,last:Math.atan2(rw.y-c.y,rw.x-c.x),base,ids:[...sel]}; }
     else { const b=CADCORE.bboxAll(selectedShapes()); drag={kind:'scale',k:h.k,b0:b,start:w,base:JSON.parse(JSON.stringify(selectedShapes())),ids:[...sel]}; }
     return; }
   // hit a shape? edge first, then interior of a closed contour (single-click pick like VCarve)
@@ -604,10 +832,10 @@ function selectDown(scr,w,e){
   else { if(!e.shiftKey) sel.clear(); drag={kind:'marquee',a:scr,b:scr}; }
   syncPanels();
 }
-// Move drag: the selection's ANCHOR point (same 9-box choice as the dialogs) is what snaps — to the grid, and to object/job
+// Move drag: the selection's ANCHOR point (same 9-box choice as the forms) is what snaps — to the grid, and to object/job
 // snap points when Obj-snap is on — so a shape lands exactly on a grid line or a corner. Ctrl = free move (no snap).
 function doMove(raw, free){ const {grab,a0,base}=drag; let tx=a0.x+(raw.x-grab.x), ty=a0.y+(raw.y-grab.y); let kind=null;
-  if(!free){ const g=snapGridPt({x:tx,y:ty}); if(grid.snap&&grid.on){ tx=g.x; ty=g.y; kind='grid'; }
+  if(!free){ if(grid.snap&&grid.on){ const g=snapGridPt({x:tx,y:ty}); tx=g.x; ty=g.y; kind='grid'; }
     if(grid.objSnap){ let best=null,bestD=pxTol(11); const ids=new Set(drag.ids); const cand=[];
       if(job.show){ const r=jobRect(); cand.push(...CADCORE.rectSnapPoints(r.x0,r.y0,r.x1,r.y1)); }
       for(const s of doc.shapes){ if(ids.has(s.id)||!layerVisible(s.layer))continue; cand.push(...CADCORE.snapPoints(s)); }
@@ -643,13 +871,13 @@ function doScale(w){ const {k,b0,base}=drag;
 const ROT_PARAM_KINDS=new Set(['rect','roundrect','circle','ellipse','polygon','star']);  // rotate-in-place about prim center, keeps prim
 function doRotate(w, shift){ const {c,base,last}=drag; let d=Math.atan2(w.y-c.y,w.x-c.x)-last;
   const stepDeg=Math.max(0.1,grid.rotSnap||5);
-  if(shift){ const step=stepDeg*Math.PI/180; d=Math.round(d/step)*step; }   // Shift = snap to rotSnap° increments (topbar "Rot °")
+  if(shift){ const step=stepDeg*Math.PI/180; d=Math.round(d/step)*step; }   // Shift = snap to rotSnap° increments ("Rot °" in 2D View Control)
   let deg=d*180/Math.PI; deg=((deg+180)%360+360)%360-180;
-  setMsg('Rotate '+(deg>=0?'+':'')+deg.toFixed(shift?1:2)+'° '+(deg<0?'CW':'CCW')+(shift?' ('+stepDeg+'° snap)':'  ·  hold Shift = '+stepDeg+'° steps'));
+  setMsg('Rotate '+(deg>=0?'+':'')+deg.toFixed(shift?1:2)+'° '+(deg<0?'CW':'CCW')+' about '+CADCORE.ANCHORS[rotAnchor].label+(shift?' ('+stepDeg+'° snap)':'  ·  Shift = '+stepDeg+'° steps · Rotate… to change the pivot'));
   const map=new Map(base.map(o=>[o.id,o]));
   doc.shapes = doc.shapes.map(s=>{ const o=map.get(s.id); return o?rotateShapeAbout(o,c.x,c.y,d):s; });   // parametric shapes stay editable
 }
-function drawMarquee(a,b){ ctx.strokeStyle='rgba(255,154,60,0.8)'; ctx.setLineDash([4,3]); ctx.strokeRect(Math.min(a.x,b.x),Math.min(a.y,b.y),Math.abs(b.x-a.x),Math.abs(b.y-a.y)); ctx.setLineDash([]); }
+function drawMarquee(a,b){ ctx.strokeStyle=TH().marquee; ctx.setLineDash([4,3]); ctx.strokeRect(Math.min(a.x,b.x),Math.min(a.y,b.y),Math.abs(b.x-a.x),Math.abs(b.y-a.y)); ctx.setLineDash([]); }
 function marqueeSelect(a,b,add){ const w0=S2W({x:Math.min(a.x,b.x),y:Math.max(a.y,b.y)}), w1=S2W({x:Math.max(a.x,b.x),y:Math.min(a.y,b.y)});
   if(!add) sel.clear();
   for(const s of doc.shapes){ if(!layerVisible(s.layer))continue; const bb=CADCORE.bbox(s); if(bb.minX>=w0.x&&bb.maxX<=w1.x&&bb.minY>=w0.y&&bb.maxY<=w1.y) sel.add(s.id); }
@@ -681,21 +909,83 @@ function updateDraft(w, shift){ if(!draft)return;
   else if(draft.kind==='arc'){ draft.cur=w; }
   else if(draft.kind==='bezier'){ draft.cur=w; }
   else if(draft.kind==='measure'){ draft.b=w; }
+  else if(draft.kind==='dim'){ updateDimDraft(w, shift); }
+  else if(draft.kind==='clip'){ draft.b=w; }
+}
+
+// ---- dimension annotations (B3) ----
+function dimUiOpts(){
+  const g=id=>document.getElementById(id);
+  return { style:(g('dimStyle')&&g('dimStyle').value)||'aligned',
+    textH:parseFloat(g('dimTextH')&&g('dimTextH').value)||0.18,
+    prec:(g('dimPrec')&&g('dimPrec').value!=='')?parseInt(g('dimPrec').value):3,
+    unit:(g('dimUnit')&&g('dimUnit').value)||'in' };
+}
+// How far past the measured points the cursor is, along the dimension's normal (signed).
+function dimSignedOff(d,w){
+  let u;
+  if(d.style==='horizontal') u={x:1,y:0};
+  else if(d.style==='vertical') u={x:0,y:1};
+  else { const L=CADCORE.dist(d.a,d.b)||1; u={x:(d.b.x-d.a.x)/L,y:(d.b.y-d.a.y)/L}; }
+  const n={x:-u.y,y:u.x};
+  const ta=d.a.x*n.x+d.a.y*n.y, tb=d.b.x*n.x+d.b.y*n.y, tw=w.x*n.x+w.y*n.y;
+  const hi=Math.max(ta,tb), lo=Math.min(ta,tb);
+  return tw>=(hi+lo)/2 ? tw-hi : tw-lo;
+}
+function dimDown(w){
+  const st=dimUiOpts().style;
+  if(!draft || draft.kind!=='dim' || draft.style!==st){ draft={kind:'dim',style:st,a:{x:w.x,y:w.y},b:{x:w.x,y:w.y},c:null,off:0.5,stage:1};
+    setMsg(st==='angle'?'Click the first ray':'Click the second point'); return; }
+  const d=draft;
+  if(st==='radius'||st==='diameter'){ d.b={x:w.x,y:w.y}; return commitDim(); }
+  if(st==='angle'){
+    if(d.stage===1){ d.b={x:w.x,y:w.y}; d.stage=2; setMsg('Click the second ray'); return; }
+    if(d.stage===2){ d.c={x:w.x,y:w.y}; d.stage=3; setMsg('Click to set the arc radius'); return; }
+    d.off=Math.max(0.02,CADCORE.dist(d.a,w)); return commitDim();
+  }
+  if(d.stage===1){ d.b={x:w.x,y:w.y}; d.stage=2; setMsg('Click to place the dimension line'); return; }
+  d.off=dimSignedOff(d,w); return commitDim();
+}
+function updateDimDraft(w, shift){
+  const d=draft;
+  if(d.stage===1){ d.b=(d.style==='angle')?{x:w.x,y:w.y}:ortho(d.a,w,shift); }
+  else if(d.stage===2){ if(d.style==='angle') d.c={x:w.x,y:w.y}; else d.off=dimSignedOff(d,w); }
+  else if(d.stage===3){ d.off=Math.max(0.02,CADCORE.dist(d.a,w)); }
+}
+function dimDraftPrim(d){ return Object.assign({kind:'dim'}, dimUiOpts(), {a:d.a,b:d.b,c:d.c,off:d.off,style:d.style}); }
+function drawDimDraft(d){
+  ctx.setLineDash([]); ctx.strokeStyle=TH().draft; ctx.fillStyle=TH().draft; ctx.lineWidth=1.1;
+  let loops=[]; try{ loops=CADCORE.dimensionGeometry(dimDraftPrim(d)).loops; }catch(err){ return; }
+  for(const l of loops){ ctx.beginPath(); l.pts.forEach((p,i)=>{const q=W2S(p); i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y);});
+    if(l.closed) ctx.fill(); else ctx.stroke(); }
+}
+function commitDim(){
+  const d=draft; draft=null;
+  if(!d||!d.a||!d.b){ render(); return; }
+  const degenerate = (d.style==='angle') ? (!d.c) : CADCORE.dist(d.a,d.b)<1e-4;
+  if(degenerate){ setMsg('Dimension too small — cancelled'); render(); return; }
+  pushHistory();
+  const s=CADCORE.mkDimension(d.a,d.b,Object.assign(dimUiOpts(),{off:d.off,c:d.c}),activeLayer);
+  addShapes([s]); sel=new Set([s.id]);
+  setMsg('Dimension: '+CADCORE.dimensionGeometry(s.prim).text+' (annotation — not machined)');
+  render(); syncPanels();
 }
 function ortho(a,b,shift){ if(!shift&&!grid.ortho)return b; const dx=b.x-a.x,dy=b.y-a.y; if(Math.abs(dx)>Math.abs(dy))return {x:b.x,y:a.y}; return {x:a.x,y:b.y}; }
-function drawDraft(){ ctx.strokeStyle='#ffd27a'; ctx.lineWidth=1.3; ctx.setLineDash([5,3]);
+function drawDraft(){ ctx.strokeStyle=TH().draft; ctx.lineWidth=1.3; ctx.setLineDash([5,3]);
   const d=draft;
   if(d.kind==='line'){ line(d.a,d.b); }
   else if(d.kind==='rect'){ const a=d.a,b=d.b; poly([{x:a.x,y:a.y},{x:b.x,y:a.y},{x:b.x,y:b.y},{x:a.x,y:b.y}],true); }
   else if(d.kind==='rrect'){ const a=d.a,b=d.b; const x=Math.min(a.x,b.x),y=Math.min(a.y,b.y),w=Math.abs(b.x-a.x),h=Math.abs(b.y-a.y); const rr=Math.min(parseFloat(document.getElementById('rrectR').value)||0.25,Math.min(w,h)/2); poly(CADCORE.mkRoundRect(x,y,w,h,rr).pts,true); }
   else if(d.kind==='circle'){ circ(d.c,d.r); }
   else if(d.kind==='polygon'){ const s=CADCORE.mkPolygon(d.c,d.r||0.01,parseInt(document.getElementById('polyN').value)||5,d.rot); poly(s.pts,true); }
-  else if(d.kind==='star'){ const s=CADCORE.mkStar(d.c,d.r||0.01,(d.r||0.01)*0.45,parseInt(document.getElementById('polyN').value)||5,d.rot); poly(s.pts,true); }
+  else if(d.kind==='star'){ const sn=parseInt((document.getElementById('fStarN')||{}).value)||5, ip=Math.min(95,Math.max(5,parseFloat((document.getElementById('fStarInner')||{}).value)||45))/100; const s=CADCORE.mkStar(d.c,d.r||0.01,(d.r||0.01)*ip,sn,d.rot); poly(s.pts,true); }
   else if(d.kind==='ellipse'){ const a=d.a,b=d.b; const e=CADCORE.mkEllipse({x:(a.x+b.x)/2,y:(a.y+b.y)/2},Math.abs(b.x-a.x)/2,Math.abs(b.y-a.y)/2); poly(e.pts,true); }
   else if(d.kind==='polyline'){ poly(d.cur?d.pts.concat([d.cur]):d.pts,false); }
   else if(d.kind==='arc'){ if(d.p1&&d.cur){ const r=Math.hypot(d.p1.x-d.c.x,d.p1.y-d.c.y); const a0=Math.atan2(d.p1.y-d.c.y,d.p1.x-d.c.x), a1=Math.atan2(d.cur.y-d.c.y,d.cur.x-d.c.x); poly(CADCORE.arcPolyline(d.c.x,d.c.y,r,a0,a1,true),false);} else if(d.cur){ line(d.c,d.cur);} }
   else if(d.kind==='bezier'){ drawBezierDraft(d); }
   else if(d.kind==='measure'){ ctx.setLineDash([]); drawMeasure(d.a,d.b,false); }
+  else if(d.kind==='dim'){ drawDimDraft(d); }
+  else if(d.kind==='clip'){ drawClipDraft(d); }
   ctx.setLineDash([]);
 }
 function drawBezierDraft(d){
@@ -704,23 +994,24 @@ function drawBezierDraft(d){
   if(previewNodes.length>=2){ poly(CADCORE.flattenBezier(previewNodes,false),false); }
   ctx.setLineDash([]);
   for(const nd of d.nodes){ const a=W2S(nd);
-    ctx.strokeStyle='rgba(127,208,255,0.6)';
-    [[nd.hx0,nd.hy0],[nd.hx1,nd.hy1]].forEach(h=>{ if(Math.hypot(h[0]-nd.x,h[1]-nd.y)>1e-6){ const hs=W2S({x:h[0],y:h[1]}); ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(hs.x,hs.y);ctx.stroke(); ctx.fillStyle='#7fd0ff'; ctx.beginPath();ctx.arc(hs.x,hs.y,3,0,TAU);ctx.fill(); } });
-    ctx.fillStyle='#ffd27a'; ctx.fillRect(a.x-3,a.y-3,6,6);
+    ctx.strokeStyle=TH().handle;
+    [[nd.hx0,nd.hy0],[nd.hx1,nd.hy1]].forEach(h=>{ if(Math.hypot(h[0]-nd.x,h[1]-nd.y)>1e-6){ const hs=W2S({x:h[0],y:h[1]}); ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(hs.x,hs.y);ctx.stroke(); ctx.fillStyle=TH().handle; ctx.beginPath();ctx.arc(hs.x,hs.y,3,0,TAU);ctx.fill(); } });
+    ctx.fillStyle=TH().draft; ctx.fillRect(a.x-3,a.y-3,6,6);
   }
-  ctx.strokeStyle='#ffd27a'; ctx.setLineDash([5,3]);
+  ctx.strokeStyle=TH().draft; ctx.setLineDash([5,3]);
 }
 function commitBezier(closed){ if(draft&&draft.kind==='bezier'&&draft.nodes.length>=2){ pushHistory(); const s=CADCORE.mkBezier(draft.nodes,!!closed,activeLayer); addShapes([s]); sel=new Set([s.id]); } draft=null; render(); syncPanels(); }
 function line(a,b){ const p=W2S(a),q=W2S(b); ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.stroke(); }
 function circ(c,r){ const o=W2S(c); ctx.beginPath();ctx.arc(o.x,o.y,r*view.ppi,0,TAU);ctx.stroke(); }
 function poly(pts,closed){ ctx.beginPath(); pts.forEach((p,i)=>{const q=W2S(p);i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y);}); if(closed)ctx.closePath(); ctx.stroke(); }
 function commitDraft(){ const d=draft; if(!d)return; let s=null;
+  if(d.kind==='clip'){ commitClip(d); draft=null; syncPanels(); return; }
   if(d.kind==='line'){ if(CADCORE.dist(d.a,d.b)>1e-4) s=CADCORE.mkLine(d.a,d.b,activeLayer); }
   else if(d.kind==='rect'){ const x=Math.min(d.a.x,d.b.x),y=Math.min(d.a.y,d.b.y),w=Math.abs(d.b.x-d.a.x),h=Math.abs(d.b.y-d.a.y); if(w>1e-4&&h>1e-4) s=CADCORE.mkRect(x,y,w,h,activeLayer); }
   else if(d.kind==='circle'){ if(d.r>1e-4) s=CADCORE.mkCircle(d.c,d.r,activeLayer); }
   else if(d.kind==='ellipse'){ const rx=Math.abs(d.b.x-d.a.x)/2,ry=Math.abs(d.b.y-d.a.y)/2; if(rx>1e-4&&ry>1e-4) s=CADCORE.mkEllipse({x:(d.a.x+d.b.x)/2,y:(d.a.y+d.b.y)/2},rx,ry,0,activeLayer); }
   else if(d.kind==='polygon'){ if(d.r>1e-4) s=CADCORE.mkPolygon(d.c,d.r,parseInt(document.getElementById('polyN').value)||5,d.rot,activeLayer); }
-  else if(d.kind==='star'){ if(d.r>1e-4) s=CADCORE.mkStar(d.c,d.r,d.r*0.45,parseInt(document.getElementById('polyN').value)||5,d.rot,activeLayer); }
+  else if(d.kind==='star'){ if(d.r>1e-4){ const sn=parseInt((document.getElementById('fStarN')||{}).value)||5, ip=Math.min(95,Math.max(5,parseFloat((document.getElementById('fStarInner')||{}).value)||45))/100; s=CADCORE.mkStar(d.c,d.r,d.r*ip,sn,d.rot,activeLayer); } }
   else if(d.kind==='rrect'){ const x=Math.min(d.a.x,d.b.x),y=Math.min(d.a.y,d.b.y),w=Math.abs(d.b.x-d.a.x),h=Math.abs(d.b.y-d.a.y); if(w>1e-4&&h>1e-4){ const rr=Math.min(parseFloat(document.getElementById('rrectR').value)||0.25,Math.min(w,h)/2); s=CADCORE.mkRoundRect(x,y,w,h,rr,activeLayer); } }
   if(s){ pushHistory(); addShapes([s]); sel=new Set([s.id]); }
   draft=null; syncPanels();
@@ -828,18 +1119,131 @@ function importPDF(name, buf){
   if(loops.hasLiveText) m+='  ·  WARNING: this PDF also has live text that was NOT imported — outline the fonts to cut it.';
   setMsg(m);
 }
-function download(name, text, type){ const b=new Blob([text],{type:type||'text/plain'}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); }
+// Saving a file has two routes. Opened from disk, a plain download link works and always has.
+// Published as an Artifact, the viewer sandbox makes that link inert — the host has to hand the file
+// over — so when the host is present we go through it, and every export in the app benefits because
+// they all come through here. Locally nothing changes: window.claude does not exist, so we take the
+// link path exactly as before.
+function downloadViaLink(name, text, type){
+  const b=new Blob([text],{type:type||'text/plain'}); const a=document.createElement('a');
+  a.href=URL.createObjectURL(b); a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+async function downloadViaHost(name, text, type){
+  const pick=CADCORE.saveFilename(name);
+  let dl=null;
+  try{ dl=await window.claude.use('downloads'); }catch(e){ dl=null; }
+  if(!dl){
+    // Hosted, but saving is not on offer here. The plain link is inert in that sandbox, so trying it
+    // and saying nothing would leave Export looking broken — try it, but say where the file really is.
+    downloadViaLink(name,text,type);
+    setMsg('Exporting is not available in this view — open the app from disk to save '+name);
+    return;
+  }
+  const attempt=async fn=>{ await dl.save({filename:fn, data:text}); };
+  try{ await attempt(pick.name); setMsg('Saved '+pick.name); return; }
+  catch(err){
+    const code=err&&err.code;
+    // the host allowlist has no CNC extensions; retry once under a name it will take
+    if((code==='rejected_extension'||code==='extension_not_enabled') && pick.alt){
+      try{ await attempt(pick.alt); setMsg('Saved '+pick.alt+' — rename it to '+pick.name+' before you run it'); return; }
+      catch(err2){ return reportSaveError(err2, pick); }
+    }
+    return reportSaveError(err, pick);
+  }
+}
+function reportSaveError(err, pick){
+  const code=err&&err.code;
+  if(code==='declined') return setMsg('Save cancelled');
+  if(code==='too_large') return setMsg('Too big to save from the browser — open the app from disk for '+pick.name);
+  if(code==='rate_limited') return setMsg('A save is already open — finish that one, then try again');
+  setMsg('Could not save '+pick.name+(err&&err.message?' — '+err.message:''));
+}
+function download(name, text, type){
+  if(window.claude && typeof window.claude.use==='function'){ downloadViaHost(name,text,type); return; }
+  downloadViaLink(name,text,type);
+}
 // ---- project save/load (.aqcam) ----
 const AUTOSAVE_KEY='aqcam_autosave';
 let autosaveTimer=null;
 function projectJSON(metaName){ return CADCORE.projectToJSON(doc, job, opsQueue, {name:metaName||'aqcam job', savedAt:Date.now(), app:'Aquamentor CAD/CAM', view:viewMode}); }
 // ---- 2D Design / Preview view tabs ----
+// ---- 3D view (orbit / pan / zoom) ---------------------------------------------
+// The heightfield becomes a real solid in WebGL: drag to orbit, shift- or right-drag to pan,
+// wheel to zoom, double-click to reframe. Falls back to the flat top-down shading when the
+// browser has no usable WebGL, so the 3D tab always shows something.
+let gl3d = null, gl3dMesh = null, gl3dFail = false, gl3dSegs = [];
+function hex3(h){ return [parseInt(h.slice(1,3),16)/255, parseInt(h.slice(3,5),16)/255, parseInt(h.slice(5,7),16)/255]; }
+function gl3dInit(){
+  if(gl3d || gl3dFail) return gl3d;
+  const c=document.getElementById('gl'); if(!c){ gl3dFail=true; return null; }
+  gl3d = (typeof GLVIEW!=='undefined') ? GLVIEW.createRenderer(c) : null;
+  if(!gl3d){ gl3dFail=true; setMsg('3D view: WebGL unavailable — falling back to the flat preview'); return null; }
+  const th=THEMES.preview;
+  gl3d.setColors({ clear:hex3(th.gradBot), top:[th.stockTop[0]/255,th.stockTop[1]/255,th.stockTop[2]/255],
+    deep:[th.stockDeep[0]/255,th.stockDeep[1]/255,th.stockDeep[2]/255] });
+  bindGL3D(c);
+  return gl3d;
+}
+function gl3dShow(on){
+  const c=document.getElementById('gl'), h=document.getElementById('glHint');
+  if(c) c.classList.toggle('on', !!on);
+  if(h) h.classList.toggle('on', !!on);
+}
+function gl3dSetLines(segs){
+  if(!gl3d) return;
+  const show=document.getElementById('glLines');
+  if(show && !show.checked){ gl3d.setLines(null); return; }
+  const rapids=!!(document.getElementById('glRapids')||{}).checked;
+  const lift=Math.max(0.003,(job.thickness||0.5)*0.008);
+  gl3d.setLines(GLVIEW.buildToolpathLines(segs,{lift:lift,rapids:rapids,
+    cutColor:[1,0.82,0.29], rapidColor:[0.66,0.70,0.80]}));
+}
+function gl3dSetField(field){
+  if(!gl3dInit()) return false;
+  // keep the mesh under ~1.2M verts; decimate rather than choke on a fine sim
+  const step=Math.max(1, Math.ceil(Math.sqrt((field.nx*field.ny)/1200000)));
+  gl3dMesh=GLVIEW.buildHeightMesh(field,{step});
+  gl3d.setMesh(gl3dMesh, field.thickness);
+  gl3d.frameAll(); gl3d.resize(); gl3d.draw();
+  requestAnimationFrame(()=>{ if(gl3d){ gl3d.resize(); gl3d.draw(); } });   // after layout settles
+  return true;
+}
+function bindGL3D(c){
+  let drag=null;
+  const stop=e=>{ e.preventDefault(); e.stopPropagation(); };
+  c.addEventListener('contextmenu', e=>e.preventDefault());
+  c.addEventListener('mousedown', e=>{
+    stop(e); c.classList.add('drag');
+    // left-drag = pan (like the 2D view); Option/Alt-drag, middle or right button = orbit
+    drag={ x:e.clientX, y:e.clientY, pan:!(e.altKey||e.button===2||e.button===1) };
+    c.classList.toggle('orbit', !drag.pan);
+  });
+  c.addEventListener('mousemove', e=>{ if(!drag) c.classList.toggle('alt', !!e.altKey); });
+  window.addEventListener('mousemove', e=>{
+    if(!drag||!gl3d) return;
+    const dx=e.clientX-drag.x, dy=e.clientY-drag.y; drag.x=e.clientX; drag.y=e.clientY;
+    if(drag.pan){ const k=gl3d.cam.dist*0.00075; gl3d.pan(-dx*k, dy*k); }   // model follows the cursor
+    else gl3d.orbit(dx*0.008, dy*0.008);
+    gl3d.draw();
+  });
+  window.addEventListener('mouseup', ()=>{ drag=null; c.classList.remove('drag'); c.classList.remove('orbit'); });
+  c.addEventListener('wheel', e=>{ stop(e); if(!gl3d)return; gl3d.zoom(Math.exp(e.deltaY*0.0012)); gl3d.draw(); }, {passive:false});
+  c.addEventListener('dblclick', e=>{ stop(e); if(!gl3d)return; gl3d.frameAll(); gl3d.draw(); });
+}
+// Camera presets: Top = straight down (matches the 2D view), Iso = 3/4, Front = low front view.
+function gl3dPreset(which){ if(!gl3d) return; gl3d.frameAll();
+  if(which==='top'){ gl3d.cam.pitch=GLVIEW.PITCH_LIMIT; gl3d.cam.yaw=-Math.PI/2; }
+  else if(which==='front'){ gl3d.cam.pitch=0.22; gl3d.cam.yaw=-Math.PI/2; }
+  else { gl3d.cam.pitch=0.62; gl3d.cam.yaw=-Math.PI/2+0.55; }
+  gl3d.draw(); }
 function setView(mode){
   viewMode = (mode==='preview') ? 'preview' : '2d';
   document.querySelectorAll('.vtab').forEach(b=>b.classList.toggle('active', b.dataset.view===viewMode));
   const stage=document.querySelector('.stage'); if(stage)stage.classList.toggle('preview', viewMode==='preview');
-  if(viewMode==='preview'){ const solid=document.getElementById('simSolid'); if(solid&&solid.checked) runSim(); else { simField=null; recalcAll(); } }
-  else { simField=null; render(); }
+  if(viewMode==='preview'){ const solid=document.getElementById('simSolid');
+    if(solid&&solid.checked) runSim(); else { gl3dShow(false); simField=null; recalcAll(); } }
+  else { gl3dShow(false); simField=null; render(); }
 }
 // Build the tool profile + cut segments for one toolpath, for the material sim.
 // One toolpath may post to multiple ops (vcarve flat-depth = endmill + V-bit) — build a sim cut per op.
@@ -861,11 +1265,15 @@ function runSimInner(){
   const res=parseFloat((document.getElementById('simRes')||{}).value)||0.05;
   const cuts=[]; for(const q of opsQueue){ if(q.visible===false)continue; for(const c of simCutFor(q)) cuts.push(c); }
   const field=CAM.simulateStock({ x0:r.x0, y0:r.y0, w, h, thickness:job.thickness||0.5, res, cuts });
-  const use3d=glInit();
-  simField=use3d ? { field, x0:r.x0, y0:r.y0, x1:r.x1, y1:r.y1, mesh:null, lines:null, linesFor:null } : Object.assign(shadeHeightfield(field, r), {field});
-  recalcAll();   // backplot segments (all visible toolpaths) feed the 3D line overlay + time estimate
+  const has3d=!!gl3dInit();
+  gl3dShow(has3d);                      // must be visible before we size the viewport
+  const solid3d=has3d && gl3dSetField(field);
+  if(solid3d){ gl3dSegs=cuts.reduce((a,c)=>a.concat(c.segs||[]),[]); gl3dSetLines(gl3dSegs); gl3d.draw(); }
+  if(!solid3d) gl3dShow(false);
+  simField = solid3d ? null : shadeHeightfield(field, r);
   render();
-  setMsg('3D sim: '+cuts.length+' toolpath(s) · '+field.nx+'×'+field.ny+' cells @ '+res+'"'+(use3d?'  ·  drag = pan · Option/Alt-drag = orbit · wheel = zoom':'  (WebGL unavailable: top-down only)'));
+  setMsg('3D sim: '+cuts.length+' toolpath(s) · '+field.nx+'×'+field.ny+' cells @ '+res+'"'
+    + (solid3d ? ' · '+gl3dMesh.vertexCount.toLocaleString()+' verts — drag = pan · Option/Alt-drag = orbit · wheel = zoom' : ''));
 }
 // Shade the heightfield into an offscreen canvas: wood-tone depth ramp + directional hillshade for a carved look.
 function shadeHeightfield(field, r){
@@ -873,13 +1281,17 @@ function shadeHeightfield(field, r){
   const off=document.createElement('canvas'); off.width=nx; off.height=ny; const octx=off.getContext('2d');
   const img=octx.createImageData(nx,ny); const px=img.data;
   const L=[-0.5,-0.55,0.67]; const Ln=Math.hypot(L[0],L[1],L[2]); L[0]/=Ln;L[1]/=Ln;L[2]/=Ln;
+  const th=THEMES.preview, TOPC=th.stockTop, DEEPC=th.stockDeep;
+  // normalise the shade so an uncut flat top lands exactly on the stock colour
+  const SFLAT=0.55+0.45*Math.max(0.35,Math.min(1.15,L[2]));
   const at=(i,j)=>z[Math.min(ny-1,Math.max(0,j))*nx+Math.min(nx-1,Math.max(0,i))];
   for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){ const h=z[j*nx+i]; const frac=Math.min(1,(-h)/maxD);
-    // wood tone: top warm tan -> deep shadowed brown
-    let R=198-frac*120, G=168-frac*118, B=120-frac*82;
+    // Aspire material blue: uncut surface = the measured stock colour, darkening with cut depth so
+    // the carve still reads as depth rather than a flat slab.
+    let R=TOPC[0]+(DEEPC[0]-TOPC[0])*frac, G=TOPC[1]+(DEEPC[1]-TOPC[1])*frac, B=TOPC[2]+(DEEPC[2]-TOPC[2])*frac;
     const gx=(at(i+1,j)-at(i-1,j))/(2*res), gy=(at(i,j+1)-at(i,j-1))/(2*res);
     let nz=1/Math.sqrt(gx*gx+gy*gy+1), nX=-gx*nz, nY=-gy*nz;
-    let lam=nX*L[0]+nY*L[1]+nz*L[2]; lam=Math.max(0.35,Math.min(1.15,lam)); const s=0.55+0.45*lam;
+    let lam=nX*L[0]+nY*L[1]+nz*L[2]; lam=Math.max(0.35,Math.min(1.15,lam)); const s=(0.55+0.45*lam)/SFLAT;
     const o=((ny-1-j)*nx+i)*4;   // flip rows so image top = max Y
     px[o]=Math.max(0,Math.min(255,R*s)); px[o+1]=Math.max(0,Math.min(255,G*s)); px[o+2]=Math.max(0,Math.min(255,B*s)); px[o+3]=255; }
   octx.putImageData(img,0,0);
@@ -904,14 +1316,19 @@ async function saveProjectAs(){ const text=projectJSON(projectFile.name.replace(
 async function saveProject(){ if(!projectFile.handle) return saveProjectAs();
   try{ await writeHandle(projectFile.handle, projectJSON(projectFile.name.replace(/\.aqcam$/i,''))); setMsg('Saved '+projectFile.name+' ('+doc.shapes.length+' shapes, '+opsQueue.length+' toolpaths)'); return true; }
   catch(err){ setMsg('Save to '+projectFile.name+' failed ('+err.message+') — choose a location'); projectFile.handle=null; return saveProjectAs(); } }
+// One dispatcher for every way a file arrives (picker, <input type=file>, drag-drop). `handle` = FS Access handle when known.
+function handleOpenedFile(f, handle){ const rd=new FileReader();
+  if(/\.(png|jpe?g|gif|bmp|webp)$/i.test(f.name)){ importBitmap(f.name, f); return; }
+  if(/\.aqcam$/i.test(f.name)){ rd.onload=ev=>{ if(openProject(ev.target.result, f.name)){ projectFile.handle=handle||null; setProjectName(f.name); } }; rd.readAsText(f); }
+  else if(/\.aqtpl$/i.test(f.name)){ rd.onload=ev=>importTplText(ev.target.result); rd.readAsText(f); }
+  else if(/\.aqclip$/i.test(f.name)){ rd.onload=ev=>importClipText(ev.target.result); rd.readAsText(f); }
+  else if(/\.pdf$/i.test(f.name)){ rd.onload=ev=>importPDF(f.name,ev.target.result); rd.readAsArrayBuffer(f); }
+  else { rd.onload=ev=>importText(f.name,ev.target.result); rd.readAsText(f); } }
 // Open: native picker when available (keeps the handle so Save writes back); falls back to the <input type=file>.
-async function openProjectDialog(){ if(!window.showOpenFilePicker){ document.getElementById('fileInput').click(); return; }
-  let hs; try{ hs=await window.showOpenFilePicker({ multiple:false, types:[{ description:'Job or vector file', accept:{ 'application/json':['.aqcam'], 'image/vnd.dxf':['.dxf'], 'image/svg+xml':['.svg'], 'application/pdf':['.pdf'] } }] }); }
-  catch(err){ if(!(err&&err.name==='AbortError')) document.getElementById('fileInput').click(); return; }
-  const h=hs[0], f=await h.getFile();
-  if(/\.aqcam$/i.test(f.name)){ openProject(await f.text(), f.name); projectFile.handle=h; setProjectName(f.name); }
-  else if(/\.pdf$/i.test(f.name)) importPDF(f.name, await f.arrayBuffer());
-  else importText(f.name, await f.text()); }
+async function openProjectDialog(){ const fi=document.getElementById('fileInput'); if(!window.showOpenFilePicker){ fi.click(); return; }
+  let hs; try{ hs=await window.showOpenFilePicker({ multiple:false, types:[{ description:'Job, template, clipart, vector or bitmap', accept:{ 'application/json':['.aqcam','.aqtpl','.aqclip'], 'image/vnd.dxf':['.dxf'], 'image/svg+xml':['.svg'], 'application/pdf':['.pdf'], 'image/*':['.png','.jpg','.jpeg','.gif','.bmp','.webp'] } }] }); }
+  catch(err){ if(!(err&&err.name==='AbortError')) fi.click(); return; }
+  const h=hs[0]; handleOpenedFile(await h.getFile(), /\.aqcam$/i.test(h.name)?h:null); }
 function applyProject(proj, srcName){
   doc.shapes=proj.shapes;
   doc.layers=new Map(proj.layers.map(l=>[l.name,{visible:l.visible,color:l.color}]));
@@ -948,6 +1365,7 @@ function buildOpRes(p, contours){
   const res=(p.op==='pocket')?CAM.pocketOp(contours,p)
     :(p.op==='drill')?CAM.drillOp(contours,p)
     :(p.op==='vcarve')?CAM.vcarveOp(contours,Object.assign({},p,{maxDepth:p.cutDepth,step:p.vstep}))
+    :(p.op==='inlay')?CAM.inlayOp(contours,Object.assign({},p,{step:p.vstep}))
     :CAM.profileOp(contours,p);
   for(const op of res.ops) op.clearZ=p.clearZ;   // vcarve flat-depth returns 2 ops (endmill + V-bit)
   return res;
@@ -970,11 +1388,22 @@ function camParams(){ const g=id=>document.getElementById(id); const tabsN=parse
       if(cd<=0) return vn===1?2:1; const m=(typeof tools!=='undefined'&&tools)?tools.find(t=>Math.abs(t.dia-cd)<0.001):null; let n=m?m.toolNum:2; if(n===vn)n=vn===1?2:1; return n; })(),
     leadType:(g('camLead')&&g('camLead').value)||'none', leadLen:Math.abs(parseFloat(g('camLeadLen')&&g('camLeadLen').value)||0.25),
     rampLen:Math.abs(parseFloat(g('camRampLen')&&g('camRampLen').value)||0),
+    // inlay (C5): a matched cavity + plug pair from one design
+    style:(g('camInlayStyle')&&g('camInlayStyle').value)||'pocket',
+    part:(g('camInlayPart')&&g('camInlayPart').value)||'both',
+    clearance:Math.abs(parseFloat(g('camInlayGap')&&g('camInlayGap').value)||0),
+    clearanceOn:(g('camInlayGapOn')&&g('camInlayGapOn').value)||'female',
+    pocketDepth:Math.abs(parseFloat(g('camInlayPocketD')&&g('camInlayPocketD').value)||0.125),
+    maleDepth:Math.abs(parseFloat(g('camInlayMaleD')&&g('camInlayMaleD').value)||0.125),
+    startDepth:Math.abs(parseFloat(g('camInlayStartD')&&g('camInlayStartD').value)||0),
+    maleMargin:Math.abs(parseFloat(g('camInlayMargin')&&g('camInlayMargin').value)||0.25),
+    mirrorMale:!(g('camInlayMirror')&&!g('camInlayMirror').checked),
     tabs:{count:tabsN,length:parseFloat(g('camTabL').value)||0.4,height:parseFloat(g('camTabH').value)||0.1} }; }
 function camBuild(){ const contours=camContours(); const closedN=contours.filter(c=>c.closed).length; const p=camParams();
   const res=buildOpRes(p, contours);
   const post=Object.assign({},CAM.POSTS[document.getElementById('camPost').value]); post.arcs=(p.op!=='drill')&&document.getElementById('camArcs').checked;
-  const label=p.op==='pocket'?'POCKET':p.op==='drill'?'DRILL':p.op==='vcarve'?'VCARVE':p.side.toUpperCase();
+  const label=p.op==='pocket'?'POCKET':p.op==='drill'?'DRILL':p.op==='vcarve'?'VCARVE'
+    :p.op==='inlay'?('INLAY '+p.style.toUpperCase()+' '+p.part.toUpperCase()):p.side.toUpperCase();
   const g=CAM.postProcess({name:'design - '+label,units:'inch',ops:res.ops},post); const arcN=(g.match(/^G[23] /gm)||[]).length;
   return {g,closedN,passes:res.ops.reduce((n,op)=>n+op.passes.length,0),warnings:res.warnings,arcN,op:p.op,points:res.points||null}; }
 function toolpathSegs(g){ // parse to segments for overlay (tracks Z so the backplot can shade by depth)
@@ -1005,14 +1434,17 @@ function camClear(){ toolpaths=null; drillMarks=null; render(); }
 let opsQueue=[];       // [{p, ids, name, visible, label}]
 let editingIdx=null;   // toolpath currently loaded into the CAM panel for editing (null = creating new)
 const _esc=s=>String(s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
-function autoOpName(p){ p=p||{}; const op=p.op||'profile'; return op==='profile'?('Profile '+String(p.side||'outside').replace(/^./,c=>c.toUpperCase())):(op.charAt(0).toUpperCase()+op.slice(1)); }
+function autoOpName(p){ p=p||{}; const op=p.op||'profile';
+  if(op==='profile') return 'Profile '+String(p.side||'outside').replace(/^./,c=>c.toUpperCase());
+  if(op==='inlay') return 'Inlay '+(p.style==='vcarve'?'V':'straight')+' · '+String(p.part||'both');
+  return op.charAt(0).toUpperCase()+op.slice(1); }
 function autoLabel(p,ids,match){ return autoOpName(p)+' · T'+p.toolNum+' Ø'+p.toolDia+'" · '+((ids&&ids.length)?ids.length+' sel':'all')+(match?' (lib)':''); }
 function normalizeOp(q){ q=q||{}; return { p:q.p||{}, ids:Array.isArray(q.ids)?q.ids:[], name:q.name||q.label||autoOpName(q.p), label:q.label||'', visible:q.visible!==false }; }
 function refreshAddBtn(){ const b=document.getElementById('btnAddOp'); if(b) b.textContent=(editingIdx!=null)?'✓ Update':'+ Toolpath'; }
 function moveOp(i,dir){ const j=i+dir; if(j<0||j>=opsQueue.length)return; pushHistory(); const t=opsQueue[i]; opsQueue[i]=opsQueue[j]; opsQueue[j]=t;
   if(editingIdx===i)editingIdx=j; else if(editingIdx===j)editingIdx=i; buildQueueList(); }
 function renameOp(i){ const q=opsQueue[i]; if(!q)return; const n=prompt('Toolpath name:', q.name||q.label||'Toolpath'); if(n==null)return; pushHistory(); q.name=n.trim()||q.name; buildQueueList(); }
-function editOp(i){ const q=opsQueue[i]; if(!q)return; applyParamsToPanel(q.p); sel=new Set(q.ids); editingIdx=i; buildQueueList(); render(); setMsg('Editing "'+(q.name||q.label)+'" — adjust settings, then click ✓ Update'); }
+function editOp(i){ const q=opsQueue[i]; if(!q)return; applyParamsToPanel(q.p); openCamForm(q.p&&q.p.op); sel=new Set(q.ids); editingIdx=i; buildQueueList(); render(); setMsg('Editing "'+(q.name||q.label)+'" — adjust settings, then click ✓ Update'); }
 function buildQueueList(){ const el=document.getElementById('opsQueue'); if(!el)return; el.innerHTML=''; refreshAddBtn();
   if(!opsQueue.length){ el.innerHTML='<div class="muted" style="font-size:10px">No toolpaths yet — set an Op + selection, then "+ Toolpath".</div>'; return; }
   opsQueue.forEach((q,i)=>{ const row=document.createElement('div'); row.className='qrow'+(i===editingIdx?' editing':'');
@@ -1042,8 +1474,9 @@ function recalcAll(){ const allSegs=[], allMarks=[]; let total=0;
     for(const s of segs) allSegs.push(s);
     if(res.points) for(const pt of res.points) allMarks.push(pt); }
   toolpaths=allSegs.length?allSegs:null; drillMarks=allMarks.length?allMarks:null; if(allMarks.length)drillDia=0.25; buildQueueList();
-  // 3D cut showing? the material must be re-simulated too, or a toolpath added/edited/toggled in Preview never carves
-  if(viewMode==='preview' && simField && !simBusy){ runSim(); return; }
+  // 3D view showing the solid? re-simulate too, or a toolpath added/edited/toggled in the 3D view never carves
+  const solid=document.getElementById('simSolid');
+  if(viewMode==='preview' && solid && solid.checked && !simBusy){ runSim(); return; }
   render();
   const n=opsQueue.filter(q=>q.visible!==false).length; setMsg('Preview: '+n+'/'+opsQueue.length+' toolpath(s) · '+allSegs.length+' move(s) · est '+fmtTime(total)+' cut time'); }
 // ---- fillet / trim / extend click tools ----
@@ -1087,6 +1520,9 @@ function applyParamsToPanel(p){ if(!p)return; const g=id=>document.getElementByI
   if(p.stepover!=null)set('camStep',Math.round(p.stepover*100)); set('camPocketStyle',p.pocketStyle); chk('camHelixEntry',p.rampEntry); set('camFinishDia',p.finishDia);
   set('camPeck',p.peck); set('camVAngle',p.bitAngle); set('camVStep',p.vstep); set('camVFlat',p.flatDepth); set('camVClearDia',p.clearDia);
   set('camLead',p.leadType); set('camLeadLen',p.leadLen); set('camRampLen',p.rampLen);
+  set('camInlayStyle',p.style); set('camInlayPart',p.part); set('camInlayGap',p.clearance); set('camInlayGapOn',p.clearanceOn);
+  set('camInlayPocketD',p.pocketDepth); set('camInlayMaleD',p.maleDepth); set('camInlayStartD',p.startDepth);
+  set('camInlayMargin',p.maleMargin); if(p.op==='inlay')chk('camInlayMirror',p.mirrorMale);
   if(p.tabs){ set('camTabN',p.tabs.count); set('camTabL',p.tabs.length); set('camTabH',p.tabs.height); }
   const op=g('camOp'); if(op)op.dispatchEvent(new Event('change',{bubbles:true})); }
 function postJob(){ if(!opsQueue.length){ setMsg('Job queue empty — "Add op" first.'); return; }
@@ -1133,9 +1569,209 @@ function runSelfTest(){
   run('Drill','drill',[circ.id], gg=>{ gg('camDia').value='0.25'; gg('camPeck').value='0.1'; gg('camDepth').value='0.4'; });
   // single-stroke text has no closed regions to V-carve, so verify the V-carve op on the closed rectangle
   run('V-Carve','vcarve',[rect.id], gg=>{ gg('camVAngle').value='90'; gg('camVStep').value='0.05'; gg('camDepth').value='0.3'; });
+  run('Inlay','inlay',[rect.id], gg=>{ gg('camInlayStyle').value='pocket'; gg('camInlayPart').value='both'; gg('camInlayGap').value='0.005'; gg('camInlayPocketD').value='0.12'; gg('camInlayMaleD').value='0.12'; gg('camPass').value='0.12'; });
   sel.clear(); fitJob(); syncPanels(); render();
   setMsg('Self-test: '+okN+'/'+results.length+' ops OK  ·  '+results.join('  '));
 }
+
+// ---- clipart / shape library (D2) ----
+// Built-in art is generated procedurally by CLIPART; the user's own pieces are made from the current
+// selection and persisted to localStorage. Entries are stored normalized to a unit box, so placing
+// one is just a scale into whatever box you drag.
+const CLIP_KEY='aq_clipart';
+let clipLib=[], clipArmed=null;
+function loadClipart(){
+  let user=[];
+  try{ const s=localStorage.getItem(CLIP_KEY); user=s?JSON.parse(s).map(CLIPART.normalizeClipart):[]; }catch(e){ user=[]; }
+  clipLib=user.reduce((L,u)=>CLIPART.upsertClipart(L,Object.assign({},u,{builtin:false})), CLIPART.builtinClipart());
+}
+function persistClipart(){ try{ localStorage.setItem(CLIP_KEY, JSON.stringify(clipLib.filter(e=>!e.builtin))); }catch(e){} }
+function clipThumbSVG(e,size){
+  const loops=CLIPART.clipartThumbnail(e,size);
+  const d=loops.map(l=>l.pts.map((p,i)=>(i?'L':'M')+p.x.toFixed(1)+','+(size-p.y).toFixed(1)).join(' ')+' Z').join(' ');
+  return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'" aria-hidden="true"><path d="'+d+'" fill="#3c4a5a" fill-rule="evenodd"/></svg>';
+}
+function buildClipCats(){
+  const el=document.getElementById('clipCat'); if(!el)return;
+  const cats=['All'].concat(CLIPART.clipartCategories(clipLib)); const cur=el.value;
+  el.innerHTML=cats.map(c=>'<option value="'+_esc(c)+'">'+_esc(c)+'</option>').join('');
+  if(cats.indexOf(cur)>=0) el.value=cur;
+}
+function buildClipGrid(){
+  const host=document.getElementById('clipGrid'); if(!host)return;
+  const catEl=document.getElementById('clipCat'); const cat=(catEl&&catEl.value)||'All';
+  host.innerHTML='';
+  for(const e of clipLib){
+    if(cat!=='All'&&e.category!==cat) continue;
+    const b=document.createElement('button');
+    b.className='clipcell'+(clipArmed&&clipArmed.id===e.id?' armed':'');
+    b.title=e.name+' · '+e.category+' — click, then drag a box on the canvas (a single click drops it at 2")';
+    b.innerHTML=clipThumbSVG(e,40)+'<span>'+_esc(e.name)+'</span>';
+    b.onclick=()=>armClip(e.id);
+    host.appendChild(b);
+  }
+  if(!host.children.length) host.innerHTML='<div class="muted">No shapes in this category</div>';
+}
+function armClip(id){
+  clipArmed=clipLib.find(e=>e.id===id)||null;
+  if(clipArmed){ setTool('clipart'); setMsg('Place "'+clipArmed.name+'" — drag a box on the canvas, or click once for a 2" piece'); }
+  buildClipGrid();
+}
+function drawClipDraft(d){
+  if(!clipArmed)return;
+  const box=clipBox(d); if(!box)return;
+  ctx.setLineDash([]); ctx.strokeStyle=TH().draft; ctx.lineWidth=1.3;
+  for(const l of CLIPART.placeClipart(clipArmed,box)) poly(l.pts,true);
+  ctx.setLineDash([4,3]); ctx.strokeStyle=TH().snap;
+  poly([{x:box.x,y:box.y},{x:box.x+box.w,y:box.y},{x:box.x+box.w,y:box.y+box.h},{x:box.x,y:box.y+box.h}],true);
+  ctx.setLineDash([]);
+}
+function clipBox(d){
+  const w=Math.abs(d.b.x-d.a.x), h=Math.abs(d.b.y-d.a.y);
+  if(w<0.02||h<0.02){ const s=2; return {x:d.a.x, y:d.a.y, w:s, h:s/(clipArmed?clipArmed.aspect:1)}; }  // plain click = 2" default
+  return {x:Math.min(d.a.x,d.b.x), y:Math.min(d.a.y,d.b.y), w:w, h:h};
+}
+function commitClip(d){
+  if(!clipArmed)return;
+  const box=clipBox(d); const loops=CLIPART.placeClipart(clipArmed,box);
+  if(!loops.length){ setMsg('That clipart has no geometry'); return; }
+  pushHistory();
+  if(!doc.layers.has('clipart')) doc.layers.set('clipart',{visible:true,color:'#6b3fa0'});
+  const shapes=loops.map(l=>CADCORE.mkPoly(l.pts,true,'clipart'));
+  addShapes(shapes); sel=new Set(shapes.map(s=>s.id));
+  setMsg('Placed "'+clipArmed.name+'" — '+shapes.length+' contour(s), '+box.w.toFixed(2)+'" wide');
+}
+function addSelectionToClipart(){
+  const sh=selectedShapes().filter(s=>!s.annotation && s.type!=='dim');
+  const loops=[]; for(const s of sh) for(const l of CADCORE.flatten(s)) if(l.closed&&l.pts.length>=3) loops.push({pts:l.pts,closed:true});
+  if(!loops.length) return setMsg('Select one or more CLOSED vectors to add to the clipart library');
+  const name=prompt('Clipart name:','My shape'); if(name==null)return;
+  const cat=prompt('Category:','My shapes'); if(cat==null)return;
+  const e=CLIPART.clipartFromLoops(name.trim()||'My shape', cat.trim()||'My shapes', loops);
+  clipLib=CLIPART.upsertClipart(clipLib,e); persistClipart();
+  buildClipCats(); const ce=document.getElementById('clipCat'); if(ce)ce.value=e.category;
+  buildClipGrid(); setMsg('Added "'+e.name+'" to the clipart library ('+e.loops.length+' contour(s))');
+}
+function delClipart(){
+  if(!clipArmed) return setMsg('Click a clipart shape first');
+  if(clipArmed.builtin) return setMsg('"'+clipArmed.name+'" is built in and cannot be deleted');
+  if(!confirm('Delete clipart "'+clipArmed.name+'"?'))return;
+  const n=clipArmed.name; clipLib=CLIPART.removeClipart(clipLib,clipArmed.id); clipArmed=null;
+  persistClipart(); buildClipCats(); buildClipGrid(); setMsg('Deleted clipart "'+n+'"');
+}
+function exportClipart(){
+  const mine=clipLib.filter(e=>!e.builtin);
+  if(!mine.length) return setMsg('No custom clipart to export — add a selection first');
+  download('clipart.aqclip', CLIPART.libraryToJSON(mine), 'application/json');
+  setMsg('Exported '+mine.length+' clipart shape(s)');
+}
+function importClipText(text){
+  try{ const entries=CLIPART.libraryFromJSON(text);
+    clipLib=entries.reduce((L,e)=>CLIPART.upsertClipart(L,Object.assign({},e,{builtin:false})), clipLib);
+    persistClipart(); buildClipCats(); buildClipGrid();
+    setMsg('Imported '+entries.length+' clipart shape(s)'); }
+  catch(e){ setMsg('Clipart import failed: '+e.message); }
+}
+
+// ---- bitmap import + trace (D1) ----
+// The browser decodes the file (that's the only DOM-bound part); everything after it — threshold,
+// despeckle, boundary trace, simplify, smooth, scale — is BMPTRACE, so it is unit-tested headless.
+let bgImage=null;      // {canvas, imgData, x, y, w, h, name, alpha} — the reference bitmap under the vectors
+let tracePreview=null; // [{pts,closed}] live preview shapes while the Trace dialog is open
+
+function importBitmap(name, file){
+  const url=URL.createObjectURL(file), im=new Image();
+  im.onload=()=>{
+    URL.revokeObjectURL(url);
+    const MAXPX=1400;   // cap the working raster: past this the trace is slow and no more accurate
+    const k=Math.min(1, MAXPX/Math.max(im.naturalWidth,im.naturalHeight));
+    const w=Math.max(1,Math.round(im.naturalWidth*k)), h=Math.max(1,Math.round(im.naturalHeight*k));
+    const cn=document.createElement('canvas'); cn.width=w; cn.height=h;
+    const cx=cn.getContext('2d'); cx.drawImage(im,0,0,w,h);
+    let data; try{ data=cx.getImageData(0,0,w,h); }catch(e){ setMsg('Could not read image pixels: '+e.message); return; }
+    // place it filling the job width (keeping aspect), bottom-left at the job origin
+    const jw=job.w||24, inW=Math.min(jw, jw), inH=inW*h/w;
+    bgImage={canvas:cn, imgData:{width:w,height:h,data:data.data}, x:0, y:0, w:inW, h:inH, name:name, alpha:0.55};
+    fitJob(); openTraceModal();
+    setMsg('Loaded '+name+' — '+w+'×'+h+'px. Set the trace options, then Trace.');
+  };
+  im.onerror=()=>{ URL.revokeObjectURL(url); setMsg('Could not decode image: '+name); };
+  im.src=url;
+}
+function traceOpts(){ const g=id=>document.getElementById(id); const n=(id,d)=>{const el=g(id); const v=el?parseFloat(el.value):NaN; return isFinite(v)?v:d;};
+  return { threshold:n('trThresh',128), invert:!!(g('trInvert')&&g('trInvert').checked),
+    despeckle:n('trSpeck',2), tol:n('trTol',1), smooth:n('trSmooth',0.5),
+    widthInches:n('trWidth',bgImage?bgImage.w:12), originX:bgImage?bgImage.x:0, originY:bgImage?bgImage.y:0 }; }
+function runTracePreview(){
+  if(!bgImage) return;
+  let r; try{ r=BMPTRACE.traceImage(bgImage.imgData, traceOpts()); }
+  catch(e){ document.getElementById('trStats').textContent='Trace failed: '+e.message; return; }
+  lastTrace=r; tracePreview=r.loops;
+  // keep the reference bitmap boxed to the traced size so preview and image line up
+  bgImage.w=r.stats.widthInches; bgImage.h=r.stats.heightInches;
+  document.getElementById('trStats').textContent=
+    r.stats.loops+' contour(s) · '+r.stats.outer+' outer / '+r.stats.holes+' hole(s) · '+
+    r.stats.pointsAfter+' pts (from '+r.stats.pointsBefore+') · '+
+    r.stats.widthInches.toFixed(2)+'" × '+r.stats.heightInches.toFixed(2)+'"'+
+    (r.stats.specksRemoved?' · '+r.stats.specksRemoved+' speck(s) dropped':'');
+  render();
+}
+let lastTrace=null;
+function openTraceModal(){
+  if(!bgImage) return setMsg('Import a PNG/JPG first (Open / Import, or drag one in)');
+  const wEl=document.getElementById('trWidth'); if(wEl && !wEl.dataset.set){ wEl.value=bgImage.w.toFixed(2); wEl.dataset.set='1'; }
+  document.getElementById('traceModal').style.display='block';
+  runTracePreview();
+}
+function closeTraceModal(){ document.getElementById('traceModal').style.display='none'; tracePreview=null; render(); }
+function commitTrace(){
+  if(!lastTrace||!lastTrace.loops.length){ setMsg('Nothing to trace — adjust the threshold'); return; }
+  pushHistory();
+  if(!doc.layers.has('trace')) doc.layers.set('trace',{visible:true,color:'#b06a00'});
+  const shapes=lastTrace.loops.map(l=>CADCORE.mkPoly(l.pts,true,'trace'));
+  addShapes(shapes); sel=new Set(shapes.map(s=>s.id));
+  closeTraceModal();
+  setMsg('Traced '+shapes.length+' contour(s) onto the "trace" layer — ready to pocket, profile or V-carve');
+  syncPanels(); render();
+}
+function clearBgImage(){ bgImage=null; tracePreview=null; lastTrace=null; closeTraceModal(); render(); setMsg('Reference bitmap removed'); }
+
+// ---- toolpath templates (C6): reusable machining recipes, persisted to localStorage ----
+// A template holds only the toolpath *settings*, never the geometry — so the same recipe (V-carve the
+// text, then profile it out with tabs) drops onto whatever vectors you have selected in this job.
+const TPL_KEY='aq_templates';
+let templates=[];
+function loadTemplates(){ try{ const s=localStorage.getItem(TPL_KEY); templates=s?JSON.parse(s).map(CAM.normalizeTemplate):CAM.defaultTemplates(); }
+  catch(e){ templates=CAM.defaultTemplates(); }
+  if(!Array.isArray(templates)||!templates.length) templates=CAM.defaultTemplates(); }
+function persistTemplates(){ try{ localStorage.setItem(TPL_KEY, JSON.stringify(templates)); }catch(e){} }
+function buildTplLib(selId){ const el=document.getElementById('tplLib'); if(!el)return; el.innerHTML='';
+  for(const t of templates){ const o=document.createElement('option'); o.value=t.id;
+    o.textContent=t.name+' ('+t.entries.length+')'; el.appendChild(o); }
+  if(selId)el.value=selId; }
+function currentTpl(){ const el=document.getElementById('tplLib'); return el?templates.find(t=>t.id===el.value):null; }
+function applyTpl(){ const t=currentTpl(); if(!t)return setMsg('No template selected');
+  const ids=[...sel]; const entries=CAM.applyTemplate(t, ids);
+  if(!entries.length)return setMsg('Template "'+t.name+'" has no toolpaths');
+  pushHistory();
+  for(const e of entries){ e.label=autoLabel(e.p, e.ids, null); opsQueue.push(e); }
+  editingIdx=null; buildQueueList(); recalcAll();
+  setMsg('Applied "'+t.name+'" — '+entries.length+' toolpath(s) on '+(ids.length?ids.length+' selected':'all visible')+' vector(s)'); }
+function saveTpl(){ if(!opsQueue.length)return setMsg('Add toolpaths first, then save them as a template');
+  const n=prompt('Template name:', currentTpl()?currentTpl().name:'My recipe'); if(n==null)return;
+  const t=CAM.templateFromQueue(n.trim()||'My recipe', opsQueue);
+  templates=CAM.upsertTemplate(templates,t); persistTemplates(); buildTplLib(t.id);
+  setMsg('Saved template "'+t.name+'" — '+t.entries.length+' toolpath(s), no geometry'); }
+function delTpl(){ const t=currentTpl(); if(!t)return;
+  if(!confirm('Delete template "'+t.name+'"?'))return;
+  templates=CAM.removeTemplate(templates,t.id); if(!templates.length)templates=CAM.defaultTemplates();
+  persistTemplates(); buildTplLib(); setMsg('Deleted template "'+t.name+'"'); }
+function exportTpl(){ const t=currentTpl(); if(!t)return setMsg('No template selected');
+  download(t.id+'.aqtpl', CAM.templateToJSON(t), 'application/json'); setMsg('Exported '+t.id+'.aqtpl'); }
+function importTplText(text){
+  try{ const t=CAM.templateFromJSON(text); templates=CAM.upsertTemplate(templates,t); persistTemplates(); buildTplLib(t.id);
+    setMsg('Imported template "'+t.name+'" — '+t.entries.length+' toolpath(s)'); }
+  catch(e){ setMsg('Template import failed: '+e.message); } }
 
 // ---- tool database (presets, persisted to localStorage) ----
 const TOOLS_KEY='aq_tools';
@@ -1165,29 +1801,29 @@ function drawJob(){ if(!job.show)return; const r=jobRect(); const a=W2S({x:r.x0,
   const x=a.x, y=a.y, w=b.x-a.x, h=b.y-a.y;
   ctx.save();
   // drop shadow so the stock reads as a solid panel sitting above the grid
-  ctx.shadowColor='rgba(0,0,0,0.55)'; ctx.shadowBlur=14; ctx.shadowOffsetX=3; ctx.shadowOffsetY=4;
-  ctx.fillStyle='rgba(26,37,51,0.93)'; ctx.fillRect(x,y,w,h);   // material face — clearly lighter than the #0c0f14 canvas, faint grid bleeds through
+  ctx.shadowColor=TH().jobShadow; ctx.shadowBlur=14; ctx.shadowOffsetX=3; ctx.shadowOffsetY=4;
+  ctx.fillStyle=TH().jobFace; ctx.fillRect(x,y,w,h);   // material face — clearly lighter than the #0c0f14 canvas, faint grid bleeds through
   ctx.shadowColor='transparent'; ctx.shadowBlur=0; ctx.shadowOffsetX=0; ctx.shadowOffsetY=0;
   // bright bordered edge (outer dark keyline + inner bright line for definition)
-  ctx.strokeStyle='rgba(0,0,0,0.6)'; ctx.lineWidth=3; ctx.strokeRect(x,y,w,h);
-  ctx.strokeStyle='#6fb6ff'; ctx.lineWidth=1.5; ctx.strokeRect(x,y,w,h);
+  ctx.strokeStyle=TH().jobKey; ctx.lineWidth=3; ctx.strokeRect(x,y,w,h);
+  ctx.strokeStyle=TH().jobEdge; ctx.lineWidth=1.5; ctx.strokeRect(x,y,w,h);
   // corner L-brackets
-  ctx.strokeStyle='#aee0ff'; ctx.lineWidth=2; const c=Math.min(16,Math.abs(w)/3,Math.abs(h)/3);
+  ctx.strokeStyle=TH().jobCorner; ctx.lineWidth=2; const c=Math.min(16,Math.abs(w)/3,Math.abs(h)/3);
   const corner=(cx,cy,sx,sy)=>{ ctx.beginPath(); ctx.moveTo(cx+sx*c,cy); ctx.lineTo(cx,cy); ctx.lineTo(cx,cy+sy*c); ctx.stroke(); };
   corner(x,y,1,1); corner(x+w,y,-1,1); corner(x,y+h,1,-1); corner(x+w,y+h,-1,-1);
   // size caption pill inside the top-left corner of the stock
   const cap=job.w+'" × '+job.h+'"  ·  '+job.thickness+'" thick';
   ctx.font='bold 13px monospace'; const cw=ctx.measureText(cap).width; const ch=20;
   if(w>cw+26 && h>ch+10){ const px=x+9, py=y+9;
-    ctx.fillStyle='rgba(18,42,68,0.95)'; ctx.fillRect(px,py,cw+16,ch);
-    ctx.strokeStyle='#4f8fd0'; ctx.lineWidth=1; ctx.strokeRect(px+0.5,py+0.5,cw+15,ch-1);
-    ctx.fillStyle='#dfeeff'; ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText(cap,px+8,py+ch/2+1); }
+    ctx.fillStyle=TH().labelBg; ctx.fillRect(px,py,cw+16,ch);
+    ctx.strokeStyle=TH().labelBd; ctx.lineWidth=1; ctx.strokeRect(px+0.5,py+0.5,cw+15,ch-1);
+    ctx.fillStyle=TH().labelInk; ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText(cap,px+8,py+ch/2+1); }
   ctx.textBaseline='alphabetic';
   // origin marker (X0 Y0)
-  const o=W2S({x:0,y:0}); ctx.fillStyle='#ff5a5a'; ctx.beginPath(); ctx.arc(o.x,o.y,4,0,TAU); ctx.fill();
-  ctx.strokeStyle='#ff5a5a'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(o.x,o.y); ctx.lineTo(o.x+18,o.y); ctx.moveTo(o.x,o.y); ctx.lineTo(o.x,o.y-18); ctx.stroke();
+  const o=W2S({x:0,y:0}); ctx.fillStyle=TH().origin; ctx.beginPath(); ctx.arc(o.x,o.y,4,0,TAU); ctx.fill();
+  ctx.strokeStyle=TH().origin; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(o.x,o.y); ctx.lineTo(o.x+18,o.y); ctx.moveTo(o.x,o.y); ctx.lineTo(o.x,o.y-18); ctx.stroke();
   // edge dimension labels
-  ctx.fillStyle='#9fc4ff'; ctx.font='bold 12px monospace'; ctx.textAlign='center';
+  ctx.fillStyle=TH().dimLbl; ctx.font='bold 12px monospace'; ctx.textAlign='center';
   ctx.fillText(job.w+'"', x+w/2, b.y+15);
   ctx.save(); ctx.translate(a.x-10,(a.y+b.y)/2); ctx.rotate(-Math.PI/2); ctx.fillText(job.h+'"',0,0); ctx.restore();
   ctx.restore();
@@ -1199,7 +1835,7 @@ function setJob(){ const g=id=>document.getElementById(id);
   fitJob(); }
 function fitJob(){ const r=jobRect(); const pad=Math.max(r.x1-r.x0,r.y1-r.y0)*0.12+0.5; const w=(r.x1-r.x0)+2*pad, h=(r.y1-r.y0)+2*pad;
   view.ppi=Math.min(cv.width/w, cv.height/h); view.ox=cv.width/2-((r.x0+r.x1)/2)*view.ppi; view.oy=cv.height/2+((r.y0+r.y1)/2)*view.ppi; render(); }
-function drawMeasure(a,b,persist){ ctx.save(); ctx.strokeStyle=persist?'#7fd0ff':'#ffd27a'; ctx.lineWidth=1.3; if(!persist)ctx.setLineDash([5,3]);
+function drawMeasure(a,b,persist){ ctx.save(); ctx.strokeStyle=persist?TH().measure:TH().draft; ctx.lineWidth=1.3; if(!persist)ctx.setLineDash([5,3]);
   const p=W2S(a),q=W2S(b); ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(q.x,q.y); ctx.stroke();
   // end ticks
   ctx.setLineDash([]); [p,q].forEach(pt=>{ ctx.beginPath(); ctx.arc(pt.x,pt.y,3,0,TAU); ctx.stroke(); });
@@ -1207,19 +1843,19 @@ function drawMeasure(a,b,persist){ ctx.save(); ctx.strokeStyle=persist?'#7fd0ff'
   const mid={x:(p.x+q.x)/2,y:(p.y+q.y)/2};
   const label=dist.toFixed(3)+'"  ('+dx.toFixed(3)+' x '+dy.toFixed(3)+')  '+ang.toFixed(1)+String.fromCharCode(176);
   ctx.font='11px monospace'; const wlab=ctx.measureText(label).width;
-  ctx.fillStyle='rgba(10,16,24,0.85)'; ctx.fillRect(mid.x+8, mid.y-20, wlab+10, 16);
-  ctx.fillStyle=persist?'#aee0ff':'#ffe27a'; ctx.textAlign='left'; ctx.fillText(label, mid.x+13, mid.y-8);
+  ctx.fillStyle=TH().measureBg; ctx.fillRect(mid.x+8, mid.y-20, wlab+10, 16);
+  ctx.fillStyle=TH().measureInk; ctx.textAlign='left'; ctx.fillText(label, mid.x+13, mid.y-8);
   ctx.restore();
 }
 
 // ---- panels ----
 function syncPanels(){ buildLayers(); buildProps(); }
-const LYR_PALETTE=['#9fe7ff','#ffb27a','#a8f0a8','#f7a8e0','#ffe27a','#c8b6ff','#8fd6c6','#ff9a9a'];
+const LYR_PALETTE=['#1b2b3f','#b8541c','#1f7a3a','#8a2f8f','#b8860b','#3b4fb8','#0f7a7a','#b02a2a'];
 function addLayer(name){ name=(name||'').trim(); if(!name){ name=prompt('New layer name:', 'Layer '+(doc.layers.size+1)); if(!name)return; name=name.trim(); }
   if(!name||doc.layers.has(name)){ if(name) setMsg('Layer "'+name+'" already exists'); return; }
   doc.layers.set(name,{visible:true,color:LYR_PALETTE[doc.layers.size%LYR_PALETTE.length]}); activeLayer=name; buildLayers(); scheduleAutosave(); setMsg('Added layer "'+name+'" (active)'); }
 function renameLayer(old){ const nn=prompt('Rename layer "'+old+'" to:', old); if(!nn||nn.trim()===old)return; const name=nn.trim(); if(doc.layers.has(name)){ setMsg('Layer "'+name+'" already exists'); return; }
-  pushHistory(); const info=doc.layers.get(old); const entries=[...doc.layers].map(([k,v])=>[k===old?name:k,v]); doc.layers=new Map(entries);
+  pushHistory(); const entries=[...doc.layers].map(([k,v])=>[k===old?name:k,v]); doc.layers=new Map(entries);
   doc.shapes.forEach(s=>{ if(s.layer===old) s.layer=name; }); if(activeLayer===old)activeLayer=name; render(); syncPanels(); }
 function deleteLayer(name){ if(doc.layers.size<=1){ setMsg('Cannot delete the last layer'); return; }
   const n=doc.shapes.filter(s=>s.layer===name).length; const fallback=[...doc.layers.keys()].find(k=>k!==name);
@@ -1230,7 +1866,7 @@ function buildLayers(){ const el=document.getElementById('layerList'); if(!el)re
   const hasSel=sel.size>0;
   for(const [name,info] of doc.layers){ const row=document.createElement('div'); row.className='lyr'+(name===activeLayer?' act':'');
     const cnt=doc.shapes.filter(s=>s.layer===name).length;
-    row.innerHTML='<input type="checkbox" title="Show / hide" '+(info.visible!==false?'checked':'')+'><input type="color" class="swc" title="Layer color" value="'+(info.color||'#9fe7ff')+'"><span class="ln" title="Click = make active · double-click = rename">'+name+'</span><span class="lc">'+cnt+'</span>'
+    row.innerHTML='<input type="checkbox" title="Show / hide" '+(info.visible!==false?'checked':'')+'><input type="color" class="swc" title="Layer color" value="'+(info.color||'#1b2b3f')+'"><span class="ln" title="Click = make active · double-click = rename">'+name+'</span><span class="lc">'+cnt+'</span>'
       +(hasSel&&name!==activeLayer?'<button class="lb" title="Move selected shapes to this layer">→</button>':'')+'<button class="lb lx" title="Delete layer">×</button>';
     row.querySelector('input[type=checkbox]').onchange=e=>{info.visible=e.target.checked; render();};
     row.querySelector('.swc').oninput=e=>{info.color=e.target.value; render(); scheduleAutosave();};
@@ -1244,6 +1880,8 @@ function buildProps(){ const el=document.getElementById('props'); if(!el)return;
   if(!sh.length){ el.innerHTML='<div class="muted">No selection</div>'; return; }
   if(sh.length>1){ const b=CADCORE.bboxAll(sh); el.innerHTML='<div class="muted">'+sh.length+' selected</div><div class="prow">W '+(b.maxX-b.minX).toFixed(3)+'"  H '+(b.maxY-b.minY).toFixed(3)+'"</div>'; return; }
   const s=sh[0]; const b=CADCORE.bbox(s); let h='<div class="prow">type: '+(s.prim?s.prim.kind:s.type)+'</div>';
+  if(s.type==='dim'){ const g=CADCORE.dimensionGeometry(s.prim);
+    h+='<div class="prow">'+s.prim.style+': <b>'+g.text+'</b></div><div class="prow muted">annotation — not machined</div>'; }
   h+='<div class="prow">X '+b.minX.toFixed(3)+'  Y '+b.minY.toFixed(3)+'</div>';
   h+='<div class="prow">W '+(b.maxX-b.minX).toFixed(3)+'"  H '+(b.maxY-b.minY).toFixed(3)+'"</div>';
   h+='<div class="prow">closed: '+(s.closed?'yes':'no')+(s.type==='text'?(' · "'+s.text+'"'):'')+' · layer: '+s.layer+'</div>';
@@ -1256,23 +1894,24 @@ window.addEventListener('keydown', e=>{
   if(/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))return;
   if((e.ctrlKey||e.metaKey)&&(e.key==='s'||e.key==='S')){ e.preventDefault(); if(e.shiftKey) saveProjectAs(); else saveProject(); return; }
   if((e.ctrlKey||e.metaKey)&&(e.key==='o'||e.key==='O')){ e.preventDefault(); openProjectDialog(); return; }
+  if((e.ctrlKey||e.metaKey)&&(e.key==='k'||e.key==='K')){ e.preventDefault(); openHelpSearch(); return; }
+  if((e.ctrlKey||e.metaKey)&&e.key==='a'){ e.preventDefault(); sel=new Set(doc.shapes.filter(s=>layerVisible(s.layer)).map(s=>s.id)); render(); syncPanels(); return; }
   if((e.ctrlKey||e.metaKey)&&e.key==='z'){ e.preventDefault(); undo(); return; }
   if((e.ctrlKey||e.metaKey)&&(e.key==='y'||(e.shiftKey&&e.key==='z'))){ e.preventDefault(); redo(); return; }
   if(e.key==='Delete'||e.key==='Backspace'){ e.preventDefault(); deleteSelected(); return; }
-  if(e.key==='Escape'){ hideCtxMenu(); hideMenus(); if(modalOrig){ closeShapeModal(); return; } if(rotBase){ closeRotateModal(); return; } closeJobModal(); draft=null; render(); return; }
-  if(e.key==='Enter'&&CREATE_KINDS.has(tool)&&!draft&&!modalOrig){ e.preventDefault(); openCreateModal(tool); return; }
-  if((e.ctrlKey||e.metaKey)&&e.key==='a'){ e.preventDefault(); sel=new Set(doc.shapes.filter(s=>layerVisible(s.layer)).map(s=>s.id)); render(); syncPanels(); return; }
+  if(e.key==='Escape'){ hideCtxMenu(); closeMenus(); if(rotBase){ closeRotateModal(); return; } draft=null; render(); return; }
+  if(e.key==='Enter'&&(tool in FORM_CREATE)&&!draft&&!modalOrig&&!rotBase){ e.preventDefault(); createFromForm(tool); return; }
   if(e.key==='Enter'&&tool==='polyline'&&draft){ commitPolyline(); return; }
   if(e.key==='Enter'&&tool==='bezier'&&draft){ commitBezier(false); return; }
-  const map={v:'select',n:'node',l:'line',p:'polyline',b:'bezier',r:'rect',c:'circle',e:'ellipse',a:'arc',g:'polygon',t:'text',m:'measure'};
+  const map={v:'select',n:'node',l:'line',p:'polyline',b:'bezier',r:'rect',c:'circle',e:'ellipse',a:'arc',g:'polygon',t:'text',m:'measure',d:'dim'};
   if(map[e.key]){ setTool(map[e.key]); }
   if(e.key==='f'){ fitAll(); }
 });
 
 // ---- collapsible right-panel sections ----
 function initCollapsibles(){
-  const DEFAULT_COLLAPSED = { 'Nest':1, 'Align':1 };   // others (Layers included) open by default
-  document.querySelectorAll('.right .sectn').forEach(sec=>{
+  const DEFAULT_COLLAPSED = {};   // everything open — the point of the dock is that nothing is hidden
+  document.querySelectorAll('.cmd .sectn').forEach(sec=>{
     const h=sec.querySelector('h3'); if(!h||h.dataset.coll)return;
     const title=h.textContent.trim();
     h.dataset.coll='1';
@@ -1302,6 +1941,8 @@ function wire(){
   initToolGroups();
   const simSolid=document.getElementById('simSolid'), simRes=document.getElementById('simRes');
   if(simSolid)simSolid.onchange=()=>{ if(viewMode==='preview') setView('preview'); };
+  ['glLines','glRapids'].forEach(id=>{ const el=document.getElementById(id);
+    if(el) el.onchange=()=>{ if(gl3d){ gl3dSetLines(gl3dSegs); gl3d.draw(); } }; });
   if(simRes)simRes.onchange=()=>{ if(viewMode==='preview'&&simSolid&&simSolid.checked) runSim(); };
   initCollapsibles();
   const on=(id,fn)=>{const el=document.getElementById(id); if(el)el.onclick=fn;};
@@ -1315,27 +1956,15 @@ function wire(){
   const nw=document.getElementById('nestW'), nh=document.getElementById('nestH');
   if(nw)nw.value=job.w; if(nh)nh.value=job.h;
   on('btnOffset',opOffset); on('btnUnion',()=>opBool('union')); on('btnDiff',()=>opBool('diff')); on('btnInt',()=>opBool('intersect'));
-  on('btnMirrorH',()=>opMirror('x')); on('btnMirrorV',()=>opMirror('y')); on('btnDup',opDuplicate); on('btnArray',opArray); on('btnRotate',openRotateModal); on('btnJoin',opJoin);
-  on('btnCreateNum',()=>openCreateModal(tool));
-  const rs=document.getElementById('rotSnap'); if(rs)rs.onchange=e=>{ grid.rotSnap=Math.max(0.1,parseFloat(e.target.value)||5); };
-  // rotate dialog
-  on('rotApply',applyRotateModal); on('rotCancel',closeRotateModal); on('rotX',closeRotateModal);
-  ['rotAngle','rotDir'].forEach(id=>{ const el=document.getElementById(id); if(el){ el.addEventListener('input',previewRotateModal); el.addEventListener('change',previewRotateModal); } });
-  const ra=document.getElementById('rotAngle'); if(ra) ra.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); applyRotateModal(); } });
-  document.querySelectorAll('#rotModal .rq').forEach(b=>{ b.onclick=()=>{ document.getElementById('rotAngle').value=b.dataset.deg; previewRotateModal(); }; });
-  // job size & position dialog
-  on('jobOk',()=>{ setJob(); closeJobModal(); }); on('jobCancel',closeJobModal); on('jobX',closeJobModal);
-  // menus (File / Edit / View / Help)
-  initMenus();
+  on('btnMirrorH',()=>opMirror('x')); on('btnMirrorV',()=>opMirror('y')); on('btnDup',opDuplicate); on('btnArray',opArray); on('btnRot90',opRotate90); on('btnJoin',opJoin);
   on('btnCheckVec',opCheckVectors);
   on('restoreYes',()=>dismissRestore(true)); on('restoreNo',()=>dismissRestore(false));
   on('btnAlignL',()=>opAlign('left')); on('btnAlignR',()=>opAlign('right')); on('btnAlignT',()=>opAlign('top')); on('btnAlignB',()=>opAlign('bottom')); on('btnAlignHC',()=>opAlign('hcenter')); on('btnAlignVC',()=>opAlign('vcenter'));
-  on('simTop',()=>setOrbit(0,90)); on('simIso',()=>setOrbit(-30,50)); on('simFront',()=>setOrbit(0,20));
-  on('btnSaveProj',saveProject); on('btnSaveAs',saveProjectAs); on('btnExpDXF',exportDXF); on('btnExpSVG',exportSVG); setProjectName();
-  on('btnFitJob',fitJob);
+  on('btnSaveProj',saveProject); on('btnExpDXF',exportDXF); on('btnExpSVG',exportSVG);
+  on('btnJobSet',setJob); on('btnFitJob',fitJob);
   const js=document.getElementById('jobShow'); if(js)js.onchange=e=>{job.show=e.target.checked; render();};
   // live job dimension updates (no view refit — use "Set job"/"Fit job" to re-zoom)
-  const jobLive=()=>{ const g=id=>document.getElementById(id); job.w=Math.abs(parseFloat(g('jobW').value)||24); job.h=Math.abs(parseFloat(g('jobH').value)||18); job.thickness=Math.abs(parseFloat(g('jobT').value)||0.5); job.origin=g('jobOrigin').value; render(); };
+  const jobLive=()=>{ const g=id=>document.getElementById(id); job.w=Math.abs(parseFloat(g('jobW').value)||24); job.h=Math.abs(parseFloat(g('jobH').value)||18); job.thickness=Math.abs(parseFloat(g('jobT').value)||0.5); job.origin=g('jobOrigin').value; updateMatSummary(); render(); };
   ['jobW','jobH','jobT','jobOrigin'].forEach(id=>{ const el=document.getElementById(id); if(el)el.addEventListener('input',jobLive); });
   on('btnCamGen',camGenerate); on('btnCamExport',camExport); on('btnCamClear',camClear);
   on('btnAddOp',addOp); on('btnRecalcAll',recalcAll); on('btnPostJob',postJob); buildQueueList();
@@ -1347,9 +1976,29 @@ function wire(){
     show('.pocket-only', v==='pocket');
     show('.drill-only', v==='drill');
     show('.vcarve-only', v==='vcarve');
+    show('.inlay-only', v==='inlay');
     show('.profile-pocket', v==='profile'||v==='pocket');
     show('.not-drill', v!=='drill'); };
   if(camOp){ camOp.onchange=syncCamOp; syncCamOp(); }
+  initCmdDock();
+  // clipart library (D2)
+  loadClipart(); buildClipCats(); buildClipGrid();
+  const cc=document.getElementById('clipCat'); if(cc)cc.onchange=buildClipGrid;
+  on('btnClipAdd',addSelectionToClipart); on('btnClipDel',delClipart); on('btnClipExport',exportClipart);
+  const ci=document.getElementById('clipInput'), cb=document.getElementById('btnClipImport');
+  if(ci&&cb){ cb.onclick=()=>ci.click();
+    ci.onchange=e=>{ const f=e.target.files[0]; if(f){ const rd=new FileReader(); rd.onload=ev=>importClipText(ev.target.result); rd.readAsText(f); } ci.value=''; }; }
+  // bitmap trace (D1)
+  on('btnTrace',openTraceModal); on('traceApply',commitTrace); on('traceCancel',closeTraceModal);
+  on('traceX',closeTraceModal); on('traceClearBg',clearBgImage);
+  ['trThresh','trInvert','trSpeck','trTol','trSmooth','trWidth'].forEach(id=>{ const el=document.getElementById(id);
+    if(el) el.addEventListener('input',()=>{ if(document.getElementById('traceModal').style.display==='block') runTracePreview(); }); });
+  // toolpath templates
+  loadTemplates(); buildTplLib();
+  on('btnTplApply',applyTpl); on('btnTplSave',saveTpl); on('btnTplDel',delTpl); on('btnTplExport',exportTpl);
+  const ti=document.getElementById('tplInput'); const tb=document.getElementById('btnTplImport');
+  if(ti&&tb){ tb.onclick=()=>ti.click();
+    ti.onchange=e=>{ const f=e.target.files[0]; if(f){ const rd=new FileReader(); rd.onload=ev=>importTplText(ev.target.result); rd.readAsText(f); } ti.value=''; }; }
   // tool library
   loadTools(); buildToolLib();
   const tl=document.getElementById('camToolLib'); if(tl)tl.onchange=()=>applyTool(tl.value);
@@ -1357,8 +2006,7 @@ function wire(){
   // shape properties modal
   on('modalApply',applyShapeModal); on('modalCancel',closeShapeModal); on('modalX',closeShapeModal);
   const mb=document.getElementById('shapeModal');
-  const mf=document.getElementById('modalFields'); if(mf){ mf.addEventListener('input', previewShapeModal);   // live preview as you type
-    mf.addEventListener('keydown', e=>{ if(e.key==='Enter'&&e.target.tagName==='INPUT'){ e.preventDefault(); applyShapeModal(); } }); }
+  const mf=document.getElementById('modalFields'); if(mf) mf.addEventListener('input', previewShapeModal);   // live preview as you type
   if(mb){ mb.addEventListener('mousedown',e=>{ if(e.target===mb)closeShapeModal(); });
     mb.addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();applyShapeModal();} else if(e.key==='Escape'){e.preventDefault();closeShapeModal();} });
     // drag the dialog by its header so it never hides the shape
@@ -1368,10 +2016,18 @@ function wire(){
       window.addEventListener('mouseup',()=>{ md=null; }); } }
   on('btnNew',()=>{ if(confirm('Clear design?')){ pushHistory(); doc.shapes=[]; sel.clear(); toolpaths=null; projectFile.handle=null; setProjectName('design.aqcam'); render(); syncPanels(); } });
   const fi=document.getElementById('fileInput'); document.getElementById('btnImport').onclick=openProjectDialog;
-  fi.onchange=e=>{ const f=e.target.files[0]; if(!f)return; const rd=new FileReader();
-    if(/\.aqcam$/i.test(f.name)){ rd.onload=ev=>{ openProject(ev.target.result, f.name); projectFile.handle=null; setProjectName(f.name); }; rd.readAsText(f); }
-    else if(/\.pdf$/i.test(f.name)){ rd.onload=ev=>importPDF(f.name,ev.target.result); rd.readAsArrayBuffer(f); }
-    else { rd.onload=ev=>importText(f.name,ev.target.result); rd.readAsText(f); } fi.value=''; };
+  fi.onchange=e=>{ const f=e.target.files[0]; if(!f)return; handleOpenedFile(f,null); fi.value=''; };
+  on('btnSaveAs',saveProjectAs); setProjectName();
+  on('btnRotate',openRotateModal);
+  const rs=document.getElementById('rotSnap'); if(rs)rs.onchange=e=>{ grid.rotSnap=Math.max(0.1,parseFloat(e.target.value)||5); };
+  // rotate dialog
+  on('rotApply',applyRotateModal); on('rotCancel',closeRotateModal); on('rotX',closeRotateModal);
+  ['rotAngle','rotDir'].forEach(id=>{ const el=document.getElementById(id); if(el){ el.addEventListener('input',previewRotateModal); el.addEventListener('change',previewRotateModal); } });
+  const ra=document.getElementById('rotAngle'); if(ra) ra.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); applyRotateModal(); } else if(e.key==='Escape'){ e.preventDefault(); closeRotateModal(); } });
+  document.querySelectorAll('#rotModal .rq').forEach(b=>{ b.onclick=()=>{ document.getElementById('rotAngle').value=b.dataset.deg; previewRotateModal(); }; });
+  // 3D view presets + help search
+  on('simTop',()=>gl3dPreset('top')); on('simIso',()=>gl3dPreset('iso')); on('simFront',()=>gl3dPreset('front'));
+  initHelpSearch();
   const gs=document.getElementById('gridStep'); if(gs)gs.onchange=e=>{grid.step=parseFloat(e.target.value)||0.5; render();};
   const gg=document.getElementById('chkGrid'); if(gg)gg.onchange=e=>{grid.on=e.target.checked;render();};
   const sn=document.getElementById('chkSnap'); if(sn)sn.onchange=e=>{grid.snap=e.target.checked;};
@@ -1384,10 +2040,7 @@ function wire(){
   document.body.addEventListener('dragover',e=>e.preventDefault());
   document.body.addEventListener('drop',e=>{ e.preventDefault(); const f=e.dataTransfer.files[0]; if(!f)return;
     if(/\.(ttf|otf|woff)$/i.test(f.name)){ loadFontFile(f); return; }
-    const rd=new FileReader();
-    if(/\.aqcam$/i.test(f.name)){ rd.onload=ev=>openProject(ev.target.result, f.name); rd.readAsText(f); }
-    else if(/\.pdf$/i.test(f.name)){ rd.onload=ev=>importPDF(f.name,ev.target.result); rd.readAsArrayBuffer(f); }
-    else { rd.onload=ev=>importText(f.name,ev.target.result); rd.readAsText(f); } });
+    handleOpenedFile(f,null); });
   window.addEventListener('resize',resize);
   // autosave every 30s (backstop for the on-change debounce) + restore prompt on load
   setInterval(autosaveNow, 30000);
@@ -1411,51 +2064,8 @@ function dismissRestore(apply){
   if(apply&&pendingRestore) applyProject(pendingRestore,'autosave');
   pendingRestore=null;
 }
-// ---- menu bar (File / Edit / View / Help) ----
-let menuOpen=null;
-function hideMenus(){ if(menuOpen){ menuOpen.el.remove(); menuOpen.btn.classList.remove('open'); menuOpen=null; } }
-function menuItems(name){
-  const hasSel=sel.size>0;
-  switch(name){
-    case 'File': return [
-      { label:'New', fn:()=>document.getElementById('btnNew').click() },
-      { label:'Open / Import…', key:'Ctrl+O', fn:openProjectDialog }, { sep:true },
-      { label:'Save', key:'Ctrl+S', fn:saveProject },
-      { label:'Save As…', key:'Ctrl+Shift+S', fn:saveProjectAs }, { sep:true },
-      { label:'Export DXF', fn:exportDXF, disabled:!doc.shapes.length }, { label:'Export SVG', fn:exportSVG, disabled:!doc.shapes.length } ];
-    case 'Edit': return [
-      { label:'Undo', key:'Ctrl+Z', fn:undo, disabled:!history.length }, { label:'Redo', key:'Ctrl+Y', fn:redo, disabled:!future.length }, { sep:true },
-      { label:'Job Size and Position…', fn:openJobModal }, { sep:true },
-      { label:'Select all', key:'Ctrl+A', fn:()=>{ sel=new Set(doc.shapes.filter(s=>layerVisible(s.layer)).map(s=>s.id)); render(); syncPanels(); }, disabled:!doc.shapes.length },
-      { label:'Edit dimensions…', key:'dbl-click', fn:()=>openShapeModal(selectedShapes()[0]), disabled:sel.size!==1 },
-      { label:'Rotate…', fn:openRotateModal, disabled:!hasSel },
-      { label:'Duplicate', fn:opDuplicate, disabled:!hasSel }, { label:'Delete', key:'Del', fn:deleteSelected, disabled:!hasSel }, { sep:true },
-      { label:'Create shape by numbers…', key:'Enter', fn:()=>openCreateModal(tool) } ];
-    case 'View': return [
-      { label:'Fit all', key:'F', fn:fitAll }, { label:'Fit job', fn:fitJob }, { sep:true },
-      { label:'2D Design', fn:()=>setView('2d') }, { label:'Preview', fn:()=>setView('preview') } ];
-    case 'Help': return [
-      { label:'Keyboard shortcuts', fn:()=>{ document.getElementById('keysModal').style.display='block'; } },
-      { label:'Self-test (CAM ops)', fn:runSelfTest }, { sep:true },
-      { title:(document.getElementById('appVer')||{textContent:''}).textContent } ];
-  }
-  return []; }
-function openMenu(btn){ hideMenus(); hideCtxMenu();
-  const m=document.createElement('div'); m.className='ctxmenu menu';
-  for(const it of menuItems(btn.dataset.menu)){
-    if(it.sep){ const s=document.createElement('div'); s.className='sep'; m.appendChild(s); continue; }
-    if(it.title!==undefined){ const t=document.createElement('div'); t.className='ttl'; t.textContent=it.title; m.appendChild(t); continue; }
-    const d=document.createElement('div'); d.className='ci'+(it.disabled?' disabled':'');
-    d.innerHTML='<span>'+it.label+'</span>'+(it.key?'<span class="k">'+it.key+'</span>':'');
-    if(!it.disabled) d.onclick=()=>{ hideMenus(); it.fn(); };
-    m.appendChild(d); }
-  document.body.appendChild(m); const r=btn.getBoundingClientRect(); m.style.left=r.left+'px'; m.style.top=(r.bottom+2)+'px';
-  btn.classList.add('open'); menuOpen={el:m,btn}; }
-function initMenus(){ document.querySelectorAll('.menubtn').forEach(b=>{
-    b.onclick=e=>{ e.stopPropagation(); if(menuOpen&&menuOpen.btn===b) hideMenus(); else openMenu(b); };
-    b.onmouseenter=()=>{ if(menuOpen&&menuOpen.btn!==b) openMenu(b); }; });
-  window.addEventListener('mousedown', e=>{ if(menuOpen && !menuOpen.el.contains(e.target) && !e.target.classList.contains('menubtn')) hideMenus(); }, true);
-  window.addEventListener('blur', hideMenus); }
 wire(); resize(); setTool('select'); syncPanels(); render();
-window.AQ_STUDIO = { saveProjectAs, get projectFile(){return projectFile;}, get orbit(){return orbit;}, setOrbit, get gl3d(){return GL3D;}, get simField(){return simField;}, doc, get sel(){return sel;}, get view(){return viewMode;}, CADCORE, CAM, importText, importPDF, openProject, saveProject, projectJSON, setView, camBuild, setTool, addShapes, render,
-  openCreateModal, openShapeModal, applyShapeModal, closeShapeModal, setModalAnchor, get anchor(){return modalAnchor;}, openRotateModal, applyRotateModal, openJobModal, addLayer, moveSelToLayer, get grid(){return grid;}, selectedShapes };
+window.AQ_STUDIO = { doc, get sel(){return sel;}, get view(){return viewMode;}, CADCORE, CAM, importText, importPDF, openProject, saveProject, saveProjectAs, projectJSON, setView, camBuild, setTool, addShapes, render,
+  createFromForm, openShapeModal, applyShapeModal, closeShapeModal, setModalAnchor, setRotAnchor, get anchor(){return modalAnchor;}, get rotAnchor(){return rotAnchor;},
+  openRotateModal, applyRotateModal, addLayer, moveSelToLayer, get grid(){return grid;}, selectedShapes, get projectFile(){return projectFile;},
+  get gl3d(){return gl3d;}, gl3dPreset, get simField(){return simField;}, openHelpSearch, helpSearchRun, showForm, runSim, recalcAll, get opsQueue(){return opsQueue;} };
