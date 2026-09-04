@@ -58,6 +58,8 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .simctrl{position:absolute;top:8px;right:10px;z-index:20;display:none;align-items:center;gap:10px;background:var(--bg-card);border:1px solid var(--bd);border-radius:8px;padding:5px 10px;box-shadow:0 2px 10px rgba(20,40,70,.22)}
 .stage.preview .simctrl{display:flex}
 .simctrl label{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.4px}
+.simctrl .tb{font-size:10px;padding:3px 7px}
+.simctrl .simhint{font-size:9.5px;color:var(--ink-dim);letter-spacing:.3px}
 .simctrl select{background:var(--bg-input);border:1px solid var(--btn-bd);color:var(--ink);border-radius:3px;padding:2px 4px;font-family:inherit;font-size:11px}
 .restorebar{position:absolute;top:46px;left:50%;transform:translateX(-50%);z-index:30;display:none;align-items:center;gap:8px;background:var(--bg-head);border:1px solid var(--accent-bd);border-radius:8px;padding:6px 10px;box-shadow:0 3px 14px rgba(20,40,70,.28);font-size:11px;color:var(--ink)}
 .restorebar.show{display:flex}
@@ -185,7 +187,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
     <span class="sep"></span>
     <label data-tip="Shift while dragging a rotate grip snaps the angle to this increment">Rot °<input type="number" id="rotSnap" value="5" step="1" min="0.1" style="width:40px"></label>
     <button class="tb" id="btnNew" style="display:none">New</button><button class="tb" id="btnImport" style="display:none">Open</button>
-    <button class="tb" id="btnSaveProj" style="display:none">Save</button><button class="tb" id="btnExpDXF" style="display:none">DXF</button><button class="tb" id="btnExpSVG" style="display:none">SVG</button>
+    <button class="tb" id="btnSaveProj" style="display:none">Save</button><button class="tb" id="btnSaveAs" style="display:none">Save As</button><button class="tb" id="btnExpDXF" style="display:none">DXF</button><button class="tb" id="btnExpSVG" style="display:none">SVG</button>
     <button class="tb" id="btnSelfTest" style="display:none">Self-test</button><button class="tb" id="btnKeys" style="display:none">Keys</button>
     <input type="file" id="fileInput" accept=".aqcam,.dxf,.svg,.pdf" style="display:none">
   </div>
@@ -218,7 +220,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
   </div>
 
   <div class="stage"><div class="viewtabs"><button class="vtab active" data-view="2d" data-tip="Edit vectors">2D Design</button><button class="vtab" data-view="preview" data-tip="Machining backplot of all visible toolpaths">Preview</button></div>
-    <div class="simctrl" id="simCtrl"><label data-tip="Show simulated cut material vs. line toolpaths"><input type="checkbox" id="simSolid" checked>3D cut</label><label data-tip="Simulation cell size — smaller = finer + slower">Res"<select id="simRes"><option value="0.08">0.08</option><option value="0.05" selected>0.05</option><option value="0.03">0.03</option><option value="0.02">0.02</option></select></label></div>
+    <div class="simctrl" id="simCtrl"><label data-tip="Show simulated cut material vs. line toolpaths"><input type="checkbox" id="simSolid" checked>3D cut</label><label data-tip="Simulation cell size — smaller = finer + slower">Res"<select id="simRes"><option value="0.08">0.08</option><option value="0.05" selected>0.05</option><option value="0.03">0.03</option><option value="0.02">0.02</option></select></label><span class="sep"></span><button class="tb" id="simTop" data-tip="Straight-down view (matches 2D)">Top</button><button class="tb" id="simIso" data-tip="3/4 view">Iso</button><button class="tb" id="simFront" data-tip="Low front view">Front</button><span class="simhint" data-tip="Left-drag = pan · Option/Alt-drag (or middle button) = orbit · wheel = zoom">Alt-drag = orbit</span></div>
     <div class="restorebar" id="restoreBar"><span id="restoreMsg">Restore last session?</span><button class="tb" id="restoreYes">Restore</button><button class="tb" id="restoreNo">Dismiss</button></div>
     <canvas id="cv"></canvas><canvas id="hud"></canvas></div>
 
@@ -380,6 +382,9 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
         <tr><td>Drag corner grip</td><td>Rotate · Shift = snap to Rot ° increment</td></tr>
         <tr><td>Ctrl-drag</td><td>Move without snapping</td></tr>
         <tr><td>Ctrl+A</td><td>Select all</td></tr>
+        <tr><td>Ctrl+S / Ctrl+Shift+S</td><td>Save / Save As… (Chrome/Edge: real save dialog, Save writes back to the file)</td></tr>
+        <tr><td>Ctrl+O</td><td>Open / Import…</td></tr>
+        <tr><td>Preview · Option/Alt-drag</td><td>Orbit the 3D cut view (left-drag = pan, wheel = zoom)</td></tr>
       </table>
     </div>
   </div>

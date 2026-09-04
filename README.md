@@ -16,7 +16,8 @@ open cadcam-studio.html
   select/move/scale/rotate (Rotate… dialog: angle, CW/CCW, pivot; corner grips with hover cursor, Shift = snap to "Rot °" increment),
   node edit, offset, weld/subtract/intersect, mirror, array, align, grid/object snapping (moved selection snaps by its anchor point; Ctrl = free),
   measure, tooltips, layers (add/rename/color/delete/move-to), undo/redo. Menu bar: File / Edit / View / Help. Version shown lower-right.
-- **Import/Export:** DXF + SVG (editable) in; DXF/SVG out.
+- **Import/Export:** DXF + SVG (editable) in; DXF/SVG out. File → Open / Save / Save As… (Chrome/Edge: real save dialog, Save writes back to the file; Ctrl+O / Ctrl+S / Ctrl+Shift+S).
+- **3D cut preview:** WebGL heightfield with stock walls and depth-tinted toolpaths at real Z; left-drag = pan, **Option/Alt-drag = orbit**, wheel = zoom; Top / Iso / Front buttons.
 - **CAM:** Profile (outside/inside/on, climb/conv, multipass, tabs) → G2/G3 arcs → ShopSabre post → backplot → Export .tap.
 
 ## Layout

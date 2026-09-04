@@ -22,7 +22,8 @@ let msg = '';
 let job = { w:24, h:18, thickness:0.5, origin:'bl', show:true };
 let measure = null;   // persisted measurement {a,b}
 let viewMode = '2d';  // '2d' design canvas | 'preview' machining backplot (VCarve-style view tabs)
-let simField = null;  // {canvas, x0,y0,x1,y1} — shaded material-removal heightfield for Preview
+let simField = null;  // {canvas, field, x0,y0,x1,y1} — shaded material-removal heightfield for Preview
+let orbit = { yaw:0, pitch:90 };   // 3D cut camera: yaw about Z (deg), pitch = elevation (90 = straight down = matches 2D view)
 let pendingRestore = null;   // parsed autosave awaiting the non-blocking Restore banner
 function fmtTime(s){ s=Math.round(s||0); if(s<=0)return '—'; if(s<60)return s+'s'; const m=Math.floor(s/60); return m+':'+String(s%60).padStart(2,'0'); }
 let ttFont = null;        // loaded opentype.js font (for TTF outline text)
@@ -67,7 +68,7 @@ function render(){
   const pv = viewMode==='preview';
   ctx.clearRect(0,0,cv.width,cv.height);
   ctx.fillStyle='#0c0f14'; ctx.fillRect(0,0,cv.width,cv.height);
-  if(pv && simField){ drawSimField(); updateHud(); return; }   // solid material-removal view
+  if(pv && simField){ if(GL3D.ok) drawSim3D(); else drawSimField(); updateHud(); return; }   // solid material-removal view
   if(!pv) drawGrid();          // Preview: clean material, no grid
   drawJob();
   // shapes — dimmed reference lines in Preview, no selection colour
@@ -107,6 +108,97 @@ function drawSimField(){
   ctx.strokeStyle='rgba(20,30,45,0.55)'; ctx.lineWidth=1; ctx.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y);
   ctx.restore();
 }
+// ---- 3D cut view (WebGL, orbitable) ----
+// Orthographic camera that coincides with the 2D view at yaw 0 / pitch 90, so pan + zoom (view.ox/oy/ppi) carry over
+// unchanged and orbiting just tilts the same picture. Rotation is about the screen-center world point at mid-thickness.
+const GL3D = { ok:false, gl:null, cv:null, prog:null, mesh:null, lines:null, tried:false };
+const GL_VS=`attribute vec3 aPos; attribute vec3 aNrm; attribute vec3 aCol;
+uniform mat3 uRot; uniform vec3 uCenter; uniform vec2 uScale; uniform float uDepth; uniform float uLit; uniform float uNudge;
+varying vec3 vCol;
+void main(){ vec3 q=uRot*(aPos-uCenter); gl_Position=vec4(q.x*uScale.x, q.y*uScale.y, -(q.z+uNudge)*uDepth, 1.0);
+  vec3 n=normalize(uRot*aNrm); float lam=clamp(dot(n, normalize(vec3(-0.5,-0.55,0.67))),0.35,1.15);
+  vCol = uLit>0.5 ? aCol*(0.55+0.45*lam) : aCol; }`;
+const GL_FS=`precision mediump float; varying vec3 vCol; void main(){ gl_FragColor=vec4(vCol,1.0); }`;
+function glInit(){ if(GL3D.tried) return GL3D.ok; GL3D.tried=true;
+  try{ const c=document.createElement('canvas'); let gl=c.getContext('webgl2',{antialias:true,alpha:false,preserveDrawingBuffer:true}); let idx32=true;
+    if(!gl){ gl=c.getContext('webgl',{antialias:true,alpha:false,preserveDrawingBuffer:true}); idx32=!!(gl&&gl.getExtension('OES_element_index_uint')); }
+    if(!gl||!idx32) return false;
+    const sh=(t,src)=>{ const o=gl.createShader(t); gl.shaderSource(o,src); gl.compileShader(o); if(!gl.getShaderParameter(o,gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(o)); return o; };
+    const pr=gl.createProgram(); gl.attachShader(pr,sh(gl.VERTEX_SHADER,GL_VS)); gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,GL_FS)); gl.linkProgram(pr);
+    if(!gl.getProgramParameter(pr,gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(pr));
+    GL3D.gl=gl; GL3D.cv=c; GL3D.prog=pr; GL3D.ok=true;
+    GL3D.a={pos:gl.getAttribLocation(pr,'aPos'),nrm:gl.getAttribLocation(pr,'aNrm'),col:gl.getAttribLocation(pr,'aCol')};
+    GL3D.u={}; for(const n of ['uRot','uCenter','uScale','uDepth','uLit','uNudge']) GL3D.u[n]=gl.getUniformLocation(pr,n);
+  }catch(e){ GL3D.ok=false; console.warn('WebGL 3D view unavailable:',e); }
+  return GL3D.ok; }
+function glBuffer(gl, data, target){ const b=gl.createBuffer(); gl.bindBuffer(target||gl.ARRAY_BUFFER,b); gl.bufferData(target||gl.ARRAY_BUFFER,data,gl.STATIC_DRAW); return b; }
+// Heightfield -> lit triangle mesh (top surface + 4 side walls + bottom). Colors = wood depth ramp; normals from the z gradient.
+function buildSimMesh(field){ const gl=GL3D.gl; const {nx,ny,res,x0,y0,w,h,floor,z}=field;
+  let maxD=1e-4; for(let i=0;i<z.length;i++){ const d=-z[i]; if(d>maxD)maxD=d; }
+  const at=(i,j)=>z[Math.min(ny-1,Math.max(0,j))*nx+Math.min(nx-1,Math.max(0,i))];
+  const nv=nx*ny; const pos=new Float32Array(nv*3), nrm=new Float32Array(nv*3), col=new Float32Array(nv*3);
+  for(let j=0;j<ny;j++)for(let i=0;i<nx;i++){ const k=j*nx+i, o=k*3; const zz=z[k];
+    pos[o]=x0+Math.min(w,(i+0.5)*res); pos[o+1]=y0+Math.min(h,(j+0.5)*res); pos[o+2]=zz;
+    const gx=(at(i+1,j)-at(i-1,j))/(2*res), gy=(at(i,j+1)-at(i,j-1))/(2*res); const nz=1/Math.sqrt(gx*gx+gy*gy+1);
+    nrm[o]=-gx*nz; nrm[o+1]=-gy*nz; nrm[o+2]=nz;
+    const frac=Math.min(1,(-zz)/maxD); col[o]=(198-frac*120)/255; col[o+1]=(168-frac*118)/255; col[o+2]=(120-frac*82)/255; }
+  const idx=new Uint32Array((nx-1)*(ny-1)*6); let q=0;
+  for(let j=0;j<ny-1;j++)for(let i=0;i<nx-1;i++){ const a=j*nx+i,b=a+1,c=a+nx,d=c+1; idx[q++]=a;idx[q++]=b;idx[q++]=d; idx[q++]=a;idx[q++]=d;idx[q++]=c; }
+  const mesh={ vbo:glBuffer(gl,pos), nbo:glBuffer(gl,nrm), cbo:glBuffer(gl,col), ibo:glBuffer(gl,idx,gl.ELEMENT_ARRAY_BUFFER), n:idx.length };
+  // stock walls + bottom: true stock boundary, top edge follows the perimeter heights, darker wood tone
+  const wp=[], wn=[], wc=[]; const tone=[0.62,0.50,0.34];
+  const push=(x,y,zz,n)=>{ wp.push(x,y,zz); wn.push(n[0],n[1],n[2]); wc.push(tone[0],tone[1],tone[2]); };
+  const quad=(a,b,c,d,n)=>{ push(...a,n);push(...b,n);push(...c,n); push(...a,n);push(...c,n);push(...d,n); };
+  const x1=x0+w, y1=y0+h;
+  const edge=(fn,count,n)=>{ for(let k=0;k<count;k++){ const [ax,ay,az]=fn(k), [bx,by,bz]=fn(k+1); quad([ax,ay,az],[bx,by,bz],[bx,by,floor],[ax,ay,floor],n); } };
+  const ex=(j,yy)=>k=>[Math.min(x1,x0+k*res), yy, at(Math.min(nx-1,k),j)];   // walls along X (front j=0, back j=ny-1)
+  const ey=(i,xx)=>k=>[xx, Math.min(y1,y0+k*res), at(i,Math.min(ny-1,k))];   // walls along Y (left i=0, right i=nx-1)
+  edge(ex(0,y0),nx,[0,-1,0]); edge(ex(ny-1,y1),nx,[0,1,0]); edge(ey(0,x0),ny,[-1,0,0]); edge(ey(nx-1,x1),ny,[1,0,0]);
+  quad([x0,y0,floor],[x1,y0,floor],[x1,y1,floor],[x0,y1,floor],[0,0,-1]);
+  mesh.walls={ vbo:glBuffer(gl,new Float32Array(wp)), nbo:glBuffer(gl,new Float32Array(wn)), cbo:glBuffer(gl,new Float32Array(wc)), n:wp.length/3 };
+  return mesh; }
+function hexRGB(c){ const m=/^#?([0-9a-f]{6})$/i.exec(c); if(!m){ const r=/rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(c); return r?[+r[1]/255,+r[2]/255,+r[3]/255]:[0.3,0.9,0.5]; } const v=parseInt(m[1],16); return [((v>>16)&255)/255,((v>>8)&255)/255,(v&255)/255]; }
+// Toolpath backplot as 3D lines at their real Z (depth-tinted like the 2D backplot; rapids grey).
+function buildLineMesh(segs){ const gl=GL3D.gl; if(!segs||!segs.length) return null;
+  let zTop=-Infinity, zBot=Infinity; for(const s of segs){ if(s.rapid)continue; zTop=Math.max(zTop,s.z0,s.z1); zBot=Math.min(zBot,s.z0,s.z1); }
+  const hasRange=isFinite(zTop)&&isFinite(zBot)&&(zTop-zBot)>1e-6; const pos=[], col=[];
+  for(const s of segs){ const c=s.rapid?[0.47,0.47,0.47]:(hasRange?hexRGB(depthColor(((s.z0+s.z1)/2-zBot)/(zTop-zBot))):[0.22,0.85,0.54]);
+    pos.push(s.x0,s.y0,s.z0, s.x1,s.y1,s.z1); col.push(...c,...c); }
+  const nrm=new Float32Array(pos.length); return { vbo:glBuffer(gl,new Float32Array(pos)), nbo:glBuffer(gl,nrm), cbo:glBuffer(gl,new Float32Array(col)), n:pos.length/3, zTop, zBot, hasRange }; }
+function orbitMatrix(){ const yw=orbit.yaw*Math.PI/180, pt=orbit.pitch*Math.PI/180; const c=Math.cos(yw), s=Math.sin(yw), sp=Math.sin(pt), cp=Math.cos(pt);
+  // M = Tilt(pitch) * Rz(yaw); rows: X_view=[c,-s,0]  Y_view=[s*sp, c*sp, cp]  Z_view(toward viewer)=[-s*cp, -c*cp, sp]
+  const r=[ c,-s,0,  s*sp,c*sp,cp,  -s*cp,-c*cp,sp ];
+  return new Float32Array([ r[0],r[3],r[6], r[1],r[4],r[7], r[2],r[5],r[8] ]); }   // column-major for GLSL
+// Project a world point with the current orbit (for 2D overlays drawn on top of the GL image).
+function P3(x,y,zz){ const f=simField.field; const C=S2W({x:cv.width/2,y:cv.height/2}); const cz=(f.floor||0)/2;
+  const yw=orbit.yaw*Math.PI/180, pt=orbit.pitch*Math.PI/180; const c=Math.cos(yw), s=Math.sin(yw), sp=Math.sin(pt), cp=Math.cos(pt);
+  const qx=x-C.x, qy=y-C.y, qz=zz-cz; const vx=c*qx-s*qy, vy=(s*qx+c*qy)*sp+qz*cp;
+  return { x:cv.width/2+vx*view.ppi, y:cv.height/2-vy*view.ppi }; }
+function drawSim3D(){ const gl=GL3D.gl, g=GL3D.cv; if(g.width!==cv.width||g.height!==cv.height){ g.width=cv.width; g.height=cv.height; }
+  if(!simField.mesh) simField.mesh=buildSimMesh(simField.field);
+  if(simField.linesFor!==toolpaths){ simField.lines=buildLineMesh(toolpaths); simField.linesFor=toolpaths; }
+  const f=simField.field; const C=S2W({x:cv.width/2,y:cv.height/2}); const diag=Math.hypot(f.w,f.h,f.thickness)*2+1;
+  gl.viewport(0,0,g.width,g.height); gl.clearColor(0.047,0.059,0.078,1); gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  gl.useProgram(GL3D.prog); const u=GL3D.u, a=GL3D.a;
+  gl.uniformMatrix3fv(u.uRot,false,orbitMatrix()); gl.uniform3f(u.uCenter,C.x,C.y,f.floor/2);
+  gl.uniform2f(u.uScale, 2*view.ppi/g.width, 2*view.ppi/g.height); gl.uniform1f(u.uDepth, 1/diag);
+  const bind=(m)=>{ gl.bindBuffer(gl.ARRAY_BUFFER,m.vbo); gl.enableVertexAttribArray(a.pos); gl.vertexAttribPointer(a.pos,3,gl.FLOAT,false,0,0);
+    gl.bindBuffer(gl.ARRAY_BUFFER,m.nbo); gl.enableVertexAttribArray(a.nrm); gl.vertexAttribPointer(a.nrm,3,gl.FLOAT,false,0,0);
+    gl.bindBuffer(gl.ARRAY_BUFFER,m.cbo); gl.enableVertexAttribArray(a.col); gl.vertexAttribPointer(a.col,3,gl.FLOAT,false,0,0); };
+  gl.uniform1f(u.uLit,1); gl.uniform1f(u.uNudge,0);
+  const m=simField.mesh; bind(m); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,m.ibo); gl.drawElements(gl.TRIANGLES,m.n,gl.UNSIGNED_INT,0);
+  bind(m.walls); gl.drawArrays(gl.TRIANGLES,0,m.walls.n);
+  if(simField.lines){ gl.uniform1f(u.uLit,0); gl.uniform1f(u.uNudge,0.004); bind(simField.lines); gl.drawArrays(gl.LINES,0,simField.lines.n); }
+  ctx.drawImage(g,0,0);
+  // overlays: origin axes (X red, Y green, Z blue), depth legend, orbit readout
+  ctx.save(); ctx.lineWidth=1.5; const o=P3(0,0,0), L=Math.max(0.5,Math.min(f.w,f.h)*0.12);
+  [[L,0,0,'#ff6b6b','X'],[0,L,0,'#5ce38a','Y'],[0,0,L,'#6fa8ff','Z']].forEach(([x,y,zz,c,t])=>{ const p=P3(x,y,zz); ctx.strokeStyle=c; ctx.fillStyle=c; ctx.beginPath(); ctx.moveTo(o.x,o.y); ctx.lineTo(p.x,p.y); ctx.stroke(); ctx.font='10px monospace'; ctx.fillText(t,p.x+3,p.y-3); });
+  ctx.restore();
+  if(simField.lines&&simField.lines.hasRange) drawDepthLegend(simField.lines.zTop, simField.lines.zBot);
+  ctx.save(); ctx.fillStyle='#8fa2ba'; ctx.font='10px monospace'; ctx.textAlign='right';
+  ctx.fillText('orbit '+Math.round(((orbit.yaw%360)+360)%360)+'° / tilt '+Math.round(90-orbit.pitch)+'°  ·  drag = pan · Option/Alt-drag = orbit · wheel = zoom', cv.width-12, cv.height-10); ctx.restore();
+}
+function setOrbit(yaw,pitch){ orbit.yaw=yaw; orbit.pitch=Math.max(2,Math.min(90,pitch)); render(); }
 function drawShape(s, selected, dim){
   const col = selected ? '#ff9a3c' : (doc.layers.get(s.layer)?.color || '#9fe7ff');
   ctx.save();
@@ -222,8 +314,10 @@ function evScr(e){ const r=cv.getBoundingClientRect(); return { x:e.clientX-r.le
 cv.addEventListener('mousedown', e=>{
   if(e.button===2) return;   // right-click handled by contextmenu
   const scr=evScr(e); const snap=snapWorld(scr); const w={x:snap.x,y:snap.y};
+  if(viewMode==='preview'){   // Preview is read-only: left-drag pans; Option/Alt-drag (or middle button) orbits the 3D cut
+    if(simField && GL3D.ok && (e.altKey || e.button===1)){ drag={kind:'orbit', sx:scr.x, sy:scr.y, yaw:orbit.yaw, pitch:orbit.pitch}; e.preventDefault(); return; }
+    drag={kind:'pan', sx:scr.x, sy:scr.y, ox:view.ox, oy:view.oy}; return; }
   if(e.button===1 || tool==='pan' || e.altKey){ drag={kind:'pan', sx:scr.x, sy:scr.y, ox:view.ox, oy:view.oy}; return; }
-  if(viewMode==='preview') return;   // Preview is read-only (pan/zoom only)
   if(tool==='select'){ return selectDown(scr,w,e); }
   if(tool==='node'){ return nodeDown(scr,w,e); }
   if(tool==='fillet'){ return filletAt(w); }
@@ -251,7 +345,10 @@ cv.addEventListener('mousedown', e=>{
 });
 cv.addEventListener('mousemove', e=>{
   const scr=evScr(e);
-  if(viewMode==='preview'){ updateCursor(scr); if(drag&&drag.kind==='pan'){ view.ox=drag.ox+(scr.x-drag.sx); view.oy=drag.oy+(scr.y-drag.sy); render(); } return; }
+  if(viewMode==='preview'){ updateCursor(scr); cv.style.cursor=(simField&&GL3D.ok&&e.altKey)?'grab':'';
+    if(drag&&drag.kind==='pan'){ view.ox=drag.ox+(scr.x-drag.sx); view.oy=drag.oy+(scr.y-drag.sy); render(); }
+    else if(drag&&drag.kind==='orbit'){ setOrbit(drag.yaw+(scr.x-drag.sx)*0.4, drag.pitch+(scr.y-drag.sy)*0.4); }   // 0.4°/px
+    return; }
   updateCursor(scr); if(!drag) hoverCursor(scr); const snap=snapWorld(scr); snapMark = snap.kind?{x:snap.x,y:snap.y,kind:snap.kind}:null; const w={x:snap.x,y:snap.y};
   if(drag&&drag.kind==='pan'){ view.ox=drag.ox+(scr.x-drag.sx); view.oy=drag.oy+(scr.y-drag.sy); render(); return; }
   if(drag&&drag.kind==='move'){ doMove(S2W(scr), e.ctrlKey||e.metaKey); render(); return; }
@@ -762,9 +859,11 @@ function runSim(){
   const res=parseFloat((document.getElementById('simRes')||{}).value)||0.05;
   const cuts=[]; for(const q of opsQueue){ if(q.visible===false)continue; for(const c of simCutFor(q)) cuts.push(c); }
   const field=CAM.simulateStock({ x0:r.x0, y0:r.y0, w, h, thickness:job.thickness||0.5, res, cuts });
-  simField=shadeHeightfield(field, r);
+  const use3d=glInit();
+  simField=use3d ? { field, x0:r.x0, y0:r.y0, x1:r.x1, y1:r.y1, mesh:null, lines:null, linesFor:null } : Object.assign(shadeHeightfield(field, r), {field});
+  if(!toolpaths) recalcAll();   // backplot segments feed the 3D line overlay
   render();
-  setMsg('3D sim: '+cuts.length+' toolpath(s) · '+field.nx+'×'+field.ny+' cells @ '+res+'"');
+  setMsg('3D sim: '+cuts.length+' toolpath(s) · '+field.nx+'×'+field.ny+' cells @ '+res+'"'+(use3d?'  ·  drag = pan · Option/Alt-drag = orbit · wheel = zoom':'  (WebGL unavailable: top-down only)'));
 }
 // Shade the heightfield into an offscreen canvas: wood-tone depth ramp + directional hillshade for a carved look.
 function shadeHeightfield(field, r){
@@ -784,7 +883,33 @@ function shadeHeightfield(field, r){
   octx.putImageData(img,0,0);
   return { canvas:off, x0:r.x0, y0:r.y0, x1:r.x1, y1:r.y1 };
 }
-function saveProject(){ download('design.aqcam', projectJSON(), 'application/json'); setMsg('Saved project · design.aqcam ('+doc.shapes.length+' shapes, '+opsQueue.length+' ops)'); }
+// ---- Save / Save As ----
+// Chrome/Edge: File System Access API — "Save As" opens a real save dialog (pick folder + name) and remembers the file
+// handle, so "Save" afterwards writes straight back to that file. Other browsers: ask for a name, then download.
+let projectFile = { handle:null, name:'design.aqcam' };
+const FS_TYPES=[{ description:'Aquamentor CAD/CAM job', accept:{ 'application/json':['.aqcam'] } }];
+function setProjectName(name){ if(name) projectFile.name=name; document.title=projectFile.name.replace(/\.aqcam$/i,'')+' — Aquamentor CAD/CAM'; }
+async function writeHandle(handle, text){ const w=await handle.createWritable(); await w.write(text); await w.close(); }
+function ensureExt(n){ n=(n||'').trim(); if(!n) return ''; return /\.aqcam$/i.test(n)?n:n+'.aqcam'; }
+async function saveProjectAs(){ const text=projectJSON(projectFile.name.replace(/\.aqcam$/i,''));
+  if(window.showSaveFilePicker){
+    try{ const h=await window.showSaveFilePicker({ suggestedName:projectFile.name, types:FS_TYPES }); await writeHandle(h,text); projectFile.handle=h; setProjectName(h.name);
+      setMsg('Saved as '+h.name+' ('+doc.shapes.length+' shapes, '+opsQueue.length+' toolpaths) — Ctrl+S now saves back to this file'); return true; }
+    catch(err){ if(err&&err.name==='AbortError'){ setMsg('Save as cancelled'); return false; } setMsg('Save failed: '+err.message+' — downloading instead'); }
+  }
+  const n=ensureExt(prompt('Save job as (file name):', projectFile.name)); if(!n){ setMsg('Save as cancelled'); return false; }
+  setProjectName(n); download(n, text, 'application/json'); setMsg('Saved '+n+' to your Downloads folder ('+doc.shapes.length+' shapes, '+opsQueue.length+' toolpaths)'); return true; }
+async function saveProject(){ if(!projectFile.handle) return saveProjectAs();
+  try{ await writeHandle(projectFile.handle, projectJSON(projectFile.name.replace(/\.aqcam$/i,''))); setMsg('Saved '+projectFile.name+' ('+doc.shapes.length+' shapes, '+opsQueue.length+' toolpaths)'); return true; }
+  catch(err){ setMsg('Save to '+projectFile.name+' failed ('+err.message+') — choose a location'); projectFile.handle=null; return saveProjectAs(); } }
+// Open: native picker when available (keeps the handle so Save writes back); falls back to the <input type=file>.
+async function openProjectDialog(){ if(!window.showOpenFilePicker){ document.getElementById('fileInput').click(); return; }
+  let hs; try{ hs=await window.showOpenFilePicker({ multiple:false, types:[{ description:'Job or vector file', accept:{ 'application/json':['.aqcam'], 'image/vnd.dxf':['.dxf'], 'image/svg+xml':['.svg'], 'application/pdf':['.pdf'] } }] }); }
+  catch(err){ if(!(err&&err.name==='AbortError')) document.getElementById('fileInput').click(); return; }
+  const h=hs[0], f=await h.getFile();
+  if(/\.aqcam$/i.test(f.name)){ openProject(await f.text(), f.name); projectFile.handle=h; setProjectName(f.name); }
+  else if(/\.pdf$/i.test(f.name)) importPDF(f.name, await f.arrayBuffer());
+  else importText(f.name, await f.text()); }
 function applyProject(proj, srcName){
   doc.shapes=proj.shapes;
   doc.layers=new Map(proj.layers.map(l=>[l.name,{visible:l.visible,color:l.color}]));
@@ -1124,6 +1249,8 @@ function buildProps(){ const el=document.getElementById('props'); if(!el)return;
 // ---- keyboard ----
 window.addEventListener('keydown', e=>{
   if(/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))return;
+  if((e.ctrlKey||e.metaKey)&&(e.key==='s'||e.key==='S')){ e.preventDefault(); if(e.shiftKey) saveProjectAs(); else saveProject(); return; }
+  if((e.ctrlKey||e.metaKey)&&(e.key==='o'||e.key==='O')){ e.preventDefault(); openProjectDialog(); return; }
   if((e.ctrlKey||e.metaKey)&&e.key==='z'){ e.preventDefault(); undo(); return; }
   if((e.ctrlKey||e.metaKey)&&(e.key==='y'||(e.shiftKey&&e.key==='z'))){ e.preventDefault(); redo(); return; }
   if(e.key==='Delete'||e.key==='Backspace'){ e.preventDefault(); deleteSelected(); return; }
@@ -1198,7 +1325,8 @@ function wire(){
   on('btnCheckVec',opCheckVectors);
   on('restoreYes',()=>dismissRestore(true)); on('restoreNo',()=>dismissRestore(false));
   on('btnAlignL',()=>opAlign('left')); on('btnAlignR',()=>opAlign('right')); on('btnAlignT',()=>opAlign('top')); on('btnAlignB',()=>opAlign('bottom')); on('btnAlignHC',()=>opAlign('hcenter')); on('btnAlignVC',()=>opAlign('vcenter'));
-  on('btnSaveProj',saveProject); on('btnExpDXF',exportDXF); on('btnExpSVG',exportSVG);
+  on('simTop',()=>setOrbit(0,90)); on('simIso',()=>setOrbit(-30,50)); on('simFront',()=>setOrbit(0,20));
+  on('btnSaveProj',saveProject); on('btnSaveAs',saveProjectAs); on('btnExpDXF',exportDXF); on('btnExpSVG',exportSVG); setProjectName();
   on('btnFitJob',fitJob);
   const js=document.getElementById('jobShow'); if(js)js.onchange=e=>{job.show=e.target.checked; render();};
   // live job dimension updates (no view refit — use "Set job"/"Fit job" to re-zoom)
@@ -1233,12 +1361,12 @@ function wire(){
     if(hdr&&card){ hdr.addEventListener('mousedown',e=>{ if(e.target.id==='modalX')return; const r=card.getBoundingClientRect(); md={dx:e.clientX-r.left,dy:e.clientY-r.top}; e.preventDefault(); });
       window.addEventListener('mousemove',e=>{ if(!md)return; card.style.left=Math.max(2,Math.min(window.innerWidth-60,e.clientX-md.dx))+'px'; card.style.top=Math.max(2,Math.min(window.innerHeight-30,e.clientY-md.dy))+'px'; });
       window.addEventListener('mouseup',()=>{ md=null; }); } }
-  on('btnNew',()=>{ if(confirm('Clear design?')){ pushHistory(); doc.shapes=[]; sel.clear(); toolpaths=null; render(); syncPanels(); } });
-  const fi=document.getElementById('fileInput'); document.getElementById('btnImport').onclick=()=>fi.click();
+  on('btnNew',()=>{ if(confirm('Clear design?')){ pushHistory(); doc.shapes=[]; sel.clear(); toolpaths=null; projectFile.handle=null; setProjectName('design.aqcam'); render(); syncPanels(); } });
+  const fi=document.getElementById('fileInput'); document.getElementById('btnImport').onclick=openProjectDialog;
   fi.onchange=e=>{ const f=e.target.files[0]; if(!f)return; const rd=new FileReader();
-    if(/\.aqcam$/i.test(f.name)){ rd.onload=ev=>openProject(ev.target.result, f.name); rd.readAsText(f); }
+    if(/\.aqcam$/i.test(f.name)){ rd.onload=ev=>{ openProject(ev.target.result, f.name); projectFile.handle=null; setProjectName(f.name); }; rd.readAsText(f); }
     else if(/\.pdf$/i.test(f.name)){ rd.onload=ev=>importPDF(f.name,ev.target.result); rd.readAsArrayBuffer(f); }
-    else { rd.onload=ev=>importText(f.name,ev.target.result); rd.readAsText(f); } };
+    else { rd.onload=ev=>importText(f.name,ev.target.result); rd.readAsText(f); } fi.value=''; };
   const gs=document.getElementById('gridStep'); if(gs)gs.onchange=e=>{grid.step=parseFloat(e.target.value)||0.5; render();};
   const gg=document.getElementById('chkGrid'); if(gg)gg.onchange=e=>{grid.on=e.target.checked;render();};
   const sn=document.getElementById('chkSnap'); if(sn)sn.onchange=e=>{grid.snap=e.target.checked;};
@@ -1286,8 +1414,9 @@ function menuItems(name){
   switch(name){
     case 'File': return [
       { label:'New', fn:()=>document.getElementById('btnNew').click() },
-      { label:'Open / Import…', key:'.aqcam .dxf .svg .pdf', fn:()=>document.getElementById('fileInput').click() },
-      { label:'Save job…', key:'.aqcam', fn:saveProject }, { sep:true },
+      { label:'Open / Import…', key:'Ctrl+O', fn:openProjectDialog }, { sep:true },
+      { label:'Save', key:'Ctrl+S', fn:saveProject },
+      { label:'Save As…', key:'Ctrl+Shift+S', fn:saveProjectAs }, { sep:true },
       { label:'Export DXF', fn:exportDXF, disabled:!doc.shapes.length }, { label:'Export SVG', fn:exportSVG, disabled:!doc.shapes.length } ];
     case 'Edit': return [
       { label:'Undo', key:'Ctrl+Z', fn:undo, disabled:!history.length }, { label:'Redo', key:'Ctrl+Y', fn:redo, disabled:!future.length }, { sep:true },
@@ -1323,5 +1452,5 @@ function initMenus(){ document.querySelectorAll('.menubtn').forEach(b=>{
   window.addEventListener('mousedown', e=>{ if(menuOpen && !menuOpen.el.contains(e.target) && !e.target.classList.contains('menubtn')) hideMenus(); }, true);
   window.addEventListener('blur', hideMenus); }
 wire(); resize(); setTool('select'); syncPanels(); render();
-window.AQ_STUDIO = { doc, get sel(){return sel;}, get view(){return viewMode;}, CADCORE, CAM, importText, importPDF, openProject, saveProject, projectJSON, setView, camBuild, setTool, addShapes, render,
+window.AQ_STUDIO = { saveProjectAs, get projectFile(){return projectFile;}, get orbit(){return orbit;}, setOrbit, get gl3d(){return GL3D;}, get simField(){return simField;}, doc, get sel(){return sel;}, get view(){return viewMode;}, CADCORE, CAM, importText, importPDF, openProject, saveProject, projectJSON, setView, camBuild, setTool, addShapes, render,
   openCreateModal, openShapeModal, applyShapeModal, closeShapeModal, setModalAnchor, get anchor(){return modalAnchor;}, openRotateModal, applyRotateModal, openJobModal, addLayer, moveSelToLayer, get grid(){return grid;}, selectedShapes };
