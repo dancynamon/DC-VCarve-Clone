@@ -2162,7 +2162,20 @@ function dismissRestore(apply){
   if(apply&&pendingRestore) applyProject(pendingRestore,'autosave');
   pendingRestore=null;
 }
-wire(); resize(); setTool('select'); syncPanels(); render();
+// ---- tooltips: one fixed element, clamped inside the window (CSS ::after tips were clipped by the dock edges) ----
+function initTips(){ const tip=document.getElementById('tip'); if(!tip) return; let cur=null, timer=null;
+  const place=el=>{ const r=el.getBoundingClientRect(); tip.textContent=el.dataset.tip; tip.classList.add('on');
+    const tw=tip.offsetWidth, th=tip.offsetHeight, W=window.innerWidth, H=window.innerHeight, m=6;
+    let x=r.left+r.width/2-tw/2, y=r.bottom+6;                      // below, centred
+    if(y+th>H-m) y=r.top-th-6;                                       // no room below -> above
+    x=Math.max(m, Math.min(W-tw-m, x));                              // keep inside the window
+    tip.style.left=x+'px'; tip.style.top=y+'px'; };
+  const hide=()=>{ clearTimeout(timer); timer=null; cur=null; tip.classList.remove('on'); };
+  document.addEventListener('mouseover', e=>{ const el=e.target.closest&&e.target.closest('[data-tip]'); if(el===cur) return; hide(); if(!el||!el.dataset.tip) return;
+    cur=el; timer=setTimeout(()=>{ if(cur===el) place(el); }, 350); });
+  document.addEventListener('mouseout', e=>{ const el=e.target.closest&&e.target.closest('[data-tip]'); if(el&&el===cur&&!(e.relatedTarget&&el.contains(e.relatedTarget))) hide(); });
+  document.addEventListener('mousedown', hide, true); window.addEventListener('scroll', hide, true); window.addEventListener('blur', hide); }
+wire(); initTips(); resize(); setTool('select'); syncPanels(); render();
 window.AQ_STUDIO = { doc, get sel(){return sel;}, get view(){return viewMode;}, CADCORE, CAM, importText, importPDF, openProject, saveProject, saveProjectAs, projectJSON, setView, camBuild, setTool, addShapes, render,
   opCopy, opCut, opPaste, get clip(){return clip;}, createFromForm, openShapeModal, applyShapeModal, closeShapeModal, setModalAnchor, setRotAnchor, get anchor(){return modalAnchor;}, get rotAnchor(){return rotAnchor;},
   openRotateModal, applyRotateModal, addLayer, moveSelToLayer, get grid(){return grid;}, selectedShapes, get projectFile(){return projectFile;},

@@ -191,7 +191,7 @@ body.dark .clipcell{background:var(--bg-input)}
 body.dark .formfoot .tb.primary,body.dark .modal-foot .tb.primary{background:linear-gradient(#2fb872,#1e8a55);color:#fff}
 body.dark .mdrop .hs input,body.dark .modal input,body.dark .modal select{color:var(--ink)}
 body.dark .cam-hint{color:var(--ink-dim)}
-body.dark [data-tip]:hover::after{background:#e9eef4;color:#1b2b3f;border-color:#b7c4d3}
+body.dark #tip{background:#e9eef4;color:#1b2b3f;border-color:#b7c4d3}
 body.dark .glhint{background:rgba(233,238,244,.9);color:#1b2b3f}
 body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollbar-thumb{background:#3a4656;border-radius:5px}body.dark ::-webkit-scrollbar-track{background:#1c2129}
 /* help search */
@@ -250,9 +250,9 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
 #btnCamGen:hover{background:linear-gradient(#23a86a,#15804d);color:#fff}
 
 /* hover tooltips */
-[data-tip]{position:relative}
-[data-tip]:hover::after{content:attr(data-tip);position:absolute;left:50%;top:115%;transform:translateX(-50%);background:#16243c;color:#dce8f7;border:1px solid #2c405c;padding:3px 8px;border-radius:4px;font-size:10px;line-height:1.3;white-space:nowrap;z-index:80;pointer-events:none;letter-spacing:.2px;text-transform:none;box-shadow:0 3px 10px rgba(0,0,0,.4)}
-.iconrow .tool[data-tip]:hover::after,.tb.iconbtn[data-tip]:hover::after{white-space:normal;min-width:120px;max-width:190px}
+/* one fixed-position tooltip element, placed by JS and clamped to the window, so it is never clipped by a dock */
+#tip{position:fixed;z-index:500;display:none;background:#16243c;color:#dce8f7;border:1px solid #2c405c;padding:3px 8px;border-radius:4px;font-size:10px;line-height:1.3;max-width:260px;pointer-events:none;letter-spacing:.2px;text-transform:none;box-shadow:0 3px 10px rgba(0,0,0,.4);white-space:normal}
+#tip.on{display:block}
 </style></head>
 <body>
 <div class="app">
@@ -577,9 +577,10 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
     <span><span class="v" id="zoomlbl"></span></span>
     <span id="msg" class="v"></span>
     <button class="tb" id="btnTheme" title="Switch to dark mode" style="margin-left:auto;font-size:10px;padding:1px 7px">☾ Dark</button>
-    <span class="ver" id="appVer" title="Build version">v0.3.0 · build 260904.1833</span>
+    <span class="ver" id="appVer" title="Build version">v0.3.0 · build 260904.1847</span>
   </div>
 </div>
+<div id="tip"></div>
 <div class="modal-bg" id="shapeModal">
   <div class="modal">
     <div class="modal-h"><span class="mt" id="modalTitle">Edit shape</span><button class="mx" id="modalX" title="Close">×</button></div>
@@ -14076,7 +14077,20 @@ function dismissRestore(apply){
   if(apply&&pendingRestore) applyProject(pendingRestore,'autosave');
   pendingRestore=null;
 }
-wire(); resize(); setTool('select'); syncPanels(); render();
+// ---- tooltips: one fixed element, clamped inside the window (CSS ::after tips were clipped by the dock edges) ----
+function initTips(){ const tip=document.getElementById('tip'); if(!tip) return; let cur=null, timer=null;
+  const place=el=>{ const r=el.getBoundingClientRect(); tip.textContent=el.dataset.tip; tip.classList.add('on');
+    const tw=tip.offsetWidth, th=tip.offsetHeight, W=window.innerWidth, H=window.innerHeight, m=6;
+    let x=r.left+r.width/2-tw/2, y=r.bottom+6;                      // below, centred
+    if(y+th>H-m) y=r.top-th-6;                                       // no room below -> above
+    x=Math.max(m, Math.min(W-tw-m, x));                              // keep inside the window
+    tip.style.left=x+'px'; tip.style.top=y+'px'; };
+  const hide=()=>{ clearTimeout(timer); timer=null; cur=null; tip.classList.remove('on'); };
+  document.addEventListener('mouseover', e=>{ const el=e.target.closest&&e.target.closest('[data-tip]'); if(el===cur) return; hide(); if(!el||!el.dataset.tip) return;
+    cur=el; timer=setTimeout(()=>{ if(cur===el) place(el); }, 350); });
+  document.addEventListener('mouseout', e=>{ const el=e.target.closest&&e.target.closest('[data-tip]'); if(el&&el===cur&&!(e.relatedTarget&&el.contains(e.relatedTarget))) hide(); });
+  document.addEventListener('mousedown', hide, true); window.addEventListener('scroll', hide, true); window.addEventListener('blur', hide); }
+wire(); initTips(); resize(); setTool('select'); syncPanels(); render();
 window.AQ_STUDIO = { doc, get sel(){return sel;}, get view(){return viewMode;}, CADCORE, CAM, importText, importPDF, openProject, saveProject, saveProjectAs, projectJSON, setView, camBuild, setTool, addShapes, render,
   opCopy, opCut, opPaste, get clip(){return clip;}, createFromForm, openShapeModal, applyShapeModal, closeShapeModal, setModalAnchor, setRotAnchor, get anchor(){return modalAnchor;}, get rotAnchor(){return rotAnchor;},
   openRotateModal, applyRotateModal, addLayer, moveSelToLayer, get grid(){return grid;}, selectedShapes, get projectFile(){return projectFile;},
