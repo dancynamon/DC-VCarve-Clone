@@ -332,6 +332,7 @@ const MENU_ACTIONS={
   'expdxf':()=>exportDXF(), 'expsvg':()=>exportSVG(),
   'trace':()=>openTraceModal(),
   'undo':()=>undo(), 'redo':()=>redo(), 'dup':()=>opDuplicate(), 'del':()=>deleteSelected(),
+  'cut':()=>opCut(), 'copy':()=>opCopy(), 'paste':()=>opPaste(),
   'check':()=>document.getElementById('btnCheckVec').click(),
   'recalc':()=>recalcAll(), 'post':()=>postJob(),
   'v2d':()=>setView('2d'), 'v3d':()=>setView('preview'),
@@ -797,6 +798,9 @@ function shapeContextMenu(e){
     { title: multi ? sel.size+' shapes' : (s.prim?s.prim.kind:s.type) },
     { label:'Edit dimensions…', key:'dbl-click', fn:()=>openShapeModal(selectedShapes()[0]), disabled:!single },
     { sep:true },
+    { label:'Cut', key:'Cmd/Ctrl+X', fn:opCut },
+    { label:'Copy', key:'Cmd/Ctrl+C', fn:opCopy },
+    { label:'Paste', key:'Cmd/Ctrl+V', fn:opPaste, disabled:!clip.shapes },
     { label:'Duplicate', fn:opDuplicate },
     { label:'Delete', key:'Del', fn:deleteSelected },
     { sep:true },
@@ -1082,6 +1086,27 @@ function opBool(op){ const sh=selectedShapes(); if(sh.length<2)return setMsg('Se
   doc.shapes=doc.shapes.filter(s=>!sel.has(s.id)); res.forEach(r=>r.layer=activeLayer); addShapes(res); sel=new Set(res.map(r=>r.id)); render(); syncPanels(); }
 function opMirror(axis){ const sh=selectedShapes(); if(!sh.length)return; pushHistory(); const b=CADCORE.bboxAll(sh); const at=axis==='x'?(b.minX+b.maxX)/2:(b.minY+b.maxY)/2;
   const res=sh.map(s=>{const m=CADCORE.mirror(s,axis,at);m.id=CADCORE.uid();return m;}); addShapes(res); sel=new Set(res.map(r=>r.id)); render(); syncPanels(); }
+// ---- clipboard (copy / cut / paste) ----
+// Internal clipboard holds a JSON clone of the shapes; the same JSON is also written to the system clipboard
+// (tagged) so a copy survives a reload and can be pasted into another tab of the app.
+let clip={ shapes:null, pastes:0 };
+const CLIP_TAG='aqcam-clip:';
+function opCopy(){ const sh=selectedShapes(); if(!sh.length){ setMsg('Nothing selected to copy'); return false; }
+  clip={ shapes:CADCORE.clone(sh), pastes:0 };
+  try{ if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(CLIP_TAG+JSON.stringify(clip.shapes)).catch(()=>{}); }catch(e){}
+  setMsg('Copied '+sh.length+' shape'+(sh.length>1?'s':'')+' — Cmd/Ctrl+V to paste'); return true; }
+function opCut(){ if(!opCopy()) return; pushHistory(); doc.shapes=doc.shapes.filter(s=>!sel.has(s.id)); sel.clear(); render(); syncPanels(); setMsg('Cut '+clip.shapes.length+' shape'+(clip.shapes.length>1?'s':'')+' — Cmd/Ctrl+V to paste'); }
+function pasteShapes(src){ if(!src||!src.length){ setMsg('Clipboard is empty'); return; }
+  // paste in place the first time; each further paste of the same clipboard steps +0.5" so copies never stack invisibly
+  const step=0.5*clip.pastes; const news=src.map(o=>{ const c=CADCORE.translate(CADCORE.clone(o), step, -step); c.id=CADCORE.uid(); c.layer=doc.layers.has(o.layer)?o.layer:activeLayer; return c; });
+  pushHistory(); addShapes(news); sel=new Set(news.map(n=>n.id)); clip.pastes++; render(); syncPanels();
+  setMsg('Pasted '+news.length+' shape'+(news.length>1?'s':'')+(step?' (offset '+step.toFixed(2)+'")':' in place')); }
+async function opPaste(){
+  // prefer the system clipboard when it carries one of our tagged payloads (works across tabs / after a reload)
+  try{ if(navigator.clipboard&&navigator.clipboard.readText){ const t=await navigator.clipboard.readText();
+      if(t&&t.indexOf(CLIP_TAG)===0){ const shapes=JSON.parse(t.slice(CLIP_TAG.length)); const same=clip.shapes&&JSON.stringify(clip.shapes)===JSON.stringify(shapes);
+        if(!same) clip={ shapes, pastes:0 }; pasteShapes(clip.shapes); return; } } }catch(e){}
+  pasteShapes(clip.shapes); }
 function opDuplicate(){ const sh=selectedShapes(); if(!sh.length)return; pushHistory(); const res=sh.map(s=>{const c=CADCORE.translate(s,0.25,-0.25);c.id=CADCORE.uid();return c;}); addShapes(res); sel=new Set(res.map(r=>r.id)); render(); syncPanels(); }
 function opArray(){ const sh=selectedShapes(); if(!sh.length)return; const cols=parseInt(prompt('Columns:','3'))||1, rows=parseInt(prompt('Rows:','1'))||1; const dx=parseFloat(prompt('X spacing (in):','2'))||0, dy=parseFloat(prompt('Y spacing (in):','2'))||0;
   pushHistory(); const news=[]; for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){ if(!r&&!c)continue; sh.forEach(s=>{const n=CADCORE.translate(s,c*dx,r*dy);n.id=CADCORE.uid();news.push(n);}); } addShapes(news); render(); syncPanels(); }
@@ -1895,6 +1920,9 @@ window.addEventListener('keydown', e=>{
   if((e.ctrlKey||e.metaKey)&&(e.key==='s'||e.key==='S')){ e.preventDefault(); if(e.shiftKey) saveProjectAs(); else saveProject(); return; }
   if((e.ctrlKey||e.metaKey)&&(e.key==='o'||e.key==='O')){ e.preventDefault(); openProjectDialog(); return; }
   if((e.ctrlKey||e.metaKey)&&(e.key==='k'||e.key==='K')){ e.preventDefault(); openHelpSearch(); return; }
+  if((e.ctrlKey||e.metaKey)&&(e.key==='c'||e.key==='C')&&!e.shiftKey){ e.preventDefault(); opCopy(); return; }
+  if((e.ctrlKey||e.metaKey)&&(e.key==='x'||e.key==='X')){ e.preventDefault(); opCut(); return; }
+  if((e.ctrlKey||e.metaKey)&&(e.key==='v'||e.key==='V')){ e.preventDefault(); opPaste(); return; }
   if((e.ctrlKey||e.metaKey)&&e.key==='a'){ e.preventDefault(); sel=new Set(doc.shapes.filter(s=>layerVisible(s.layer)).map(s=>s.id)); render(); syncPanels(); return; }
   if((e.ctrlKey||e.metaKey)&&e.key==='z'){ e.preventDefault(); undo(); return; }
   if((e.ctrlKey||e.metaKey)&&(e.key==='y'||(e.shiftKey&&e.key==='z'))){ e.preventDefault(); redo(); return; }
@@ -2066,6 +2094,6 @@ function dismissRestore(apply){
 }
 wire(); resize(); setTool('select'); syncPanels(); render();
 window.AQ_STUDIO = { doc, get sel(){return sel;}, get view(){return viewMode;}, CADCORE, CAM, importText, importPDF, openProject, saveProject, saveProjectAs, projectJSON, setView, camBuild, setTool, addShapes, render,
-  createFromForm, openShapeModal, applyShapeModal, closeShapeModal, setModalAnchor, setRotAnchor, get anchor(){return modalAnchor;}, get rotAnchor(){return rotAnchor;},
+  opCopy, opCut, opPaste, get clip(){return clip;}, createFromForm, openShapeModal, applyShapeModal, closeShapeModal, setModalAnchor, setRotAnchor, get anchor(){return modalAnchor;}, get rotAnchor(){return rotAnchor;},
   openRotateModal, applyRotateModal, addLayer, moveSelToLayer, get grid(){return grid;}, selectedShapes, get projectFile(){return projectFile;},
   get gl3d(){return gl3d;}, gl3dPreset, get simField(){return simField;}, openHelpSearch, helpSearchRun, showForm, runSim, recalcAll, get opsQueue(){return opsQueue;} };

@@ -44,6 +44,8 @@ Rebuilt from screenshots of Dan's own Aspire install (`docs/vcarve-reference/`):
 - **Rotate…** (Edit menu, Transform Objects, right-click): exact angle, CW / CCW, live preview, and a 9-box **pivot** — any
   corner, edge middle or the center of the selection. The corner rotate grips use the same pivot; Shift snaps to the
   "Rot °" increment (default 5°). Moving a selection snaps its anchor point to the grid / object snaps (Ctrl = free).
+- **Cut / Copy / Paste** (Edit menu, right-click, ⌘/Ctrl+X · C · V): pastes in place, repeated pastes step 0.5"; the copy is
+  also written to the system clipboard so it survives a reload and pastes into another tab of the app.
 - **Help search** (Help menu or Ctrl+K): type what you want and it lists matching menu items, tools, forms and buttons;
   Enter / click takes you there (opens the menu with the item highlighted, or the form) without running anything.
 - **Save / Save As…** (Ctrl+S / Ctrl+Shift+S, Ctrl+O to open): in Chrome/Edge a real save dialog, and Save writes back to

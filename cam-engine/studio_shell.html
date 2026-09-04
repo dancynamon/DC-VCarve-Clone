@@ -241,6 +241,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
     <div class="menu" data-menu="edit">Edit<div class="mdrop">
       <button data-act="undo">Undo<span class="k">Ctrl+Z</span></button><button data-act="redo">Redo<span class="k">Ctrl+Y</span></button><div class="msep"></div>
       <button data-act="job">Job Size and Position…</button><div class="msep"></div>
+      <button data-act="cut">Cut<span class="k">⌘/Ctrl+X</span></button><button data-act="copy">Copy<span class="k">⌘/Ctrl+C</span></button><button data-act="paste">Paste<span class="k">⌘/Ctrl+V</span></button><div class="msep"></div>
       <button data-act="selall">Select All<span class="k">Ctrl+A</span></button><button data-act="editdims">Edit Dimensions…<span class="k">dbl-click</span></button>
       <button data-act="rotate">Rotate…<span class="k">angle · pivot</span></button>
       <button data-act="dup">Duplicate</button><button data-act="del">Delete<span class="k">Del</span></button><div class="msep"></div>
@@ -622,6 +623,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
         <tr><td>Enter (shape tool)</td><td>Create the shape from its form (anchor + size)</td></tr>
         <tr><td>Drag corner grip</td><td>Rotate about the pivot · Shift = snap to Rot ° increment</td></tr>
         <tr><td>Ctrl-drag</td><td>Move without snapping (normal drag snaps the anchor point to grid / objects)</td></tr>
+        <tr><td>Cmd/Ctrl+C · X · V</td><td>Copy · Cut · Paste shapes (paste in place; repeated pastes step 0.5")</td></tr>
         <tr><td>Ctrl+A</td><td>Select all</td></tr>
         <tr><td>Ctrl+S / Ctrl+Shift+S</td><td>Save / Save As… (Chrome/Edge: real save dialog, Save writes back to the file)</td></tr>
         <tr><td>Ctrl+O</td><td>Open / Import…</td></tr>
