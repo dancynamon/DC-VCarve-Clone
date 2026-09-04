@@ -854,14 +854,16 @@ function simCutFor(q){
   return cuts;
 }
 // Run the material-removal sim over every visible toolpath and shade the result.
-function runSim(){
+let simBusy=false;
+function runSim(){ simBusy=true; try{ runSimInner(); } finally{ simBusy=false; } }
+function runSimInner(){
   const r=jobRect(); const w=r.x1-r.x0, h=r.y1-r.y0;
   const res=parseFloat((document.getElementById('simRes')||{}).value)||0.05;
   const cuts=[]; for(const q of opsQueue){ if(q.visible===false)continue; for(const c of simCutFor(q)) cuts.push(c); }
   const field=CAM.simulateStock({ x0:r.x0, y0:r.y0, w, h, thickness:job.thickness||0.5, res, cuts });
   const use3d=glInit();
   simField=use3d ? { field, x0:r.x0, y0:r.y0, x1:r.x1, y1:r.y1, mesh:null, lines:null, linesFor:null } : Object.assign(shadeHeightfield(field, r), {field});
-  if(!toolpaths) recalcAll();   // backplot segments feed the 3D line overlay
+  recalcAll();   // backplot segments (all visible toolpaths) feed the 3D line overlay + time estimate
   render();
   setMsg('3D sim: '+cuts.length+' toolpath(s) · '+field.nx+'×'+field.ny+' cells @ '+res+'"'+(use3d?'  ·  drag = pan · Option/Alt-drag = orbit · wheel = zoom':'  (WebGL unavailable: top-down only)'));
 }
@@ -1039,7 +1041,10 @@ function recalcAll(){ const allSegs=[], allMarks=[]; let total=0;
     q._time=CAM.estimateTime(segs,{feed:q.p.feed,plunge:q.p.plunge,rapid:300}).seconds; total+=q._time;
     for(const s of segs) allSegs.push(s);
     if(res.points) for(const pt of res.points) allMarks.push(pt); }
-  toolpaths=allSegs.length?allSegs:null; drillMarks=allMarks.length?allMarks:null; if(allMarks.length)drillDia=0.25; buildQueueList(); render();
+  toolpaths=allSegs.length?allSegs:null; drillMarks=allMarks.length?allMarks:null; if(allMarks.length)drillDia=0.25; buildQueueList();
+  // 3D cut showing? the material must be re-simulated too, or a toolpath added/edited/toggled in Preview never carves
+  if(viewMode==='preview' && simField && !simBusy){ runSim(); return; }
+  render();
   const n=opsQueue.filter(q=>q.visible!==false).length; setMsg('Preview: '+n+'/'+opsQueue.length+' toolpath(s) · '+allSegs.length+' move(s) · est '+fmtTime(total)+' cut time'); }
 // ---- fillet / trim / extend click tools ----
 function filletAt(w){ const tol=pxTol(14); let best=null,bd=tol,bi=-1;
