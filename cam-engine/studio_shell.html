@@ -287,7 +287,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
       <div class="msep"></div>
       <button data-act="keys">Keyboard Shortcuts</button><button data-act="selftest">Run Self-test</button>
       <div class="hver" id="helpVer"></div></div></div>
-    <input type="file" id="fileInput" accept=".aqcam,.aqtpl,.aqclip,.dxf,.svg,.pdf,.png,.jpg,.jpeg,.gif,.bmp,.webp" style="display:none">
+    <input type="file" id="fileInput" accept=".aqcam,.aqtpl,.aqclip,.crv,.crv3d,.dxf,.svg,.pdf,.png,.jpg,.jpeg,.gif,.bmp,.webp" style="display:none">
     
     
     
@@ -299,8 +299,8 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
     <div class="dockhead"><span id="ldockTitle">Drawing</span><span class="pin">▣</span></div>
     <div class="dockbody">
       <div class="dpane active" id="paneDrawing"><div class="secgrp"><h3>File Operations</h3>
-          <button class="tb" id="btnNew" data-tip="Clear the design">New</button>
-          <button class="tb" id="btnImport" data-tip="Open an .aqcam project / .aqtpl template / .aqclip clipart, or import DXF, SVG, vector PDF or a bitmap">Open / Import</button>
+          <button class="tb" id="btnNew" data-tip="New job: clear all vectors, layers and toolpaths">New</button>
+          <button class="tb" id="btnImport" data-tip="Open an .aqcam project / .aqtpl template / .aqclip clipart, a VCarve or Aspire .crv / .crv3d, or import DXF, SVG, vector PDF or a bitmap">Open / Import</button>
           <button class="tb" id="btnSaveProj" data-tip="Save this job (Ctrl+S) &#8212; writes back to the opened file in Chrome/Edge">Save</button>
           <button class="tb" id="btnSaveAs" data-tip="Save As&#8230; (Ctrl+Shift+S) &#8212; pick a folder and file name">Save As&#8230;</button>
           <button class="tb" id="btnTrace" data-tip="Trace the imported bitmap into cuttable vectors">Trace Bitmap&#8230;</button>
@@ -586,6 +586,16 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
     <div class="modal-h"><span class="mt" id="modalTitle">Edit shape</span><button class="mx" id="modalX" title="Close">×</button></div>
     <div class="modal-body" id="modalFields"></div>
     <div class="modal-foot"><button class="tb" id="modalCancel">Cancel</button><button class="tb primary" id="modalApply">Apply</button></div>
+  </div>
+</div>
+<div class="modal-bg" id="newModal">
+  <div class="modal">
+    <div class="modal-h"><span class="mt">New job</span><button class="mx" id="newX" title="Close">×</button></div>
+    <div class="modal-body">
+      <div id="newMsg">Start a new job? This clears every vector, layer and toolpath in the current design.</div>
+      <div class="mhint">The current design stays in Undo (Cmd/Ctrl+Z). Save first if you want to keep it as a file. Enter = OK, Esc = cancel.</div>
+    </div>
+    <div class="modal-foot"><button class="tb" id="newCancel">Cancel</button><button class="tb primary" id="newOk">OK</button></div>
   </div>
 </div>
 <div class="modal-bg" id="rotModal">

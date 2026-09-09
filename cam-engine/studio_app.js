@@ -832,6 +832,24 @@ function applyRotateModal(){ if(!rotBase){ hideRotateModal(); return; }
 function closeRotateModal(){ if(rotBase){ const map=new Map(rotBase.map(o=>[o.id,o])); doc.shapes=doc.shapes.map(s=>map.has(s.id)?map.get(s.id):s); } hideRotateModal(); render(); }
 function hideRotateModal(){ document.getElementById('rotModal').style.display='none'; rotBase=null; }
 
+// ---- File > New ----
+// In-app dialog, not window.confirm(): inside a sandboxed iframe (the published Artifact) confirm() returns
+// false without ever showing, so the old New button silently did nothing there.
+function openNewModal(){ const m=document.getElementById('newModal'); if(!m){ newJob(); return; }
+  const msg=document.getElementById('newMsg'); if(msg) msg.textContent='Start a new job? This clears '+doc.shapes.length+' shape(s), '+doc.layers.size+' layer(s) and '+opsQueue.length+' toolpath(s) from the current design.';
+  m.style.display='block'; const ok=document.getElementById('newOk'); if(ok) ok.focus(); }
+function hideNewModal(){ const m=document.getElementById('newModal'); if(m) m.style.display='none'; }
+// Full reset of the document: vectors, layers, selection, toolpath list, overlays, file handle. The job sheet
+// (size/thickness/datum) is kept and the Job Setup form opens, the way VCarve's File > New lands on Job Setup.
+function newJob(){
+  pushHistory();
+  doc.shapes=[]; doc.layers=new Map([['0',{visible:true,color:'#1b2b3f'}]]); activeLayer='0';
+  sel.clear(); opsQueue=[]; editingIdx=null; toolpaths=null; drillMarks=null; pendingRestore=null;
+  projectFile.handle=null; setProjectName('design.aqcam');
+  buildQueueList(); syncPanels(); fitJob(); setView('2d'); showForm('job','drawing'); autosaveNow();
+  setMsg('New job — design cleared (Undo restores it)');
+}
+
 // ---- z-order ----
 function bringToFront(){ if(!sel.size)return; pushHistory(); const a=doc.shapes.filter(s=>sel.has(s.id)), rest=doc.shapes.filter(s=>!sel.has(s.id)); doc.shapes=rest.concat(a); render(); syncPanels(); }
 function sendToBack(){ if(!sel.size)return; pushHistory(); const a=doc.shapes.filter(s=>sel.has(s.id)), rest=doc.shapes.filter(s=>!sel.has(s.id)); doc.shapes=a.concat(rest); render(); syncPanels(); }
@@ -1211,6 +1229,27 @@ function importPDF(name, buf){
   if(loops.hasLiveText) m+='  ·  WARNING: this PDF also has live text that was NOT imported — outline the fonts to cut it.';
   setMsg(m);
 }
+// VCarve .crv / Aspire .crv3d — OLE2 container, MFC CArchive vector data. Decoded by crvparse.js (the JS port of
+// crvlib.py, see cam-engine/README.md); build.js bundles it when the file is present. The parser refuses rather than
+// guesses, so a thrown error here is reported verbatim — never patched around.
+function importCRV(name, buf){
+  if(typeof CRVPARSE==='undefined'){ setMsg('Cannot open '+name+': the .crv reader (cam-engine/crvparse.js) is not in this build — add it and run npm run build'); return; }
+  let res; try{ res=CRVPARSE.toShapes(new Uint8Array(buf), { tol:0.002 }); }
+  catch(err){ setMsg('CRV parse failed: '+err.message+' · '+name); return; }
+  // res: { job:{w,h}|null, units:'in'|'mm'|null, unitsSource, layers:[{name, color?, contours:[{pts:[{x,y}], closed}]}] }
+  const layers=(res&&res.layers)||[]; const shapes=[];
+  for(const L of layers){ const lname=(L.name||'0').trim()||'0';
+    if(!doc.layers.has(lname)) doc.layers.set(lname,{visible:true,color:L.color||'#1b2b3f'});
+    for(const c of (L.contours||[])){ if(!c.pts||c.pts.length<2) continue; shapes.push(CADCORE.mkPoly(c.pts, !!c.closed, lname)); } }
+  if(!shapes.length){ setMsg('No vectors in '+name+(res&&res.empty?' — the file was saved with its vectors deleted':'')); syncPanels(); return; }
+  pushHistory();
+  if(res.job&&res.job.w>0&&res.job.h>0){ job.w=res.job.w; job.h=res.job.h; applyJobInputs(); updateMatSummary(); }
+  addShapes(shapes); fitAll(); syncPanels(); render();
+  let m='Imported '+shapes.length+' vector'+(shapes.length!==1?'s':'')+' on '+layers.length+' layer'+(layers.length!==1?'s':'')+' from '+name;
+  if(res.job) m+=' · job '+(+res.job.w.toFixed(3))+' × '+(+res.job.h.toFixed(3));
+  if(res.units==='mm') m+='  ·  WARNING: job size reads as millimetres ('+(res.unitsSource||'heuristic')+') — the format carries no units flag; check the size before cutting.';
+  setMsg(m);
+}
 // Saving a file has two routes. Opened from disk, a plain download link works and always has.
 // Published as an Artifact, the viewer sandbox makes that link inert — the host has to hand the file
 // over — so when the host is present we go through it, and every export in the app benefits because
@@ -1416,10 +1455,11 @@ function handleOpenedFile(f, handle){ const rd=new FileReader();
   else if(/\.aqtpl$/i.test(f.name)){ rd.onload=ev=>importTplText(ev.target.result); rd.readAsText(f); }
   else if(/\.aqclip$/i.test(f.name)){ rd.onload=ev=>importClipText(ev.target.result); rd.readAsText(f); }
   else if(/\.pdf$/i.test(f.name)){ rd.onload=ev=>importPDF(f.name,ev.target.result); rd.readAsArrayBuffer(f); }
+  else if(/\.crv(3d)?$/i.test(f.name)){ rd.onload=ev=>importCRV(f.name,ev.target.result); rd.readAsArrayBuffer(f); }
   else { rd.onload=ev=>importText(f.name,ev.target.result); rd.readAsText(f); } }
 // Open: native picker when available (keeps the handle so Save writes back); falls back to the <input type=file>.
 async function openProjectDialog(){ const fi=document.getElementById('fileInput'); if(!window.showOpenFilePicker){ fi.click(); return; }
-  let hs; try{ hs=await window.showOpenFilePicker({ multiple:false, types:[{ description:'Job, template, clipart, vector or bitmap', accept:{ 'application/json':['.aqcam','.aqtpl','.aqclip'], 'image/vnd.dxf':['.dxf'], 'image/svg+xml':['.svg'], 'application/pdf':['.pdf'], 'image/*':['.png','.jpg','.jpeg','.gif','.bmp','.webp'] } }] }); }
+  let hs; try{ hs=await window.showOpenFilePicker({ multiple:false, types:[{ description:'Job, template, clipart, VCarve/Aspire .crv/.crv3d, vector or bitmap', accept:{ 'application/json':['.aqcam','.aqtpl','.aqclip'], 'application/octet-stream':['.crv','.crv3d'], 'image/vnd.dxf':['.dxf'], 'image/svg+xml':['.svg'], 'application/pdf':['.pdf'], 'image/*':['.png','.jpg','.jpeg','.gif','.bmp','.webp'] } }] }); }
   catch(err){ if(!(err&&err.name==='AbortError')) fi.click(); return; }
   const h=hs[0]; handleOpenedFile(await h.getFile(), /\.aqcam$/i.test(h.name)?h:null); }
 function applyProject(proj, srcName){
@@ -2110,7 +2150,10 @@ function wire(){
     if(hdr&&card){ hdr.addEventListener('mousedown',e=>{ if(e.target.id==='modalX')return; const r=card.getBoundingClientRect(); md={dx:e.clientX-r.left,dy:e.clientY-r.top}; e.preventDefault(); });
       window.addEventListener('mousemove',e=>{ if(!md)return; card.style.left=Math.max(2,Math.min(window.innerWidth-60,e.clientX-md.dx))+'px'; card.style.top=Math.max(2,Math.min(window.innerHeight-30,e.clientY-md.dy))+'px'; });
       window.addEventListener('mouseup',()=>{ md=null; }); } }
-  on('btnNew',()=>{ if(confirm('Clear design?')){ pushHistory(); doc.shapes=[]; sel.clear(); toolpaths=null; projectFile.handle=null; setProjectName('design.aqcam'); render(); syncPanels(); } });
+  on('btnNew',openNewModal); on('newOk',()=>{ hideNewModal(); newJob(); }); on('newCancel',hideNewModal); on('newX',hideNewModal);
+  const nm=document.getElementById('newModal');
+  if(nm){ nm.addEventListener('mousedown',e=>{ if(e.target===nm)hideNewModal(); });
+    nm.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); hideNewModal(); newJob(); } else if(e.key==='Escape'){ e.preventDefault(); hideNewModal(); } }); }
   const fi=document.getElementById('fileInput'); document.getElementById('btnImport').onclick=openProjectDialog;
   fi.onchange=e=>{ const f=e.target.files[0]; if(!f)return; handleOpenedFile(f,null); fi.value=''; };
   on('btnSaveAs',saveProjectAs); setProjectName();

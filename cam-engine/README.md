@@ -174,3 +174,18 @@ Edit `camcore.js`, run `node test.js` (keep it green), then re-embed into the HT
 (the HTML's embedded copy must be regenerated — the build concatenates Clipper +
 opentype + camcore + cadcore + dxfparse + the app). Ask Claude to "rebuild the
 CAD/CAM HTML from cam-engine."
+
+## `.crv` / `.crv3d` import (VCarve / Aspire)
+Open / Import (and the native picker, and drag-drop) accept `.crv` and `.crv3d`. `handleOpenedFile` routes them to
+`importCRV(name, arrayBuffer)`, which calls **`CRVPARSE.toShapes(bytes, {tol})`** from `cam-engine/crvparse.js` — the
+JavaScript port of `crvlib.py` from the *CRV Format and CADCAM Studio* project (the two agree to ~1e-14 over 2.28M points;
+change one, change the other, re-run the cross-check). `build.js` bundles `crvparse.js` only when the file is present, so a
+build without it still works and the studio reports "the .crv reader is not in this build" instead of failing silently.
+
+Expected return shape (flattened, job units, no scaling — the format has no units flag):
+```
+{ job:{w,h}|null, units:'in'|'mm'|null, unitsSource:string, empty:boolean,
+  layers:[ { name, color?, contours:[ { pts:[{x,y},…], closed:boolean } ] } ] }
+```
+Toolpath-preview and bitmap-frame objects must already be dropped by the parser. A parse error is shown verbatim in the
+status bar and nothing is imported — the parser refuses rather than guesses, and that is the safety feature.
