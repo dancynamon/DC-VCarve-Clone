@@ -5,7 +5,7 @@ Single self-contained HTML — no install, offline, posts G-code for ShopSabre (
 
 ## Quick start
 ```
-npm test     # 803 checks: CAM (236) + CAD (192) + import (88) + CRV (66) + clipart (47) + trace (45) + 3D (44) + PDF (30) + arc-fit (15) + air-cut (30) + smoke (10)
+npm test     # 806 checks: CAM (236) + CAD (192) + import (88) + CRV (69) + clipart (47) + trace (45) + 3D (44) + PDF (30) + arc-fit (15) + air-cut (30) + smoke (10)
 npm run build # regenerates cadcam-studio.html from cam-engine/ sources
 open cadcam-studio.html
 ```

@@ -1239,16 +1239,17 @@ function importCRV(name, buf){
   // res: { job:{w,h}|null, units:'in'|'mm'|null, unitsSource, layers:[{name, color?, contours:[{pts:[{x,y}], closed}]}] }
   const layers=(res&&res.layers)||[]; const shapes=[];
   for(const L of layers){ const lname=(L.name||'0').trim()||'0';
-    if(!doc.layers.has(lname)) doc.layers.set(lname,{visible:true,color:L.color||'#1b2b3f'});
-    for(const c of (L.contours||[])){ if(!c.pts||c.pts.length<2) continue; shapes.push(CADCORE.mkPoly(c.pts, !!c.closed, lname)); } }
-  if(!shapes.length){ setMsg('No vectors in '+name+(res&&res.empty?' — the file was saved with its vectors deleted':'')+(res&&res.skippedText&&res.skippedText.length?' — only text objects ('+res.skippedText.map(t=>JSON.stringify(t.text)).join(', ')+'), convert them to curves in VCarve':'')); syncPanels(); return; }
+    if(!doc.layers.has(lname)) doc.layers.set(lname,{visible:L.visible!==false,color:L.color||'#1b2b3f'});
+    for(const c of (L.contours||[])){ if(!c.pts||c.pts.length<2) continue; const sh=CADCORE.mkPoly(c.pts, !!c.closed, lname); if(c.text) sh.fromText=true; shapes.push(sh); } }
+  if(!shapes.length){ setMsg('No vectors in '+name+(res&&res.empty?' — the file was saved with its vectors deleted':'')); syncPanels(); return; }
   pushHistory();
   if(res.job&&res.job.w>0&&res.job.h>0){ job.w=res.job.w; job.h=res.job.h; if(res.job.thickness>0) job.thickness=res.job.thickness; applyJobInputs(); updateMatSummary(); }
   addShapes(shapes); fitAll(); syncPanels(); render();
   let m='Imported '+shapes.length+' vector'+(shapes.length!==1?'s':'')+' on '+layers.length+' layer'+(layers.length!==1?'s':'')+' from '+name;
   if(res.job) m+=' · job '+(+res.job.w.toFixed(3))+' × '+(+res.job.h.toFixed(3));
   if(res.units==='mm') m+='  ·  WARNING: job size reads as millimetres ('+(res.unitsSource||'heuristic')+') — the format carries no units flag; check the size before cutting.';
-  if(res.skippedText&&res.skippedText.length) m+='  ·  NOT imported: '+res.skippedText.length+' text object'+(res.skippedText.length!==1?'s':'')+' ('+res.skippedText.map(t=>JSON.stringify(t.text)).join(', ')+') — convert text to curves in VCarve and re-save.';
+  const nt=shapes.filter(s=>s.fromText).length; if(nt) m+='  ·  '+nt+' of them are text glyphs (placed from the file\'s base line; check against VCarve if a label matters)';
+  if(res.skippedText&&res.skippedText.length) m+='  ·  NOT imported: '+res.skippedText.length+' text object'+(res.skippedText.length!==1?'s':'')+' ('+res.skippedText.map(t=>JSON.stringify(t.text)).join(', ')+').';
   setMsg(m);
 }
 // Saving a file has two routes. Opened from disk, a plain download link works and always has.

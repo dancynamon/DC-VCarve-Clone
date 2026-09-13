@@ -577,7 +577,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
     <span><span class="v" id="zoomlbl"></span></span>
     <span id="msg" class="v"></span>
     <button class="tb" id="btnTheme" title="Switch to dark mode" style="margin-left:auto;font-size:10px;padding:1px 7px">☾ Dark</button>
-    <span class="ver" id="appVer" title="Build version">v0.3.0 · build 260913.0414</span>
+    <span class="ver" id="appVer" title="Build version">v0.3.0 · build 260913.0438</span>
   </div>
 </div>
 <div id="tip"></div>
@@ -11927,8 +11927,9 @@ return { identity, multiply, perspective, lookAt, orbitEye, clampPitch, PITCH_LI
 //
 // The file is an OLE2 / MS Compound File. The 2D vectors live in the stream VectorData/2dDataV2, which is an MFC
 // CArchive object graph: vcCadLayer -> vcCadPolyline / vcCadContour / vcCadObjectGroup / txtBlock -> vdContour -> spans.
-// The job sheet is VectorData/MaterialSize. Every layout below was measured byte by byte on real files; there is no
-// public spec. The reader REFUSES (throws) on anything it has not seen — an unknown class, an unexpected version, an
+// The job sheet is VectorData/MaterialSize. Every layout below was measured byte by byte on real files (Aspire 7.006,
+// 7.015, 7.514 and Aspire/VCarve 9.508 output — 23 files, each decoded to the terminal marker and checked against its
+// own embedded preview); there is no public spec. The reader REFUSES (throws) on anything it has not seen — an unknown class, an unexpected version, an
 // unknown span type, a contour that does not chain end-to-start, or a stream that does not end exactly on the
 // terminal vcCadSheet object — because guessed geometry on a CNC router destroys material. Report the error, never
 // patch around it.
@@ -11938,9 +11939,9 @@ return { identity, multiply, perspective, lookAt, orbitEye, clampPitch, PITCH_LI
 //
 // API:  CRVPARSE.parse(bytes)              -> { job, layers:[{name,color,visible,objects:[...]}], version, empty }
 //       CRVPARSE.toShapes(bytes, {tol,text}) -> { job:{w,h,thickness}|null, units, unitsSource, empty,
-//                                              layers:[{name,color,contours:[{pts:[{x,y}],closed}]}],
-//                                              skippedText:[{layer,text,x,y}] }   (text objects are skipped unless
-//                                              opts.text — their placement is inferred, not yet verified)
+//                                              layers:[{name,color,contours:[{pts:[{x,y}],closed,text?}]}],
+//                                              skippedText:[{layer,text,x,y}] }   (text glyphs are placed and flagged
+//                                              text:true; pass text:false to skip them and list them instead)
 //       CRVPARSE.readCFB(bytes)            -> Map(path -> Uint8Array)   (exposed for tests)
 const CRVPARSE = (function () {
   'use strict';
@@ -12042,35 +12043,53 @@ const CRVPARSE = (function () {
 
   // ---------------------------------------------------------------- span / contour
   // typeCode = primitive family + toolpath role: 1/8/9 line (8 lead-in, 9 lead-out), 0/11/12 arc (11/12 leads),
-  // 5 zero-length point, 7 line over a machining tab, 6 cubic bezier. The inline u8 discriminator names the family.
-  const LINE = new Set([1, 7, 8, 9]), ARC = new Set([0, 11, 12]), BEZ = new Set([6]), POINT = new Set([5]);
-  function readSpan(r) {
-    const disc = r.u8(), ver = r.u32();
+  // 5 zero-length point, 7 line over a machining tab (carries u32 + 3×f64 tab data), 6 cubic bezier.
+  // Two dialects: vdContour v3/v4 (Aspire 7.x) writes every span as an MFC object (vdLineSpan / vdArcSpan /
+  // vdBezierSpan / vdTabLineSpan); v6/v7 (Aspire/VCarve 9.x) writes them inline behind a u8 family discriminator.
+  const LINE = new Set([1, 8, 9]), ARC = new Set([0, 11, 12]), BEZ = new Set([6]), POINT = new Set([5]), TAB = new Set([7]);
+  const SPAN_CLASS = { vdLineSpan: 'line', vdArcSpan: 'arc', vdBezierSpan: 'bezier', vdTabLineSpan: 'line', vdPointSpan: 'point' };
+  function family(t) { return LINE.has(t) || TAB.has(t) ? 'line' : ARC.has(t) ? 'arc' : BEZ.has(t) ? 'bezier' : POINT.has(t) ? 'point' : null; }
+  function readSpanBody(r, fam) {
+    const ver = r.u32();
     if (ver !== 2) throw new Error('CRV: span version ' + ver + ' at ' + r.p + ' (expected 2)');
-    const t = r.u32();
+    const t = r.u32(), f = family(t);
+    if (!f) throw new Error('CRV: unknown span type ' + t + ' at ' + r.p);
+    if (fam && fam !== f) throw new Error('CRV: span type ' + t + ' does not match its ' + fam + ' discriminator at ' + r.p);
     const x0 = r.f64(), y0 = r.f64(), z0 = r.f64(), x1 = r.f64(), y1 = r.f64(), z1 = r.f64();
-    if (!POINT.has(t)) r.u32();   // flag, always 1, absent on the point span
+    if (f !== 'point') r.u32();   // flag, always 1, absent on the point span
     const sp = { t, x0, y0, z0, x1, y1, z1 };
-    if (ARC.has(t)) { if (disc !== 1) throw new Error('CRV: arc span with discriminator ' + disc + ' at ' + r.p); sp.bulge = r.f64(); }
-    else if (BEZ.has(t)) { if (disc !== 2) throw new Error('CRV: bezier span with discriminator ' + disc + ' at ' + r.p); sp.c1x = r.f64(); sp.c1y = r.f64(); sp.c2x = r.f64(); sp.c2y = r.f64(); }
-    else if (LINE.has(t) || POINT.has(t)) { if (disc !== 0) throw new Error('CRV: line span with discriminator ' + disc + ' at ' + r.p); }
-    else throw new Error('CRV: unknown span type ' + t + ' at ' + r.p);
+    if (f === 'arc') sp.bulge = r.f64();
+    else if (f === 'bezier') { sp.c1x = r.f64(); sp.c1y = r.f64(); sp.c2x = r.f64(); sp.c2y = r.f64(); }
+    if (TAB.has(t)) { r.u32(); r.f64(); r.f64(); r.f64(); }   // tab height and two ramp scalars — preview geometry only
     return sp;
   }
-  // vdContour v7: u32 ver, i32 (cache flag), f64 tolerance, u8, f64 signed area (cache), u8, u32 n, spans, GUID source, i32 -1, u16
+  const DISC = { 0: 'line', 1: 'arc', 2: 'bezier' };
+  function readSpanInline(r) {
+    const disc = r.u8(); const fam = DISC[disc];
+    if (!fam) throw new Error('CRV: unknown span discriminator ' + disc + ' at ' + r.p);
+    return readSpanBody(r, fam);
+  }
+  function readSpanObject(r) {
+    const t = r.tag(); if (!t) throw new Error('CRV: NULL span at ' + r.p);
+    const fam = SPAN_CLASS[t.name]; if (!fam) throw new Error('CRV: unknown span class "' + t.name + '" at ' + r.p);
+    return readSpanBody(r, fam === 'point' ? null : fam);
+  }
+  // vdContour: u32 ver, u32/i32 (cache flag / id), f64 tolerance, u8, f64 signed area (cache), u8, u32 n, spans,
+  // then GUID source, i32 -1 [, u16 on v7]
+  const CONTOUR_VERSIONS = { 3: 'object', 4: 'object', 6: 'inline', 7: 'inline' };
   function readVdContour(r) {
-    const ver = r.u32();
-    if (ver !== 7) throw new Error('CRV: vdContour version ' + ver + ' at ' + r.p + ' (only v7 is known)');
+    const ver = r.u32(), dialect = CONTOUR_VERSIONS[ver];
+    if (!dialect) throw new Error('CRV: vdContour version ' + ver + ' at ' + r.p + ' (known: 3, 4, 6, 7)');
     r.i32(); r.f64(); r.u8(); r.f64(); r.u8();
     const n = r.u32(); if (n > 5e6) throw new Error('CRV: implausible span count ' + n + ' at ' + r.p);
-    const spans = []; for (let i = 0; i < n; i++) spans.push(readSpan(r));
-    const src = r.guid(); r.i32(); r.u16();
+    const spans = []; for (let i = 0; i < n; i++) spans.push(dialect === 'inline' ? readSpanInline(r) : readSpanObject(r));
+    const src = r.guid(); r.i32(); if (ver >= 4) { const f = r.u16(); if (f & 1) r.guid(); }   // flagged contours carry a second GUID
     for (let i = 1; i < spans.length; i++) {
       const a = spans[i - 1], b = spans[i];
       if (Math.abs(a.x1 - b.x0) > 1e-7 || Math.abs(a.y1 - b.y0) > 1e-7) throw new Error('CRV: contour chain gap between spans ' + (i - 1) + ' and ' + i + ' (' + a.x1 + ',' + a.y1 + ' -> ' + b.x0 + ',' + b.y0 + ')');
     }
     const closed = spans.length > 0 && Math.abs(spans[spans.length - 1].x1 - spans[0].x0) < 1e-7 && Math.abs(spans[spans.length - 1].y1 - spans[0].y0) < 1e-7;
-    return { spans, closed, src };
+    return { spans, closed, src, ver };
   }
   function readContourObj(r) { r.expect('vdContour'); return readVdContour(r); }
   function readContourGroup(r) {
@@ -12093,33 +12112,61 @@ const CRVPARSE = (function () {
     return out;
   }
 
-  // ---------------------------------------------------------------- vcCadObject common prefix (v8)
-  // u32 ver=8, GUID id, GUID parent, u32 colour, u32, u32 0x82, u32 0x2a, u32, i32 -1, [object: utParameterList or NULL],
-  // u32, u32, f64 x, f64 y, lstr "Vectric__Version", u32 1, lstr side-uuid
+  // ---------------------------------------------------------------- vcCadObject common prefix
+  // v5 (Aspire 7.0): u32 ver, GUID id, GUID parent, u32 colour, u32, u32 0x82, u32 0x2a, u32, i32 -1, [utParameterList|NULL], u32
+  // v6 (Aspire 7.5): v5 + u32 1, f64 x, f64 y
+  // v8 (Aspire/VCarve 9.5): v6 + lstr "Vectric__Version", u32 1, lstr side-uuid
   function readBase(r) {
-    const ver = r.u32(); if (ver !== 8) throw new Error('CRV: vcCadObject version ' + ver + ' at ' + r.p + ' (only v8 is known)');
+    const ver = r.u32(); if (ver !== 5 && ver !== 6 && ver !== 8) throw new Error('CRV: vcCadObject version ' + ver + ' at ' + r.p + ' (known: 5, 6, 8)');
     const id = r.guid(), parent = r.guid(), color = r.u32(); r.u32(); r.u32(); r.u32(); r.u32(); r.i32();
     const t = r.tag(); let params = null;
     if (t) { if (t.name !== 'utParameterList') throw new Error('CRV: unexpected ' + t.name + ' in object header at ' + r.p); rewindTag(r, t); params = readParamList(r); }
-    r.u32(); r.u32(); r.f64(); r.f64();
-    const vv = r.lstr(); if (vv !== 'Vectric__Version') throw new Error('CRV: object header out of step at ' + r.p + ' (got "' + vv.slice(0, 20) + '")');
-    r.u32(); r.lstr();
-    return { id, parent, color, params };
+    r.u32();
+    if (ver >= 6) { r.u32(); r.f64(); r.f64(); }
+    if (ver >= 8) { const vv = r.lstr(); if (vv !== 'Vectric__Version') throw new Error('CRV: object header out of step at ' + r.p + ' (got "' + vv.slice(0, 20) + '")'); r.u32(); r.lstr(); }
+    return { id, parent, color, params, ver };
   }
   // readBase peeked a tag to decide; give it back so readParamList can consume it (the load array must not double-count)
   function rewindTag(r, t) { if (t.kind === 'new') { r.p -= 6 + t.name.length; r.tab.pop(); r.tab.pop(); } else if (t.kind === 'ref') { r.p -= 2; r.tab.pop(); } else throw new Error('CRV: shared object reference at ' + r.p); }
 
+  const TPP_TAIL = { 5: 32, 6: 32 };   // u32 1, u8, u32, f64, f64 tool diameter, u8, u32, u16 — same 32 bytes as v8
+  // Embedded raster (vcCadBitmap image, model-preview render): u8 1, u32 1, u32 0, u32 uncompressed size, u32 5,
+  // 5-byte LZMA properties (0x5d + dict size), u32 compressed length, LZMA data, 256-entry RGBQUAD palette,
+  // u32 0, u32 120, CString source path, i32, u8. Skipped — pixels are never geometry.
+  function skipImageBlob(r, what) {
+    r.u8(); r.u32(); r.u32(); const N = r.u32(); r.u32(); const props = r.u8(); r.u32(); const L = r.u32();
+    if (props !== 0x5d && props !== 0x5e && props !== 0x5b) throw new Error('CRV: ' + what + ' image is not LZMA (props 0x' + props.toString(16) + ') at ' + r.p);
+    if (L > r.b.length - r.p) throw new Error('CRV: ' + what + ' image length ' + L + ' runs past the stream at ' + r.p);
+    r.skip(L); r.skip(1024); r.u32(); r.u32(); r.cstr(); r.i32(); r.u8();
+    return { bytes: N, compressed: L };
+  }
+  function readBitmapTail(r, b) { const v = r.u32(); if (v !== 5) throw new Error('CRV: vcCadBitmap v' + v); r.u8(); readObject(r); skipImageBlob(r, 'vcCadBitmap'); return null; }
+  // Holding tabs attached to a vector: vcToolpathTab = u32 ver 1, u32 span index, f64 parameter, u32 1
+  function readTabs(r) {
+    const n = r.u32(); if (n > 100000) throw new Error('CRV: implausible tab count ' + n + ' at ' + r.p);
+    for (let i = 0; i < n; i++) { const t = r.tag(); if (!t || t.name !== 'vcToolpathTab') throw new Error('CRV: expected vcToolpathTab at ' + r.p); const v = r.u32(); if (v !== 1) throw new Error('CRV: vcToolpathTab v' + v); r.u32(); r.f64(); r.u32(); }
+    return n;
+  }
   const READERS = {
     // Machine-generated preview of a toolpath on the "Toolpath Previews" layer: parsed exactly, then discarded.
-    vcCadToolpathPreview(r) { readBase(r); const k = r.u32(); if (k !== 4) throw new Error('CRV: vcCadToolpathPreview v' + k); r.guid(); readContourGroup(r); r.skip(32); return null; },
-    vcCadPolyline(r) { const b = readBase(r); const k = r.u32(); if (k !== 2) throw new Error('CRV: vcCadPolyline v' + k); const c = readContourObj(r); r.u32(); r.u32(); return { type: 'polyline', id: b.id, contours: [c] }; },
-    vcCadContour(r) { const b = readBase(r); const k = r.u32(); if (k !== 2) throw new Error('CRV: vcCadContour v' + k); const c = readContourObj(r); r.u32(); return { type: 'contour', id: b.id, contours: [c] }; },
+    vcCadToolpathPreview(r) {
+      const b = readBase(r); const k = r.u32(); if (k !== 4) throw new Error('CRV: vcCadToolpathPreview v' + k); r.guid(); readContourGroup(r);
+      if (b.ver >= 8) r.skip(32); else r.skip(TPP_TAIL[b.ver]);
+      return null;
+    },
+    vcCadPolyline(r) { const b = readBase(r); const k = r.u32(); if (k !== 2) throw new Error('CRV: vcCadPolyline v' + k); const c = readContourObj(r); readTabs(r); r.u32(); return { type: 'polyline', id: b.id, contours: [c] }; },
+    vcCadContour(r) { const b = readBase(r); const k = r.u32(); if (k !== 2) throw new Error('CRV: vcCadContour v' + k); const c = readContourObj(r); readTabs(r); return { type: 'contour', id: b.id, contours: [c] }; },
     vcCadObjectGroup(r) {
       const b = readBase(r); const k = r.u32(); if (k !== 1) throw new Error('CRV: vcCadObjectGroup v' + k);
       const n = r.u32(), kids = []; for (let i = 0; i < n; i++) { const o = readObject(r); if (o) kids.push(o); }
       return { type: 'group', id: b.id, children: kids };
     },
-    // Text: the glyph outlines are stored per character, already in world coordinates.
+    // A placed image: its outline is a placement frame, not geometry. Parsed, dropped.
+    vcCadBitmap(r) { const b = readBase(r); return readBitmapTail(r, b); },
+    // 3D model / component previews on the preview layer (Aspire): parsed, dropped.
+    vcCadModelPreview(r) { readBase(r); const v = r.u32(); if (v !== 5) throw new Error('CRV: vcCadModelPreview v' + v); r.u8(); readObject(r); skipImageBlob(r, 'vcCadModelPreview'); r.u32(); r.guid(); return null; },
+    vcActiveComponentPreview(r) { readBase(r); r.u32(); return null; },
+    // Text: glyph outlines per character in glyph-local coordinates, plus a base line and a placement transform.
     txtBlock(r) {
       const b = readBase(r); const k = r.u32(); if (k !== 4) throw new Error('CRV: txtBlock v' + k);
       const nl = r.u32(), chars = [];
@@ -12130,10 +12177,10 @@ const CRVPARSE = (function () {
           r.expect('txtWord'); const wv = r.u32(); if (wv !== 1) throw new Error('CRV: txtWord v' + wv);
           const nc = r.u32();
           for (let q = 0; q < nc; q++) {
-            r.expect('txtChar'); const cv = r.u32(); if (cv !== 4) throw new Error('CRV: txtChar v' + cv);
+            r.expect('txtChar'); const cv = r.u32(); if (cv !== 4 && cv !== 3) throw new Error('CRV: txtChar v' + cv);
             const code = r.u32(); r.cstr(); const adv = r.f64();
             const glyph = readContourGroup(r);
-            r.u32(); r.f64(); r.skip(5); const cx = r.f64(), kern = r.f64(); r.skip(6 * 8);   // 81-byte tail: centre offset, kerning, 3x height, ink width, 1, 0
+            r.u32(); r.f64(); r.skip(5); const cx = r.f64(), kern = r.f64(); r.skip(cv === 3 ? 5 * 8 : 6 * 8);   // tail: centre offset, kerning, 3x height, ink width, 1 [, 0 on v4]
             chars.push({ code, adv, cx, kern, glyph });
           }
         }
@@ -12160,11 +12207,12 @@ const CRVPARSE = (function () {
   function readLayer(r) {
     const t = r.tag(); if (!t || t.name !== 'vcCadLayer') throw new Error('CRV: expected vcCadLayer at ' + r.p);
     const ver = r.u32(); if (ver !== 4) throw new Error('CRV: vcCadLayer version ' + ver);
-    const id = r.guid(), name = r.cstr(), color = r.u32(); r.u32(); r.u8(); const visible = r.u8() !== 0;
+    const id = r.guid(), name = r.cstr(), color = r.u32(); r.u32(); r.u8(); r.u8();
     const n = r.u32(), objects = [];
     for (let i = 0; i < n; i++) { const o = readObject(r); if (o) objects.push(o); }
-    r.skip(3);
-    return { id, name, color: colorref(color), visible, objects };
+    // trailer: u8 visible (0 = hidden in VCarve; the preview omits these layers), u8 bitmap-layer, u8 preview-layer
+    const visible = r.u8() !== 0, isBitmapLayer = r.u8() !== 0, isPreviewLayer = r.u8() !== 0;
+    return { id, name, color: colorref(color), visible, isBitmapLayer, isPreviewLayer, objects };
   }
   function colorref(c) { const h = v => (v < 16 ? '0' : '') + v.toString(16); return '#' + h(c & 255) + h((c >> 8) & 255) + h((c >> 16) & 255); }   // COLORREF is 0x00BBGGRR
 
@@ -12180,13 +12228,17 @@ const CRVPARSE = (function () {
     return { layers, sheet: { x0, y0, w, h } };
   }
   // VectorData/MaterialSize v8: ver, u8, u32, u32, u8, f64, f64 thickness (signed: Z zero side), f64 width, f64 height, f64×3
+  // VectorData/MaterialSize. v5 (Aspire 7): ver, u8, u8, f64, f64, f64 zBottom, f64 w, f64 h, f64 zTop, u32, u32.
+  // v8 (9.5): ver, u8, u32, u32, u8, f64, f64 zBottom, f64 w, f64 h, f64 zTop, f64, f64, then side data.
+  // Thickness = zTop - zBottom (Z zero on top gives a negative zBottom; Z zero on the bottom a positive zTop).
   function parseMaterial(bytes) {
-    if (!bytes || bytes.length < 70) return null;
+    if (!bytes || bytes.length < 62) return null;
     const r = new Ar(bytes); const ver = r.u32();
-    if (ver !== 8) return { unknownVersion: ver };
-    r.u8(); r.u32(); r.u32(); r.u8(); r.f64();
-    const th = r.f64(), w = r.f64(), h = r.f64();
-    return { w, h, thickness: Math.abs(th) };
+    let zb, w, h, zt;
+    if (ver === 5) { r.u8(); r.u8(); r.f64(); r.f64(); zb = r.f64(); w = r.f64(); h = r.f64(); zt = r.f64(); }
+    else if (ver === 8) { r.u8(); r.u32(); r.u32(); r.u8(); r.f64(); zb = r.f64(); w = r.f64(); h = r.f64(); zt = r.f64(); }
+    else return { unknownVersion: ver };
+    return { w, h, thickness: Math.abs(zt - zb), zBottom: zb, zTop: zt, version: ver };
   }
   function parseVersion(bytes) {
     if (!bytes) return null; const r = new Ar(bytes); const out = [];
@@ -12242,10 +12294,11 @@ const CRVPARSE = (function () {
     if (c.closed && pts.length > 2) pts.pop();   // the last point repeats the first
     return { pts, closed: c.closed };
   }
-  // Text placement (opt-in, unverified against a preview): each line is laid out with a pen model (glyph centred at
-  // pen + cx + kern, pen advances by adv + kern), justified on the base curve (0 left, 1 right, 2 centre), lines stacked
-  // downwards by 1.5 x the text height, then the block's 3x3 placement transform M is applied. The base line and the
-  // transform are read from the file; the line step and the justification mapping are inferred.
+  // Text placement: each line is laid out with a pen model (glyph centred at pen + cx + kern, pen advances by
+  // adv + kern), justified on the base curve (0 left, 1 right, 2 centre), lines stacked downwards by 1.5 x the text
+  // height, then the block's 3x3 placement transform M is applied. The base line and the transform are read from the
+  // file; the line step and the justification mapping were inferred and then verified against the embedded preview of
+  // a 25-text-object file (99.7 % of the preview ink covered at ±1 px). Pass {text:false} to skip text objects.
   function placeText(o, tol) {
     if (!o.base || !o.base.spans.length) return null;
     const s0 = o.base.spans[0], bx0 = s0.x0, bx1 = s0.x1, by = s0.y0, M = o.M || [1, 0, 0, 0, 1, 0, 0, 0, 1];
@@ -12278,7 +12331,7 @@ const CRVPARSE = (function () {
       const contours = [];
       const walk = o => {
         if (o.type === 'text') {
-          const placed = opts.text ? placeText(o, tol) : null;
+          const placed = opts.text === false ? null : placeText(o, tol);
           if (placed) placed.forEach(f => { f.text = true; contours.push(f); });
           else skippedText.push({ layer: L.name, text: o.text, x: o.anchor.x, y: o.anchor.y });
           return;
@@ -12297,7 +12350,7 @@ const CRVPARSE = (function () {
     return { job, units, unitsSource, empty: doc.empty, version: doc.version, layers, skippedText };
   }
 
-  return { readCFB, parse, toShapes, flattenContour, _Ar: Ar, _readVdContour: readVdContour };
+  return { readCFB, parse, toShapes, flattenContour, _Ar: Ar, _readVdContour: readVdContour, _readBase: readBase, _readContourGroup: readContourGroup, _readLayerHead: r => { r.tag(); r.u32(); r.guid(); r.cstr(); r.u32(); r.u32(); r.u8(); r.u8(); return r.u32(); } };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = CRVPARSE;
 
@@ -13544,16 +13597,17 @@ function importCRV(name, buf){
   // res: { job:{w,h}|null, units:'in'|'mm'|null, unitsSource, layers:[{name, color?, contours:[{pts:[{x,y}], closed}]}] }
   const layers=(res&&res.layers)||[]; const shapes=[];
   for(const L of layers){ const lname=(L.name||'0').trim()||'0';
-    if(!doc.layers.has(lname)) doc.layers.set(lname,{visible:true,color:L.color||'#1b2b3f'});
-    for(const c of (L.contours||[])){ if(!c.pts||c.pts.length<2) continue; shapes.push(CADCORE.mkPoly(c.pts, !!c.closed, lname)); } }
-  if(!shapes.length){ setMsg('No vectors in '+name+(res&&res.empty?' — the file was saved with its vectors deleted':'')+(res&&res.skippedText&&res.skippedText.length?' — only text objects ('+res.skippedText.map(t=>JSON.stringify(t.text)).join(', ')+'), convert them to curves in VCarve':'')); syncPanels(); return; }
+    if(!doc.layers.has(lname)) doc.layers.set(lname,{visible:L.visible!==false,color:L.color||'#1b2b3f'});
+    for(const c of (L.contours||[])){ if(!c.pts||c.pts.length<2) continue; const sh=CADCORE.mkPoly(c.pts, !!c.closed, lname); if(c.text) sh.fromText=true; shapes.push(sh); } }
+  if(!shapes.length){ setMsg('No vectors in '+name+(res&&res.empty?' — the file was saved with its vectors deleted':'')); syncPanels(); return; }
   pushHistory();
   if(res.job&&res.job.w>0&&res.job.h>0){ job.w=res.job.w; job.h=res.job.h; if(res.job.thickness>0) job.thickness=res.job.thickness; applyJobInputs(); updateMatSummary(); }
   addShapes(shapes); fitAll(); syncPanels(); render();
   let m='Imported '+shapes.length+' vector'+(shapes.length!==1?'s':'')+' on '+layers.length+' layer'+(layers.length!==1?'s':'')+' from '+name;
   if(res.job) m+=' · job '+(+res.job.w.toFixed(3))+' × '+(+res.job.h.toFixed(3));
   if(res.units==='mm') m+='  ·  WARNING: job size reads as millimetres ('+(res.unitsSource||'heuristic')+') — the format carries no units flag; check the size before cutting.';
-  if(res.skippedText&&res.skippedText.length) m+='  ·  NOT imported: '+res.skippedText.length+' text object'+(res.skippedText.length!==1?'s':'')+' ('+res.skippedText.map(t=>JSON.stringify(t.text)).join(', ')+') — convert text to curves in VCarve and re-save.';
+  const nt=shapes.filter(s=>s.fromText).length; if(nt) m+='  ·  '+nt+' of them are text glyphs (placed from the file\'s base line; check against VCarve if a label matters)';
+  if(res.skippedText&&res.skippedText.length) m+='  ·  NOT imported: '+res.skippedText.length+' text object'+(res.skippedText.length!==1?'s':'')+' ('+res.skippedText.map(t=>JSON.stringify(t.text)).join(', ')+').';
   setMsg(m);
 }
 // Saving a file has two routes. Opened from disk, a plain download link works and always has.

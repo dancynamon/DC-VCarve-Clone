@@ -178,17 +178,24 @@ CAD/CAM HTML from cam-engine."
 ## `.crv` / `.crv3d` import (VCarve / Aspire) — `crvparse.js`
 Open / Import (the native picker and drag-drop too) accept `.crv` and `.crv3d`. `handleOpenedFile` routes them to
 `importCRV(name, arrayBuffer)` → `CRVPARSE.toShapes(bytes, {tol})`. `crvparse.js` has no dependencies and is bundled by
-`build.js`; `crvtest.js` (66 checks) runs it against `samples/NEMA-Outlet-Covers.crv` and an OLE2 `.doc` fixture.
+`build.js`; `crvtest.js` (69 checks) runs it against `samples/NEMA-Outlet-Covers.crv` and an OLE2 `.doc` fixture, and
+`crvcorpus.js` + `tools/crv/oracle.py` run it over a directory of real files and compare every one against its own
+embedded preview (see `tools/crv/README.md`). Proven on 23 files from Aspire 7.006 / 7.015 / 7.514 and Aspire/VCarve
+9.508: every one decodes to the terminal marker, and every stroke we draw is in VCarve's own render.
 
 **What the format is.** An OLE2 / MS Compound File. `VectorData/2dDataV2` is an MFC `CArchive` object graph —
-`vcCadLayer → vcCadPolyline | vcCadContour | vcCadObjectGroup | txtBlock → vdContour → spans` — byte-packed, doubles on
-arbitrary offsets, class tags `0xFFFF <u16 schema> <u16 len> <name>` on first use and `0x8000|index` back-references
-(the index counts every class *and* every object, MFC semantics). Spans are inline behind a `u8` family discriminator:
-`u32 ver=2, u32 typeCode, f64 x0 y0 z0 x1 y1 z1, u32 flag` then `f64 bulge` (arc, `tan(θ/4)`, DXF convention) or
-`4×f64` control points (bezier, type 6). `VectorData/MaterialSize` carries the job (width, height, signed thickness) and
-`PreviewData/Preview2D_GIF` is VCarve's own render of the vectors — the oracle the geometry was verified against
-(100 % of the preview's ink is covered by the decoded vectors at ±1 px). Layouts measured on Aspire/VCarve 9.508 output
-(`vcCadObject` v8, `vdContour` v7, `vcCadLayer` v4). Every layout is written down in the source next to the read.
+`vcCadLayer → vcCadPolyline | vcCadContour | vcCadObjectGroup | txtBlock | vcCadBitmap → vdContour → spans` — byte-packed,
+doubles on arbitrary offsets, class tags `0xFFFF <u16 schema> <u16 len> <name>` on first use and `0x8000|index`
+back-references (the index counts every class *and* every object, MFC semantics). Spans: `u32 ver=2, u32 typeCode,
+f64 x0 y0 z0 x1 y1 z1, u32 flag` then `f64 bulge` (arc, `tan(θ/4)`, DXF convention) or `4×f64` control points (bezier,
+type 6); type 7 (tab line) carries `u32 + 3×f64` of tab data. Two dialects: `vdContour` v3/v4 (Aspire 7) writes each
+span as an MFC object (`vdLineSpan` / `vdArcSpan` / `vdBezierSpan` / `vdTabLineSpan`); v6/v7 (9.x) writes them inline
+behind a `u8` family byte. Object headers come in v5, v6 and v8 (each adds fields). Polylines carry a `vcToolpathTab`
+list. `vcCadBitmap` and `vcCadModelPreview` embed an LZMA-compressed raster + palette + source path; both are parsed and
+dropped, as are `vcCadToolpathPreview` / `vcActiveComponentPreview` (machine-generated preview geometry). Layer
+visibility is the first trailer byte after a layer's objects; hidden layers import hidden. `VectorData/MaterialSize`
+(v5, v8) carries width, height and Z-top / Z-bottom (thickness = the difference; the sign says which face is Z zero).
+Every layout is written down in the source next to the read.
 
 **Refusals are the safety feature.** Unknown class, unexpected version, unknown span type, a span chain that does not
 connect end-to-start, or a stream that does not end exactly on the terminal `vcCadSheet` object → the parser throws and
@@ -199,10 +206,10 @@ A file saved after its vectors were deleted parses as EMPTY; a G-code file misna
 scaled; `units` is a heuristic (`job > 300 → mm`) and the import message says so.
 
 **Text** (`txtBlock`): glyph outlines are stored per character in glyph-local coordinates plus a base line and a 3×3
-placement transform. Their placement is *inferred* (pen model along the base line, justified, lines stacked 1.5 × height)
-and has not been verified against a preview, so `toShapes` **skips text objects by default** and lists them in
-`skippedText`; the studio reports them and asks for text converted to curves in VCarve. `toShapes(bytes, {text:true})`
-places them for anyone who wants to check.
+placement transform. Placement is a pen model (advance + kerning, justified on the base line, lines stacked 1.5 × the
+height, then the transform) — inferred, then verified against the preview of a 25-text-object file (99.7 % of the
+preview's ink covered at ±1 px). Imported glyphs are flagged `fromText`; `toShapes(bytes, {text:false})` skips them
+and lists them in `skippedText` instead.
 
-**Not seen yet, so refused:** `vcCadBitmap`, dimensions, other `vdContour` versions (Dan's notes mention v3 with spans
-as MFC objects and v6). Add a fixture and a reader when one turns up — never a resync-by-scanning heuristic.
+**Not seen yet, so refused:** `vdContour` v5, object header v7, MaterialSize versions other than 5 and 8, any other
+class. Add a fixture and a reader when one turns up — never a resync-by-scanning heuristic.

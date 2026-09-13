@@ -31,6 +31,7 @@ ok('4 layers', doc.layers.length === 4, doc.layers.length);
 ok('layer names', doc.layers.map(l => l.name).join('|') === 'Toolpath Previews|Device Layout|Templates|Dimensions', doc.layers.map(l => l.name));
 ok('layer colours (COLORREF -> #rrggbb)', doc.layers[1].color === '#99cc00' && doc.layers[2].color === '#ff0000' && doc.layers[3].color === '#999999', doc.layers.map(l => l.color));
 ok('toolpath previews discarded', doc.layers[0].objects.length === 0);
+ok('layer flags: preview layer marked, all visible', doc.layers[0].isPreviewLayer && doc.layers.every(l => l.visible) && !doc.layers.some(l => l.isBitmapLayer), doc.layers.map(l => [l.visible, l.isBitmapLayer, l.isPreviewLayer]));
 const count = L => { let n = 0, sp = 0, t = 0; const w = o => { if (o.type === 'text') t++; if (o.contours) { n += o.contours.length; o.contours.forEach(c => sp += c.spans.length); } if (o.children) o.children.forEach(w); }; L.objects.forEach(w); return { n, sp, t }; };
 ok('Device Layout: 7 contours / 36 spans', JSON.stringify(count(doc.layers[1])) === '{"n":7,"sp":36,"t":0}', count(doc.layers[1]));
 ok('Templates: 24 contours + 8 text objects', (() => { const c = count(doc.layers[2]); return c.n === 24 && c.t === 8; })(), count(doc.layers[2]));
@@ -65,14 +66,16 @@ const sh = C.toShapes(bytes);
 ok('toShapes units heuristic', sh.units === 'in' && sh.unitsSource === 'heuristic:job<=300');
 ok('toShapes job', sh.job && sh.job.w === 15.75 && sh.job.h === 5);
 ok('toShapes skips empty preview layer', sh.layers.map(l => l.name).join('|') === 'Device Layout|Templates|Dimensions');
-ok('toShapes contour counts', sh.layers.map(l => l.contours.length).join() === '7,24,0');
-ok('toShapes text skipped + reported', sh.skippedText.length === 8 && sh.skippedText[0].text === 'Toggle' && sh.skippedText[0].x === 1.5);
+ok('toShapes contour counts (text glyphs included)', sh.layers.map(l => l.contours.length).join() === '7,93,0', sh.layers.map(l => l.contours.length));
+ok('toShapes text placed by default', sh.skippedText.length === 0 && sh.layers[1].contours.filter(c => c.text).length === 69);
+{ const nt = C.toShapes(bytes, { text: false }); ok('toShapes {text:false} skips + reports', nt.layers[1].contours.length === 24 && nt.skippedText.length === 8 && nt.skippedText[0].text === 'Toggle' && nt.skippedText[0].x === 1.5, [nt.layers[1].contours.length, nt.skippedText.length]); }
 ok('toShapes point counts sane', sh.layers[0].contours.reduce((a, c) => a + c.pts.length, 0) > 200 && sh.layers[1].contours.reduce((a, c) => a + c.pts.length, 0) > 400, sh.layers.map(l => l.contours.reduce((a, c) => a + c.pts.length, 0)));
 // bbox of the Device Layout plate = the double-gang cover in the embedded preview (≈4.4 × 4.5)
 { const pts = sh.layers[0].contours.flatMap(c => c.pts); const bx = [Math.min(...pts.map(p => p.x)), Math.max(...pts.map(p => p.x))], by = [Math.min(...pts.map(p => p.y)), Math.max(...pts.map(p => p.y))];
   ok('plate bbox', bx[1] - bx[0] > 4.3 && bx[1] - bx[0] < 4.7 && by[1] - by[0] > 4.4 && by[1] - by[0] < 4.7, [bx, by]); }
 const sht = C.toShapes(bytes, { text: true, tol: 0.001 });
 ok('toShapes with text places glyphs', sht.layers[1].contours.length === 93 && sht.skippedText.length === 0, [sht.layers[1].contours.length, sht.skippedText.length]);
+ok('span/tab/bitmap readers exported for corpus tooling', typeof C._readVdContour === 'function');
 { const g = sht.layers[1].contours.filter(c => c.text); const pts = g.flatMap(c => c.pts);
   ok('placed text sits above the templates near y≈10.9', Math.min(...pts.map(p => p.y)) > 10.2 && Math.max(...pts.map(p => p.y)) < 11.4, [Math.min(...pts.map(p => p.y)), Math.max(...pts.map(p => p.y))]);
   const tog = g.slice(0, 7).flatMap(c => c.pts); const cx = (Math.min(...tog.map(p => p.x)) + Math.max(...tog.map(p => p.x))) / 2;
@@ -94,9 +97,9 @@ throws('random bytes', () => C.parse(new Uint8Array(600)), /CFB signature/);
 { const s2 = C.readCFB(bytes).get('VectorData/2dDataV2').slice(); s2[324 + 2 + 4 + 9 + 4 + 4 + 8 + 1 + 8 + 1 + 4 + 1 + 4] = 0x0D;   // first span typeCode 0 -> 13
   const r = new C._Ar(s2); r.p = 324; r.tag();
   throws('unknown span type refused', () => C._readVdContour(r), /unknown span type/); }
-{ const s2 = C.readCFB(bytes).get('VectorData/2dDataV2').slice(); s2[324 + 2 + 4 + 9] = 6;   // vdContour version 7 -> 6
+{ const s2 = C.readCFB(bytes).get('VectorData/2dDataV2').slice(); s2[324 + 2 + 4 + 9] = 5;   // vdContour version 7 -> 5 (never seen)
   const r = new C._Ar(s2); r.p = 324; r.tag();
-  throws('unknown vdContour version refused', () => C._readVdContour(r), /vdContour version 6/); }
+  throws('unknown vdContour version refused', () => C._readVdContour(r), /vdContour version 5/); }
 
 console.log(`\n${pass}/${pass + fail} crv checks passed`);
 process.exit(fail ? 1 : 0);
