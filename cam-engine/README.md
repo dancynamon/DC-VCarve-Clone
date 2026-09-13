@@ -175,17 +175,34 @@ Edit `camcore.js`, run `node test.js` (keep it green), then re-embed into the HT
 opentype + camcore + cadcore + dxfparse + the app). Ask Claude to "rebuild the
 CAD/CAM HTML from cam-engine."
 
-## `.crv` / `.crv3d` import (VCarve / Aspire)
-Open / Import (and the native picker, and drag-drop) accept `.crv` and `.crv3d`. `handleOpenedFile` routes them to
-`importCRV(name, arrayBuffer)`, which calls **`CRVPARSE.toShapes(bytes, {tol})`** from `cam-engine/crvparse.js` — the
-JavaScript port of `crvlib.py` from the *CRV Format and CADCAM Studio* project (the two agree to ~1e-14 over 2.28M points;
-change one, change the other, re-run the cross-check). `build.js` bundles `crvparse.js` only when the file is present, so a
-build without it still works and the studio reports "the .crv reader is not in this build" instead of failing silently.
+## `.crv` / `.crv3d` import (VCarve / Aspire) — `crvparse.js`
+Open / Import (the native picker and drag-drop too) accept `.crv` and `.crv3d`. `handleOpenedFile` routes them to
+`importCRV(name, arrayBuffer)` → `CRVPARSE.toShapes(bytes, {tol})`. `crvparse.js` has no dependencies and is bundled by
+`build.js`; `crvtest.js` (66 checks) runs it against `samples/NEMA-Outlet-Covers.crv` and an OLE2 `.doc` fixture.
 
-Expected return shape (flattened, job units, no scaling — the format has no units flag):
-```
-{ job:{w,h}|null, units:'in'|'mm'|null, unitsSource:string, empty:boolean,
-  layers:[ { name, color?, contours:[ { pts:[{x,y},…], closed:boolean } ] } ] }
-```
-Toolpath-preview and bitmap-frame objects must already be dropped by the parser. A parse error is shown verbatim in the
-status bar and nothing is imported — the parser refuses rather than guesses, and that is the safety feature.
+**What the format is.** An OLE2 / MS Compound File. `VectorData/2dDataV2` is an MFC `CArchive` object graph —
+`vcCadLayer → vcCadPolyline | vcCadContour | vcCadObjectGroup | txtBlock → vdContour → spans` — byte-packed, doubles on
+arbitrary offsets, class tags `0xFFFF <u16 schema> <u16 len> <name>` on first use and `0x8000|index` back-references
+(the index counts every class *and* every object, MFC semantics). Spans are inline behind a `u8` family discriminator:
+`u32 ver=2, u32 typeCode, f64 x0 y0 z0 x1 y1 z1, u32 flag` then `f64 bulge` (arc, `tan(θ/4)`, DXF convention) or
+`4×f64` control points (bezier, type 6). `VectorData/MaterialSize` carries the job (width, height, signed thickness) and
+`PreviewData/Preview2D_GIF` is VCarve's own render of the vectors — the oracle the geometry was verified against
+(100 % of the preview's ink is covered by the decoded vectors at ±1 px). Layouts measured on Aspire/VCarve 9.508 output
+(`vcCadObject` v8, `vdContour` v7, `vcCadLayer` v4). Every layout is written down in the source next to the read.
+
+**Refusals are the safety feature.** Unknown class, unexpected version, unknown span type, a span chain that does not
+connect end-to-start, or a stream that does not end exactly on the terminal `vcCadSheet` object → the parser throws and
+the status bar shows the literal error. Nothing is guessed, because guessed geometry on the router destroys material.
+A file saved after its vectors were deleted parses as EMPTY; a G-code file misnamed `.crv` is reported as not-a-CRV.
+
+**Units.** The format carries no units flag (Dan verified this by byte-diffing a metric and an inch save). Nothing is
+scaled; `units` is a heuristic (`job > 300 → mm`) and the import message says so.
+
+**Text** (`txtBlock`): glyph outlines are stored per character in glyph-local coordinates plus a base line and a 3×3
+placement transform. Their placement is *inferred* (pen model along the base line, justified, lines stacked 1.5 × height)
+and has not been verified against a preview, so `toShapes` **skips text objects by default** and lists them in
+`skippedText`; the studio reports them and asks for text converted to curves in VCarve. `toShapes(bytes, {text:true})`
+places them for anyone who wants to check.
+
+**Not seen yet, so refused:** `vcCadBitmap`, dimensions, other `vdContour` versions (Dan's notes mention v3 with spans
+as MFC objects and v6). Add a fixture and a reader when one turns up — never a resync-by-scanning heuristic.
