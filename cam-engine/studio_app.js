@@ -2049,6 +2049,11 @@ window.addEventListener('keydown', e=>{
   if((e.ctrlKey||e.metaKey)&&e.key==='z'){ e.preventDefault(); undo(); return; }
   if((e.ctrlKey||e.metaKey)&&(e.key==='y'||(e.shiftKey&&e.key==='z'))){ e.preventDefault(); redo(); return; }
   if(e.key==='Delete'||e.key==='Backspace'){ e.preventDefault(); deleteSelected(); return; }
+  if((e.ctrlKey||e.metaKey)&&(e.key==='d'||e.key==='D')){ e.preventDefault(); opDuplicate(); return; }
+  // arrow-key nudge: one snap step, Shift = 10x
+  const NUDGE={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,1],ArrowDown:[0,-1]};
+  if(NUDGE[e.key]&&sel.size){ e.preventDefault(); const k=snapStep()*(e.shiftKey?10:1), d=NUDGE[e.key]; pushHistory();
+    doc.shapes=doc.shapes.map(s=>{ if(!sel.has(s.id))return s; const t=CADCORE.translate(s,d[0]*k,d[1]*k); t.id=s.id; return t; }); render(); syncPanels(); return; }
   if(e.key==='Escape'){ hideCtxMenu(); closeMenus(); if(rotBase){ closeRotateModal(); return; } draft=null; render(); return; }
   if(e.key==='Enter'&&(tool in FORM_CREATE)&&!draft&&!modalOrig&&!rotBase){ e.preventDefault(); createFromForm(tool); return; }
   if(e.key==='Enter'&&tool==='polyline'&&draft){ commitPolyline(); return; }
