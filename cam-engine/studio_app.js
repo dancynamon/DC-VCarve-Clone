@@ -12,7 +12,9 @@ let sel = new Set();
 let tool = 'select';
 let view = { ppi: 18, ox: 80, oy: 0 };   // oy set on resize
 let grid = { on:true, step:0.5, snap:true, objSnap:true, ortho:false, rotSnap:5 };   // rotSnap = Shift rotate increment (deg)
-function snapGridPt(p){ return grid.snap&&grid.on ? { x:Math.round(p.x/grid.step)*grid.step, y:Math.round(p.y/grid.step)*grid.step } : { x:p.x, y:p.y }; }
+// Snap step follows the zoom: the grid (and snapping) subdivide 0.5 -> 0.25 -> 0.1 -> 0.05 ... as you zoom in.
+function snapStep(){ return CADCORE.gridStepFor(grid.step, view.ppi, 10); }
+function snapGridPt(p){ const st=snapStep(); return grid.snap&&grid.on ? { x:Math.round(p.x/st)*st, y:Math.round(p.y/st)*st } : { x:p.x, y:p.y }; }
 let history = [], future = [];
 let toolpaths = null;     // generated g-code segments overlay
 let drillMarks = null;    // drill hole centers overlay [{x,y}]
@@ -42,7 +44,7 @@ const INK={ ink:'#1b2b3f', sel:'#e8590c', annot:'#0f7a46',
   origin:'#d63a3a', dimLbl:'#3a5f8f', simBd:'rgba(30,45,70,0.4)' };
 const THEMES_LIGHT={
   '2d': Object.assign({}, INK, { bg:'#fbfbfd', gradTop:null, rulerBg:'rgba(236,241,247,0.94)', rulerInk:'#33414f', rulerTick:'rgba(30,45,70,0.55)', rulerBd:'#b7c4d3', rulerMark:'#e8590c',
-    grid:'rgba(30,45,70,0.08)', axis:'rgba(60,90,200,0.28)',
+    grid:'rgba(30,45,70,0.10)', gridMajor:'rgba(30,45,70,0.24)', axis:'rgba(60,90,200,0.28)',
     jobFace:'rgba(255,255,255,0.96)', jobShadow:'rgba(30,45,70,0.28)',
     jobEdge:'#5c7ea8', jobKey:'rgba(30,45,70,0.35)', jobCorner:'#3f6fa0',
     labelBg:'rgba(244,248,252,0.96)', labelBd:'#8fb0d4', labelInk:'#22384f' }),
@@ -63,7 +65,7 @@ const INK_DARK={ ink:'#dbe4ee', sel:'#ff8a3d', annot:'#5ad19a',
   origin:'#ff5c5c', dimLbl:'#9cc4ff', simBd:'rgba(200,210,230,0.4)' };
 const THEMES_DARK={
   '2d': Object.assign({}, INK_DARK, { bg:'#15191f', gradTop:null, rulerBg:'rgba(28,34,44,0.94)', rulerInk:'#c3cfdc', rulerTick:'rgba(220,230,245,0.55)', rulerBd:'#3a4656', rulerMark:'#ff8a3d',
-    grid:'rgba(255,255,255,0.055)', axis:'rgba(120,150,255,0.35)',
+    grid:'rgba(255,255,255,0.07)', gridMajor:'rgba(255,255,255,0.17)', axis:'rgba(120,150,255,0.35)',
     jobFace:'rgba(30,36,46,0.96)', jobShadow:'rgba(0,0,0,0.5)',
     jobEdge:'#7fa4d0', jobKey:'rgba(255,255,255,0.25)', jobCorner:'#8fb8e8',
     labelBg:'rgba(24,30,40,0.96)', labelBd:'#4a6a90', labelInk:'#dbe4ee' }),
@@ -98,7 +100,7 @@ function drawRulers(){ const th=TH(); const W=cv.width, H=cv.height, R=RULER_W;
   ctx.save(); ctx.fillStyle=th.rulerBg; ctx.fillRect(0,0,W,R); ctx.fillRect(0,0,R,H);
   ctx.strokeStyle=th.rulerBd; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(0,R+0.5); ctx.lineTo(W,R+0.5); ctx.moveTo(R+0.5,0); ctx.lineTo(R+0.5,H); ctx.stroke();
   ctx.strokeStyle=th.rulerTick; ctx.fillStyle=th.rulerInk; ctx.font='9px monospace';
-  const fmt=v=>{ const r=Math.round(v*1000)/1000; return (Math.abs(r)<1e-9?0:r).toString(); };
+  const fmt=v=>{ const r=Math.round(v*10000)/10000; return (Math.abs(r)<1e-9?0:r).toString(); };
   const w0=S2W({x:R,y:H}), w1=S2W({x:W,y:R});
   ctx.beginPath(); ctx.textAlign='left'; ctx.textBaseline='top';
   for(let x=Math.floor(w0.x/minor)*minor; x<=w1.x; x+=minor){ const sx=Math.round(W2S({x,y:0}).x)+0.5; if(sx<R)continue;
@@ -145,7 +147,7 @@ function snapWorld(scr){
       for(const sp of CADCORE.snapPoints(s)){ const d=Math.hypot(sp.x-w.x, sp.y-w.y); if(d<bestD){bestD=d; best={x:sp.x,y:sp.y,kind:sp.kind};} } }
   }
   if(best) return best;
-  if(grid.snap && grid.on){ return { x: Math.round(w.x/grid.step)*grid.step, y: Math.round(w.y/grid.step)*grid.step, kind:'grid' }; }
+  if(grid.snap && grid.on){ const g=snapGridPt(w); return { x:g.x, y:g.y, kind:'grid' }; }
   return { x:w.x, y:w.y, kind:null };
 }
 
@@ -161,8 +163,8 @@ function render(){
   else ctx.fillStyle=th.bg;
   ctx.fillRect(0,0,cv.width,cv.height);
   if(pv && simField){ drawSimField(); updateHud(); return; }   // solid material-removal view
-  if(!pv) drawGrid();          // Preview: clean material, no grid
-  drawJob();
+  if(!pv && !job.show) drawGrid();   // grid lives on the job sheet (drawn inside drawJob); none in Preview
+  drawJob(!pv);
   if(bgImage) drawBgImage();   // reference bitmap over the stock panel, under the vectors
   // shapes — dimmed reference lines in Preview, no selection colour
   for(const s of doc.shapes){
@@ -184,14 +186,16 @@ function render(){
   updateHud();
 }
 function drawGrid(){
+  if(!grid.on) return;
   const w0=S2W({x:0,y:cv.height}), w1=S2W({x:cv.width,y:0});
-  let step=grid.step; const px=step*view.ppi; while(step*view.ppi<8) step*=2; 
+  const step=snapStep(); const major=step<1 ? 1 : step*10;   // darker line every inch
   ctx.lineWidth=1;
-  ctx.strokeStyle=TH().grid;
-  ctx.beginPath();
-  for(let x=Math.floor(w0.x/step)*step; x<=w1.x; x+=step){ const sx=W2S({x,y:0}).x; ctx.moveTo(sx,0); ctx.lineTo(sx,cv.height); }
-  for(let y=Math.floor(w0.y/step)*step; y<=w1.y; y+=step){ const sy=W2S({x:0,y}).y; ctx.moveTo(0,sy); ctx.lineTo(cv.width,sy); }
-  ctx.stroke();
+  const lines=(isMajor)=>{ ctx.beginPath();
+    for(let i=Math.floor(w0.x/step); i*step<=w1.x; i++){ const x=i*step; if(isMajor!==(Math.abs(x/major-Math.round(x/major))<1e-6))continue; const sx=Math.round(W2S({x,y:0}).x)+0.5; ctx.moveTo(sx,0); ctx.lineTo(sx,cv.height); }
+    for(let i=Math.floor(w0.y/step); i*step<=w1.y; i++){ const y=i*step; if(isMajor!==(Math.abs(y/major-Math.round(y/major))<1e-6))continue; const sy=Math.round(W2S({x:0,y}).y)+0.5; ctx.moveTo(0,sy); ctx.lineTo(cv.width,sy); }
+    ctx.stroke(); };
+  ctx.strokeStyle=TH().grid; lines(false);
+  ctx.strokeStyle=TH().gridMajor||TH().grid; lines(true);
   // axes
   ctx.strokeStyle=TH().axis; ctx.beginPath();
   const o=W2S({x:0,y:0}); ctx.moveTo(o.x,0);ctx.lineTo(o.x,cv.height); ctx.moveTo(0,o.y);ctx.lineTo(cv.width,o.y); ctx.stroke();
@@ -298,7 +302,7 @@ let snapMark=null;
 // ---- HUD / status ----
 function updateHud(){ document.getElementById('zoomlbl').textContent = Math.round(view.ppi)+' px/in · '+doc.shapes.length+' obj · '+sel.size+' sel'; }
 function setMsg(m){ msg=m; document.getElementById('msg').textContent=m; }
-function updateCursor(scr){ const w=S2W(scr); document.getElementById('coords').textContent = w.x.toFixed(3)+', '+w.y.toFixed(3)+' in'; lastScr=scr; drawRulerMarks(scr); }
+function updateCursor(scr){ const w=S2W(scr); const dp=view.ppi>=400?4:3; document.getElementById('coords').textContent = w.x.toFixed(dp)+', '+w.y.toFixed(dp)+' in'; lastScr=scr; drawRulerMarks(scr); }
 // hover feedback for the Select tool: rotate icon over a corner grip, resize arrows over a scale handle, move over a shape
 const ROTATE_CURSOR="url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 22 22'><path d='M11 3a8 8 0 1 1-7.4 4.9' fill='none' stroke='white' stroke-width='4'/><path d='M11 3a8 8 0 1 1-7.4 4.9' fill='none' stroke='%23222' stroke-width='2'/><path d='M2 3v6h6' fill='none' stroke='white' stroke-width='4'/><path d='M2 3v6h6' fill='none' stroke='%23222' stroke-width='2'/></svg>\") 11 11, alias";
 const SCALE_CURSORS={nw:'nwse-resize',se:'nwse-resize',ne:'nesw-resize',sw:'nesw-resize',n:'ns-resize',s:'ns-resize',e:'ew-resize',w:'ew-resize'};
@@ -633,7 +637,7 @@ function evScr(e){ const r=cv.getBoundingClientRect(); return { x:e.clientX-r.le
 cv.addEventListener('mousedown', e=>{
   if(e.button===2) return;   // right-click handled by contextmenu
   const scr=evScr(e); const snap=snapWorld(scr); const w={x:snap.x,y:snap.y};
-  if(e.button===1 || tool==='pan' || e.altKey){ drag={kind:'pan', sx:scr.x, sy:scr.y, ox:view.ox, oy:view.oy}; return; }
+  if(e.button===1 || tool==='pan' || e.altKey || e.metaKey){ drag={kind:'pan', sx:scr.x, sy:scr.y, ox:view.ox, oy:view.oy}; return; }
   if(viewMode==='preview') return;   // Preview is read-only (pan/zoom only)
   if(tool==='select'){ return selectDown(scr,w,e); }
   if(tool==='node'){ return nodeDown(scr,w,e); }
@@ -698,7 +702,7 @@ cv.addEventListener('dblclick', e=>{
   if(tool==='select'){ const w=snapWorld(evScr(e)); const s=pickShapeAt({x:w.x,y:w.y}); if(s){ sel=new Set([s.id]); openShapeModal(s); } }
 });
 cv.addEventListener('wheel', e=>{ e.preventDefault(); const scr=evScr(e); const before=S2W(scr);
-  const f=Math.exp(-e.deltaY*0.0015); view.ppi=Math.max(2,Math.min(800,view.ppi*f));
+  const f=Math.exp(-e.deltaY*0.0015); view.ppi=Math.max(2,Math.min(6000,view.ppi*f));
   const after=S2W(scr); view.ox += (after.x-before.x)*0 + (scr.x-(view.ox+before.x*view.ppi)); // recompute properly below
   // recompute offset so 'before' world stays under cursor
   view.ox = scr.x - before.x*view.ppi; view.oy = scr.y + before.y*view.ppi; render(); }, {passive:false});
@@ -727,7 +731,7 @@ function setModalAnchor(a){ if(!CADCORE.ANCHORS[a]) return;
   else modalAnchor=a;
   try{ localStorage.setItem('aqcam.anchor', a); }catch(e){}
   document.querySelectorAll('.ahint').forEach(h=>{ h.textContent='X / Y = '+CADCORE.ANCHORS[a].label+' of the shape'; });
-  document.querySelectorAll('.fanchor .agrid .ab, #modalFields .agrid .ab').forEach(b=>b.classList.toggle('on', b.dataset.a===a));
+  document.querySelectorAll('.fanchor .agrid .ab, #modalFields .agrid .ab, #props .agrid .ab').forEach(b=>b.classList.toggle('on', b.dataset.a===a));
 }
 // The draw forms share one anchor grid: every form gets a copy, all kept in sync with modalAnchor.
 function initFormAnchors(){ document.querySelectorAll('.fanchor').forEach(host=>{
@@ -779,7 +783,7 @@ function openShapeModal(shape){ if(!shape)return; modalShape=shape; modalOrig=CA
 }
 // rebuild the edited shape from the current field values (always from the pristine baseline, so previews don't drift)
 function buildShapeFromFields(){ const host=document.getElementById('modalFields'); const kind=host.dataset.kind; const vals={};
-  host.querySelectorAll('input').forEach(inp=>{ vals[inp.dataset.k]= inp.type==='number'?(parseFloat(inp.value)||0):inp.value; });
+  host.querySelectorAll('input').forEach(inp=>{ vals[inp.dataset.k]= (inp.type==='number'||inp.classList.contains('calc'))?(parseFloat(inp.value)||0):inp.value; });
   host.querySelectorAll('select').forEach(sl=>{ vals[sl.dataset.k]=sl.value; });
   const hasAnchor=('ax' in vals)&&('ay' in vals); const A={ x:isFinite(vals.ax)?vals.ax:0, y:isFinite(vals.ay)?vals.ay:0 };
   if(kind==='generic'){ let s=CADCORE.fitShapeTo(modalOrig, null, null, vals.w, vals.h);   // size first (position kept)...
@@ -1890,13 +1894,14 @@ function delTool(){ const el=document.getElementById('camToolLib'); if(!el||!el.
 function jobRect(){ const {w,h,origin}=job; let x0=0,y0=0;
   if(origin==='br'){x0=-w;} else if(origin==='tl'){y0=-h;} else if(origin==='tr'){x0=-w;y0=-h;} else if(origin==='center'){x0=-w/2;y0=-h/2;}
   return {x0,y0,x1:x0+w,y1:y0+h}; }
-function drawJob(){ if(!job.show)return; const r=jobRect(); const a=W2S({x:r.x0,y:r.y1}), b=W2S({x:r.x1,y:r.y0});
+function drawJob(withGrid){ if(!job.show)return; const r=jobRect(); const a=W2S({x:r.x0,y:r.y1}), b=W2S({x:r.x1,y:r.y0});
   const x=a.x, y=a.y, w=b.x-a.x, h=b.y-a.y;
   ctx.save();
   // drop shadow so the stock reads as a solid panel sitting above the grid
   ctx.shadowColor=TH().jobShadow; ctx.shadowBlur=14; ctx.shadowOffsetX=3; ctx.shadowOffsetY=4;
   ctx.fillStyle=TH().jobFace; ctx.fillRect(x,y,w,h);   // material face — clearly lighter than the #0c0f14 canvas, faint grid bleeds through
   ctx.shadowColor='transparent'; ctx.shadowBlur=0; ctx.shadowOffsetX=0; ctx.shadowOffsetY=0;
+  if(withGrid){ ctx.save(); ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip(); drawGrid(); ctx.restore(); }   // grid on the sheet only
   // bright bordered edge (outer dark keyline + inner bright line for definition)
   ctx.strokeStyle=TH().jobKey; ctx.lineWidth=3; ctx.strokeRect(x,y,w,h);
   ctx.strokeStyle=TH().jobEdge; ctx.lineWidth=1.5; ctx.strokeRect(x,y,w,h);
@@ -1970,17 +1975,63 @@ function buildLayers(){ const el=document.getElementById('layerList'); if(!el)re
   const add=document.createElement('button'); add.className='tb'; add.textContent='+ Add layer'; add.title='Create a new layer and make it active'; add.onclick=()=>addLayer(); el.appendChild(add);
   const hint=document.createElement('div'); hint.className='muted'; hint.style.width='100%'; hint.textContent='New shapes go on the active (highlighted) layer.'; el.appendChild(hint); }
 function buildProps(){ const el=document.getElementById('props'); if(!el)return; const sh=selectedShapes();
+  if(el.contains(document.activeElement) && document.activeElement.tagName==='INPUT') return;   // don't rebuild under the cursor while typing
   if(!sh.length){ el.innerHTML='<div class="muted">No selection</div>'; return; }
-  if(sh.length>1){ const b=CADCORE.bboxAll(sh); el.innerHTML='<div class="muted">'+sh.length+' selected</div><div class="prow">W '+(b.maxX-b.minX).toFixed(3)+'"  H '+(b.maxY-b.minY).toFixed(3)+'"</div>'; return; }
-  const s=sh[0]; const b=CADCORE.bbox(s); let h='<div class="prow">type: '+(s.prim?s.prim.kind:s.type)+'</div>';
-  if(s.type==='dim'){ const g=CADCORE.dimensionGeometry(s.prim);
-    h+='<div class="prow">'+s.prim.style+': <b>'+g.text+'</b></div><div class="prow muted">annotation — not machined</div>'; }
-  h+='<div class="prow">X '+b.minX.toFixed(3)+'  Y '+b.minY.toFixed(3)+'</div>';
-  h+='<div class="prow">W '+(b.maxX-b.minX).toFixed(3)+'"  H '+(b.maxY-b.minY).toFixed(3)+'"</div>';
-  h+='<div class="prow">closed: '+(s.closed?'yes':'no')+(s.type==='text'?(' · "'+s.text+'"'):'')+' · layer: '+s.layer+'</div>';
-  h+='<button class="tb" id="btnEditShape" data-tip="Edit exact dimensions (or double-click the shape)" style="margin-top:5px">Edit…</button>';
-  el.innerHTML=h;
-  const eb=document.getElementById('btnEditShape'); if(eb)eb.onclick=()=>openShapeModal(s); }
+  const b=CADCORE.bboxAll(sh); const pt=CADCORE.bboxAnchor(b, modalAnchor); const f=v=>(+v.toFixed(4));
+  // Position readout: pick any of the 9 bbox points; X / Y show that point exactly, and typing a value
+  // (arithmetic allowed) moves / resizes the selection about it.
+  let h='<div class="pos"><div class="posgrid">'+anchorGridHTML(modalAnchor,'small')+'</div><div class="posf">'
+    +'<label>X<input type="number" id="pX" step="0.125" value="'+f(pt.x)+'"></label><label>Y<input type="number" id="pY" step="0.125" value="'+f(pt.y)+'"></label>'
+    +'<label>W<input type="number" id="pW" step="0.125" value="'+f(b.maxX-b.minX)+'"></label><label>H<input type="number" id="pH" step="0.125" value="'+f(b.maxY-b.minY)+'"></label>'
+    +'</div></div><div class="prow muted ahint">X / Y = '+CADCORE.ANCHORS[modalAnchor].label+(sh.length>1?' of the selection':' of the shape')+'</div>';
+  if(sh.length>1){ h='<div class="muted">'+sh.length+' selected</div>'+h; }
+  else { const s=sh[0]; h='<div class="prow">type: '+(s.prim?s.prim.kind:s.type)+'</div>'+h;
+    if(s.type==='dim'){ const g=CADCORE.dimensionGeometry(s.prim);
+      h+='<div class="prow">'+s.prim.style+': <b>'+g.text+'</b></div><div class="prow muted">annotation — not machined</div>'; }
+    h+='<div class="prow">closed: '+(s.closed?'yes':'no')+(s.type==='text'?(' · "'+_esc(s.text)+'"'):'')+' · layer: '+s.layer+'</div>';
+    h+='<button class="tb" id="btnEditShape" data-tip="Edit exact dimensions (or double-click the shape)" style="margin-top:5px">Edit…</button>'; }
+  el.innerHTML=h; calcify(el);
+  wireAnchorGrid(el, a=>{ setModalAnchor(a); buildProps(); });
+  const g=id=>el.querySelector('#'+id);
+  const onPos=()=>{ const x=parseFloat(g('pX').value), y=parseFloat(g('pY').value); if(!isFinite(x)||!isFinite(y))return;
+    const cur=selectedShapes(); if(!cur.length)return; const p0=CADCORE.bboxAnchor(CADCORE.bboxAll(cur), modalAnchor);
+    if(Math.abs(p0.x-x)<1e-9&&Math.abs(p0.y-y)<1e-9)return; pushHistory();
+    const mm=new Map(CADCORE.moveGroupAnchorTo(cur, modalAnchor, x, y).map(m=>[m.id,m])); doc.shapes=doc.shapes.map(s=>mm.get(s.id)||s);
+    render(); scheduleAutosave(); setMsg('Moved '+CADCORE.ANCHORS[modalAnchor].label+' to '+f(x)+', '+f(y)); };
+  const onSize=()=>{ const nw=parseFloat(g('pW').value), nh=parseFloat(g('pH').value); const cur=selectedShapes(); if(!cur.length)return;
+    const bb=CADCORE.bboxAll(cur), w0=bb.maxX-bb.minX, h0=bb.maxY-bb.minY; const ap=CADCORE.bboxAnchor(bb, modalAnchor);
+    const sx=(w0>1e-9&&nw>0)?nw/w0:1, sy=(h0>1e-9&&nh>0)?nh/h0:1; if(Math.abs(sx-1)<1e-12&&Math.abs(sy-1)<1e-12)return; pushHistory();
+    if(cur.length===1 && cur[0].prim && !cur[0].prim.rot){ const X0=ap.x+(bb.minX-ap.x)*sx, Y0=ap.y+(bb.minY-ap.y)*sy;
+      const ns=CADCORE.fitPrimTo(cur[0], X0, Y0, w0*sx, h0*sy, Math.abs(sx-sy)<1e-9); if(ns){ doc.shapes=doc.shapes.map(s=>s.id===ns.id?ns:s); render(); scheduleAutosave(); return; } }
+    const mm=new Map(cur.map(o=>{ const t=CADCORE.scale(o,ap.x,ap.y,sx,sy); t.id=o.id; return [o.id,t]; })); doc.shapes=doc.shapes.map(s=>mm.get(s.id)||s);
+    render(); scheduleAutosave(); };
+  g('pX').onchange=onPos; g('pY').onchange=onPos; g('pW').onchange=onSize; g('pH').onchange=onSize;
+  el.querySelectorAll('.posf input').forEach(inp=>inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); inp.dispatchEvent(new Event('change')); inp.select(); } }));
+  const eb=document.getElementById('btnEditShape'); if(eb)eb.onclick=()=>openShapeModal(sh[0]); }
+
+// ---- arithmetic in numeric fields ----
+// Every numeric field accepts an expression ("35.5/2", "12+3*0.25", "(48.5-2)/3"); it resolves in place on
+// Enter, Tab or leaving the field, before the field's own handlers see it. Arrow Up/Down step by the field's step.
+// Number inputs become text inputs (a type=number field rejects '/' and '*'); new ones are converted as they appear.
+function calcify(root){ (root||document).querySelectorAll('input[type=number]').forEach(inp=>{
+  inp.dataset.step=inp.getAttribute('step')||''; inp.type='text'; inp.inputMode='decimal'; inp.classList.add('calc'); inp.spellcheck=false;
+  if(!inp.title) inp.title='Type a number or arithmetic, e.g. 35.5/2'; }); }
+function calcResolve(inp){ const raw=inp.value; if(raw.trim()==='' || /^-?\d*\.?\d+$/.test(raw.trim())) { inp.classList.remove('bad'); return true; }
+  const v=CADCORE.evalExpr(raw); if(v==null){ inp.classList.add('bad'); setMsg('Not a number: "'+raw+'"'); return false; }
+  inp.classList.remove('bad'); inp.value=CADCORE.fmtNum(v); return true; }
+function initCalcFields(){
+  calcify(document);
+  new MutationObserver(ms=>{ for(const m of ms) for(const n of m.addedNodes){ if(n.nodeType!==1)continue;
+    if(n.matches&&n.matches('input[type=number]')) calcify(n.parentNode); else if(n.querySelector&&n.querySelector('input[type=number]')) calcify(n); } })
+    .observe(document.body,{childList:true,subtree:true});
+  const isCalc=t=>t&&t.classList&&t.classList.contains('calc');
+  document.addEventListener('keydown',e=>{ const t=e.target; if(!isCalc(t))return;
+    if(e.key==='Enter'||e.key==='Tab'){ const before=t.value; calcResolve(t); if(t.value!==before){ t.dispatchEvent(new Event('input',{bubbles:true})); if(e.key==='Enter') t.dispatchEvent(new Event('change',{bubbles:true})); } }
+    else if(e.key==='ArrowUp'||e.key==='ArrowDown'){ e.preventDefault(); calcResolve(t);
+      const st=parseFloat(t.dataset.step)||1, v=parseFloat(t.value)||0; t.value=CADCORE.fmtNum(v+(e.key==='ArrowUp'?st:-st));
+      t.dispatchEvent(new Event('input',{bubbles:true})); t.dispatchEvent(new Event('change',{bubbles:true})); } }, true);
+  document.addEventListener('change',e=>{ if(isCalc(e.target)) calcResolve(e.target); }, true);
+  document.addEventListener('focusout',e=>{ if(isCalc(e.target)) calcResolve(e.target); }, true); }
 
 // ---- keyboard ----
 window.addEventListener('keydown', e=>{
@@ -2175,7 +2226,7 @@ function initTips(){ const tip=document.getElementById('tip'); if(!tip) return; 
     cur=el; timer=setTimeout(()=>{ if(cur===el) place(el); }, 350); });
   document.addEventListener('mouseout', e=>{ const el=e.target.closest&&e.target.closest('[data-tip]'); if(el&&el===cur&&!(e.relatedTarget&&el.contains(e.relatedTarget))) hide(); });
   document.addEventListener('mousedown', hide, true); window.addEventListener('scroll', hide, true); window.addEventListener('blur', hide); }
-wire(); initTips(); resize(); setTool('select'); syncPanels(); render();
+wire(); initCalcFields(); initTips(); resize(); setTool('select'); syncPanels(); render();
 window.AQ_STUDIO = { doc, get sel(){return sel;}, get view(){return viewMode;}, CADCORE, CAM, importText, importPDF, openProject, saveProject, saveProjectAs, projectJSON, setView, camBuild, setTool, addShapes, render,
   opCopy, opCut, opPaste, get clip(){return clip;}, createFromForm, openShapeModal, applyShapeModal, closeShapeModal, setModalAnchor, setRotAnchor, get anchor(){return modalAnchor;}, get rotAnchor(){return rotAnchor;},
   openRotateModal, applyRotateModal, addLayer, moveSelToLayer, get grid(){return grid;}, selectedShapes, get projectFile(){return projectFile;},

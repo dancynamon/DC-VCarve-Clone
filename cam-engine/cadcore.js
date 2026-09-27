@@ -684,6 +684,35 @@ function moveGroupAnchorTo(shapes, anchor, x, y) {
   return shapes.map(s => { const t = translate(s, x - a.x, y - a.y); t.id = s.id; return t; });
 }
 
+// ---------- numeric field arithmetic ----------
+// Evaluate a typed field value such as "35.5/2", "12+3.25*2", "(10-2)/4", "-1.5". Only numbers,
+// + - * / ( ) and spaces are accepted (no eval). Returns a finite number, or null when the text is not
+// a valid expression.
+function evalExpr(text) {
+  const src = String(text == null ? '' : text).replace(/,/g, '').trim(); if (!src) return null;
+  if (!/^[0-9.+\-*/()\s]+$/.test(src)) return null;
+  let i = 0; const ws = () => { while (src[i] === ' ' || src[i] === '\t') i++; };
+  function num() { ws(); const m = /^(\d+\.?\d*|\.\d+)/.exec(src.slice(i)); if (!m) throw 0; i += m[0].length; return parseFloat(m[0]); }
+  function atom() { ws(); const c = src[i];
+    if (c === '-') { i++; return -atom(); } if (c === '+') { i++; return atom(); }
+    if (c === '(') { i++; const v = sum(); ws(); if (src[i] !== ')') throw 0; i++; return v; }
+    return num(); }
+  function prod() { let v = atom(); for (;;) { ws(); const c = src[i]; if (c === '*') { i++; v *= atom(); } else if (c === '/') { i++; v /= atom(); } else return v; } }
+  function sum() { let v = prod(); for (;;) { ws(); const c = src[i]; if (c === '+') { i++; v += prod(); } else if (c === '-') { i++; v -= prod(); } else return v; } }
+  try { const v = sum(); ws(); if (i !== src.length || !isFinite(v)) return null; return v; } catch (e) { return null; }
+}
+// Format a computed value for a field: up to 6 decimals, trailing zeros dropped.
+function fmtNum(v) { const r = Math.round(v * 1e6) / 1e6; return String(Object.is(r, -0) ? 0 : r); }
+
+// ---------- zoom-adaptive grid ----------
+// The finest step, from base divided by the 1-2-5 ladder (0.5 -> 0.25, 0.1, 0.05, 0.025, 0.01 ...), that is still
+// at least minPx on screen; coarser (x2) when even the base step is too small. Snapping uses this step so
+// zooming in gives finer placement.
+const GRID_DIVS = [1, 2, 5, 10, 20, 50, 100, 200, 500];
+function gridStepFor(base, ppi, minPx) { base = base > 0 ? base : 0.5; minPx = minPx || 10;
+  let best = base; for (const d of GRID_DIVS) { const s = base / d; if (s * ppi >= minPx && s >= 0.0009) best = s; else break; }
+  while (best * ppi < minPx) best *= 2; return best; }
+
 // ---------- TTF outline text ----------
 // Convert an SVG-path-data string (as produced by opentype.js Path.toPathData) into
 // closed CAD contours: flip from font y-down to CAD y-up, scale so the overall height
@@ -947,6 +976,6 @@ return {
   primParams, applyPrimParams, fitShapeTo, fitPrimTo,
   ANCHORS, anchorPoint, bboxAnchor, moveAnchorTo, moveGroupAnchorTo,
   projectToJSON, projectFromJSON, PROJECT_VERSION,
-  validateShapes
+  validateShapes, evalExpr, fmtNum, gridStepFor, GRID_DIVS
 };
 });
