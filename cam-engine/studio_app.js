@@ -1194,7 +1194,10 @@ function opJoin(){ const sh=selectedShapes().filter(s=>s.type==='path'); if(sh.l
 
 // ---- import / export ----
 function importText(name, text){
-  if(/\.dxf$/i.test(name)){ const ents=parseDxf(text); const polys=[]; for(const e of ents){ for(const p of entityToPolys(e)) polys.push(p); } const shapes=CADCORE.dxfPolysToShapes(polys); pushHistory(); addShapes(shapes); fitAll(); }
+  if(/\.dxf$/i.test(name)){ const ents=parseDxf(text); const polys=[]; for(const e of ents){ for(const p of entityToPolys(e)) polys.push(p); } const shapes=CADCORE.dxfPolysToShapes(polys);
+    pushHistory(); CADCORE.registerDxfLayers(doc.layers, polys.filter(p=>p.type!=='TEXT'&&p.type!=='DIMENSION')); addShapes(shapes); fitAll(); buildLayers();
+    const K=new Set(shapes.map(s=>s.layer)).size; syncPanels(); render();
+    setMsg('Imported '+shapes.length+' vector'+(shapes.length!==1?'s':'')+' on '+K+' layer'+(K!==1?'s':'')+' from '+name); return; }
   else if(/\.svg$/i.test(name)){ const shapes=CADCORE.svgToShapes(text); pushHistory(); addShapes(shapes); fitAll(); }
   else { setMsg('Unsupported file: '+name); }
   syncPanels(); render();

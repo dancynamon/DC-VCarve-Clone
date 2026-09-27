@@ -338,6 +338,22 @@ function dxfPolysToShapes(dxfPolys) {
   return out;
 }
 
+// ---------- DXF layers ----------
+// AutoCAD Color Index 1-9 (the standard colours); others fall back to the name-based default.
+const ACI_HEX = { 1:'#ff0000', 2:'#e0c000', 3:'#00a000', 4:'#00b0b0', 5:'#0000ff', 6:'#c000c0', 7:'#1b2b3f', 8:'#808080', 9:'#b0b0b0' };
+function aciToHex(aci) { const n = Math.abs(parseInt(aci, 10)); return ACI_HEX[n] || null; }   // 0 BYBLOCK / 256 BYLAYER -> null
+function defaultLayerColor(name) { const n = String(name || '').toUpperCase();
+  if (n.startsWith('INSIDE')) return '#d0342c'; if (n.startsWith('POCKET')) return '#2a6fdb'; if (n.startsWith('SHEET')) return '#9aa0a6';
+  return '#1b2b3f'; }
+// Register every layer used by imported DXF polys in a layers Map (name -> {visible,color}). Colour = the first
+// entity ACI colour found on that layer, else the name default. Existing layers are left untouched.
+// Returns the layer names used, in first-seen order.
+function registerDxfLayers(layers, polys) { const used = [], aci = new Map();
+  for (const p of polys) { const l = p.layer || '0'; if (!aci.has(l)) { used.push(l); aci.set(l, null); }
+    if (aci.get(l) == null && p.ent && p.ent.color != null) aci.set(l, aciToHex(p.ent.color)); }
+  for (const l of used) if (!layers.has(l)) layers.set(l, { visible: true, color: aci.get(l) || defaultLayerColor(l) });
+  return used; }
+
 // ---------- export ----------
 function toDXF(shapes) {
   const L = ['0','SECTION','2','ENTITIES'];
@@ -976,6 +992,6 @@ return {
   primParams, applyPrimParams, fitShapeTo, fitPrimTo,
   ANCHORS, anchorPoint, bboxAnchor, moveAnchorTo, moveGroupAnchorTo,
   projectToJSON, projectFromJSON, PROJECT_VERSION,
-  validateShapes, evalExpr, fmtNum, gridStepFor, GRID_DIVS
+  validateShapes, registerDxfLayers, aciToHex, defaultLayerColor, evalExpr, fmtNum, gridStepFor, GRID_DIVS
 };
 });
