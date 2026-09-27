@@ -583,7 +583,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
     <span><span class="v" id="zoomlbl"></span></span>
     <span id="msg" class="v"></span>
     <button class="tb" id="btnTheme" title="Switch to dark mode" style="margin-left:auto;font-size:10px;padding:1px 7px">☾ Dark</button>
-    <span class="ver" id="appVer" title="Build version">v0.3.0 · build 260927.0241</span>
+    <span class="ver" id="appVer" title="Build version">v0.3.0 · build 260927.0455</span>
   </div>
 </div>
 <div id="tip"></div>
@@ -12289,6 +12289,8 @@ function setTool(t){ if(t!=='measure') measure=null; tool=t; sel=(t==='node')?se
   const form=TOOL_FORMS[t];
   if(form) showForm(form,'drawing');            // the tool's options take over the dock
   else if(formOpen() && t!=='clipart' && t!=='select') setCmdTab(cmdTab);
+  else if(formOpen() && t==='select'){   // back to Select: a draw tool's form gives the dock back (Selection / position panel); Job / Nesting stay
+    const f=document.querySelector('#paneForm .tform.active'); if(f && Object.values(TOOL_FORMS).includes(f.dataset.form)) setCmdTab(cmdTab); }
   cv.style.cursor='';
   setMsg((TOOLMSG[t]||'')+(t in FORM_CREATE?'  ·  Enter = Create from the form (anchor + size)':'')); render(); }
 const FORM_CREATE={rect:1,rrect:1,circle:1,ellipse:1,polygon:1,star:1,text:1};
