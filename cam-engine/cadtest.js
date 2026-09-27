@@ -405,5 +405,15 @@ let inp=C.shapesToContoursInput([r,ci]); ok('contours input closed',inp.every(c=
   ok('savename: the alternative is itself acceptable', ['design.tap','design.aqcam','noext'].every(n=>f(f(n).alt).alt===null));
 })();
 
+// field arithmetic + zoom-adaptive grid step
+ok('expr: 35.5/2 = 17.75', C.evalExpr('35.5/2')===17.75);
+ok('expr: precedence', C.evalExpr('12+3.25*2')===18.5 && C.evalExpr('(10-2)/4')===2);
+ok('expr: unary minus', C.evalExpr('-1.5')===-1.5 && C.evalExpr('2*-3')===-6);
+ok('expr: rejects junk / div-by-zero / empty', C.evalExpr('abc')===null && C.evalExpr('1/0')===null && C.evalExpr('')===null && C.evalExpr('3..')===null && C.evalExpr('alert(1)')===null);
+ok('expr: fmtNum trims', C.fmtNum(17.75)==='17.75' && C.fmtNum(1/3)==='0.333333' && C.fmtNum(-0)==='0');
+ok('grid: coarsens when zoomed out', C.gridStepFor(0.5,5,10)===2);
+ok('grid: refines when zoomed in', close(C.gridStepFor(0.5,200,10),0.05) && close(C.gridStepFor(0.5,5000,10),0.0025));
+ok('grid: base step at mid zoom', C.gridStepFor(0.5,25,10)===0.5);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

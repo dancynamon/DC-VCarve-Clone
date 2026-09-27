@@ -338,6 +338,22 @@ function dxfPolysToShapes(dxfPolys) {
   return out;
 }
 
+// ---------- DXF layers ----------
+// AutoCAD Color Index 1-9 (the standard colours); others fall back to the name-based default.
+const ACI_HEX = { 1:'#ff0000', 2:'#e0c000', 3:'#00a000', 4:'#00b0b0', 5:'#0000ff', 6:'#c000c0', 7:'#1b2b3f', 8:'#808080', 9:'#b0b0b0' };
+function aciToHex(aci) { const n = Math.abs(parseInt(aci, 10)); return ACI_HEX[n] || null; }   // 0 BYBLOCK / 256 BYLAYER -> null
+function defaultLayerColor(name) { const n = String(name || '').toUpperCase();
+  if (n.startsWith('INSIDE')) return '#d0342c'; if (n.startsWith('POCKET')) return '#2a6fdb'; if (n.startsWith('SHEET')) return '#9aa0a6';
+  return '#1b2b3f'; }
+// Register every layer used by imported DXF polys in a layers Map (name -> {visible,color}). Colour = the first
+// entity ACI colour found on that layer, else the name default. Existing layers are left untouched.
+// Returns the layer names used, in first-seen order.
+function registerDxfLayers(layers, polys) { const used = [], aci = new Map();
+  for (const p of polys) { const l = p.layer || '0'; if (!aci.has(l)) { used.push(l); aci.set(l, null); }
+    if (aci.get(l) == null && p.ent && p.ent.color != null) aci.set(l, aciToHex(p.ent.color)); }
+  for (const l of used) if (!layers.has(l)) layers.set(l, { visible: true, color: aci.get(l) || defaultLayerColor(l) });
+  return used; }
+
 // ---------- export ----------
 function toDXF(shapes) {
   const L = ['0','SECTION','2','ENTITIES'];
@@ -684,6 +700,35 @@ function moveGroupAnchorTo(shapes, anchor, x, y) {
   return shapes.map(s => { const t = translate(s, x - a.x, y - a.y); t.id = s.id; return t; });
 }
 
+// ---------- numeric field arithmetic ----------
+// Evaluate a typed field value such as "35.5/2", "12+3.25*2", "(10-2)/4", "-1.5". Only numbers,
+// + - * / ( ) and spaces are accepted (no eval). Returns a finite number, or null when the text is not
+// a valid expression.
+function evalExpr(text) {
+  const src = String(text == null ? '' : text).replace(/,/g, '').trim(); if (!src) return null;
+  if (!/^[0-9.+\-*/()\s]+$/.test(src)) return null;
+  let i = 0; const ws = () => { while (src[i] === ' ' || src[i] === '\t') i++; };
+  function num() { ws(); const m = /^(\d+\.?\d*|\.\d+)/.exec(src.slice(i)); if (!m) throw 0; i += m[0].length; return parseFloat(m[0]); }
+  function atom() { ws(); const c = src[i];
+    if (c === '-') { i++; return -atom(); } if (c === '+') { i++; return atom(); }
+    if (c === '(') { i++; const v = sum(); ws(); if (src[i] !== ')') throw 0; i++; return v; }
+    return num(); }
+  function prod() { let v = atom(); for (;;) { ws(); const c = src[i]; if (c === '*') { i++; v *= atom(); } else if (c === '/') { i++; v /= atom(); } else return v; } }
+  function sum() { let v = prod(); for (;;) { ws(); const c = src[i]; if (c === '+') { i++; v += prod(); } else if (c === '-') { i++; v -= prod(); } else return v; } }
+  try { const v = sum(); ws(); if (i !== src.length || !isFinite(v)) return null; return v; } catch (e) { return null; }
+}
+// Format a computed value for a field: up to 6 decimals, trailing zeros dropped.
+function fmtNum(v) { const r = Math.round(v * 1e6) / 1e6; return String(Object.is(r, -0) ? 0 : r); }
+
+// ---------- zoom-adaptive grid ----------
+// The finest step, from base divided by the 1-2-5 ladder (0.5 -> 0.25, 0.1, 0.05, 0.025, 0.01 ...), that is still
+// at least minPx on screen; coarser (x2) when even the base step is too small. Snapping uses this step so
+// zooming in gives finer placement.
+const GRID_DIVS = [1, 2, 5, 10, 20, 50, 100, 200, 500];
+function gridStepFor(base, ppi, minPx) { base = base > 0 ? base : 0.5; minPx = minPx || 10;
+  let best = base; for (const d of GRID_DIVS) { const s = base / d; if (s * ppi >= minPx && s >= 0.0009) best = s; else break; }
+  while (best * ppi < minPx) best *= 2; return best; }
+
 // ---------- TTF outline text ----------
 // Convert an SVG-path-data string (as produced by opentype.js Path.toPathData) into
 // closed CAD contours: flip from font y-down to CAD y-up, scale so the overall height
@@ -947,6 +992,6 @@ return {
   primParams, applyPrimParams, fitShapeTo, fitPrimTo,
   ANCHORS, anchorPoint, bboxAnchor, moveAnchorTo, moveGroupAnchorTo,
   projectToJSON, projectFromJSON, PROJECT_VERSION,
-  validateShapes
+  validateShapes, registerDxfLayers, aciToHex, defaultLayerColor, evalExpr, fmtNum, gridStepFor, GRID_DIVS
 };
 });
