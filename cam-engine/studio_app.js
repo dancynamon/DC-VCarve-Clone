@@ -320,6 +320,8 @@ function setTool(t){ if(t!=='measure') measure=null; tool=t; sel=(t==='node')?se
   const form=TOOL_FORMS[t];
   if(form) showForm(form,'drawing');            // the tool's options take over the dock
   else if(formOpen() && t!=='clipart' && t!=='select') setCmdTab(cmdTab);
+  else if(formOpen() && t==='select'){   // back to Select: a draw tool's form gives the dock back (Selection / position panel); Job / Nesting stay
+    const f=document.querySelector('#paneForm .tform.active'); if(f && Object.values(TOOL_FORMS).includes(f.dataset.form)) setCmdTab(cmdTab); }
   cv.style.cursor='';
   setMsg((TOOLMSG[t]||'')+(t in FORM_CREATE?'  ·  Enter = Create from the form (anchor + size)':'')); render(); }
 const FORM_CREATE={rect:1,rrect:1,circle:1,ellipse:1,polygon:1,star:1,text:1};
