@@ -717,6 +717,8 @@ function evalExpr(text) {
   function sum() { let v = prod(); for (;;) { ws(); const c = src[i]; if (c === '+') { i++; v += prod(); } else if (c === '-') { i++; v -= prod(); } else return v; } }
   try { const v = sum(); ws(); if (i !== src.length || !isFinite(v)) return null; return v; } catch (e) { return null; }
 }
+// Cursor resolution: free (unsnapped) positions land on a 0.0001" lattice.
+function q4(v) { const r = Math.round(v * 1e4) / 1e4; return Object.is(r, -0) ? 0 : r; }
 // Format a computed value for a field: up to 6 decimals, trailing zeros dropped.
 function fmtNum(v) { const r = Math.round(v * 1e6) / 1e6; return String(Object.is(r, -0) ? 0 : r); }
 
@@ -724,9 +726,9 @@ function fmtNum(v) { const r = Math.round(v * 1e6) / 1e6; return String(Object.i
 // The finest step, from base divided by the 1-2-5 ladder (0.5 -> 0.25, 0.1, 0.05, 0.025, 0.01 ...), that is still
 // at least minPx on screen; coarser (x2) when even the base step is too small. Snapping uses this step so
 // zooming in gives finer placement.
-const GRID_DIVS = [1, 2, 5, 10, 20, 50, 100, 200, 500];
+const GRID_DIVS = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000];
 function gridStepFor(base, ppi, minPx) { base = base > 0 ? base : 0.5; minPx = minPx || 10;
-  let best = base; for (const d of GRID_DIVS) { const s = base / d; if (s * ppi >= minPx && s >= 0.0009) best = s; else break; }
+  let best = base; for (const d of GRID_DIVS) { const s = base / d; if (s * ppi >= minPx && s >= 0.0000999) best = s; else break; }
   while (best * ppi < minPx) best *= 2; return best; }
 
 // ---------- TTF outline text ----------
@@ -992,6 +994,6 @@ return {
   primParams, applyPrimParams, fitShapeTo, fitPrimTo,
   ANCHORS, anchorPoint, bboxAnchor, moveAnchorTo, moveGroupAnchorTo,
   projectToJSON, projectFromJSON, PROJECT_VERSION,
-  validateShapes, registerDxfLayers, aciToHex, defaultLayerColor, evalExpr, fmtNum, gridStepFor, GRID_DIVS
+  validateShapes, registerDxfLayers, aciToHex, defaultLayerColor, evalExpr, fmtNum, q4, gridStepFor, GRID_DIVS
 };
 });

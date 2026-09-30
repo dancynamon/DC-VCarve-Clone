@@ -414,6 +414,8 @@ ok('expr: fmtNum trims', C.fmtNum(17.75)==='17.75' && C.fmtNum(1/3)==='0.333333'
 ok('grid: coarsens when zoomed out', C.gridStepFor(0.5,5,10)===2);
 ok('grid: refines when zoomed in', close(C.gridStepFor(0.5,200,10),0.05) && close(C.gridStepFor(0.5,5000,10),0.0025));
 ok('grid: base step at mid zoom', C.gridStepFor(0.5,25,10)===0.5);
+ok('grid: reaches 0.0001 at deep zoom', close(C.gridStepFor(0.5,100000,10),0.0001,1e-12) && close(C.gridStepFor(0.5,1e7,10),0.0001,1e-12));
+ok('q4: 0.0001 lattice', C.q4(1.23456)===1.2346 && C.q4(-0.00001)===0 && C.q4(17.75)===17.75);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);
