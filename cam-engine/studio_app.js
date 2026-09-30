@@ -11,10 +11,15 @@ let activeLayer = '0';
 let sel = new Set();
 let tool = 'select';
 let view = { ppi: 18, ox: 80, oy: 0 };   // oy set on resize
-let grid = { on:true, step:0.5, snap:true, objSnap:true, ortho:false, rotSnap:5 };   // rotSnap = Shift rotate increment (deg)
+let grid = { on:true, step:0.5, snap:false, objSnap:true, ortho:false, rotSnap:5 };   // rotSnap = Shift rotate increment (deg)
 // Snap step follows the zoom: the grid (and snapping) subdivide 0.5 -> 0.25 -> 0.1 -> 0.05 ... as you zoom in.
 function snapStep(){ return CADCORE.gridStepFor(grid.step, view.ppi, 10); }
-function snapGridPt(p){ const st=snapStep(); return grid.snap&&grid.on ? { x:Math.round(p.x/st)*st, y:Math.round(p.y/st)*st } : { x:p.x, y:p.y }; }
+// Cursor precision: positions are free to 0.0001". Grid snapping is on while S is held (or always, with the
+// Grid-snap box ticked); Ctrl held = no object snap either.
+const held={ snap:false, free:false };
+function gridSnapOn(){ return grid.snap&&grid.on || held.snap; }
+function snapGridPt(p){ if(!gridSnapOn()) return { x:CADCORE.q4(p.x), y:CADCORE.q4(p.y) };
+  const st=snapStep(); return { x:CADCORE.q4(Math.round(p.x/st)*st), y:CADCORE.q4(Math.round(p.y/st)*st) }; }
 let history = [], future = [];
 let toolpaths = null;     // generated g-code segments overlay
 let drillMarks = null;    // drill hole centers overlay [{x,y}]
@@ -139,16 +144,15 @@ function layerVisible(name){ const l=doc.layers.get(name); return !l || l.visibl
 // ---- snapping ----
 function snapWorld(scr){
   let w = S2W(scr);
-  let best=null, bestD=pxTol(11);
-  if(grid.objSnap){
+  let best=null, bestD=pxTol(7);
+  if(grid.objSnap && !held.free){
     // job/material corners, edge midpoints, and center are snap targets
     if(job.show){ const r=jobRect(); for(const sp of CADCORE.rectSnapPoints(r.x0,r.y0,r.x1,r.y1)){ const d=Math.hypot(sp.x-w.x, sp.y-w.y); if(d<bestD){bestD=d; best={x:sp.x,y:sp.y,kind:sp.kind};} } }
     for(const s of doc.shapes){ if(!layerVisible(s.layer))continue;
       for(const sp of CADCORE.snapPoints(s)){ const d=Math.hypot(sp.x-w.x, sp.y-w.y); if(d<bestD){bestD=d; best={x:sp.x,y:sp.y,kind:sp.kind};} } }
   }
   if(best) return best;
-  if(grid.snap && grid.on){ const g=snapGridPt(w); return { x:g.x, y:g.y, kind:'grid' }; }
-  return { x:w.x, y:w.y, kind:null };
+  const g=snapGridPt(w); return { x:g.x, y:g.y, kind:gridSnapOn()?'grid':null };
 }
 
 // ---- rendering ----
@@ -302,7 +306,7 @@ let snapMark=null;
 // ---- HUD / status ----
 function updateHud(){ document.getElementById('zoomlbl').textContent = Math.round(view.ppi)+' px/in · '+doc.shapes.length+' obj · '+sel.size+' sel'; }
 function setMsg(m){ msg=m; document.getElementById('msg').textContent=m; }
-function updateCursor(scr){ const w=S2W(scr); const dp=view.ppi>=400?4:3; document.getElementById('coords').textContent = w.x.toFixed(dp)+', '+w.y.toFixed(dp)+' in'; lastScr=scr; drawRulerMarks(scr); }
+function updateCursor(scr){ const w=S2W(scr); document.getElementById('coords').textContent = w.x.toFixed(4)+', '+w.y.toFixed(4)+' in'; lastScr=scr; drawRulerMarks(scr); }
 // hover feedback for the Select tool: rotate icon over a corner grip, resize arrows over a scale handle, move over a shape
 const ROTATE_CURSOR="url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 22 22'><path d='M11 3a8 8 0 1 1-7.4 4.9' fill='none' stroke='white' stroke-width='4'/><path d='M11 3a8 8 0 1 1-7.4 4.9' fill='none' stroke='%23222' stroke-width='2'/><path d='M2 3v6h6' fill='none' stroke='white' stroke-width='4'/><path d='M2 3v6h6' fill='none' stroke='%23222' stroke-width='2'/></svg>\") 11 11, alias";
 const SCALE_CURSORS={nw:'nwse-resize',se:'nwse-resize',ne:'nesw-resize',sw:'nesw-resize',n:'ns-resize',s:'ns-resize',e:'ew-resize',w:'ew-resize'};
@@ -319,9 +323,7 @@ function setTool(t){ if(t!=='measure') measure=null; tool=t; sel=(t==='node')?se
   const active=document.querySelector('.tool[data-tool="'+t+'"]'); if(active){ const grp=active.closest('.tgrp'); if(grp)grp.classList.remove('collapsed'); }   // keep the active tool visible
   const form=TOOL_FORMS[t];
   if(form) showForm(form,'drawing');            // the tool's options take over the dock
-  else if(formOpen() && t!=='clipart' && t!=='select') setCmdTab(cmdTab);
-  else if(formOpen() && t==='select'){   // back to Select: a draw tool's form gives the dock back (Selection / position panel); Job / Nesting stay
-    const f=document.querySelector('#paneForm .tform.active'); if(f && Object.values(TOOL_FORMS).includes(f.dataset.form)) setCmdTab(cmdTab); }
+  else if(formOpen() && t!=='clipart') setCmdTab(cmdTab);   // incl. Select: any open form (draw tool, Job Setup, Nesting) gives the dock back
   cv.style.cursor='';
   setMsg((TOOLMSG[t]||'')+(t in FORM_CREATE?'  ·  Enter = Create from the form (anchor + size)':'')); render(); }
 const FORM_CREATE={rect:1,rrect:1,circle:1,ellipse:1,polygon:1,star:1,text:1};
@@ -704,7 +706,7 @@ cv.addEventListener('dblclick', e=>{
   if(tool==='select'){ const w=snapWorld(evScr(e)); const s=pickShapeAt({x:w.x,y:w.y}); if(s){ sel=new Set([s.id]); openShapeModal(s); } }
 });
 cv.addEventListener('wheel', e=>{ e.preventDefault(); const scr=evScr(e); const before=S2W(scr);
-  const f=Math.exp(-e.deltaY*0.0015); view.ppi=Math.max(2,Math.min(6000,view.ppi*f));
+  const f=Math.exp(-e.deltaY*0.0015); view.ppi=Math.max(2,Math.min(40000,view.ppi*f));
   const after=S2W(scr); view.ox += (after.x-before.x)*0 + (scr.x-(view.ox+before.x*view.ppi)); // recompute properly below
   // recompute offset so 'before' world stays under cursor
   view.ox = scr.x - before.x*view.ppi; view.oy = scr.y + before.y*view.ppi; render(); }, {passive:false});
@@ -912,8 +914,9 @@ function selectDown(scr,w,e){
 // Move drag: the selection's ANCHOR point (same 9-box choice as the forms) is what snaps — to the grid, and to object/job
 // snap points when Obj-snap is on — so a shape lands exactly on a grid line or a corner. Ctrl = free move (no snap).
 function doMove(raw, free){ const {grab,a0,base}=drag; let tx=a0.x+(raw.x-grab.x), ty=a0.y+(raw.y-grab.y); let kind=null;
-  if(!free){ if(grid.snap&&grid.on){ const g=snapGridPt({x:tx,y:ty}); tx=g.x; ty=g.y; kind='grid'; }
-    if(grid.objSnap){ let best=null,bestD=pxTol(11); const ids=new Set(drag.ids); const cand=[];
+  { const g=snapGridPt({x:tx,y:ty}); tx=g.x; ty=g.y; if(gridSnapOn()) kind='grid'; }
+  if(!free){
+    if(grid.objSnap){ let best=null,bestD=pxTol(7); const ids=new Set(drag.ids); const cand=[];
       if(job.show){ const r=jobRect(); cand.push(...CADCORE.rectSnapPoints(r.x0,r.y0,r.x1,r.y1)); }
       for(const s of doc.shapes){ if(ids.has(s.id)||!layerVisible(s.layer))continue; cand.push(...CADCORE.snapPoints(s)); }
       const want={x:a0.x+(raw.x-grab.x),y:a0.y+(raw.y-grab.y)};
@@ -2039,6 +2042,13 @@ function initCalcFields(){
   document.addEventListener('focusout',e=>{ if(isCalc(e.target)) calcResolve(e.target); }, true); }
 
 // ---- keyboard ----
+// Held modifiers for snapping: S = snap to the grid, Ctrl = no object snap. Tracked outside text fields only.
+(function(){ const set=(e,down)=>{ if(down && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
+    let ch=false; if((e.key==='s'||e.key==='S') && !e.ctrlKey && !e.metaKey && held.snap!==down){ held.snap=down; ch=true; }
+    if(e.key==='Control' && held.free!==down){ held.free=down; ch=true; }
+    if(ch && lastScr && viewMode!=='preview'){ const sn=snapWorld(lastScr); snapMark=sn.kind?{x:sn.x,y:sn.y,kind:sn.kind}:null; render(); } };
+  window.addEventListener('keydown',e=>set(e,true)); window.addEventListener('keyup',e=>set(e,false));
+  window.addEventListener('blur',()=>{ held.snap=held.free=false; }); })();
 window.addEventListener('keydown', e=>{
   if(/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))return;
   if((e.ctrlKey||e.metaKey)&&(e.key==='s'||e.key==='S')){ e.preventDefault(); if(e.shiftKey) saveProjectAs(); else saveProject(); return; }
@@ -2058,6 +2068,11 @@ window.addEventListener('keydown', e=>{
   const map={v:'select',n:'node',l:'line',p:'polyline',b:'bezier',r:'rect',c:'circle',e:'ellipse',a:'arc',g:'polygon',t:'text',m:'measure',d:'dim'};
   if(map[e.key]){ setTool(map[e.key]); }
   if(e.key==='f'){ fitAll(); }
+  // Arrow keys nudge the selection: 0.001" · Shift 0.1" · Alt/Option 0.0001"
+  if(/^Arrow/.test(e.key) && sel.size && tool==='select'){ e.preventDefault();
+    const d=e.altKey?0.0001:e.shiftKey?0.1:0.001, dx=e.key==='ArrowLeft'?-d:e.key==='ArrowRight'?d:0, dy=e.key==='ArrowDown'?-d:e.key==='ArrowUp'?d:0;
+    if(!e.repeat) pushHistory();
+    doc.shapes=doc.shapes.map(s=>{ if(!sel.has(s.id))return s; const t=CADCORE.translate(s,dx,dy); t.id=s.id; return t; }); render(); syncPanels(); scheduleAutosave(); }
 });
 
 // ---- collapsible right-panel sections ----
