@@ -1,0 +1,118 @@
+{
+ "src": "/sessions/rcw-01sgzj18fchr3xhqqvzql9vk/mnt/VCarve Pro/For Claude",
+ "when": "2026-10-01T20:13:46.921Z",
+ "count": {
+  "PASS": 8
+ },
+ "jobs": [
+  {
+   "tap": "36x36 Rectangular Mat.tap",
+   "status": "PASS",
+   "crv": "36x36 Rect-Swiss Mat.crv3d",
+   "ops": [
+    "T2 profile outside 0.25\"/1.5\" x1"
+   ],
+   "minutes": {
+    "vectric": 1.8,
+    "ours": 1.9
+   },
+   "note": "AIRCUT retract raised to 0.8"
+  },
+  {
+   "tap": "36x36 Swiss Cheese Mat.tap",
+   "status": "PASS",
+   "crv": "36x36 Rect-Swiss Mat.crv3d",
+   "ops": [
+    "T2 pocket 0.25\"/1.5\" x49",
+    "T2 profile outside 0.25\"/1.5\" x1"
+   ],
+   "minutes": {
+    "vectric": 7.8,
+    "ours": 7.7
+   },
+   "note": "AIRCUT retract raised to 0.8"
+  },
+  {
+   "tap": "48x24 Rectangular Mat.tap",
+   "status": "PASS",
+   "crv": "48x24 Rect-Swiss Mat.crv3d",
+   "ops": [
+    "T2 profile outside 0.25\"/1.5\" x1"
+   ],
+   "minutes": {
+    "vectric": 1.8,
+    "ours": 1.9
+   },
+   "note": "AIRCUT retract raised to 0.8"
+  },
+  {
+   "tap": "48x24 Swiss Cheese Mat.tap",
+   "status": "PASS",
+   "crv": "48x24 Rect-Swiss Mat.crv3d",
+   "ops": [
+    "T2 pocket 0.25\"/1.5\" x36",
+    "T2 profile outside 0.25\"/1.5\" x1"
+   ],
+   "minutes": {
+    "vectric": 6.3,
+    "ours": 6.2
+   },
+   "note": "AIRCUT retract raised to 0.8"
+  },
+  {
+   "tap": "72x36 Rectangular Mat.tap",
+   "status": "PASS",
+   "crv": "72x36 Rect-Swiss Mat.crv3d",
+   "ops": [
+    "T2 profile outside 0.25\"/1.5\" x1"
+   ],
+   "minutes": {
+    "vectric": 2.5,
+    "ours": 2.6
+   },
+   "note": "AIRCUT retract raised to 0.8"
+  },
+  {
+   "tap": "72x36 Swiss Cheese Mat.tap",
+   "status": "PASS",
+   "crv": "72x36 Rect-Swiss Mat.crv3d",
+   "ops": [
+    "T2 pocket 0.25\"/1.5\" x84",
+    "T2 profile outside 0.25\"/1.5\" x1"
+   ],
+   "minutes": {
+    "vectric": 12.9,
+    "ours": 12.9
+   },
+   "note": "AIRCUT retract raised to 0.8"
+  },
+  {
+   "tap": "Fish 36x24.tap",
+   "status": "PASS",
+   "crv": "Fish 36x24.crv3d",
+   "ops": [
+    "T5 profile on 0.125\"/0.1\" x4",
+    "T2 pocket 0.25\"/1.5\" x1",
+    "T2 profile outside 0.25\"/1.5\" x1"
+   ],
+   "minutes": {
+    "vectric": 4.5,
+    "ours": 4.5
+   }
+  },
+  {
+   "tap": "Fish 48x36.tap",
+   "status": "PASS",
+   "crv": "Fish 48x36.crv3d",
+   "ops": [
+    "T5 profile on 0.125\"/0.1\" x4",
+    "T2 pocket 0.25\"/1.5\" x1",
+    "T2 profile outside 0.25\"/1.5\" x1"
+   ],
+   "minutes": {
+    "vectric": 6.1,
+    "ours": 6.1
+   }
+  }
+ ]
+}

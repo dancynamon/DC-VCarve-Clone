@@ -1,0 +1,10 @@
+{
+ "_note": "ShopSabre ATC tool numbers -> cutter. 'confirmed' = measured from a Vectric TAP offset against its CRV vector; 'assumed' = from the VCarve tool DB names (tooldb260727.tool), diameter not yet decoded from the DB.",
+ "1": { "dia": 0.5,   "type": "flat", "name": "T1 Vortex custom (rescue tubes)", "source": "assumed" },
+ "2": { "dia": 0.25,  "type": "flat", "name": "T2 Vortex 4135", "source": "confirmed: mat outside profile offset 0.125" },
+ "3": { "dia": 0.375, "type": "flat", "name": "T3a Amana 43518 0.375", "source": "confirmed: LGC board specs" },
+ "5": { "dia": 0.125, "type": "flat", "name": "T5 engraving/0.125 (variant unknown)", "source": "assumed" },
+ "8": { "dia": 0.375, "type": "drill", "name": "T8 Drill 0.375", "source": "assumed from DB name" },
+ "9": { "dia": 0.125, "type": "flat", "name": "T9 0.125", "source": "confirmed: LGC board 3 spec" },
+ "10": { "dia": 0.375, "type": "drill", "name": "T10", "source": "assumed: XRT/LGC spec" }
+}

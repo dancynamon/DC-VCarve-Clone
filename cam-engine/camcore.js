@@ -216,6 +216,10 @@ function profileOp(contours, opts){
       const plain=lp.map(p=>({x:p.x,y:p.y,tab:false}));
       const tabbed=wantTabs?withTabs(lp,o.tabs.count,o.tabs.length,c.closed):plain;
       let closed=c.closed&&o.side!=='on';
+      // On-the-line cut of a CLOSED vector is emitted as an open path, so it must end where it began —
+      // without the repeated start point the closing edge is never cut (a gap in every engraved outline).
+      if(c.closed && o.side==='on' && plain.length>1){ const f=plain[0]; plain.push({x:f.x,y:f.y,tab:false});
+        if(tabbed!==plain){ const g=tabbed[0]; tabbed.push({x:g.x,y:g.y,tab:g.tab}); } }
       const lead=pts0=>{
         if(!(closed && o.leadType && o.leadType!=='none')) return {path:pts0, closed};
         const interiorSign=signedArea(lp)>0?1:-1;                       // left normal = interior when CCW

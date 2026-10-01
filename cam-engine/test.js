@@ -756,5 +756,16 @@ console.log('\n(post-pp assertions added)');
      rp.ops[0].passes[0].path.some(p=>p.ramp!=null) && rp.ops[0].passes[0].closed===false);
 })();
 
+// ---- on-the-line cut of a CLOSED vector must cut its closing edge (Fish 36x24 engrave gap) ----
+(function(){
+  const sq=CAM.assembleContours([{closed:true,pts:[{x:0,y:0},{x:1,y:0},{x:1,y:1},{x:0,y:1},{x:0,y:0}]}]);
+  const pa=CAM.profileOp(sq,{side:'on',toolDia:0.125,cutDepth:0.1,passDepth:0.1}).ops[0].passes[0].path;
+  ok('on-line closed: path returns to its start', pa.length===5 && pa[4].x===pa[0].x && pa[4].y===pa[0].y, JSON.stringify(pa));
+  const pt=CAM.profileOp(sq,{side:'on',toolDia:0.125,cutDepth:0.1,passDepth:0.1,tabs:{count:2,length:0.2,height:0.05}}).ops[0].passes[0].path;
+  ok('on-line closed + tabs: path returns to its start', pt[pt.length-1].x===pt[0].x && pt[pt.length-1].y===pt[0].y);
+  const op=CAM.profileOp(CAM.assembleContours([{closed:false,pts:[{x:0,y:0},{x:1,y:0},{x:1,y:1}]}]),{side:'on',toolDia:0.125,cutDepth:0.1,passDepth:0.1}).ops[0].passes[0].path;
+  ok('on-line open: path unchanged', op.length===3);
+})();
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);
