@@ -1,0 +1,94 @@
+{
+ "name": "IO 5846 Blue Sheet 5 and 6 - run twice",
+ "crv": "../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/_Datestamped CAD/260814 - IO 5846/01_CRV3D/IOs 5846, 5946, 5943, 5982, 5974, 5984 Blue Sheets.crv3d",
+ "vectric": "../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/_Datestamped CAD/260814 - IO 5846/02_TAP/Blue/IO 5846 Blue Sheet 5 and 6 - run twice.tap",
+ "out": "IO 5846 Blue Sheet 5 and 6 - run twice-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 5,
+   "toolDia": 0.125,
+   "rpm": 12000,
+   "feed": 40,
+   "plunge": 40,
+   "cutDepth": 0.1,
+   "passDepth": 0.1,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "IO 5846 Blue Sheet 5 and 6 - run twice T5 profile on",
+   "select": [
+    [
+     "Engrave",
+     24
+    ],
+    [
+     "Engrave",
+     26
+    ],
+    [
+     "Engrave",
+     35
+    ],
+    [
+     "Engrave",
+     25
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "stepover": 0.5,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 20,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "label": "IO 5846 Blue Sheet 5 and 6 - run twice T2 pocket",
+   "select": [
+    [
+     "Pocket",
+     6
+    ],
+    [
+     "Pocket",
+     7
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 20,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "IO 5846 Blue Sheet 5 and 6 - run twice T2 profile outside",
+   "select": [
+    [
+     "Profile",
+     10
+    ],
+    [
+     "Profile",
+     11
+    ]
+   ]
+  }
+ ]
+}

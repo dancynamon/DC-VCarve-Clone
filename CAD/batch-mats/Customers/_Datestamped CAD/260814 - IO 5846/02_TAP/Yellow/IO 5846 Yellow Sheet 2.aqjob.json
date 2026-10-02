@@ -1,0 +1,168 @@
+{
+ "name": "IO 5846 Yellow Sheet 2",
+ "crv": "../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/_Datestamped CAD/260814 - IO 5846/01_CRV3D/IO 5846 Yellow Sheets.crv3d",
+ "vectric": "../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/_Datestamped CAD/260814 - IO 5846/02_TAP/Yellow/IO 5846 Yellow Sheet 2.tap",
+ "out": "IO 5846 Yellow Sheet 2-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 5,
+   "toolDia": 0.125,
+   "rpm": 12000,
+   "feed": 40,
+   "plunge": 40,
+   "cutDepth": 0.1,
+   "passDepth": 0.1,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "IO 5846 Yellow Sheet 2 T5 profile on",
+   "select": [
+    [
+     "Engrave",
+     15
+    ],
+    [
+     "Engrave",
+     14
+    ],
+    [
+     "Engrave",
+     23
+    ],
+    [
+     "Engrave",
+     22
+    ],
+    [
+     "Engrave",
+     21
+    ],
+    [
+     "Engrave",
+     20
+    ],
+    [
+     "Engrave",
+     16
+    ],
+    [
+     "Engrave",
+     19
+    ],
+    [
+     "Engrave",
+     4
+    ],
+    [
+     "Engrave",
+     3
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "stepover": 0.5,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "label": "IO 5846 Yellow Sheet 2 T2 pocket",
+   "select": [
+    [
+     "Pocket",
+     0
+    ],
+    [
+     "Pocket",
+     2
+    ],
+    [
+     "Pocket",
+     1
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "IO 5846 Yellow Sheet 2 T2 profile inside",
+   "select": [
+    [
+     "Pocket",
+     16
+    ],
+    [
+     "Pocket",
+     17
+    ],
+    [
+     "Pocket",
+     18
+    ],
+    [
+     "Pocket",
+     19
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "IO 5846 Yellow Sheet 2 T2 profile outside",
+   "select": [
+    [
+     "Profile",
+     11
+    ],
+    [
+     "Profile",
+     14
+    ],
+    [
+     "Profile",
+     15
+    ],
+    [
+     "Profile",
+     2
+    ],
+    [
+     "Profile",
+     1
+    ]
+   ]
+  }
+ ]
+}

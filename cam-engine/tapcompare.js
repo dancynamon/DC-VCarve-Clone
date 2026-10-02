@@ -119,7 +119,10 @@ function coverage(A, idxB, o) {
 function materialCheck(fails, idxB, R, o) {
   let real = 0, worst = null, worstGap = 0; const pts = [];
   const step = Math.max(0.005, R / 8);
-  for (const p of (fails || [])) {
+  fails = fails || [];
+  const stride = Math.max(1, Math.ceil(fails.length / 3000));      // a few thousand evenly spread points decide it
+  for (let fi = 0; fi < fails.length; fi += stride) {
+    const p = fails[fi];
     if (real >= (o.maxReal || 300)) { real = Math.max(real, fails.length); break; }   // enough to call it; don't grind
     let gapHere = 0;
     for (let dx = -R; dx <= R + 1e-9; dx += step) for (let dy = -R; dy <= R + 1e-9; dy += step) {

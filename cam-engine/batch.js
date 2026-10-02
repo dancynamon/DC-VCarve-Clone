@@ -12,6 +12,9 @@ const { crvIndex, repostJob } = require('./repost.js');
 const { analyze, buildSpec } = require('./tap2spec.js');
 const { compare } = require('./tapcompare.js');
 const { aircut } = require('./aircut.js');
+const { scoreSig } = require('./crvindex.js');
+const { passesOf } = require('./tap2spec.js');
+const { parseTap } = require('./tapcompare.js');
 const TOOLS = JSON.parse(fs.readFileSync(path.join(__dirname, 'shoptools.json'), 'utf8'));
 const SKIP_DIR = /^(zzz|old\b|older\b|_to_delete|backup)/i;
 
@@ -89,6 +92,22 @@ function run(src, outdir, o) {
         if (an.hits.length && (!best || score > best.score)) best = { c, an, score, ix: g.ix };
         if (best && best.an.unmatched.length === 0) break;
       }
+      // not explained by its own folder: search the whole library index by geometry
+      if (o.crvIndex && (!best || best.an.unmatched.length)) {
+        const boxes = [];
+        for (const tl of parseTap(text)) for (const ps of passesOf(tl)) { const b = [1e9, 1e9, -1e9, -1e9];
+          for (const sg of ps) { b[0] = Math.min(b[0], sg.x0, sg.x1); b[1] = Math.min(b[1], sg.y0, sg.y1); b[2] = Math.max(b[2], sg.x0, sg.x1); b[3] = Math.max(b[3], sg.y0, sg.y1); }
+          boxes.push(b); }
+        const ranked = Object.entries(o.crvIndex.files).filter(([, v]) => v.sig).map(([rel, v]) => [rel, scoreSig(v.sig, boxes)])
+          .filter(x => x[1] >= 0.5).sort((a, b) => b[1] - a[1]).slice(0, 3);
+        for (const [rel] of ranked) {
+          const c = path.join(o.crvIndex.root, rel), g = getIdx(c); if (!g.ix) continue;
+          let an; try { an = analyze(g.ix, [{ name, text }]); } catch (e) { continue; }
+          const score = an.hits.length - 1000 * an.unmatched.length;
+          if (an.hits.length && (!best || score > best.score)) { best = { c, an, score, ix: g.ix }; row.pairedBy = 'library index'; }
+          if (best && best.an.unmatched.length === 0) break;
+        }
+      }
       if (!best) { row.note = crvs.length ? 'no CRV in folder explains any pass' : 'no CRV in folder'; continue; }
       row.crv = path.relative(src, best.c);
       const jobDir = path.join(outdir, path.dirname(rel)); fs.mkdirSync(jobDir, { recursive: true });
@@ -133,6 +152,8 @@ if (require.main === module) {
     else if (av[i] === '--limit') o.limit = +av[++i];
     else if (av[i] === '--budget') o.budget = +av[++i];
     else if (av[i] === '--resume') o.resume = true;
+    else if (av[i] === '--crv-index') o.crvIndexPath = av[++i];
+    else if (av[i] === '--retry') o.retry = av[++i].split(',');
     else if (av[i].startsWith('--')) { console.error('unknown flag ' + av[i]); process.exit(2); } else src = av[i];
   }
   if (!src || !outdir) { console.error('usage: batch.js <vcarve folder> --outdir <dir> [--recursive] [--limit N]'); process.exit(2); }
@@ -140,6 +161,8 @@ if (require.main === module) {
   fs.mkdirSync(outdir, { recursive: true });
   const rj = path.join(outdir, 'report.json');
   if (o.resume && fs.existsSync(rj)) o.prior = JSON.parse(fs.readFileSync(rj, 'utf8')).jobs;
+  if (o.prior && o.retry) o.prior = o.prior.filter(j => o.retry.indexOf(j.status) < 0);
+  if (o.crvIndexPath) { o.crvIndex = JSON.parse(fs.readFileSync(o.crvIndexPath, 'utf8')); if (!fs.existsSync(o.crvIndex.root)) o.crvIndex.root = path.join(require('os').homedir(), 'mnt', path.basename(o.crvIndex.root)); }
   o.save = r => fs.writeFileSync(rj, JSON.stringify({ src, when: new Date().toISOString(), unfinished: true, jobs: r.filter(x => x.status !== 'UNPAIRED' || x.note) }, null, 1));
   const rep = run(src, outdir, o);
   const count = {}; for (const r of rep) count[r.status] = (count[r.status] || 0) + 1;

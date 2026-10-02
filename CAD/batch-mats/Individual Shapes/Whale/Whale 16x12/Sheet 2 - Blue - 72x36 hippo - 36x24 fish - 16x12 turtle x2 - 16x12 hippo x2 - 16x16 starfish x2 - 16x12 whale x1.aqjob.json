@@ -1,0 +1,244 @@
+{
+ "name": "Sheet 2 - Blue - 72x36 hippo - 36x24 fish - 16x12 turtle x2 - 16x12 hippo x2 - 16x16 starfish x2 - 16x12 whale x1",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/_Datestamped CAD/260814 - IO 5846/03_OLD/Sheet 2 - Blue - 72x36 hippo - 36x24 fish - 16x12 turtle x2 - 16x12 hippo x2.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Whale/Whale 16x12/Sheet 2 - Blue - 72x36 hippo - 36x24 fish - 16x12 turtle x2 - 16x12 hippo x2 - 16x16 starfish x2 - 16x12 whale x1.tap",
+ "out": "Sheet 2 - Blue - 72x36 hippo - 36x24 fish - 16x12 turtle x2 - 16x12 hippo x2 - 16x16 starfish x2 - 16x12 whale x1-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 5,
+   "toolDia": 0.125,
+   "rpm": 10000,
+   "feed": 50,
+   "plunge": 30,
+   "cutDepth": 0.08,
+   "passDepth": 0.08,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Sheet 2 - Blue - 72x36 hippo - 36x24 fish - 16x12 turtle x2 - 16x12 hippo x2 - 16x16 starfish x2 - 16x12 whale x1 T5 profile on",
+   "select": [
+    [
+     "Engrave",
+     6
+    ],
+    [
+     "Engrave",
+     7
+    ],
+    [
+     "Engrave",
+     9
+    ],
+    [
+     "Engrave",
+     8
+    ],
+    [
+     "Engrave",
+     2
+    ],
+    [
+     "Engrave",
+     5
+    ],
+    [
+     "Engrave",
+     3
+    ],
+    [
+     "Engrave",
+     4
+    ],
+    [
+     "Engrave",
+     11
+    ],
+    [
+     "Engrave",
+     10
+    ],
+    [
+     "Engrave",
+     14
+    ],
+    [
+     "Engrave",
+     15
+    ],
+    [
+     "Engrave",
+     12
+    ],
+    [
+     "Engrave",
+     13
+    ],
+    [
+     "Engrave",
+     0
+    ],
+    [
+     "Engrave",
+     1
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Sheet 2 - Blue - 72x36 hippo - 36x24 fish - 16x12 turtle x2 - 16x12 hippo x2 - 16x16 starfish x2 - 16x12 whale x1 T2 profile inside",
+   "select": [
+    [
+     "Pocket",
+     4
+    ],
+    [
+     "Pocket",
+     3
+    ],
+    [
+     "Pocket",
+     6
+    ],
+    [
+     "Pocket",
+     5
+    ],
+    [
+     "Pocket",
+     7
+    ],
+    [
+     "Pocket",
+     8
+    ],
+    [
+     "Pocket",
+     9
+    ],
+    [
+     "Pocket",
+     10
+    ],
+    [
+     "Pocket",
+     12
+    ],
+    [
+     "Pocket",
+     11
+    ],
+    [
+     "Pocket",
+     14
+    ],
+    [
+     "Pocket",
+     13
+    ],
+    [
+     "Pocket",
+     15
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "stepover": 0.5,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "label": "Sheet 2 - Blue - 72x36 hippo - 36x24 fish - 16x12 turtle x2 - 16x12 hippo x2 - 16x16 starfish x2 - 16x12 whale x1 T2 pocket",
+   "select": [
+    [
+     "Pocket",
+     2
+    ],
+    [
+     "Pocket",
+     1
+    ],
+    [
+     "Pocket",
+     0
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Sheet 2 - Blue - 72x36 hippo - 36x24 fish - 16x12 turtle x2 - 16x12 hippo x2 - 16x16 starfish x2 - 16x12 whale x1 T2 profile outside",
+   "select": [
+    [
+     "Profile",
+     0
+    ],
+    [
+     "Profile",
+     3
+    ],
+    [
+     "Profile",
+     2
+    ],
+    [
+     "Profile",
+     4
+    ],
+    [
+     "Profile",
+     5
+    ],
+    [
+     "Profile",
+     1
+    ],
+    [
+     "Profile",
+     6
+    ],
+    [
+     "Profile",
+     8
+    ],
+    [
+     "Profile",
+     7
+    ]
+   ]
+  }
+ ]
+}

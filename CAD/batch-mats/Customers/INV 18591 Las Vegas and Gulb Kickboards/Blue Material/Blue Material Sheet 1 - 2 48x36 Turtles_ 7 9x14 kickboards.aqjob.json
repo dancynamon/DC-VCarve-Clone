@@ -1,9 +1,9 @@
 {
  "name": "Blue Material Sheet 1 - 2 48x36 Turtles, 7 9x14 kickboards",
- "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/INV 18591 Las Vegas and Gulb Kickboards/Blue Material/Blue Material.crv3d",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/INV 18591 Las Vegas and Gulb Kickboards/Red Material/Blue Material.crv3d",
  "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/INV 18591 Las Vegas and Gulb Kickboards/Blue Material/Blue Material Sheet 1 - 2 48x36 Turtles, 7 9x14 kickboards.tap",
  "out": "Blue Material Sheet 1 - 2 48x36 Turtles_ 7 9x14 kickboards-aq.tap",
- "complete": false,
+ "complete": true,
  "generatedBy": "tap2spec",
  "ops": [
   {
@@ -27,88 +27,37 @@
      0
     ],
     [
+     "Profile T1",
+     41
+    ],
+    [
+     "Profile T1",
+     42
+    ],
+    [
+     "Profile T1",
+     43
+    ],
+    [
+     "Profile T1",
+     44
+    ],
+    [
+     "Profile T1",
+     45
+    ],
+    [
+     "Profile T1",
+     46
+    ],
+    [
+     "Profile T1",
+     47
+    ],
+    [
      "Profile",
      5
     ]
-   ]
-  }
- ],
- "unmatched": [
-  {
-   "tool": 2,
-   "pass": 1,
-   "why": "no vector at constant offset (best spread 1.5529)",
-   "bbox": [
-    37.5101,
-    0.7133,
-    46.7601,
-    14.9633
-   ]
-  },
-  {
-   "tool": 2,
-   "pass": 2,
-   "why": "no vector at constant offset (best spread 1.5512)",
-   "bbox": [
-    37.5101,
-    13.8039,
-    46.7601,
-    28.0538
-   ]
-  },
-  {
-   "tool": 2,
-   "pass": 3,
-   "why": "no vector at constant offset (best spread 1.5545)",
-   "bbox": [
-    37.5101,
-    26.8943,
-    46.7601,
-    41.1443
-   ]
-  },
-  {
-   "tool": 2,
-   "pass": 4,
-   "why": "no vector at constant offset (best spread 5.3367)",
-   "bbox": [
-    37.5101,
-    39.9848,
-    46.7601,
-    54.2348
-   ]
-  },
-  {
-   "tool": 2,
-   "pass": 5,
-   "why": "no vector at constant offset (best spread 6.7809)",
-   "bbox": [
-    37.5101,
-    53.0754,
-    46.7601,
-    67.3254
-   ]
-  },
-  {
-   "tool": 2,
-   "pass": 6,
-   "why": "no vector at constant offset (best spread 3.5484)",
-   "bbox": [
-    37.5101,
-    66.1659,
-    46.7601,
-    80.4159
-   ]
-  },
-  {
-   "tool": 2,
-   "pass": 7,
-   "why": "no vector at constant offset (best spread 3.4905)",
-   "bbox": [
-    37.5101,
-    79.2565,
-    46.7601,
-    93.5065
    ]
   }
  ]

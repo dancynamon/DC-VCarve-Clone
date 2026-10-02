@@ -1,0 +1,114 @@
+{
+ "name": "3x2x84 x 4 - 3x2x60 x 10 - Noodles - T2 only - 14 units total",
+ "crv": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Noodle 2# 3x2x40 and 60/60in Noodle/3x2x60 noodle T1 Roundover T2 Profile - 14 units.crv3d",
+ "vectric": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Noodle - Aquamentor Style/Noodle 2# 3x2x40 and 60/84in + 60in noodle special/3x2x84 x 4 - 3x2x60 x 10 - Noodles - T2 only - 14 units total.tap",
+ "out": "3x2x84 x 4 - 3x2x60 x 10 - Noodles - T2 only - 14 units total-aq.tap",
+ "complete": false,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.95,
+   "passDepth": 1.95,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "3x2x84 x 4 - 3x2x60 x 10 - Noodles - T2 only - 14 units total T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     4
+    ],
+    [
+     "Layer 1",
+     5
+    ],
+    [
+     "Layer 1",
+     6
+    ],
+    [
+     "Layer 1",
+     7
+    ],
+    [
+     "Layer 1",
+     8
+    ],
+    [
+     "Layer 1",
+     9
+    ],
+    [
+     "Layer 1",
+     10
+    ],
+    [
+     "Layer 1",
+     11
+    ],
+    [
+     "Layer 1",
+     12
+    ],
+    [
+     "Layer 1",
+     13
+    ]
+   ]
+  }
+ ],
+ "unmatched": [
+  {
+   "tool": 2,
+   "pass": 0,
+   "why": "no vector at constant offset (best spread 23.6281)",
+   "bbox": [
+    1.185,
+    0.25,
+    4.435,
+    84.5
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 1,
+   "why": "no vector at constant offset (best spread 23.6281)",
+   "bbox": [
+    4.445,
+    0.25,
+    7.695,
+    84.5
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 2,
+   "why": "no vector at constant offset (best spread 23.6281)",
+   "bbox": [
+    7.705,
+    0.25,
+    10.955,
+    84.5
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 3,
+   "why": "no vector at constant offset (best spread 23.6281)",
+   "bbox": [
+    10.965,
+    0.25,
+    14.215,
+    84.5
+   ]
+  }
+ ]
+}

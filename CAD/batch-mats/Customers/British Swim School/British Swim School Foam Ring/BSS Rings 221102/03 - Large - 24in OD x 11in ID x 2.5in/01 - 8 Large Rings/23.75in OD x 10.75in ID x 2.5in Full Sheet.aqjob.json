@@ -184,7 +184,7 @@
    "leadLen": 0.25,
    "tabs": {
     "count": 4,
-    "length": 0.9332,
+    "length": 0.9229,
     "height": 0.125
    },
    "label": "23.75in OD x 10.75in ID x 2.5in Full Sheet T7 profile outside",
@@ -199,27 +199,42 @@
     ],
     [
      "FR OD Profile",
-     7
-    ],
-    [
-     "FR OD Profile",
      5
     ],
     [
      "FR OD Profile",
-     6
-    ],
+     3
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 7,
+   "toolDia": 0.5,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 2.5,
+   "passDepth": 1.25,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 4,
+    "length": 0.9275,
+    "height": 0.125
+   },
+   "label": "23.75in OD x 10.75in ID x 2.5in Full Sheet T7 profile outside",
+   "select": [
     [
      "FR OD Profile",
-     3
+     7
     ],
     [
      "FR OD Profile",
      1
-    ],
-    [
-     "FR OD Profile",
-     4
     ],
     [
      "FR OD Profile",
@@ -232,6 +247,60 @@
     [
      "FR OD Profile",
      9
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 7,
+   "toolDia": 0.5,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 2.5,
+   "passDepth": 1.25,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 4,
+    "length": 0.92,
+    "height": 0.125
+   },
+   "label": "23.75in OD x 10.75in ID x 2.5in Full Sheet T7 profile outside",
+   "select": [
+    [
+     "FR OD Profile",
+     6
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 7,
+   "toolDia": 0.5,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 2.5,
+   "passDepth": 1.25,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 4,
+    "length": 0.9292,
+    "height": 0.125
+   },
+   "label": "23.75in OD x 10.75in ID x 2.5in Full Sheet T7 profile outside",
+   "select": [
+    [
+     "FR OD Profile",
+     4
     ]
    ]
   },

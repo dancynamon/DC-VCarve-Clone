@@ -1,9 +1,9 @@
 {
  "name": "50x98 Foam Rounds",
- "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Foam Rounds for Barbells and Dumbbells/50x98 Foam Rounds.crv3d",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Foam Rounds for Barbells and Dumbbells/OLD/50x98 Foam Rounds Feb 2021 final inset.crv3d",
  "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Foam Rounds for Barbells and Dumbbells/50x98 Foam Rounds.tap",
  "out": "50x98 Foam Rounds-aq.tap",
- "complete": false,
+ "complete": true,
  "generatedBy": "tap2spec",
  "ops": [
   {
@@ -11,7 +11,7 @@
    "side": "inside",
    "climb": false,
    "toolNum": 7,
-   "toolDia": 1.5466,
+   "toolDia": 0.5,
    "rpm": 22000,
    "feed": 100,
    "plunge": 30,
@@ -23,745 +23,627 @@
    "label": "50x98 Foam Rounds T7 profile inside",
    "select": [
     [
-     "ID Inset",
+     "ID Pocket",
      0
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      1
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      2
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      3
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      4
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      5
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      6
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      7
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      8
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      9
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      10
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      11
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      12
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      13
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      14
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      28
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      27
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      26
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      25
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      24
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      23
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      22
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      21
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      20
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      19
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      18
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      17
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      16
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      15
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      31
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      32
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      33
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      34
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      35
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      36
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      37
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      38
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      39
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      40
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      41
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      42
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      43
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      44
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      58
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      57
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      56
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      55
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      54
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      53
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      52
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      51
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      50
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      49
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      48
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      47
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      46
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      45
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      30
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      60
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      61
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      62
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      63
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      64
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      65
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      66
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      67
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      68
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      69
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      70
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      71
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      72
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      73
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      74
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      88
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      87
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      86
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      85
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      84
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      83
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      82
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      81
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      80
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      79
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      78
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      77
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      76
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      75
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      90
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      91
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      92
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      93
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      94
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      95
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      96
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      97
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      98
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      99
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      100
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      101
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      102
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      103
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      104
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      118
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      117
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      116
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      115
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      114
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      113
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      112
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      111
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      110
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      109
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      108
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      107
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      106
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      105
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      120
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      121
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      122
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      123
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      124
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      125
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      126
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      127
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      128
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      129
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      130
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      131
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      132
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      133
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      134
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      119
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      89
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      59
     ],
     [
-     "ID Inset",
+     "ID Pocket",
      29
     ]
    ]
-  }
- ],
- "unmatched": [
+  },
   {
-   "tool": 2,
-   "pass": 0,
-   "why": "no vector at constant offset (best spread 0.1936)",
-   "bbox": [
-    0.4001,
-    0.9501,
-    6.5999,
-    93.9499
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 25,
+   "cutDepth": 2.5,
+   "passDepth": 1.25,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 30,
+    "length": 0.7791,
+    "height": 0.035
+   },
+   "label": "50x98 Foam Rounds T2 profile on",
+   "select": [
+    [
+     "OD Profile",
+     0
+    ],
+    [
+     "OD Profile",
+     1
+    ]
    ]
   },
   {
-   "tool": 2,
-   "pass": 1,
-   "why": "no vector at constant offset (best spread 0.1935)",
-   "bbox": [
-    0.4001,
-    0.9501,
-    6.5999,
-    93.9499
-   ]
-  },
-  {
-   "tool": 2,
-   "pass": 2,
-   "why": "no vector at constant offset (best spread 0.1936)",
-   "bbox": [
-    5.7751,
-    4.0501,
-    11.9749,
-    97.0499
-   ]
-  },
-  {
-   "tool": 2,
-   "pass": 3,
-   "why": "no vector at constant offset (best spread 0.1935)",
-   "bbox": [
-    5.7751,
-    4.0501,
-    11.9749,
-    97.0499
-   ]
-  },
-  {
-   "tool": 2,
-   "pass": 4,
-   "why": "no vector at constant offset (best spread 0.1948)",
-   "bbox": [
-    11.15,
-    0.95,
-    17.35,
-    93.95
-   ]
-  },
-  {
-   "tool": 2,
-   "pass": 5,
-   "why": "no vector at constant offset (best spread 0.1932)",
-   "bbox": [
-    11.15,
-    0.95,
-    17.35,
-    93.95
-   ]
-  },
-  {
-   "tool": 2,
-   "pass": 6,
-   "why": "no vector at constant offset (best spread 0.1948)",
-   "bbox": [
-    16.525,
-    4.05,
-    22.725,
-    97.05
-   ]
-  },
-  {
-   "tool": 2,
-   "pass": 7,
-   "why": "no vector at constant offset (best spread 0.1932)",
-   "bbox": [
-    16.525,
-    4.05,
-    22.725,
-    97.05
-   ]
-  },
-  {
-   "tool": 2,
-   "pass": 8,
-   "why": "no vector at constant offset (best spread 0.1948)",
-   "bbox": [
-    21.9,
-    0.95,
-    28.1,
-    93.95
-   ]
-  },
-  {
-   "tool": 2,
-   "pass": 9,
-   "why": "no vector at constant offset (best spread 0.1932)",
-   "bbox": [
-    21.9,
-    0.95,
-    28.1,
-    93.95
-   ]
-  },
-  {
-   "tool": 2,
-   "pass": 10,
-   "why": "no vector at constant offset (best spread 0.1948)",
-   "bbox": [
-    27.275,
-    4.05,
-    33.475,
-    97.05
-   ]
-  },
-  {
-   "tool": 2,
-   "pass": 11,
-   "why": "no vector at constant offset (best spread 0.1932)",
-   "bbox": [
-    27.275,
-    4.05,
-    33.475,
-    97.05
-   ]
-  },
-  {
-   "tool": 2,
-   "pass": 12,
-   "why": "no vector at constant offset (best spread 0.1948)",
-   "bbox": [
-    32.65,
-    0.95,
-    38.85,
-    93.95
-   ]
-  },
-  {
-   "tool": 2,
-   "pass": 13,
-   "why": "no vector at constant offset (best spread 0.1932)",
-   "bbox": [
-    32.65,
-    0.95,
-    38.85,
-    93.95
-   ]
-  },
-  {
-   "tool": 2,
-   "pass": 14,
-   "why": "no vector at constant offset (best spread 0.1948)",
-   "bbox": [
-    38.025,
-    4.05,
-    44.225,
-    97.05
-   ]
-  },
-  {
-   "tool": 2,
-   "pass": 15,
-   "why": "no vector at constant offset (best spread 0.1932)",
-   "bbox": [
-    38.025,
-    4.05,
-    44.225,
-    97.05
-   ]
-  },
-  {
-   "tool": 2,
-   "pass": 16,
-   "why": "no vector at constant offset (best spread 0.1948)",
-   "bbox": [
-    43.4,
-    0.95,
-    49.6,
-    93.95
-   ]
-  },
-  {
-   "tool": 2,
-   "pass": 17,
-   "why": "no vector at constant offset (best spread 0.1932)",
-   "bbox": [
-    43.4,
-    0.95,
-    49.6,
-    93.95
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 25,
+   "cutDepth": 2.5,
+   "passDepth": 1.25,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 30,
+    "length": 0.8053,
+    "height": 0.035
+   },
+   "label": "50x98 Foam Rounds T2 profile on",
+   "select": [
+    [
+     "OD Profile",
+     2
+    ],
+    [
+     "OD Profile",
+     3
+    ],
+    [
+     "OD Profile",
+     4
+    ],
+    [
+     "OD Profile",
+     5
+    ],
+    [
+     "OD Profile",
+     6
+    ],
+    [
+     "OD Profile",
+     7
+    ],
+    [
+     "OD Profile",
+     8
+    ]
    ]
   }
  ]

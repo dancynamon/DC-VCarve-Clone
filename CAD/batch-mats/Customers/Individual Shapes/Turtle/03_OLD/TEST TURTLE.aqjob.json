@@ -1,0 +1,58 @@
+{
+ "name": "TEST TURTLE",
+ "crv": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/zzz_Old Orders, Not In Use/Kids Seating Pads/16x10.5 Turtle.crv",
+ "vectric": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Turtle/03_OLD/TEST TURTLE.tap",
+ "out": "TEST TURTLE-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 20,
+   "cutDepth": 2,
+   "passDepth": 2,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "TEST TURTLE T2 profile inside",
+   "select": [
+    [
+     "Layer 1",
+     0
+    ],
+    [
+     "Layer 1",
+     1
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 20,
+   "cutDepth": 1.99,
+   "passDepth": 1.99,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "TEST TURTLE T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     4
+    ]
+   ]
+  }
+ ]
+}

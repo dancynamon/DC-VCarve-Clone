@@ -1,0 +1,238 @@
+{
+ "name": "3 units - Sunfish 36x36 plus 4 junior kx",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Sunfish/01_CAD/3 units - Sunfish 36x36.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Sunfish/02_TAP/3 units - Sunfish 36x36 plus 4 junior kx.tap",
+ "out": "3 units - Sunfish 36x36 plus 4 junior kx-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 1,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "3 units - Sunfish 36x36 plus 4 junior kx T1 profile inside",
+   "select": [
+    [
+     "Profile Handles T1",
+     1
+    ],
+    [
+     "Profile Handles T1",
+     0
+    ],
+    [
+     "Profile Handles T1",
+     2
+    ],
+    [
+     "Profile Handles T1",
+     3
+    ],
+    [
+     "Profile Handles T1",
+     5
+    ],
+    [
+     "Profile Handles T1",
+     4
+    ],
+    [
+     "Profile Handles T1",
+     6
+    ],
+    [
+     "Profile Handles T1",
+     7
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 1,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "3 units - Sunfish 36x36 plus 4 junior kx T1 profile outside",
+   "select": [
+    [
+     "Profile T1",
+     0
+    ],
+    [
+     "Profile T1",
+     1
+    ],
+    [
+     "Profile T1",
+     2
+    ],
+    [
+     "Profile T1",
+     3
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 5,
+   "toolDia": 0.125,
+   "rpm": 12000,
+   "feed": 40,
+   "plunge": 40,
+   "cutDepth": 0.1,
+   "passDepth": 0.1,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "3 units - Sunfish 36x36 plus 4 junior kx T5 profile on",
+   "select": [
+    [
+     "Engrave",
+     5
+    ],
+    [
+     "Engrave",
+     4
+    ],
+    [
+     "Engrave",
+     3
+    ],
+    [
+     "Engrave",
+     2
+    ],
+    [
+     "Engrave",
+     1
+    ],
+    [
+     "Engrave",
+     0
+    ],
+    [
+     "Engrave",
+     10
+    ],
+    [
+     "Engrave",
+     9
+    ],
+    [
+     "Engrave",
+     8
+    ],
+    [
+     "Engrave",
+     11
+    ],
+    [
+     "Engrave",
+     7
+    ],
+    [
+     "Engrave",
+     6
+    ],
+    [
+     "Engrave",
+     12
+    ],
+    [
+     "Engrave",
+     13
+    ],
+    [
+     "Engrave",
+     14
+    ],
+    [
+     "Engrave",
+     16
+    ],
+    [
+     "Engrave",
+     15
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "stepover": 0.5,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "label": "3 units - Sunfish 36x36 plus 4 junior kx T2 pocket",
+   "select": [
+    [
+     "Pocket",
+     0
+    ],
+    [
+     "Pocket",
+     1
+    ],
+    [
+     "Pocket",
+     2
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "3 units - Sunfish 36x36 plus 4 junior kx T2 profile outside",
+   "select": [
+    [
+     "Profile",
+     0
+    ],
+    [
+     "Profile",
+     1
+    ],
+    [
+     "Profile",
+     2
+    ]
+   ]
+  }
+ ]
+}

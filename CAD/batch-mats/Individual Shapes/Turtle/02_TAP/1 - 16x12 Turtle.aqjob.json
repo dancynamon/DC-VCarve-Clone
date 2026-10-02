@@ -1,0 +1,53 @@
+{
+ "name": "1 - 16x12 Turtle",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Turtle/01_CRV/16x12 Turtle 50x98 sheet.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Turtle/02_TAP/1 - 16x12 Turtle.tap",
+ "out": "1 - 16x12 Turtle-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "drill",
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 50,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "clearZ": 0.8,
+   "label": "1 - 16x12 Turtle T2 drill",
+   "select": [
+    [
+     "Pocket",
+     0
+    ],
+    [
+     "Pocket",
+     1
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 50,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "1 - 16x12 Turtle T2 profile outside",
+   "select": [
+    [
+     "Profile",
+     0
+    ]
+   ]
+  }
+ ]
+}

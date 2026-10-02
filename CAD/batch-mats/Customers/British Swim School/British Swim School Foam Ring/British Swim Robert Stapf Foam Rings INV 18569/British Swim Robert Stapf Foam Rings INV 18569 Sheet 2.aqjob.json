@@ -8,7 +8,7 @@
  "ops": [
   {
    "op": "pocket",
-   "climb": true,
+   "climb": false,
    "toolNum": 10,
    "toolDia": 3.9972,
    "stepover": 0.28,
@@ -34,7 +34,7 @@
    "op": "pocket",
    "climb": false,
    "toolNum": 10,
-   "toolDia": 1.4975,
+   "toolDia": 1.4974,
    "stepover": 0.75,
    "rpm": 18000,
    "feed": 100,
@@ -52,7 +52,7 @@
   },
   {
    "op": "pocket",
-   "climb": true,
+   "climb": false,
    "toolNum": 10,
    "toolDia": 3.9971,
    "stepover": 0.28,
@@ -100,7 +100,7 @@
   },
   {
    "op": "pocket",
-   "climb": true,
+   "climb": false,
    "toolNum": 10,
    "toolDia": 3.997,
    "stepover": 0.28,
@@ -325,88 +325,88 @@
   {
    "tool": 10,
    "pass": 2,
-   "why": "no vector at constant offset (best spread 5.0161)",
+   "why": "no vector at constant offset (best spread 5.186)",
    "bbox": [
-    16.4767,
-    11.6971,
-    30.0469,
-    23.513
+    16.5033,
+    11.698,
+    30.0254,
+    23.5024
    ]
   },
   {
    "tool": 10,
    "pass": 8,
-   "why": "no vector at constant offset (best spread 0.2176)",
+   "why": "no vector at constant offset (best spread 0.2252)",
    "bbox": [
     24.1696,
-    54.2466,
-    24.9087,
+    54.2549,
+    24.9067,
     55.1108
    ]
   },
   {
    "tool": 10,
    "pass": 9,
-   "why": "no vector at constant offset (best spread 8.3593)",
+   "why": "no vector at constant offset (best spread 8.4021)",
    "bbox": [
-    16.4775,
-    38.5173,
-    31.9769,
-    60.6491
+    16.5359,
+    38.5411,
+    31.9221,
+    60.6311
    ]
   },
   {
    "tool": 10,
    "pass": 10,
-   "why": "no vector at constant offset (best spread 0.4352)",
+   "why": "no vector at constant offset (best spread 0.4511)",
    "bbox": [
-    23.582,
-    44.0099,
-    24.3212,
+    23.59,
+    44.0139,
+    24.3157,
     44.874
    ]
   },
   {
    "tool": 10,
    "pass": 15,
-   "why": "no vector at constant offset (best spread 5.0161)",
+   "why": "no vector at constant offset (best spread 5.186)",
    "bbox": [
-    16.4767,
-    11.6971,
-    30.0469,
-    23.513
+    16.5033,
+    11.698,
+    30.0254,
+    23.5024
    ]
   },
   {
    "tool": 10,
    "pass": 21,
-   "why": "no vector at constant offset (best spread 0.2176)",
+   "why": "no vector at constant offset (best spread 0.2252)",
    "bbox": [
     24.1696,
-    54.2466,
-    24.9087,
+    54.2549,
+    24.9067,
     55.1108
    ]
   },
   {
    "tool": 10,
    "pass": 22,
-   "why": "no vector at constant offset (best spread 8.3593)",
+   "why": "no vector at constant offset (best spread 8.4021)",
    "bbox": [
-    16.4775,
-    38.5173,
-    31.9769,
-    60.6491
+    16.5359,
+    38.5411,
+    31.9221,
+    60.6311
    ]
   },
   {
    "tool": 10,
    "pass": 23,
-   "why": "no vector at constant offset (best spread 0.4352)",
+   "why": "no vector at constant offset (best spread 0.4511)",
    "bbox": [
-    23.582,
-    44.0099,
-    24.3212,
+    23.59,
+    44.0139,
+    24.3157,
     44.874
    ]
   }

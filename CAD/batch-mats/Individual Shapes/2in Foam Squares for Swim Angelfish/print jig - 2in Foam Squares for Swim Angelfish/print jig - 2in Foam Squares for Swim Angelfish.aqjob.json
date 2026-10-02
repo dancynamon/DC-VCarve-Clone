@@ -1,0 +1,292 @@
+{
+ "name": "print jig - 2in Foam Squares for Swim Angelfish",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/2in Foam Squares for Swim Angelfish/print jig - 2in Foam Squares for Swim Angelfish.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/2in Foam Squares for Swim Angelfish/print jig - 2in Foam Squares for Swim Angelfish/print jig - 2in Foam Squares for Swim Angelfish.tap",
+ "out": "print jig - 2in Foam Squares for Swim Angelfish-aq.tap",
+ "complete": false,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 90,
+   "plunge": 25,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "print jig - 2in Foam Squares for Swim Angelfish T2 profile inside",
+   "select": [
+    [
+     "Layer 1",
+     0
+    ],
+    [
+     "Layer 1",
+     9
+    ],
+    [
+     "Layer 1",
+     17
+    ],
+    [
+     "Layer 1",
+     25
+    ],
+    [
+     "Layer 1",
+     27
+    ],
+    [
+     "Layer 1",
+     19
+    ],
+    [
+     "Layer 1",
+     11
+    ],
+    [
+     "Layer 1",
+     3
+    ],
+    [
+     "Layer 1",
+     5
+    ],
+    [
+     "Layer 1",
+     13
+    ],
+    [
+     "Layer 1",
+     21
+    ],
+    [
+     "Layer 1",
+     29
+    ],
+    [
+     "Layer 1",
+     31
+    ],
+    [
+     "Layer 1",
+     23
+    ],
+    [
+     "Layer 1",
+     15
+    ],
+    [
+     "Layer 1",
+     7
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 90,
+   "plunge": 25,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "print jig - 2in Foam Squares for Swim Angelfish T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     1
+    ]
+   ]
+  }
+ ],
+ "unmatched": [
+  {
+   "tool": 2,
+   "pass": 16,
+   "why": "no vector at constant offset (best spread 0.1249)",
+   "bbox": [
+    1.1252,
+    2.1251,
+    1.3749,
+    2.375
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 17,
+   "why": "no vector at constant offset (best spread 0.1249)",
+   "bbox": [
+    1.1252,
+    4.8751,
+    1.3749,
+    5.125
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 18,
+   "why": "no vector at constant offset (best spread 0.1249)",
+   "bbox": [
+    1.1252,
+    7.6251,
+    1.3749,
+    7.875
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 19,
+   "why": "no vector at constant offset (best spread 0.1249)",
+   "bbox": [
+    1.1252,
+    10.3751,
+    1.3749,
+    10.625
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 20,
+   "why": "no vector at constant offset (best spread 0.1249)",
+   "bbox": [
+    3.8752,
+    10.3751,
+    4.1249,
+    10.625
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 21,
+   "why": "no vector at constant offset (best spread 0.1249)",
+   "bbox": [
+    6.6252,
+    10.3751,
+    6.8749,
+    10.625
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 22,
+   "why": "no vector at constant offset (best spread 0.1249)",
+   "bbox": [
+    9.3752,
+    10.3751,
+    9.6249,
+    10.625
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 23,
+   "why": "no vector at constant offset (best spread 0.1249)",
+   "bbox": [
+    9.3752,
+    7.6251,
+    9.6249,
+    7.875
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 24,
+   "why": "no vector at constant offset (best spread 0.1249)",
+   "bbox": [
+    6.6252,
+    7.6251,
+    6.8749,
+    7.875
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 25,
+   "why": "no vector at constant offset (best spread 0.1249)",
+   "bbox": [
+    3.8752,
+    7.6251,
+    4.1249,
+    7.875
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 26,
+   "why": "no vector at constant offset (best spread 0.1249)",
+   "bbox": [
+    3.8752,
+    4.8751,
+    4.1249,
+    5.125
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 27,
+   "why": "no vector at constant offset (best spread 0.1249)",
+   "bbox": [
+    6.6252,
+    4.8751,
+    6.8749,
+    5.125
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 28,
+   "why": "no vector at constant offset (best spread 0.1249)",
+   "bbox": [
+    9.3752,
+    4.8751,
+    9.6249,
+    5.125
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 29,
+   "why": "no vector at constant offset (best spread 0.1249)",
+   "bbox": [
+    9.3752,
+    2.1251,
+    9.6249,
+    2.375
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 30,
+   "why": "no vector at constant offset (best spread 0.1249)",
+   "bbox": [
+    6.6252,
+    2.1251,
+    6.8749,
+    2.375
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 31,
+   "why": "no vector at constant offset (best spread 0.1249)",
+   "bbox": [
+    3.8752,
+    2.1251,
+    4.1249,
+    2.375
+   ]
+  }
+ ]
+}

@@ -8,7 +8,7 @@
  "ops": [
   {
    "op": "pocket",
-   "climb": true,
+   "climb": false,
    "toolNum": 10,
    "toolDia": 3.9972,
    "stepover": 0.28,
@@ -48,7 +48,7 @@
   },
   {
    "op": "pocket",
-   "climb": true,
+   "climb": false,
    "toolNum": 10,
    "toolDia": 3.9971,
    "stepover": 0.28,
@@ -70,7 +70,7 @@
    "op": "pocket",
    "climb": false,
    "toolNum": 10,
-   "toolDia": 1.4975,
+   "toolDia": 1.4974,
    "stepover": 0.75,
    "rpm": 18000,
    "feed": 100,
@@ -88,7 +88,7 @@
   },
   {
    "op": "pocket",
-   "climb": true,
+   "climb": false,
    "toolNum": 10,
    "toolDia": 4.7472,
    "stepover": 0.24,
@@ -103,16 +103,12 @@
     [
      "OD",
      6
-    ],
-    [
-     "OD",
-     4
     ]
    ]
   },
   {
    "op": "pocket",
-   "climb": false,
+   "climb": true,
    "toolNum": 10,
    "toolDia": 1.4975,
    "stepover": 0.75,
@@ -132,7 +128,7 @@
   },
   {
    "op": "pocket",
-   "climb": true,
+   "climb": false,
    "toolNum": 10,
    "toolDia": 4.7471,
    "stepover": 0.24,
@@ -151,6 +147,26 @@
     [
      "OD",
      5
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 10,
+   "toolDia": 4.7474,
+   "stepover": 0.24,
+   "rpm": 18000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 1.25,
+   "passDepth": 0.625,
+   "clearZ": 0.25,
+   "label": "British Swim Robert Stapf Foam Rings INV 18569 - Sheet 1 T10 pocket",
+   "select": [
+    [
+     "OD",
+     4
     ]
    ]
   },
@@ -433,67 +449,67 @@
   {
    "tool": 10,
    "pass": 2,
-   "why": "no vector at constant offset (best spread 5.7677)",
+   "why": "no vector at constant offset (best spread 5.8876)",
    "bbox": [
-    9.9112,
-    70.3587,
-    22.9921,
-    84.456
+    9.9153,
+    70.3705,
+    22.9884,
+    84.4411
    ]
   },
   {
    "tool": 10,
    "pass": 7,
-   "why": "no vector at constant offset (best spread 5.7677)",
+   "why": "no vector at constant offset (best spread 5.8876)",
    "bbox": [
-    9.9112,
-    70.3587,
-    22.9921,
-    84.456
+    9.9153,
+    70.3705,
+    22.9884,
+    84.4411
    ]
   },
   {
    "tool": 10,
    "pass": 12,
-   "why": "no vector at constant offset (best spread 11.4699)",
+   "why": "no vector at constant offset (best spread 11.307)",
    "bbox": [
     4.27,
-    4.27,
-    44.2148,
-    61.6557
+    4.2701,
+    44.2146,
+    61.6556
    ]
   },
   {
    "tool": 10,
    "pass": 14,
-   "why": "no vector at constant offset (best spread 5.0897)",
+   "why": "no vector at constant offset (best spread 5.2529)",
    "bbox": [
-    25.8128,
-    35.5336,
-    31.8972,
-    43.1875
+    25.8136,
+    35.5367,
+    31.8903,
+    43.1864
    ]
   },
   {
    "tool": 10,
    "pass": 19,
-   "why": "no vector at constant offset (best spread 11.4699)",
+   "why": "no vector at constant offset (best spread 11.307)",
    "bbox": [
     4.27,
-    4.27,
-    44.2148,
-    61.6557
+    4.2701,
+    44.2146,
+    61.6556
    ]
   },
   {
    "tool": 10,
    "pass": 21,
-   "why": "no vector at constant offset (best spread 5.0897)",
+   "why": "no vector at constant offset (best spread 5.2529)",
    "bbox": [
-    25.8128,
-    35.5336,
-    31.8972,
-    43.1875
+    25.8136,
+    35.5367,
+    31.8903,
+    43.1864
    ]
   }
  ]

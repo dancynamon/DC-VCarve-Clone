@@ -1,48 +1,276 @@
 {
  "name": "1 48IN GORILLA AND KX",
- "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Lifetime Swim/Production/1 48IN GORRILA.crv3d",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Lifetime Swim/1 48IN GORILLA AND KX.crv3d",
  "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Lifetime Swim/Production/1 48IN GORILLA AND KX.tap",
  "out": "1 48IN GORILLA AND KX-aq.tap",
- "complete": false,
+ "complete": true,
  "generatedBy": "tap2spec",
  "ops": [
   {
-   "op": "pocket",
+   "op": "profile",
+   "side": "on",
    "climb": false,
    "toolNum": 5,
-   "toolDia": 0.9081,
-   "stepover": 0.02,
+   "toolDia": 0.125,
    "rpm": 12000,
    "feed": 40,
    "plunge": 40,
    "cutDepth": 0.1,
    "passDepth": 0.1,
    "clearZ": 0.2,
-   "label": "1 48IN GORILLA AND KX T5 pocket",
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "1 48IN GORILLA AND KX T5 profile on",
    "select": [
     [
-     "Profile",
+     "Engrave",
+     34
+    ],
+    [
+     "Engrave",
+     26
+    ],
+    [
+     "Engrave",
+     25
+    ],
+    [
+     "Engrave",
+     31
+    ],
+    [
+     "Engrave",
+     33
+    ],
+    [
+     "Engrave",
+     32
+    ],
+    [
+     "Engrave",
+     36
+    ],
+    [
+     "Engrave",
+     29
+    ],
+    [
+     "Engrave",
+     27
+    ],
+    [
+     "Engrave",
+     35
+    ],
+    [
+     "Engrave",
+     28
+    ],
+    [
+     "Engrave",
+     37
+    ],
+    [
+     "Engrave",
+     38
+    ],
+    [
+     "Engrave",
+     39
+    ],
+    [
+     "Engrave",
+     7
+    ],
+    [
+     "Engrave",
+     30
+    ],
+    [
+     "Engrave",
+     24
+    ],
+    [
+     "Engrave",
+     23
+    ],
+    [
+     "Engrave",
+     15
+    ],
+    [
+     "Engrave",
+     14
+    ],
+    [
+     "Engrave",
+     52
+    ],
+    [
+     "Engrave",
+     55
+    ],
+    [
+     "Engrave",
+     16
+    ],
+    [
+     "Engrave",
+     20
+    ],
+    [
+     "Engrave",
+     53
+    ],
+    [
+     "Engrave",
+     47
+    ],
+    [
+     "Engrave",
+     10
+    ],
+    [
+     "Engrave",
+     11
+    ],
+    [
+     "Engrave",
+     13
+    ],
+    [
+     "Engrave",
+     49
+    ],
+    [
+     "Engrave",
+     12
+    ],
+    [
+     "Engrave",
+     18
+    ],
+    [
+     "Engrave",
+     50
+    ],
+    [
+     "Engrave",
+     17
+    ],
+    [
+     "Engrave",
+     48
+    ],
+    [
+     "Engrave",
+     19
+    ],
+    [
+     "Engrave",
+     22
+    ],
+    [
+     "Engrave",
+     21
+    ],
+    [
+     "Engrave",
+     42
+    ],
+    [
+     "Engrave",
+     54
+    ],
+    [
+     "Engrave",
+     51
+    ],
+    [
+     "Engrave",
+     56
+    ],
+    [
+     "Engrave",
+     9
+    ],
+    [
+     "Engrave",
+     8
+    ],
+    [
+     "Engrave",
+     46
+    ],
+    [
+     "Engrave",
+     43
+    ],
+    [
+     "Engrave",
+     41
+    ],
+    [
+     "Engrave",
+     40
+    ],
+    [
+     "Engrave",
+     6
+    ],
+    [
+     "Engrave",
+     3
+    ],
+    [
+     "Engrave",
+     4
+    ],
+    [
+     "Engrave",
+     44
+    ],
+    [
+     "Engrave",
+     5
+    ],
+    [
+     "Engrave",
      0
+    ],
+    [
+     "Engrave",
+     2
+    ],
+    [
+     "Engrave",
+     1
+    ],
+    [
+     "Engrave",
+     45
     ]
    ]
   },
   {
-   "op": "pocket",
-   "climb": true,
-   "toolNum": 5,
-   "toolDia": 0.1304,
-   "stepover": 0.15,
-   "rpm": 12000,
-   "feed": 40,
-   "plunge": 40,
-   "cutDepth": 0.1,
-   "passDepth": 0.1,
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 20,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
    "clearZ": 0.2,
-   "label": "1 48IN GORILLA AND KX T5 pocket",
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "1 48IN GORILLA AND KX T2 profile outside",
    "select": [
     [
-     "Engrave",
-     26
+     "Profile",
+     34
     ]
    ]
   },
@@ -50,739 +278,88 @@
    "op": "profile",
    "side": "inside",
    "climb": false,
-   "toolNum": 5,
-   "toolDia": 1.2945,
-   "rpm": 12000,
-   "feed": 40,
-   "plunge": 40,
-   "cutDepth": 0.1,
-   "passDepth": 0.1,
+   "toolNum": 1,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
    "clearZ": 0.2,
    "leadType": "none",
    "leadLen": 0.25,
-   "label": "1 48IN GORILLA AND KX T5 profile inside",
+   "label": "1 48IN GORILLA AND KX T1 profile inside",
+   "select": [
+    [
+     "Handles",
+     70
+    ],
+    [
+     "Handles",
+     71
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 1,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "1 48IN GORILLA AND KX T1 profile outside",
    "select": [
     [
      "Profile",
+     35
+    ],
+    [
+     "kickboards",
      0
-    ]
-   ]
-  },
-  {
-   "op": "profile",
-   "side": "left",
-   "climb": false,
-   "toolNum": 5,
-   "toolDia": 0.1307,
-   "rpm": 12000,
-   "feed": 40,
-   "plunge": 40,
-   "cutDepth": 0.1,
-   "passDepth": 0.1,
-   "clearZ": 0.2,
-   "leadType": "line",
-   "leadLen": 0.1,
-   "label": "1 48IN GORILLA AND KX T5 profile left",
-   "select": [
+    ],
     [
-     "Engrave",
-     30
-    ]
-   ]
-  },
-  {
-   "op": "profile",
-   "side": "left",
-   "climb": false,
-   "toolNum": 5,
-   "toolDia": 0.0941,
-   "rpm": 12000,
-   "feed": 40,
-   "plunge": 40,
-   "cutDepth": 0.1,
-   "passDepth": 0.1,
-   "clearZ": 0.2,
-   "leadType": "line",
-   "leadLen": 0.12,
-   "label": "1 48IN GORILLA AND KX T5 profile left",
-   "select": [
+     "kickboards",
+     2
+    ],
     [
-     "Engrave",
-     39
-    ]
-   ]
-  },
-  {
-   "op": "profile",
-   "side": "left",
-   "climb": false,
-   "toolNum": 5,
-   "toolDia": 0.1602,
-   "rpm": 12000,
-   "feed": 40,
-   "plunge": 40,
-   "cutDepth": 0.1,
-   "passDepth": 0.1,
-   "clearZ": 0.2,
-   "leadType": "none",
-   "leadLen": 0.25,
-   "label": "1 48IN GORILLA AND KX T5 profile left",
-   "select": [
+     "kickboards",
+     3
+    ],
     [
-     "Engrave",
-     43
+     "kickboards",
+     7
+    ],
+    [
+     "kickboards",
+     6
+    ],
+    [
+     "kickboards",
+     8
+    ],
+    [
+     "kickboards",
+     4
+    ],
+    [
+     "kickboards",
+     5
+    ],
+    [
+     "kickboards",
+     9
+    ],
+    [
+     "kickboards",
+     1
     ]
-   ]
-  }
- ],
- "unmatched": [
-  {
-   "tool": 5,
-   "pass": 0,
-   "why": "no vector at constant offset (best spread 0.2254)",
-   "bbox": [
-    16.9747,
-    3.4638,
-    19.4981,
-    5.4298
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 6,
-   "why": "no vector at constant offset (best spread 0.0101)",
-   "bbox": [
-    22.1241,
-    1.3817,
-    23.0596,
-    5.3048
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 7,
-   "why": "no vector at constant offset (best spread 0.1501)",
-   "bbox": [
-    29.6684,
-    13.1484,
-    34.2963,
-    20.6157
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 8,
-   "why": "no vector at constant offset (best spread 0.2265)",
-   "bbox": [
-    13.6168,
-    4.7553,
-    30.4424,
-    20.2124
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 9,
-   "why": "no vector at constant offset (best spread 0.0238)",
-   "bbox": [
-    25.6192,
-    18.1505,
-    28.0107,
-    23.1198
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 12,
-   "why": "no vector at constant offset (best spread 0.0907)",
-   "bbox": [
-    9.4029,
-    23.6685,
-    29.2664,
-    36.8177
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 14,
-   "why": "no vector at constant offset (best spread 0.1151)",
-   "bbox": [
-    21.4165,
-    23.7775,
-    34.2775,
-    43.3448
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 15,
-   "why": "no vector at constant offset (best spread 0.1056)",
-   "bbox": [
-    31.3595,
-    22.6201,
-    37.1637,
-    30.0748
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 16,
-   "why": "no vector at constant offset (best spread 0.1078)",
-   "bbox": [
-    26.8948,
-    28.4831,
-    29.2091,
-    32.8272
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 17,
-   "why": "no vector at constant offset (best spread 0.1033)",
-   "bbox": [
-    24.1854,
-    31.5507,
-    26.8083,
-    35.8812
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 18,
-   "why": "no vector at constant offset (best spread 0.1542)",
-   "bbox": [
-    9.2014,
-    22.5738,
-    14.3191,
-    32.0199
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 19,
-   "why": "no vector at constant offset (best spread 0.1664)",
-   "bbox": [
-    12.8134,
-    28.031,
-    14.0348,
-    30.5418
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 20,
-   "why": "no vector at constant offset (best spread 0.1098)",
-   "bbox": [
-    8.3486,
-    28.4582,
-    10.605,
-    32.3445
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 21,
-   "why": "no vector at constant offset (best spread 0.1958)",
-   "bbox": [
-    11.121,
-    17.8119,
-    24.4975,
-    33.5523
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 22,
-   "why": "no vector at constant offset (best spread 0.1439)",
-   "bbox": [
-    8.9728,
-    32.0947,
-    11.1303,
-    33.3868
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 23,
-   "why": "no vector at constant offset (best spread 0.188)",
-   "bbox": [
-    7.2954,
-    28.8528,
-    10.0782,
-    32.241
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 24,
-   "why": "no vector at constant offset (best spread 0.062)",
-   "bbox": [
-    8.8048,
-    32.9207,
-    9.4619,
-    33.0246
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 25,
-   "why": "no vector at constant offset (best spread 0.0728)",
-   "bbox": [
-    8.753,
-    29.0888,
-    23.3441,
-    35.9425
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 26,
-   "why": "no vector at constant offset (best spread 0.1189)",
-   "bbox": [
-    10.1853,
-    27.5468,
-    12.6473,
-    30.1745
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 27,
-   "why": "no vector at constant offset (best spread 0.1732)",
-   "bbox": [
-    9.3424,
-    24.9502,
-    11.9115,
-    27.5256
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 28,
-   "why": "no vector at constant offset (best spread 0.1713)",
-   "bbox": [
-    10.3243,
-    28.2812,
-    11.6429,
-    29.4653
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 29,
-   "why": "no vector at constant offset (best spread 0.0168)",
-   "bbox": [
-    9.267,
-    26.9806,
-    9.7125,
-    28.8602
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 30,
-   "why": "no vector at constant offset (best spread 0.1824)",
-   "bbox": [
-    9.5887,
-    25.6862,
-    10.8174,
-    26.8164
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 31,
-   "why": "no vector at constant offset (best spread 0.1555)",
-   "bbox": [
-    7.8319,
-    27.7618,
-    8.4074,
-    28.8814
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 32,
-   "why": "no vector at constant offset (best spread 0.1693)",
-   "bbox": [
-    7.9361,
-    23.873,
-    9.3535,
-    28.111
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 33,
-   "why": "no vector at constant offset (best spread 0.1981)",
-   "bbox": [
-    6.8861,
-    22.4072,
-    8.3315,
-    24.3677
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 34,
-   "why": "no vector at constant offset (best spread 0.177)",
-   "bbox": [
-    8.6925,
-    24.1525,
-    13.1191,
-    31.0638
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 35,
-   "why": "no vector at constant offset (best spread 0.0918)",
-   "bbox": [
-    6.8958,
-    28.6126,
-    9.223,
-    32.7823
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 36,
-   "why": "no vector at constant offset (best spread 0.2065)",
-   "bbox": [
-    6.3787,
-    24.2955,
-    8.9466,
-    27.7794
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 37,
-   "why": "no vector at constant offset (best spread 0.1952)",
-   "bbox": [
-    5.9134,
-    23.9443,
-    7.8729,
-    28.2727
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 38,
-   "why": "no vector at constant offset (best spread 0.017)",
-   "bbox": [
-    6.3418,
-    23.4122,
-    7.1222,
-    24.0604
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 39,
-   "why": "no vector at constant offset (best spread 0.2158)",
-   "bbox": [
-    0.7544,
-    24.0604,
-    8.8048,
-    33.301
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 40,
-   "why": "no vector at constant offset (best spread 0.0121)",
-   "bbox": [
-    8.3296,
-    22.0786,
-    8.7276,
-    22.4093
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 41,
-   "why": "no vector at constant offset (best spread 0.175)",
-   "bbox": [
-    5.1691,
-    14.6464,
-    28.3883,
-    21.5731
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 42,
-   "why": "no vector at constant offset (best spread 0.1472)",
-   "bbox": [
-    23.093,
-    14.1815,
-    25.6439,
-    17.9677
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 43,
-   "why": "no vector at constant offset (best spread 0.1761)",
-   "bbox": [
-    19.5494,
-    12.7851,
-    22.0945,
-    16.6012
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 44,
-   "why": "no vector at constant offset (best spread 0.1336)",
-   "bbox": [
-    5.0202,
-    17.2004,
-    19.4983,
-    21.4635
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 45,
-   "why": "no vector at constant offset (best spread 0.0252)",
-   "bbox": [
-    8.7276,
-    20.0523,
-    11.6754,
-    22.0786
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 48,
-   "why": "no vector at constant offset (best spread 0.0363)",
-   "bbox": [
-    34.7309,
-    9.2018,
-    40.585,
-    31.9679
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 49,
-   "why": "no vector at constant offset (best spread 0.016)",
-   "bbox": [
-    41.0823,
-    29.2069,
-    44.1366,
-    30.4781
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 50,
-   "why": "no vector at constant offset (best spread 0.071)",
-   "bbox": [
-    41.6766,
-    29.4554,
-    47.3596,
-    34.5467
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 52,
-   "why": "no vector at constant offset (best spread 0.0133)",
-   "bbox": [
-    42.4457,
-    28.6668,
-    43.9029,
-    30.2071
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 53,
-   "why": "no vector at constant offset (best spread 0.0636)",
-   "bbox": [
-    36.2508,
-    7.7199,
-    38.286,
-    10.4129
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 54,
-   "why": "no vector at constant offset (best spread 0.0198)",
-   "bbox": [
-    36.9512,
-    8.8344,
-    38.9522,
-    9.4093
-   ]
-  },
-  {
-   "tool": 5,
-   "pass": 55,
-   "why": "no vector at constant offset (best spread 0.186)",
-   "bbox": [
-    34.8701,
-    4.1113,
-    41.3398,
-    7.7552
-   ]
-  },
-  {
-   "tool": 2,
-   "pass": 0,
-   "why": "no vector at constant offset (best spread 0.1915)",
-   "bbox": [
-    -0.0242,
-    -0.0247,
-    48.2246,
-    48.225
-   ]
-  },
-  {
-   "tool": 1,
-   "pass": 0,
-   "why": "no vector at constant offset (best spread -)",
-   "bbox": [
-    14.5552,
-    56.3175,
-    17.8287,
-    57.9673
-   ]
-  },
-  {
-   "tool": 1,
-   "pass": 1,
-   "why": "no vector at constant offset (best spread -)",
-   "bbox": [
-    19.2875,
-    56.3176,
-    22.5621,
-    57.9673
-   ]
-  },
-  {
-   "tool": 1,
-   "pass": 2,
-   "why": "no vector at constant offset (best spread 16.6328)",
-   "bbox": [
-    12.934,
-    44.4636,
-    24.184,
-    61.2133
-   ]
-  },
-  {
-   "tool": 1,
-   "pass": 3,
-   "why": "no vector at constant offset (best spread 19.808)",
-   "bbox": [
-    -0.025,
-    42.1401,
-    12.225,
-    61.39
-   ]
-  },
-  {
-   "tool": 1,
-   "pass": 4,
-   "why": "no vector at constant offset (best spread -)",
-   "bbox": [
-    -0.025,
-    59.7575,
-    12.225,
-    79.0074
-   ]
-  },
-  {
-   "tool": 1,
-   "pass": 5,
-   "why": "no vector at constant offset (best spread -)",
-   "bbox": [
-    12.2388,
-    59.7576,
-    24.4888,
-    79.0074
-   ]
-  },
-  {
-   "tool": 1,
-   "pass": 6,
-   "why": "no vector at constant offset (best spread -)",
-   "bbox": [
-    12.2388,
-    77.3752,
-    24.4888,
-    96.6249
-   ]
-  },
-  {
-   "tool": 1,
-   "pass": 7,
-   "why": "no vector at constant offset (best spread -)",
-   "bbox": [
-    -0.025,
-    77.3751,
-    12.225,
-    96.6249
-   ]
-  },
-  {
-   "tool": 1,
-   "pass": 8,
-   "why": "no vector at constant offset (best spread -)",
-   "bbox": [
-    24.5026,
-    77.3751,
-    36.7526,
-    96.625
-   ]
-  },
-  {
-   "tool": 1,
-   "pass": 9,
-   "why": "no vector at constant offset (best spread -)",
-   "bbox": [
-    24.5026,
-    59.7577,
-    36.7526,
-    79.0075
-   ]
-  },
-  {
-   "tool": 1,
-   "pass": 10,
-   "why": "no vector at constant offset (best spread -)",
-   "bbox": [
-    36.7663,
-    59.7575,
-    49.0163,
-    79.0074
-   ]
-  },
-  {
-   "tool": 1,
-   "pass": 11,
-   "why": "no vector at constant offset (best spread -)",
-   "bbox": [
-    36.7663,
-    77.375,
-    49.0163,
-    96.6249
-   ]
-  },
-  {
-   "tool": 1,
-   "pass": 12,
-   "why": "no vector at constant offset (best spread 16.2965)",
-   "bbox": [
-    36.7663,
-    42.1402,
-    49.0163,
-    61.3899
    ]
   }
  ]

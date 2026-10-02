@@ -1,0 +1,58 @@
+{
+ "name": "24x17 Turtle Horiz",
+ "crv": "../../../../../../../VCarve Pro/Kickboard/OLD/Aquamentor Adult KX 12x19x1.5/Roundover/Roundover 4 Adult KX.crv",
+ "vectric": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Turtle/03_OLD/24x17 Turtle Horiz.tap",
+ "out": "24x17 Turtle Horiz-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 75,
+   "plunge": 25,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "24x17 Turtle Horiz T2 profile inside",
+   "select": [
+    [
+     "turtle",
+     2
+    ],
+    [
+     "turtle",
+     1
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 75,
+   "plunge": 25,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "24x17 Turtle Horiz T2 profile outside",
+   "select": [
+    [
+     "turtle",
+     0
+    ]
+   ]
+  }
+ ]
+}

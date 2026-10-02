@@ -1,0 +1,163 @@
+{
+ "name": "3 36x24 5 16x12 turtles",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Turtle/01_CRV/3 36x24 5 16x12 turtles.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Turtle/02_TAP/3 36x24 5 16x12 turtles.tap",
+ "out": "3 36x24 5 16x12 turtles-aq.tap",
+ "complete": false,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "stepover": 0.5,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "label": "3 36x24 5 16x12 turtles T2 pocket",
+   "select": [
+    [
+     "Layer 1",
+     1
+    ],
+    [
+     "Layer 1",
+     0
+    ],
+    [
+     "Layer 1",
+     3
+    ],
+    [
+     "Layer 1",
+     2
+    ],
+    [
+     "Layer 1",
+     4
+    ],
+    [
+     "Layer 1",
+     5
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "3 36x24 5 16x12 turtles T2 profile inside",
+   "select": [
+    [
+     "Pocket",
+     0
+    ],
+    [
+     "Pocket",
+     1
+    ],
+    [
+     "Pocket",
+     3
+    ],
+    [
+     "Pocket",
+     2
+    ],
+    [
+     "Pocket",
+     4
+    ],
+    [
+     "Pocket",
+     5
+    ],
+    [
+     "Pocket",
+     7
+    ],
+    [
+     "Pocket",
+     6
+    ],
+    [
+     "Pocket",
+     8
+    ],
+    [
+     "Pocket",
+     9
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "3 36x24 5 16x12 turtles T2 profile outside",
+   "select": [
+    [
+     "Profile",
+     1
+    ],
+    [
+     "Profile",
+     2
+    ],
+    [
+     "Profile",
+     5
+    ],
+    [
+     "Profile",
+     4
+    ],
+    [
+     "Profile",
+     3
+    ],
+    [
+     "Profile",
+     7
+    ]
+   ]
+  }
+ ],
+ "unmatched": [
+  {
+   "tool": 2,
+   "pass": 16,
+   "why": "no vector at constant offset (best spread 14.3454)",
+   "bbox": [
+    0.125,
+    0.125,
+    47.3747,
+    24.1143
+   ]
+  }
+ ]
+}

@@ -1,0 +1,78 @@
+{
+ "name": "Aquamentor Duck 36x36",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Duck/01-CRV/Aquamentor Duck 36x36.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Duck/02-TAP/Aquamentor Duck 36x36.tap",
+ "out": "Aquamentor Duck 36x36-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 5,
+   "toolDia": 0.125,
+   "rpm": 12000,
+   "feed": 40,
+   "plunge": 40,
+   "cutDepth": 0.1,
+   "passDepth": 0.1,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Aquamentor Duck 36x36 T5 profile on",
+   "select": [
+    [
+     "Engrave",
+     0
+    ],
+    [
+     "Engrave",
+     1
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "stepover": 0.5,
+   "rpm": 24000,
+   "feed": 50,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "label": "Aquamentor Duck 36x36 T2 pocket",
+   "select": [
+    [
+     "Pocket",
+     0
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 50,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Aquamentor Duck 36x36 T2 profile outside",
+   "select": [
+    [
+     "Profile",
+     0
+    ]
+   ]
+  }
+ ]
+}

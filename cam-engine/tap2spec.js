@@ -162,6 +162,7 @@ function matchPocket(all, vecs, pb) {
     // direction on the outermost ring
     let cr = 0; const ring = all.filter((p, k) => Math.abs(distToPoly(p.x, p.y, v.pts, true).d - r) < 0.004);
     for (let k = 1; k < ring.length; k++) { const a = ring[k - 1], b = ring[k]; if (Math.hypot(b.x - a.x, b.y - a.y) > 0.1) continue; cr += (a.x - v.cx) * (b.y - a.y) - (a.y - v.cy) * (b.x - a.x); }
+    if (!(r > 0.02 && r <= 0.75) || !(s / (2 * r) >= 0.08 && s / (2 * r) <= 0.95)) continue;   // not a real cutter / stepover
     const cand = { v, r, stepover: Math.round(s / (2 * r) * 100) / 100, climb: cr > 0, onComb };
     if (!best || onComb > best.onComb) best = cand;
   }

@@ -1,0 +1,211 @@
+{
+ "name": "3 36x24 9 16x12 turtles",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Turtle/01_CRV/3 36x24 9 16x12 turtles.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Turtle/02_TAP/3 36x24 9 16x12 turtles.tap",
+ "out": "3 36x24 9 16x12 turtles-aq.tap",
+ "complete": false,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "stepover": 0.5,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "label": "3 36x24 9 16x12 turtles T2 pocket",
+   "select": [
+    [
+     "Pocket",
+     19
+    ],
+    [
+     "Pocket",
+     18
+    ],
+    [
+     "Pocket",
+     21
+    ],
+    [
+     "Pocket",
+     20
+    ],
+    [
+     "Pocket",
+     23
+    ],
+    [
+     "Pocket",
+     22
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "3 36x24 9 16x12 turtles T2 profile inside",
+   "select": [
+    [
+     "Pocket",
+     0
+    ],
+    [
+     "Pocket",
+     1
+    ],
+    [
+     "Pocket",
+     3
+    ],
+    [
+     "Pocket",
+     2
+    ],
+    [
+     "Pocket",
+     4
+    ],
+    [
+     "Pocket",
+     5
+    ],
+    [
+     "Pocket",
+     6
+    ],
+    [
+     "Pocket",
+     7
+    ],
+    [
+     "Pocket",
+     9
+    ],
+    [
+     "Pocket",
+     8
+    ],
+    [
+     "Pocket",
+     17
+    ],
+    [
+     "Pocket",
+     16
+    ],
+    [
+     "Pocket",
+     15
+    ],
+    [
+     "Pocket",
+     14
+    ],
+    [
+     "Pocket",
+     13
+    ],
+    [
+     "Pocket",
+     12
+    ],
+    [
+     "Pocket",
+     11
+    ],
+    [
+     "Pocket",
+     10
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "3 36x24 9 16x12 turtles T2 profile outside",
+   "select": [
+    [
+     "Profile",
+     10
+    ],
+    [
+     "Profile",
+     9
+    ],
+    [
+     "Profile",
+     5
+    ],
+    [
+     "Profile",
+     6
+    ],
+    [
+     "Profile",
+     7
+    ],
+    [
+     "Profile",
+     4
+    ],
+    [
+     "Profile",
+     8
+    ],
+    [
+     "Profile",
+     3
+    ],
+    [
+     "Profile",
+     2
+    ],
+    [
+     "Profile",
+     1
+    ]
+   ]
+  }
+ ],
+ "unmatched": [
+  {
+   "tool": 2,
+   "pass": 34,
+   "why": "no vector at constant offset (best spread 14.3545)",
+   "bbox": [
+    0.375,
+    0.135,
+    47.6249,
+    24.1247
+   ]
+  }
+ ]
+}
