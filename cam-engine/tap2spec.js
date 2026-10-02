@@ -63,7 +63,7 @@ function analyze(index, taps) {
       clearZ: rapidsZ.length ? pct(rapidsZ, 0.1) : 0.25 };
     blocks.push(blk);
     passesOf(tool).forEach((ps, pi) => {
-      const zmin = Math.min(...ps.map(s => Math.min(s.z0, s.z1)));
+      const zmin = ps.reduce((m, s) => Math.min(m, s.z0, s.z1), Infinity);
       const xyLen = ps.reduce((a, s) => a + Math.hypot(s.x1 - s.x0, s.y1 - s.y0), 0);
       if (xyLen < 1e-4) {                                     // drill: plunge only
         const s = ps[0], c = vecs.filter(v => v.closed).map(v => ({ v, d: Math.hypot(v.cx - s.x0, v.cy - s.y0) })).sort((a, b) => a.d - b.d)[0];

@@ -23,8 +23,36 @@ function* walk(dir, rec) {
 }
 const safe = s => s.replace(/[^\w .()+-]/g, '_');
 
+// Vectric tessellates offset curves with chords; where its chord sags off the true offset by more than
+// the bar, our arc-true path "differs". A failure point is excused only when (a) it is a small
+// deviation (gap <= 0.03"), and (b) the CRV says Vectric is the one off the geometry: Vectric's point
+// sits off every valid offset of that tool (A side), or our point sits exactly on one (B side).
+function distToVecs(ix, x, y) {
+  let best = Infinity;
+  for (const L of Object.keys(ix)) for (const v of ix[L]) { const P = v.pts, n = P.length, last = v.closed ? n : n - 1;
+    for (let i = 0; i < last; i++) { const a = P[i], b = P[(i + 1) % n], dx = b.x - a.x, dy = b.y - a.y, L2 = dx * dx + dy * dy;
+      if (Math.abs(x - a.x) > 2 && Math.abs(x - b.x) > 2) continue;
+      let t = L2 ? ((x - a.x) * dx + (y - a.y) * dy) / L2 : 0; t = Math.max(0, Math.min(1, t));
+      const d = Math.hypot(x - a.x - dx * t, y - a.y - dy * t); if (d < best) best = d; } }
+  return best;
+}
+function excuseChords(cmp, spec, ix) {
+  let worst = 0, n = 0;
+  for (const t of cmp.tools) {
+    if (t.pass) continue;
+    if (!t.AinB || !t.AinB.material) return;
+    const offs = [...new Set(spec.ops.filter(o => o.toolNum === t.tool && o.op === 'profile').map(o => o.side === 'on' ? 0 : o.toolDia / 2))];
+    if (!offs.length) return;
+    const offErr = p => Math.min(...offs.map(r => Math.abs(distToVecs(ix, p.x, p.y) - r)));
+    for (const p of t.AinB.material.pts) { if (p.gap > 0.03 || offErr(p) <= 0.003) return; worst = Math.max(worst, p.gap); n++; }
+    for (const p of t.BinA.material.pts) { if (p.gap > 0.03 || offErr(p) > 0.002) return; worst = Math.max(worst, p.gap); n++; }
+    if (t.AinB.material.pts.length < t.AinB.material.real || t.BinA.material.pts.length < t.BinA.material.real) return;
+  }
+  cmp.pass = true; cmp.chord = worst; cmp.chordPts = n;
+}
+
 function run(src, outdir, o) {
-  const report = [], idxCache = new Map();
+  const report = o.prior || [], idxCache = new Map(), done = new Set(report.map(r => r.tap)), t0 = Date.now();
   const getIdx = f => { if (!idxCache.has(f)) { try { idxCache.set(f, { ix: crvIndex(fs.readFileSync(f)) }); } catch (e) { idxCache.set(f, { err: e.message }); } } return idxCache.get(f); };
   let n = 0;
   for (const { dir, files } of walk(src, o.recursive)) {
@@ -33,9 +61,11 @@ function run(src, outdir, o) {
     let crvs = files.filter(f => /\.crv(3d)?$/i.test(f)).map(f => path.join(dir, f));
     if (!crvs.length) crvs = listDir(path.dirname(dir)).filter(e => e.isFile() && /\.crv(3d)?$/i.test(e.name)).map(e => path.join(path.dirname(dir), e.name));
     for (const t of taps) {
-      if (o.limit && n >= o.limit) return report;
-      n++;
       const tapPath = path.join(dir, t), rel = path.relative(src, tapPath), name = t.replace(/\.tap$/i, '');
+      if (done.has(rel)) continue;
+      if (o.save) o.save(report);
+      if ((o.limit && n >= o.limit) || (o.budget && Date.now() - t0 > o.budget * 1000)) { report.unfinished = true; return report; }
+      n++;
       const row = { tap: rel, status: 'UNPAIRED' };
       report.push(row);
       let text; try { text = fs.readFileSync(tapPath, 'utf8'); } catch (e) { row.status = 'ERROR'; row.note = e.message; continue; }
@@ -60,9 +90,13 @@ function run(src, outdir, o) {
       let g; try { g = repostJob(best.ix, spec).gcode; } catch (e) { row.status = 'ERROR'; row.note = 'repost: ' + e.message; continue; }
       const outTap = path.join(jobDir, spec.out);
       fs.writeFileSync(outTap, g);
-      const cmp = compare(text, g, { tools: TOOLS });
+      const jobTools = Object.assign({}, TOOLS);
+      for (const x of ops) if (!jobTools[x.toolNum] && x.toolDia && x.op !== 'drill') jobTools[x.toolNum] = { dia: x.toolDia, source: 'measured' };
+      let cmp; try { cmp = compare(text, g, { tools: jobTools }); } catch (e) { row.status = 'ERROR'; row.note = 'compare: ' + e.message; continue; }
       row.status = cmp.pass ? 'PASS' : 'FAIL';
+      if (cmp.chord) row.note = `Vectric chord error up to ${cmp.chord.toFixed(4)}" (${cmp.chordPts} pts); ours follows the vector`;
       row.minutes = { vectric: +cmp.tools.reduce((a, x) => a + (x.A ? x.A.minutes : 0), 0).toFixed(1), ours: +cmp.tools.reduce((a, x) => a + (x.B ? x.B.minutes : 0), 0).toFixed(1) };
+      if (!cmp.pass) excuseChords(cmp, spec, best.ix);
       if (!cmp.pass) {
         const bad = cmp.tools.filter(x => !x.pass)[0];
         const m = bad.AinB && bad.AinB.material && bad.AinB.material.real ? ['Vectric cuts where we do not', bad.AinB.material]
@@ -85,17 +119,22 @@ if (require.main === module) {
   for (let i = 0; i < av.length; i++) {
     if (av[i] === '--outdir') outdir = av[++i]; else if (av[i] === '--recursive') o.recursive = true;
     else if (av[i] === '--limit') o.limit = +av[++i];
+    else if (av[i] === '--budget') o.budget = +av[++i];
+    else if (av[i] === '--resume') o.resume = true;
     else if (av[i].startsWith('--')) { console.error('unknown flag ' + av[i]); process.exit(2); } else src = av[i];
   }
   if (!src || !outdir) { console.error('usage: batch.js <vcarve folder> --outdir <dir> [--recursive] [--limit N]'); process.exit(2); }
   if (path.resolve(outdir).startsWith(path.resolve(src) + path.sep) || path.resolve(outdir) === path.resolve(src)) { console.error('outdir must not be inside the source folder'); process.exit(2); }
   fs.mkdirSync(outdir, { recursive: true });
+  const rj = path.join(outdir, 'report.json');
+  if (o.resume && fs.existsSync(rj)) o.prior = JSON.parse(fs.readFileSync(rj, 'utf8')).jobs;
+  o.save = r => fs.writeFileSync(rj, JSON.stringify({ src, when: new Date().toISOString(), unfinished: true, jobs: r.filter(x => x.status !== 'UNPAIRED' || x.note) }, null, 1));
   const rep = run(src, outdir, o);
   const count = {}; for (const r of rep) count[r.status] = (count[r.status] || 0) + 1;
-  fs.writeFileSync(path.join(outdir, 'report.json'), JSON.stringify({ src, when: new Date().toISOString(), count, jobs: rep }, null, 1));
+  fs.writeFileSync(path.join(outdir, 'report.json'), JSON.stringify({ src, when: new Date().toISOString(), unfinished: !!rep.unfinished, count, jobs: rep }, null, 1));
   const md = [`# Batch: ${src}`, '', Object.entries(count).map(([k, v]) => `${k} ${v}`).join(' · '), '', '| status | tap | crv | ops | min V/ours | note |', '|---|---|---|---|---|---|',
     ...rep.map(r => `| ${r.status} | ${r.tap} | ${r.crv || ''} | ${(r.ops || []).join('; ')} | ${r.minutes ? r.minutes.vectric + '/' + r.minutes.ours : ''} | ${r.note || ''} |`)].join('\n');
   fs.writeFileSync(path.join(outdir, 'report.md'), md + '\n');
-  console.log(JSON.stringify(count));
+  console.log((rep.unfinished ? 'UNFINISHED ' : 'DONE ') + JSON.stringify(count));
 }
 module.exports = { run };

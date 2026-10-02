@@ -68,7 +68,7 @@ function summarize(t) {
   const top = o => Object.entries(o).sort((a, b) => b[1] - a[1]).map(e => +e[0]);
   return { tool: t.tool, rpm: t.rpm, feed: top(t.feeds)[0] || null, plunge: top(t.plungeFeeds)[0] || null,
            depths: Object.keys(depths).map(Number).filter(d => depths[d.toFixed(4)] > 0.5).sort((a, b) => b - a),
-           maxDepth: Math.min(0, ...cuts.map(s => Math.min(s.z0, s.z1))), cutLen: len, plunges,
+           maxDepth: cuts.reduce((m, s) => Math.min(m, s.z0, s.z1), 0), cutLen: len, plunges,
            minutes: min, bbox: bb.map(v => +v.toFixed(4)) };
 }
 
@@ -117,7 +117,7 @@ function coverage(A, idxB, o) {
 // differ (pocket ring order, a different last ring) pass; a shifted wall, a missing tab, an extra
 // cut do not.
 function materialCheck(fails, idxB, R, o) {
-  let real = 0, worst = null, worstGap = 0;
+  let real = 0, worst = null, worstGap = 0; const pts = [];
   const step = Math.max(0.005, R / 8);
   for (const p of (fails || [])) {
     let gapHere = 0;
@@ -132,9 +132,9 @@ function materialCheck(fails, idxB, R, o) {
       }
       const gap = best - R; if (gap > gapHere) gapHere = gap;
     }
-    if (gapHere > o.tol) { real++; if (gapHere > worstGap) { worstGap = gapHere; worst = { x: +p.x.toFixed(4), y: +p.y.toFixed(4), z: +p.z.toFixed(4) }; } }
+    if (gapHere > o.tol) { real++; if (pts.length < 2000) pts.push({ x: p.x, y: p.y, z: p.z, gap: gapHere }); if (gapHere > worstGap) { worstGap = gapHere; worst = { x: +p.x.toFixed(4), y: +p.y.toFixed(4), z: +p.z.toFixed(4) }; } }
   }
-  return { real, worstGap, worst };
+  return { real, worstGap, worst, pts };
 }
 
 function compare(textA, textB, opts) {

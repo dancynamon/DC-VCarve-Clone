@@ -10,6 +10,9 @@ const SCALE = 100000, TOL = 1e-4;
 const ARC_TOL = 0.001;        // ClipperOffset arc tolerance: how far an offset round join may sit off true
 const ARC_CHORD_RATIO = 12;    // max chord / median chord inside one fitted arc — a real curve is near-uniform
 const ARC_MAX_SAG = 0.05;      // hard cap (in) on how far a fitted arc may depart from the polyline it replaces
+const ARC_UNEVEN_SAG = 0.002;  // ...and the cap for a chord noticeably LONGER than its neighbours (> 2x median). A uniformly
+                               // coarse circle is still a circle; one long straight run inside a curve is not: it got a
+                               // 0.0104" bow before this (Barron turtles sheet, vs Vectric's straight line).
 function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
 function near(a,b,t){return dist(a,b)<=(t==null?TOL:t);}
 function signedArea(pts){let s=0;for(let i=0,n=pts.length;i<n;i++){const a=pts[i],b=pts[(i+1)%n];s+=a.x*b.y-b.x*a.y;}return s/2;}
@@ -784,6 +787,7 @@ function arcCovers(P,i,j,arc,tol,maxStep){
     if(max>2*r) return false;                                    // chord longer than the diameter
     const sag=r-Math.sqrt(Math.max(0,r*r-max*max/4));
     if(sag>ARC_MAX_SAG) return false;                            // departs too far from the polyline
+    if(med>0 && max>2*med && sag>Math.max(tol,ARC_UNEVEN_SAG)) return false; // bows off a long straight run
   }
   let prevAng=null, dir=0;
   for(let k=i;k<=j;k++){
