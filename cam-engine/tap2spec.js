@@ -31,24 +31,41 @@ const pct = (a, q) => { const s = [...a].sort((x, y) => x - y); return s[Math.mi
 
 // split one tool block into passes: maximal runs of feed moves that go below Z0
 function passesOf(tool) {
-  const out = []; let cur = null;
+  // Vectric often steps down to the next depth without retracting, so a run of feed moves can hold
+  // several depth passes. A pure plunge to BELOW everything cut so far in the run starts a new pass;
+  // a plunge back down to the same floor (the far side of a tab) does not.
+  const out = []; let cur = null, floor = 0;
   for (const s of tool.segs) {
-    if (s.rapid) { if (cur) out.push(cur); cur = null; continue; }
+    if (s.rapid) { if (cur) out.push(cur); cur = null; floor = 0; continue; }
+    const plunge = Math.hypot(s.x1 - s.x0, s.y1 - s.y0) < 1e-6 && s.z1 < s.z0;
+    if (cur && plunge && floor < -1e-6 && s.z1 < floor - 1e-4) { out.push(cur); cur = null; }
     (cur = cur || []).push(s);
+    floor = Math.min(floor, s.z1);
   }
   if (cur) out.push(cur);
   return out.filter(p => p.some(s => Math.min(s.z0, s.z1) < -1e-6));
 }
 function sample(segs, step) {
-  const pts = [];
-  for (const s of segs) { const L = Math.hypot(s.x1 - s.x0, s.y1 - s.y0), n = Math.max(1, Math.ceil(L / step));
-    for (let k = 0; k < n; k++) { const t = k / n; pts.push({ x: s.x0 + (s.x1 - s.x0) * t, y: s.y0 + (s.y1 - s.y0) * t, z: s.z0 + (s.z1 - s.z0) * t, arc: s.arc, along: 0 }); } }
-  const s = segs[segs.length - 1]; if (s) pts.push({ x: s.x1, y: s.y1, z: s.z1, arc: s.arc });
-  let acc = 0; for (let i = 1; i < pts.length; i++) { acc += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y); pts[i].along = acc; }
+  // points every `step` along the pass (by XY travel), plus every Z change; never one-per-segment,
+  // which on an arc-expanded program is hundreds of thousands of points
+  const pts = []; let acc = 0, next = 0, lastZ = null;
+  for (const s of segs) {
+    const L = Math.hypot(s.x1 - s.x0, s.y1 - s.y0);
+    if (L < 1e-9) { if (s.z1 !== lastZ) { pts.push({ x: s.x1, y: s.y1, z: s.z1, arc: s.arc, along: acc }); lastZ = s.z1; } continue; }
+    while (next <= acc + L) {
+      const t = (next - acc) / L;
+      pts.push({ x: s.x0 + (s.x1 - s.x0) * t, y: s.y0 + (s.y1 - s.y0) * t, z: s.z0 + (s.z1 - s.z0) * t, arc: s.arc, along: next });
+      next += step;
+    }
+    if (s.z1 !== s.z0) { pts.push({ x: s.x1, y: s.y1, z: s.z1, arc: s.arc, along: acc + L }); }
+    acc += L; lastZ = s.z1;
+  }
+  const s = segs[segs.length - 1]; if (s) pts.push({ x: s.x1, y: s.y1, z: s.z1, arc: s.arc, along: acc });
   return pts;
 }
 
-function analyze(index, taps) {
+function analyze(index, taps, opts) {
+  opts = opts || {}; let probed = 0;
   const vecs = [];
   for (const layer of Object.keys(index)) index[layer].forEach((v, i) => {
     vecs.push({ layer, i, closed: v.closed, pts: v.pts, bb: bboxOf(v.pts), area: v.closed ? polyArea(v.pts) : 0,
@@ -63,6 +80,7 @@ function analyze(index, taps) {
       clearZ: rapidsZ.length ? pct(rapidsZ, 0.1) : 0.25 };
     blocks.push(blk);
     passesOf(tool).forEach((ps, pi) => {
+      if (opts.probe && probed >= opts.probe) return; probed++;
       const zmin = ps.reduce((m, s) => Math.min(m, s.z0, s.z1), Infinity);
       const xyLen = ps.reduce((a, s) => a + Math.hypot(s.x1 - s.x0, s.y1 - s.y0), 0);
       if (xyLen < 1e-4) {                                     // drill: plunge only
@@ -71,7 +89,7 @@ function analyze(index, taps) {
         else unmatched.push({ blk, pass: pi, why: 'plunge at ' + r4(s.x0) + ',' + r4(s.y0) + ' hits no vector centroid' });
         return;
       }
-      const all = sample(ps, 0.02), deep = all.filter(p => Math.abs(p.z - zmin) < 1e-4 || true);
+      const all = sample(ps, Math.max(0.02, xyLen / 1500)), deep = all.filter(p => Math.abs(p.z - zmin) < 1e-4 || true);
       const total = all[all.length - 1].along;
       const pb = bboxOf(all);
       let best = null;

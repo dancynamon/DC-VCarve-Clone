@@ -64,18 +64,30 @@ function run(src, outdir, o) {
       const tapPath = path.join(dir, t), rel = path.relative(src, tapPath), name = t.replace(/\.tap$/i, '');
       if (done.has(rel)) continue;
       if (o.save) o.save(report);
+      if (process.env.BATCH_TRACE) console.error('>> ' + rel);
       if ((o.limit && n >= o.limit) || (o.budget && Date.now() - t0 > o.budget * 1000)) { report.unfinished = true; return report; }
       n++;
       const row = { tap: rel, status: 'UNPAIRED' };
       report.push(row);
       let text; try { text = fs.readFileSync(tapPath, 'utf8'); } catch (e) { row.status = 'ERROR'; row.note = e.message; continue; }
       // pair: the CRV that explains the most passes
-      let best = null;
-      for (const c of crvs) {
+      let best = null; const tj = Date.now();
+      const tok = x => new Set(path.basename(x).toLowerCase().replace(/\.(tap|crv3d|crv)$/, '').split(/[^a-z0-9]+/).filter(Boolean));
+      const tt = tok(t), sim = c => { const a = tok(c); let k = 0; for (const w of a) if (tt.has(w)) k++; return k / Math.max(1, a.size + tt.size - k); };
+      // probe every candidate on a few passes, then run the full analysis on the best two only
+      const cands = [];
+      for (const c of crvs.slice().sort((a, b) => sim(b) - sim(a))) {
         const g = getIdx(c); if (!g.ix) continue;
+        let pr; try { pr = analyze(g.ix, [{ name, text }], { probe: 6 }); } catch (e) { continue; }
+        if (pr.hits.length) cands.push({ c, g, s: pr.hits.length - 2 * pr.unmatched.length });
+        if (pr.hits.length && !pr.unmatched.length && cands.length >= 1 && sim(c) > 0.5) break;
+      }
+      cands.sort((a, b) => b.s - a.s);
+      for (const { c, g } of cands.slice(0, 2)) {
         let an; try { an = analyze(g.ix, [{ name, text }]); } catch (e) { continue; }
         const score = an.hits.length - 1000 * an.unmatched.length;
         if (an.hits.length && (!best || score > best.score)) best = { c, an, score, ix: g.ix };
+        if (best && best.an.unmatched.length === 0) break;
       }
       if (!best) { row.note = crvs.length ? 'no CRV in folder explains any pass' : 'no CRV in folder'; continue; }
       row.crv = path.relative(src, best.c);
@@ -93,7 +105,7 @@ function run(src, outdir, o) {
       const jobTools = Object.assign({}, TOOLS);
       for (const x of ops) if (!jobTools[x.toolNum] && x.toolDia && x.op !== 'drill') jobTools[x.toolNum] = { dia: x.toolDia, source: 'measured' };
       let cmp; try { cmp = compare(text, g, { tools: jobTools }); } catch (e) { row.status = 'ERROR'; row.note = 'compare: ' + e.message; continue; }
-      row.status = cmp.pass ? 'PASS' : 'FAIL';
+      row.status = cmp.pass ? 'PASS' : 'FAIL'; row.sec = Math.round((Date.now() - tj) / 1000);
       if (cmp.chord) row.note = `Vectric chord error up to ${cmp.chord.toFixed(4)}" (${cmp.chordPts} pts); ours follows the vector`;
       row.minutes = { vectric: +cmp.tools.reduce((a, x) => a + (x.A ? x.A.minutes : 0), 0).toFixed(1), ours: +cmp.tools.reduce((a, x) => a + (x.B ? x.B.minutes : 0), 0).toFixed(1) };
       if (!cmp.pass) excuseChords(cmp, spec, best.ix);

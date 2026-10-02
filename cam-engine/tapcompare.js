@@ -120,6 +120,7 @@ function materialCheck(fails, idxB, R, o) {
   let real = 0, worst = null, worstGap = 0; const pts = [];
   const step = Math.max(0.005, R / 8);
   for (const p of (fails || [])) {
+    if (real >= (o.maxReal || 300)) { real = Math.max(real, fails.length); break; }   // enough to call it; don't grind
     let gapHere = 0;
     for (let dx = -R; dx <= R + 1e-9; dx += step) for (let dy = -R; dy <= R + 1e-9; dy += step) {
       if (dx * dx + dy * dy > R * R) continue;

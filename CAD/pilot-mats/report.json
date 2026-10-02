@@ -1,6 +1,7 @@
 {
  "src": "/sessions/rcw-01sgzj18fchr3xhqqvzql9vk/mnt/VCarve Pro/For Claude",
- "when": "2026-10-01T20:13:46.921Z",
+ "when": "2026-10-02T17:27:16.729Z",
+ "unfinished": false,
  "count": {
   "PASS": 8
  },
@@ -12,6 +13,7 @@
    "ops": [
     "T2 profile outside 0.25\"/1.5\" x1"
    ],
+   "sec": 2,
    "minutes": {
     "vectric": 1.8,
     "ours": 1.9
@@ -26,6 +28,7 @@
     "T2 pocket 0.25\"/1.5\" x49",
     "T2 profile outside 0.25\"/1.5\" x1"
    ],
+   "sec": 4,
    "minutes": {
     "vectric": 7.8,
     "ours": 7.7
@@ -39,6 +42,7 @@
    "ops": [
     "T2 profile outside 0.25\"/1.5\" x1"
    ],
+   "sec": 0,
    "minutes": {
     "vectric": 1.8,
     "ours": 1.9
@@ -53,6 +57,7 @@
     "T2 pocket 0.25\"/1.5\" x36",
     "T2 profile outside 0.25\"/1.5\" x1"
    ],
+   "sec": 2,
    "minutes": {
     "vectric": 6.3,
     "ours": 6.2
@@ -66,6 +71,7 @@
    "ops": [
     "T2 profile outside 0.25\"/1.5\" x1"
    ],
+   "sec": 0,
    "minutes": {
     "vectric": 2.5,
     "ours": 2.6
@@ -80,6 +86,7 @@
     "T2 pocket 0.25\"/1.5\" x84",
     "T2 profile outside 0.25\"/1.5\" x1"
    ],
+   "sec": 5,
    "minutes": {
     "vectric": 12.9,
     "ours": 12.9
@@ -95,6 +102,7 @@
     "T2 pocket 0.25\"/1.5\" x1",
     "T2 profile outside 0.25\"/1.5\" x1"
    ],
+   "sec": 1,
    "minutes": {
     "vectric": 4.5,
     "ours": 4.5
@@ -109,6 +117,7 @@
     "T2 pocket 0.25\"/1.5\" x1",
     "T2 profile outside 0.25\"/1.5\" x1"
    ],
+   "sec": 1,
    "minutes": {
     "vectric": 6.1,
     "ours": 6.1
