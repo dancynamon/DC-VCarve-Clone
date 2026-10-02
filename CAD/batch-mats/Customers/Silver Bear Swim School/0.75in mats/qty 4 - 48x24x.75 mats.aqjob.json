@@ -1,0 +1,846 @@
+{
+ "name": "qty 4 - 48x24x.75 mats",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Silver Bear Swim School/0.75in mats/qty 4 - 48x24x.75 mats.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Silver Bear Swim School/0.75in mats/qty 4 - 48x24x.75 mats.tap",
+ "out": "qty 4 - 48x24x.75 mats-aq.tap",
+ "complete": false,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 10,
+   "toolDia": 1.5,
+   "rpm": 18000,
+   "feed": 150,
+   "plunge": 25,
+   "cutDepth": 0.25,
+   "passDepth": 0.25,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "qty 4 - 48x24x.75 mats T10 profile inside",
+   "select": [
+    [
+     "Skive down to pt 75",
+     0
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1,
+   "passDepth": 1,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "qty 4 - 48x24x.75 mats T2 profile inside",
+   "select": [
+    [
+     "1in Holes",
+     3
+    ],
+    [
+     "1in Holes",
+     2
+    ],
+    [
+     "1in Holes",
+     1
+    ],
+    [
+     "1in Holes",
+     0
+    ],
+    [
+     "1in Holes",
+     4
+    ],
+    [
+     "1in Holes",
+     5
+    ],
+    [
+     "1in Holes",
+     6
+    ],
+    [
+     "1in Holes",
+     7
+    ],
+    [
+     "1in Holes",
+     11
+    ],
+    [
+     "1in Holes",
+     10
+    ],
+    [
+     "1in Holes",
+     9
+    ],
+    [
+     "1in Holes",
+     8
+    ],
+    [
+     "1in Holes",
+     12
+    ],
+    [
+     "1in Holes",
+     13
+    ],
+    [
+     "1in Holes",
+     14
+    ],
+    [
+     "1in Holes",
+     15
+    ],
+    [
+     "1in Holes",
+     19
+    ],
+    [
+     "1in Holes",
+     18
+    ],
+    [
+     "1in Holes",
+     17
+    ],
+    [
+     "1in Holes",
+     16
+    ],
+    [
+     "1in Holes",
+     39
+    ],
+    [
+     "1in Holes",
+     38
+    ],
+    [
+     "1in Holes",
+     37
+    ],
+    [
+     "1in Holes",
+     36
+    ],
+    [
+     "1in Holes",
+     32
+    ],
+    [
+     "1in Holes",
+     33
+    ],
+    [
+     "1in Holes",
+     34
+    ],
+    [
+     "1in Holes",
+     35
+    ],
+    [
+     "1in Holes",
+     31
+    ],
+    [
+     "1in Holes",
+     30
+    ],
+    [
+     "1in Holes",
+     29
+    ],
+    [
+     "1in Holes",
+     28
+    ],
+    [
+     "1in Holes",
+     24
+    ],
+    [
+     "1in Holes",
+     25
+    ],
+    [
+     "1in Holes",
+     26
+    ],
+    [
+     "1in Holes",
+     27
+    ],
+    [
+     "1in Holes",
+     23
+    ],
+    [
+     "1in Holes",
+     22
+    ],
+    [
+     "1in Holes",
+     21
+    ],
+    [
+     "1in Holes",
+     20
+    ],
+    [
+     "1in Holes",
+     43
+    ],
+    [
+     "1in Holes",
+     42
+    ],
+    [
+     "1in Holes",
+     41
+    ],
+    [
+     "1in Holes",
+     40
+    ],
+    [
+     "1in Holes",
+     44
+    ],
+    [
+     "1in Holes",
+     45
+    ],
+    [
+     "1in Holes",
+     46
+    ],
+    [
+     "1in Holes",
+     47
+    ],
+    [
+     "1in Holes",
+     51
+    ],
+    [
+     "1in Holes",
+     50
+    ],
+    [
+     "1in Holes",
+     49
+    ],
+    [
+     "1in Holes",
+     48
+    ],
+    [
+     "1in Holes",
+     52
+    ],
+    [
+     "1in Holes",
+     53
+    ],
+    [
+     "1in Holes",
+     54
+    ],
+    [
+     "1in Holes",
+     55
+    ],
+    [
+     "1in Holes",
+     59
+    ],
+    [
+     "1in Holes",
+     58
+    ],
+    [
+     "1in Holes",
+     57
+    ],
+    [
+     "1in Holes",
+     56
+    ],
+    [
+     "1in Holes",
+     79
+    ],
+    [
+     "1in Holes",
+     78
+    ],
+    [
+     "1in Holes",
+     77
+    ],
+    [
+     "1in Holes",
+     76
+    ],
+    [
+     "1in Holes",
+     72
+    ],
+    [
+     "1in Holes",
+     73
+    ],
+    [
+     "1in Holes",
+     74
+    ],
+    [
+     "1in Holes",
+     75
+    ],
+    [
+     "1in Holes",
+     71
+    ],
+    [
+     "1in Holes",
+     70
+    ],
+    [
+     "1in Holes",
+     69
+    ],
+    [
+     "1in Holes",
+     68
+    ],
+    [
+     "1in Holes",
+     64
+    ],
+    [
+     "1in Holes",
+     65
+    ],
+    [
+     "1in Holes",
+     66
+    ],
+    [
+     "1in Holes",
+     67
+    ],
+    [
+     "1in Holes",
+     63
+    ],
+    [
+     "1in Holes",
+     62
+    ],
+    [
+     "1in Holes",
+     61
+    ],
+    [
+     "1in Holes",
+     60
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": true,
+   "toolNum": 2,
+   "toolDia": 12.3672,
+   "stepover": 0.01,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1,
+   "passDepth": 1,
+   "clearZ": 0.2,
+   "label": "qty 4 - 48x24x.75 mats T2 pocket",
+   "select": [
+    [
+     "Layer 1",
+     0
+    ],
+    [
+     "Layer 1",
+     2
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": true,
+   "toolNum": 2,
+   "toolDia": 12.8672,
+   "stepover": 0.01,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1,
+   "passDepth": 1,
+   "clearZ": 0.2,
+   "label": "qty 4 - 48x24x.75 mats T2 pocket",
+   "select": [
+    [
+     "Skive down to pt 75",
+     0
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": true,
+   "toolNum": 2,
+   "toolDia": 0.3,
+   "stepover": 0.06,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1,
+   "passDepth": 1,
+   "clearZ": 0.2,
+   "label": "qty 4 - 48x24x.75 mats T2 pocket",
+   "select": [
+    [
+     "1in Holes",
+     6
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": true,
+   "toolNum": 2,
+   "toolDia": 12.2928,
+   "stepover": 0.01,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1,
+   "passDepth": 1,
+   "clearZ": 0.2,
+   "label": "qty 4 - 48x24x.75 mats T2 pocket",
+   "select": [
+    [
+     "Layer 1",
+     1
+    ],
+    [
+     "Layer 1",
+     3
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1,
+   "passDepth": 1,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "qty 4 - 48x24x.75 mats T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     0
+    ],
+    [
+     "Layer 1",
+     1
+    ],
+    [
+     "Layer 1",
+     2
+    ],
+    [
+     "Layer 1",
+     3
+    ]
+   ]
+  }
+ ],
+ "unmatched": [
+  {
+   "tool": 10,
+   "pass": 0,
+   "why": "no vector at constant offset (best spread 21.6058)",
+   "bbox": [
+    1.2129,
+    1.015,
+    46.8129,
+    94.285
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 0,
+   "why": "no vector at constant offset (best spread 0.296)",
+   "bbox": [
+    6.4431,
+    4.7145,
+    7.0681,
+    5.4075
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 10,
+   "why": "no vector at constant offset (best spread 0.2961)",
+   "bbox": [
+    15.0795,
+    13.9822,
+    15.7045,
+    14.6751
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 14,
+   "why": "no vector at constant offset (best spread 0.296)",
+   "bbox": [
+    15.0795,
+    4.7145,
+    15.7045,
+    5.4075
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 16,
+   "why": "no vector at constant offset (best spread 0.296)",
+   "bbox": [
+    23.7158,
+    4.7145,
+    24.3408,
+    5.4075
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 18,
+   "why": "no vector at constant offset (best spread 0.296)",
+   "bbox": [
+    23.7158,
+    9.3484,
+    24.3408,
+    10.0413
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 20,
+   "why": "no vector at constant offset (best spread 0.296)",
+   "bbox": [
+    23.7158,
+    13.9822,
+    24.3408,
+    14.6751
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 22,
+   "why": "no vector at constant offset (best spread 0.296)",
+   "bbox": [
+    23.7158,
+    18.616,
+    24.3408,
+    19.3089
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 26,
+   "why": "no vector at constant offset (best spread 0.296)",
+   "bbox": [
+    32.3522,
+    13.9822,
+    32.9772,
+    14.6751
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 28,
+   "why": "no vector at constant offset (best spread 0.296)",
+   "bbox": [
+    32.3522,
+    9.3484,
+    32.9772,
+    10.0413
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 30,
+   "why": "no vector at constant offset (best spread 0.296)",
+   "bbox": [
+    32.3522,
+    4.7145,
+    32.9772,
+    5.4075
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 32,
+   "why": "no vector at constant offset (best spread 0.2961)",
+   "bbox": [
+    40.9886,
+    4.7145,
+    41.6136,
+    5.4075
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 56,
+   "why": "no vector at constant offset (best spread 0.1853)",
+   "bbox": [
+    23.7158,
+    28.4745,
+    24.3408,
+    29.1675
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 58,
+   "why": "no vector at constant offset (best spread 0.1854)",
+   "bbox": [
+    23.7158,
+    33.1083,
+    24.3408,
+    33.8013
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 60,
+   "why": "no vector at constant offset (best spread 0.1853)",
+   "bbox": [
+    23.7158,
+    37.7421,
+    24.3408,
+    38.4351
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 62,
+   "why": "no vector at constant offset (best spread 0.1853)",
+   "bbox": [
+    23.7158,
+    42.3759,
+    24.3408,
+    43.0689
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 96,
+   "why": "no vector at constant offset (best spread 0.1853)",
+   "bbox": [
+    23.7158,
+    52.2345,
+    24.3408,
+    52.9274
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 98,
+   "why": "no vector at constant offset (best spread 0.1853)",
+   "bbox": [
+    23.7158,
+    56.8683,
+    24.3408,
+    57.5612
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 100,
+   "why": "no vector at constant offset (best spread 0.1853)",
+   "bbox": [
+    23.7158,
+    61.5021,
+    24.3408,
+    62.195
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 102,
+   "why": "no vector at constant offset (best spread 0.1854)",
+   "bbox": [
+    23.7158,
+    66.1359,
+    24.3408,
+    66.8289
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 126,
+   "why": "no vector at constant offset (best spread 0.2961)",
+   "bbox": [
+    40.9886,
+    89.8959,
+    41.6136,
+    90.5888
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 128,
+   "why": "no vector at constant offset (best spread 0.2961)",
+   "bbox": [
+    32.3522,
+    89.8959,
+    32.9772,
+    90.5888
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 130,
+   "why": "no vector at constant offset (best spread 0.2961)",
+   "bbox": [
+    32.3522,
+    85.2621,
+    32.9772,
+    85.955
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 132,
+   "why": "no vector at constant offset (best spread 0.2961)",
+   "bbox": [
+    32.3522,
+    80.6283,
+    32.9772,
+    81.3212
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 136,
+   "why": "no vector at constant offset (best spread 0.2961)",
+   "bbox": [
+    23.7158,
+    75.9945,
+    24.3408,
+    76.6874
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 138,
+   "why": "no vector at constant offset (best spread 0.2961)",
+   "bbox": [
+    23.7158,
+    80.6283,
+    24.3408,
+    81.3212
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 140,
+   "why": "no vector at constant offset (best spread 0.2961)",
+   "bbox": [
+    23.7158,
+    85.2621,
+    24.3408,
+    85.955
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 142,
+   "why": "no vector at constant offset (best spread 0.2961)",
+   "bbox": [
+    23.7158,
+    89.8959,
+    24.3408,
+    90.5888
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 144,
+   "why": "no vector at constant offset (best spread 0.2961)",
+   "bbox": [
+    15.0795,
+    89.8959,
+    15.7045,
+    90.5888
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 146,
+   "why": "no vector at constant offset (best spread 0.2961)",
+   "bbox": [
+    15.0795,
+    85.2621,
+    15.7045,
+    85.955
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 148,
+   "why": "no vector at constant offset (best spread 0.2961)",
+   "bbox": [
+    15.0795,
+    80.6283,
+    15.7045,
+    81.3212
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 158,
+   "why": "no vector at constant offset (best spread 0.2961)",
+   "bbox": [
+    6.4431,
+    89.8959,
+    7.0681,
+    90.5889
+   ]
+  }
+ ]
+}

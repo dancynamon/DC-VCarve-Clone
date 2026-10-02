@@ -1,0 +1,76 @@
+{
+ "name": "Blue Material Sheet 2 engrave only",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/INV 18591 Las Vegas and Gulb Kickboards/Blue Material/Blue Material.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/INV 18591 Las Vegas and Gulb Kickboards/Blue Material/Blue Material Sheet 2 engrave only.tap",
+ "out": "Blue Material Sheet 2 engrave only-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 5,
+   "toolDia": 0.125,
+   "rpm": 12000,
+   "feed": 40,
+   "plunge": 40,
+   "cutDepth": 0.08,
+   "passDepth": 0.08,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Blue Material Sheet 2 engrave only T5 profile on",
+   "select": [
+    [
+     "Import - Fish 48x36",
+     2
+    ],
+    [
+     "Import - Fish 48x36",
+     4
+    ],
+    [
+     "Import - Fish 48x36",
+     5
+    ],
+    [
+     "Import - Fish 48x36",
+     3
+    ],
+    [
+     "Import - Fish 48x36",
+     8
+    ],
+    [
+     "Import - Fish 48x36",
+     10
+    ],
+    [
+     "Import - Fish 48x36",
+     11
+    ],
+    [
+     "Import - Fish 48x36",
+     9
+    ],
+    [
+     "Engrave",
+     3
+    ],
+    [
+     "Engrave",
+     2
+    ],
+    [
+     "Engrave",
+     1
+    ],
+    [
+     "Engrave",
+     0
+    ]
+   ]
+  }
+ ]
+}

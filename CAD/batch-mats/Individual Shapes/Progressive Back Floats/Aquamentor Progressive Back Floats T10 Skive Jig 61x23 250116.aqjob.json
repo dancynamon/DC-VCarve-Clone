@@ -1,0 +1,30 @@
+{
+ "name": "Aquamentor Progressive Back Floats T10 Skive Jig 61x23 250116",
+ "crv": "../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Progressive Back Floats/Aquamentor Progressive Back Floats Jig 61x23 250115.crv3d",
+ "vectric": "../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Progressive Back Floats/Aquamentor Progressive Back Floats T10 Skive Jig 61x23 250116.tap",
+ "out": "Aquamentor Progressive Back Floats T10 Skive Jig 61x23 250116-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 10,
+   "toolDia": 1.5,
+   "stepover": 0.5,
+   "rpm": 18000,
+   "feed": 150,
+   "plunge": 25,
+   "cutDepth": 0.05,
+   "passDepth": 0.05,
+   "clearZ": 0.2,
+   "label": "Aquamentor Progressive Back Floats T10 Skive Jig 61x23 250116 T10 pocket",
+   "select": [
+    [
+     "Pocket",
+     32
+    ]
+   ]
+  }
+ ]
+}

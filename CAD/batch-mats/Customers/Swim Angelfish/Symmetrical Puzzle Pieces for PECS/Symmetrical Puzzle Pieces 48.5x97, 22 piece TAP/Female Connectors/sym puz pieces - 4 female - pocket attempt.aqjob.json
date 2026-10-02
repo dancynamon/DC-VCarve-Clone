@@ -1,0 +1,500 @@
+{
+ "name": "sym puz pieces - 4 female - pocket attempt",
+ "crv": "../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Swim Angelfish/Symmetrical Puzzle Pieces for PECS/Symmetrical Puzzle Pieces 48.5x97, 22 piece TAP/Female Connectors/sym puz pieces - 4 female - pocket attempt.crv3d",
+ "vectric": "../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Swim Angelfish/Symmetrical Puzzle Pieces for PECS/Symmetrical Puzzle Pieces 48.5x97, 22 piece TAP/Female Connectors/sym puz pieces - 4 female - pocket attempt.tap",
+ "out": "sym puz pieces - 4 female - pocket attempt-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 7,
+   "toolDia": 0.5,
+   "stepover": 0.3,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.475,
+   "passDepth": 1.475,
+   "clearZ": 0.2,
+   "label": "sym puz pieces - 4 female - pocket attempt T7 pocket",
+   "select": [
+    [
+     "Pocket Attempt",
+     0
+    ],
+    [
+     "Pocket Attempt",
+     3
+    ],
+    [
+     "Pocket Attempt",
+     2
+    ],
+    [
+     "Pocket Attempt",
+     4
+    ],
+    [
+     "Pocket Attempt",
+     7
+    ],
+    [
+     "Pocket Attempt",
+     6
+    ],
+    [
+     "Pocket Attempt",
+     8
+    ],
+    [
+     "Pocket Attempt",
+     11
+    ],
+    [
+     "Pocket Attempt",
+     10
+    ],
+    [
+     "Pocket Attempt",
+     12
+    ],
+    [
+     "Pocket Attempt",
+     15
+    ],
+    [
+     "Pocket Attempt",
+     14
+    ],
+    [
+     "Pocket Attempt",
+     16
+    ],
+    [
+     "Pocket Attempt",
+     19
+    ],
+    [
+     "Pocket Attempt",
+     18
+    ],
+    [
+     "Pocket Attempt",
+     17
+    ],
+    [
+     "Pocket Attempt",
+     59
+    ],
+    [
+     "Pocket Attempt",
+     58
+    ],
+    [
+     "Pocket Attempt",
+     57
+    ],
+    [
+     "Pocket Attempt",
+     56
+    ],
+    [
+     "Pocket Attempt",
+     54
+    ],
+    [
+     "Pocket Attempt",
+     53
+    ],
+    [
+     "Pocket Attempt",
+     52
+    ],
+    [
+     "Pocket Attempt",
+     50
+    ],
+    [
+     "Pocket Attempt",
+     49
+    ],
+    [
+     "Pocket Attempt",
+     48
+    ],
+    [
+     "Pocket Attempt",
+     46
+    ],
+    [
+     "Pocket Attempt",
+     45
+    ],
+    [
+     "Pocket Attempt",
+     44
+    ],
+    [
+     "Pocket Attempt",
+     42
+    ],
+    [
+     "Pocket Attempt",
+     41
+    ],
+    [
+     "Pocket Attempt",
+     40
+    ],
+    [
+     "Pocket Attempt",
+     43
+    ],
+    [
+     "Pocket Attempt",
+     1
+    ],
+    [
+     "Pocket Attempt",
+     5
+    ],
+    [
+     "Pocket Attempt",
+     47
+    ],
+    [
+     "Pocket Attempt",
+     9
+    ],
+    [
+     "Pocket Attempt",
+     51
+    ],
+    [
+     "Pocket Attempt",
+     13
+    ],
+    [
+     "Pocket Attempt",
+     55
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 7,
+   "toolDia": 0.5,
+   "stepover": 0.3,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "label": "sym puz pieces - 4 female - pocket attempt T7 pocket",
+   "select": [
+    [
+     "Pocket Attempt",
+     60
+    ],
+    [
+     "Pocket Attempt",
+     63
+    ],
+    [
+     "Pocket Attempt",
+     21
+    ],
+    [
+     "Pocket Attempt",
+     22
+    ],
+    [
+     "Pocket Attempt",
+     24
+    ],
+    [
+     "Pocket Attempt",
+     27
+    ],
+    [
+     "Pocket Attempt",
+     26
+    ],
+    [
+     "Pocket Attempt",
+     28
+    ],
+    [
+     "Pocket Attempt",
+     31
+    ],
+    [
+     "Pocket Attempt",
+     30
+    ],
+    [
+     "Pocket Attempt",
+     32
+    ],
+    [
+     "Pocket Attempt",
+     35
+    ],
+    [
+     "Pocket Attempt",
+     34
+    ],
+    [
+     "Pocket Attempt",
+     36
+    ],
+    [
+     "Pocket Attempt",
+     39
+    ],
+    [
+     "Pocket Attempt",
+     38
+    ],
+    [
+     "Pocket Attempt",
+     80
+    ],
+    [
+     "Pocket Attempt",
+     83
+    ],
+    [
+     "Pocket Attempt",
+     82
+    ],
+    [
+     "Pocket Attempt",
+     81
+    ],
+    [
+     "Pocket Attempt",
+     87
+    ],
+    [
+     "Pocket Attempt",
+     86
+    ],
+    [
+     "Pocket Attempt",
+     85
+    ],
+    [
+     "Pocket Attempt",
+     84
+    ],
+    [
+     "Pocket Attempt",
+     78
+    ],
+    [
+     "Pocket Attempt",
+     77
+    ],
+    [
+     "Pocket Attempt",
+     76
+    ],
+    [
+     "Pocket Attempt",
+     74
+    ],
+    [
+     "Pocket Attempt",
+     73
+    ],
+    [
+     "Pocket Attempt",
+     72
+    ],
+    [
+     "Pocket Attempt",
+     70
+    ],
+    [
+     "Pocket Attempt",
+     69
+    ],
+    [
+     "Pocket Attempt",
+     68
+    ],
+    [
+     "Pocket Attempt",
+     66
+    ],
+    [
+     "Pocket Attempt",
+     65
+    ],
+    [
+     "Pocket Attempt",
+     64
+    ],
+    [
+     "Pocket Attempt",
+     62
+    ],
+    [
+     "Pocket Attempt",
+     61
+    ],
+    [
+     "Pocket Attempt",
+     67
+    ],
+    [
+     "Pocket Attempt",
+     25
+    ],
+    [
+     "Pocket Attempt",
+     29
+    ],
+    [
+     "Pocket Attempt",
+     71
+    ],
+    [
+     "Pocket Attempt",
+     33
+    ],
+    [
+     "Pocket Attempt",
+     75
+    ],
+    [
+     "Pocket Attempt",
+     37
+    ],
+    [
+     "Pocket Attempt",
+     79
+    ],
+    [
+     "Pocket Attempt",
+     23
+    ],
+    [
+     "Pocket Attempt",
+     20
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 90,
+   "plunge": 25,
+   "cutDepth": 1.5,
+   "passDepth": 0.75,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "sym puz pieces - 4 female - pocket attempt T2 profile outside",
+   "select": [
+    [
+     "Female Pieces",
+     0
+    ],
+    [
+     "Female Pieces",
+     10
+    ],
+    [
+     "Female Pieces",
+     11
+    ],
+    [
+     "Female Pieces",
+     1
+    ],
+    [
+     "Female Pieces",
+     2
+    ],
+    [
+     "Female Pieces",
+     3
+    ],
+    [
+     "Female Pieces",
+     13
+    ],
+    [
+     "Female Pieces",
+     12
+    ],
+    [
+     "Female Pieces",
+     14
+    ],
+    [
+     "Female Pieces",
+     4
+    ],
+    [
+     "Female Pieces",
+     5
+    ],
+    [
+     "Female Pieces",
+     15
+    ],
+    [
+     "Female Pieces",
+     16
+    ],
+    [
+     "Female Pieces",
+     6
+    ],
+    [
+     "Female Pieces",
+     7
+    ],
+    [
+     "Female Pieces",
+     17
+    ],
+    [
+     "Female Pieces",
+     18
+    ],
+    [
+     "Female Pieces",
+     19
+    ],
+    [
+     "Female Pieces",
+     9
+    ],
+    [
+     "Female Pieces",
+     8
+    ],
+    [
+     "Female Pieces",
+     20
+    ],
+    [
+     "Female Pieces",
+     21
+    ]
+   ]
+  }
+ ]
+}

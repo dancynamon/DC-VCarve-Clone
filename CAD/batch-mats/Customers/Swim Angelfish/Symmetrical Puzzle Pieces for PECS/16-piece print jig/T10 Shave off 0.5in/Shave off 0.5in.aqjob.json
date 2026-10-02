@@ -1,0 +1,45 @@
+{
+ "name": "Shave off 0.5in",
+ "crv": "../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Swim Angelfish/Symmetrical Puzzle Pieces for PECS/16-piece print jig/symmetrical puzzle pieces 16-piece print jig for illustrator.crv3d",
+ "vectric": "../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Swim Angelfish/Symmetrical Puzzle Pieces for PECS/16-piece print jig/T10 Shave off 0.5in/Shave off 0.5in.tap",
+ "out": "Shave off 0.5in-aq.tap",
+ "complete": false,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 10,
+   "toolDia": 1.5,
+   "rpm": 18000,
+   "feed": 150,
+   "plunge": 25,
+   "cutDepth": 0.5,
+   "passDepth": 0.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Shave off 0.5in T10 profile inside",
+   "select": [
+    [
+     "Layer 1",
+     1
+    ]
+   ]
+  }
+ ],
+ "unmatched": [
+  {
+   "tool": 10,
+   "pass": 0,
+   "why": "no vector at constant offset (best spread 9.2554)",
+   "bbox": [
+    0.9,
+    1.1554,
+    29.5621,
+    20.6554
+   ]
+  }
+ ]
+}

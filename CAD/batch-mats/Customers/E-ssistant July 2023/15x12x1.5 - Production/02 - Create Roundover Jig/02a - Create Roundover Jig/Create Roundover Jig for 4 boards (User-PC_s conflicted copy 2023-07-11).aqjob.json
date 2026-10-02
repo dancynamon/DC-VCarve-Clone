@@ -1,0 +1,67 @@
+{
+ "name": "Create Roundover Jig for 4 boards (User-PC's conflicted copy 2023-07-11)",
+ "crv": "../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/E-ssistant July 2023/15x12x1.5 - Production/02 - Create Roundover Jig/15x12x1.5 roundover 4 boards.crv3d",
+ "vectric": "../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/E-ssistant July 2023/15x12x1.5 - Production/02 - Create Roundover Jig/02a - Create Roundover Jig/Create Roundover Jig for 4 boards (User-PC's conflicted copy 2023-07-11).tap",
+ "out": "Create Roundover Jig for 4 boards (User-PC_s conflicted copy 2023-07-11)-aq.tap",
+ "complete": false,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Create Roundover Jig for 4 boards (User-PC's conflicted copy 2023-07-11) T2 profile inside",
+   "select": [
+    [
+     "11.8x20",
+     0
+    ]
+   ]
+  }
+ ],
+ "unmatched": [
+  {
+   "tool": 2,
+   "pass": 1,
+   "why": "no vector at constant offset (best spread 0.5)",
+   "bbox": [
+    13.925,
+    1.125,
+    25.475,
+    15.875
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 2,
+   "why": "no vector at constant offset (best spread 1)",
+   "bbox": [
+    26.725,
+    1.125,
+    38.275,
+    15.875
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 3,
+   "why": "no vector at constant offset (best spread 1.5)",
+   "bbox": [
+    39.525,
+    1.125,
+    51.075,
+    15.875
+   ]
+  }
+ ]
+}

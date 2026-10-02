@@ -1,0 +1,250 @@
+{
+ "name": "Pocket Swiss Cheese 40x60 fix",
+ "crv": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Swiss Cheese Mat (Rectangular Sheet with holes in it)/04_40x60 Swiss Cheese Mat/40x60 swiss cheese mat hole fix.crv3d",
+ "vectric": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Swiss Cheese Mat (Rectangular Sheet with holes in it)/04_40x60 Swiss Cheese Mat/Pocket Swiss Cheese 40x60 fix.tap",
+ "out": "Pocket Swiss Cheese 40x60 fix-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "stepover": 0.5,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "label": "Pocket Swiss Cheese 40x60 fix T2 pocket",
+   "select": [
+    [
+     "Holes 6\" apart",
+     21
+    ],
+    [
+     "Holes 6\" apart",
+     22
+    ],
+    [
+     "Holes 6\" apart",
+     23
+    ],
+    [
+     "Holes 6\" apart",
+     24
+    ],
+    [
+     "Holes 6\" apart",
+     25
+    ],
+    [
+     "Holes 6\" apart",
+     26
+    ],
+    [
+     "Holes 6\" apart",
+     27
+    ],
+    [
+     "Holes 6\" apart",
+     34
+    ],
+    [
+     "Holes 6\" apart",
+     33
+    ],
+    [
+     "Holes 6\" apart",
+     32
+    ],
+    [
+     "Holes 6\" apart",
+     31
+    ],
+    [
+     "Holes 6\" apart",
+     30
+    ],
+    [
+     "Holes 6\" apart",
+     29
+    ],
+    [
+     "Holes 6\" apart",
+     28
+    ],
+    [
+     "Holes 6\" apart",
+     35
+    ],
+    [
+     "Holes 6\" apart",
+     36
+    ],
+    [
+     "Holes 6\" apart",
+     37
+    ],
+    [
+     "Holes 6\" apart",
+     38
+    ],
+    [
+     "Holes 6\" apart",
+     39
+    ],
+    [
+     "Holes 6\" apart",
+     40
+    ],
+    [
+     "Holes 6\" apart",
+     41
+    ],
+    [
+     "Holes 6\" apart",
+     48
+    ],
+    [
+     "Holes 6\" apart",
+     47
+    ],
+    [
+     "Holes 6\" apart",
+     46
+    ],
+    [
+     "Holes 6\" apart",
+     45
+    ],
+    [
+     "Holes 6\" apart",
+     44
+    ],
+    [
+     "Holes 6\" apart",
+     43
+    ],
+    [
+     "Holes 6\" apart",
+     42
+    ],
+    [
+     "Holes 6\" apart",
+     49
+    ],
+    [
+     "Holes 6\" apart",
+     50
+    ],
+    [
+     "Holes 6\" apart",
+     51
+    ],
+    [
+     "Holes 6\" apart",
+     52
+    ],
+    [
+     "Holes 6\" apart",
+     53
+    ],
+    [
+     "Holes 6\" apart",
+     54
+    ],
+    [
+     "Holes 6\" apart",
+     55
+    ],
+    [
+     "Holes 6\" apart",
+     62
+    ],
+    [
+     "Holes 6\" apart",
+     61
+    ],
+    [
+     "Holes 6\" apart",
+     60
+    ],
+    [
+     "Holes 6\" apart",
+     59
+    ],
+    [
+     "Holes 6\" apart",
+     58
+    ],
+    [
+     "Holes 6\" apart",
+     57
+    ],
+    [
+     "Holes 6\" apart",
+     56
+    ],
+    [
+     "Holes 6\" apart",
+     63
+    ],
+    [
+     "Holes 6\" apart",
+     64
+    ],
+    [
+     "Holes 6\" apart",
+     65
+    ],
+    [
+     "Holes 6\" apart",
+     66
+    ],
+    [
+     "Holes 6\" apart",
+     67
+    ],
+    [
+     "Holes 6\" apart",
+     68
+    ],
+    [
+     "Holes 6\" apart",
+     69
+    ],
+    [
+     "Holes 6\" apart",
+     76
+    ],
+    [
+     "Holes 6\" apart",
+     75
+    ],
+    [
+     "Holes 6\" apart",
+     74
+    ],
+    [
+     "Holes 6\" apart",
+     73
+    ],
+    [
+     "Holes 6\" apart",
+     72
+    ],
+    [
+     "Holes 6\" apart",
+     71
+    ],
+    [
+     "Holes 6\" apart",
+     70
+    ]
+   ]
+  }
+ ]
+}

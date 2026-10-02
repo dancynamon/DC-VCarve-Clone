@@ -1,0 +1,62 @@
+{
+ "name": "2-19x4x4 rectangles",
+ "crv": "../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Paul Penzi 221101/2-19x4x4 rectangles.crv3d",
+ "vectric": "../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Paul Penzi 221101/2-19x4x4 rectangles.tap",
+ "out": "2-19x4x4 rectangles-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 4,
+   "toolDia": 0.505,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 1,
+   "passDepth": 1,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "2-19x4x4 rectangles T4 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     0
+    ],
+    [
+     "Layer 1",
+     1
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 7,
+   "toolDia": 0.5,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 4,
+   "passDepth": 1.3333,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "2-19x4x4 rectangles T7 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     0
+    ],
+    [
+     "Layer 1",
+     1
+    ]
+   ]
+  }
+ ]
+}

@@ -1,0 +1,82 @@
+{
+ "name": "Rectangle Mat 72x36 plus large 12x20 kx",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/_Datestamped CAD/230413/Rectangle Mat 72x36 plus large 12x20 kx.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/_Datestamped CAD/230413/Rectangle Mat 72x36 plus large 12x20 kx.tap",
+ "out": "Rectangle Mat 72x36 plus large 12x20 kx-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Rectangle Mat 72x36 plus large 12x20 kx T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     24
+    ],
+    [
+     "Profile T1",
+     3
+    ],
+    [
+     "Profile T1",
+     4
+    ],
+    [
+     "Profile T1",
+     5
+    ],
+    [
+     "Profile T1",
+     6
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 1,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Rectangle Mat 72x36 plus large 12x20 kx T1 profile outside",
+   "select": [
+    [
+     "Profile T1",
+     0
+    ],
+    [
+     "Profile T1",
+     1
+    ],
+    [
+     "Profile T1",
+     2
+    ],
+    [
+     "Profile T1",
+     7
+    ]
+   ]
+  }
+ ]
+}

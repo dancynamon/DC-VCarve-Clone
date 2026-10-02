@@ -1,0 +1,76 @@
+{
+ "name": "2nd side roundover - 3x2x60 noodle - create jig for 5 noodles- T2",
+ "crv": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Noodle - Aquamentor Style/Noodle 2# 3x2x40 and 60/60in Noodle/2nd side roundover - 3x2x60 noodle t4 roundover t2 profile - 3 3-16 wide - 2in gap.crv3d",
+ "vectric": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Noodle - Aquamentor Style/Noodle 2# 3x2x40 and 60/60in Noodle/2nd side roundover - 3x2x60 noodle - create jig for 5 noodles- T2.tap",
+ "out": "2nd side roundover - 3x2x60 noodle - create jig for 5 noodles- T2-aq.tap",
+ "complete": false,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.1625,
+   "stepover": 1.15,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.25,
+   "label": "2nd side roundover - 3x2x60 noodle - create jig for 5 noodles- T2 T2 pocket",
+   "select": [
+    [
+     "Layer 1",
+     0
+    ]
+   ]
+  }
+ ],
+ "unmatched": [
+  {
+   "tool": 2,
+   "pass": 1,
+   "why": "no vector at constant offset (best spread 0.35)",
+   "bbox": [
+    7.125,
+    2.25,
+    9.875,
+    61.75
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 2,
+   "why": "no vector at constant offset (best spread 0.3937)",
+   "bbox": [
+    12.125,
+    2.25,
+    14.875,
+    61.75
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 3,
+   "why": "no vector at constant offset (best spread 0.5812)",
+   "bbox": [
+    17.125,
+    2.25,
+    19.875,
+    61.75
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 4,
+   "why": "no vector at constant offset (best spread 0.7687)",
+   "bbox": [
+    22.125,
+    2.25,
+    24.875,
+    61.75
+   ]
+  }
+ ]
+}

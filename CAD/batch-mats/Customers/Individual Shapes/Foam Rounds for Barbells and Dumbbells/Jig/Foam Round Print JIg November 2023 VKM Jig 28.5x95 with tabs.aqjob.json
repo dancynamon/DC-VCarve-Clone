@@ -1,0 +1,526 @@
+{
+ "name": "Foam Round Print JIg November 2023 VKM Jig 28.5x95 with tabs",
+ "crv": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Foam Rounds for Barbells and Dumbbells/Jig/Foam Round Print JIg November 2023 VKM Jig 28.5x95.crv3d",
+ "vectric": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Foam Rounds for Barbells and Dumbbells/Jig/Foam Round Print JIg November 2023 VKM Jig 28.5x95 with tabs.tap",
+ "out": "Foam Round Print JIg November 2023 VKM Jig 28.5x95 with tabs-aq.tap",
+ "complete": false,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 3,
+   "toolDia": 0.375,
+   "rpm": 18000,
+   "feed": 60,
+   "plunge": 20,
+   "cutDepth": 0.75,
+   "passDepth": 0.375,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 4,
+    "length": 0.8154,
+    "height": 0.05
+   },
+   "label": "Foam Round Print JIg November 2023 VKM Jig 28.5x95 with tabs T3 profile inside",
+   "select": [
+    [
+     "OD Profile",
+     0
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 3,
+   "toolDia": 0.375,
+   "rpm": 18000,
+   "feed": 60,
+   "plunge": 20,
+   "cutDepth": 0.75,
+   "passDepth": 0.375,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 4,
+    "length": 0.8141,
+    "height": 0.05
+   },
+   "label": "Foam Round Print JIg November 2023 VKM Jig 28.5x95 with tabs T3 profile inside",
+   "select": [
+    [
+     "OD Profile",
+     3
+    ],
+    [
+     "OD Profile",
+     6
+    ],
+    [
+     "OD Profile",
+     12
+    ],
+    [
+     "OD Profile",
+     15
+    ],
+    [
+     "OD Profile",
+     18
+    ],
+    [
+     "OD Profile",
+     21
+    ],
+    [
+     "OD Profile",
+     24
+    ],
+    [
+     "OD Profile",
+     27
+    ],
+    [
+     "OD Profile",
+     30
+    ],
+    [
+     "OD Profile",
+     33
+    ],
+    [
+     "OD Profile",
+     36
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 3,
+   "toolDia": 0.375,
+   "rpm": 18000,
+   "feed": 60,
+   "plunge": 20,
+   "cutDepth": 0.75,
+   "passDepth": 0.375,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 4,
+    "length": 0.8142,
+    "height": 0.05
+   },
+   "label": "Foam Round Print JIg November 2023 VKM Jig 28.5x95 with tabs T3 profile inside",
+   "select": [
+    [
+     "OD Profile",
+     9
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 3,
+   "toolDia": 0.375,
+   "rpm": 18000,
+   "feed": 60,
+   "plunge": 20,
+   "cutDepth": 0.75,
+   "passDepth": 0.375,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 4,
+    "length": 0.812,
+    "height": 0.05
+   },
+   "label": "Foam Round Print JIg November 2023 VKM Jig 28.5x95 with tabs T3 profile inside",
+   "select": [
+    [
+     "OD Profile",
+     37
+    ],
+    [
+     "OD Profile",
+     34
+    ],
+    [
+     "OD Profile",
+     11
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 3,
+   "toolDia": 0.375,
+   "rpm": 18000,
+   "feed": 60,
+   "plunge": 20,
+   "cutDepth": 0.75,
+   "passDepth": 0.375,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 4,
+    "length": 0.8168,
+    "height": 0.05
+   },
+   "label": "Foam Round Print JIg November 2023 VKM Jig 28.5x95 with tabs T3 profile inside",
+   "select": [
+    [
+     "OD Profile",
+     35
+    ],
+    [
+     "OD Profile",
+     29
+    ],
+    [
+     "OD Profile",
+     23
+    ],
+    [
+     "OD Profile",
+     14
+    ],
+    [
+     "OD Profile",
+     8
+    ],
+    [
+     "OD Profile",
+     2
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 3,
+   "toolDia": 0.375,
+   "rpm": 18000,
+   "feed": 60,
+   "plunge": 20,
+   "cutDepth": 0.75,
+   "passDepth": 0.375,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 4,
+    "length": 0.8153,
+    "height": 0.05
+   },
+   "label": "Foam Round Print JIg November 2023 VKM Jig 28.5x95 with tabs T3 profile inside",
+   "select": [
+    [
+     "OD Profile",
+     38
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 3,
+   "toolDia": 0.375,
+   "rpm": 18000,
+   "feed": 60,
+   "plunge": 20,
+   "cutDepth": 0.75,
+   "passDepth": 0.375,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 4,
+    "length": 0.8048,
+    "height": 0.05
+   },
+   "label": "Foam Round Print JIg November 2023 VKM Jig 28.5x95 with tabs T3 profile inside",
+   "select": [
+    [
+     "OD Profile",
+     32
+    ],
+    [
+     "OD Profile",
+     17
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 3,
+   "toolDia": 0.375,
+   "rpm": 18000,
+   "feed": 60,
+   "plunge": 20,
+   "cutDepth": 0.75,
+   "passDepth": 0.375,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 4,
+    "length": 0.8107,
+    "height": 0.05
+   },
+   "label": "Foam Round Print JIg November 2023 VKM Jig 28.5x95 with tabs T3 profile inside",
+   "select": [
+    [
+     "OD Profile",
+     31
+    ],
+    [
+     "OD Profile",
+     25
+    ],
+    [
+     "OD Profile",
+     16
+    ],
+    [
+     "OD Profile",
+     10
+    ],
+    [
+     "OD Profile",
+     4
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 3,
+   "toolDia": 0.375,
+   "rpm": 18000,
+   "feed": 60,
+   "plunge": 20,
+   "cutDepth": 0.75,
+   "passDepth": 0.375,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 4,
+    "length": 0.8101,
+    "height": 0.05
+   },
+   "label": "Foam Round Print JIg November 2023 VKM Jig 28.5x95 with tabs T3 profile inside",
+   "select": [
+    [
+     "OD Profile",
+     28
+    ],
+    [
+     "OD Profile",
+     22
+    ],
+    [
+     "OD Profile",
+     7
+    ],
+    [
+     "OD Profile",
+     1
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 3,
+   "toolDia": 0.375,
+   "rpm": 18000,
+   "feed": 60,
+   "plunge": 20,
+   "cutDepth": 0.75,
+   "passDepth": 0.375,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 4,
+    "length": 0.8119,
+    "height": 0.05
+   },
+   "label": "Foam Round Print JIg November 2023 VKM Jig 28.5x95 with tabs T3 profile inside",
+   "select": [
+    [
+     "OD Profile",
+     26
+    ],
+    [
+     "OD Profile",
+     20
+    ],
+    [
+     "OD Profile",
+     5
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 3,
+   "toolDia": 0.375,
+   "rpm": 18000,
+   "feed": 60,
+   "plunge": 20,
+   "cutDepth": 0.75,
+   "passDepth": 0.375,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 4,
+    "length": 0.8,
+    "height": 0.05
+   },
+   "label": "Foam Round Print JIg November 2023 VKM Jig 28.5x95 with tabs T3 profile inside",
+   "select": [
+    [
+     "OD Profile",
+     19
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 3,
+   "toolDia": 0.375,
+   "rpm": 18000,
+   "feed": 60,
+   "plunge": 20,
+   "cutDepth": 0.75,
+   "passDepth": 0.375,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 4,
+    "length": 0.8047,
+    "height": 0.05
+   },
+   "label": "Foam Round Print JIg November 2023 VKM Jig 28.5x95 with tabs T3 profile inside",
+   "select": [
+    [
+     "OD Profile",
+     13
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 3,
+   "toolDia": 0.375,
+   "rpm": 18000,
+   "feed": 60,
+   "plunge": 20,
+   "cutDepth": 0.75,
+   "passDepth": 0.375,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Foam Round Print JIg November 2023 VKM Jig 28.5x95 with tabs T3 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     0
+    ]
+   ]
+  }
+ ],
+ "unmatched": [
+  {
+   "tool": 3,
+   "pass": 1,
+   "why": "plunge at 3.5547,1.218 hits no vector centroid"
+  },
+  {
+   "tool": 3,
+   "pass": 44,
+   "why": "plunge at 15.078,80.6053 hits no vector centroid"
+  },
+  {
+   "tool": 3,
+   "pass": 47,
+   "why": "plunge at 17.4147,84.378 hits no vector centroid"
+  },
+  {
+   "tool": 3,
+   "pass": 55,
+   "why": "plunge at 11.2987,69.083 hits no vector centroid"
+  },
+  {
+   "tool": 3,
+   "pass": 58,
+   "why": "plunge at 15.078,66.7453 hits no vector centroid"
+  },
+  {
+   "tool": 3,
+   "pass": 65,
+   "why": "plunge at 11.2987,55.223 hits no vector centroid"
+  },
+  {
+   "tool": 3,
+   "pass": 68,
+   "why": "plunge at 15.078,52.8853 hits no vector centroid"
+  },
+  {
+   "tool": 3,
+   "pass": 83,
+   "why": "plunge at 15.078,32.0953 hits no vector centroid"
+  },
+  {
+   "tool": 3,
+   "pass": 90,
+   "why": "plunge at 11.2987,20.573 hits no vector centroid"
+  },
+  {
+   "tool": 3,
+   "pass": 93,
+   "why": "plunge at 15.078,18.2353 hits no vector centroid"
+  },
+  {
+   "tool": 3,
+   "pass": 100,
+   "why": "plunge at 11.2987,6.713 hits no vector centroid"
+  },
+  {
+   "tool": 3,
+   "pass": 103,
+   "why": "plunge at 15.078,4.3753 hits no vector centroid"
+  }
+ ]
+}

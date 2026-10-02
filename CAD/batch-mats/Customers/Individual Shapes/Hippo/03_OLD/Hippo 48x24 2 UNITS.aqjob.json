@@ -1,0 +1,131 @@
+{
+ "name": "Hippo 48x24 2 UNITS",
+ "crv": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Hippo/03_OLD/Hippo 32x24.crv",
+ "vectric": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Hippo/03_OLD/Hippo 48x24 2 UNITS.tap",
+ "out": "Hippo 48x24 2 UNITS-aq.tap",
+ "complete": false,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "pocket",
+   "climb": true,
+   "toolNum": 5,
+   "toolDia": 5.3371,
+   "stepover": 0,
+   "rpm": 12000,
+   "feed": 40,
+   "plunge": 40,
+   "cutDepth": 0.08,
+   "passDepth": 0.08,
+   "clearZ": 0.8,
+   "label": "Hippo 48x24 2 UNITS T5 pocket",
+   "select": [
+    [
+     "Layer 1",
+     0
+    ]
+   ]
+  }
+ ],
+ "unmatched": [
+  {
+   "tool": 5,
+   "pass": 0,
+   "why": "no vector at constant offset (best spread 1.6991)",
+   "bbox": [
+    3.9006,
+    5.6371,
+    5.7349,
+    8.0073
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 2,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    9.2218,
+    28.7674,
+    11.2767,
+    30.9276
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 3,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    3.9005,
+    29.8971,
+    5.7349,
+    32.2673
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 0,
+   "why": "no vector at constant offset (best spread 0.6252)",
+   "bbox": [
+    7.2234,
+    13.1159,
+    7.9322,
+    14.1752
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 1,
+   "why": "no vector at constant offset (best spread 0.9584)",
+   "bbox": [
+    15.9261,
+    11.2574,
+    16.7389,
+    12.2326
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 2,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    15.9261,
+    35.5174,
+    16.7389,
+    36.4926
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 3,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    7.2234,
+    37.3759,
+    7.9322,
+    38.4352
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 4,
+   "why": "no vector at constant offset (best spread 11.3485)",
+   "bbox": [
+    0.3751,
+    0.3751,
+    47.3355,
+    24.6245
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 5,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    0.3752,
+    24.635,
+    47.3355,
+    48.8848
+   ]
+  }
+ ]
+}

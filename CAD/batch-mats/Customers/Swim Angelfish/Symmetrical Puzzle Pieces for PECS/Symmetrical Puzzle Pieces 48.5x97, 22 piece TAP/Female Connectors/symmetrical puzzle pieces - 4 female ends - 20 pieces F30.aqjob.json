@@ -1,0 +1,108 @@
+{
+ "name": "symmetrical puzzle pieces - 4 female ends - 20 pieces F30",
+ "crv": "../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Swim Angelfish/Symmetrical Puzzle Pieces for PECS/Symmetrical Puzzle Pieces 48.5x97, 22 piece TAP/Female Connectors/symmetrical puzzle pieces - 4 female ends - 20 pieces.crv3d",
+ "vectric": "../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Swim Angelfish/Symmetrical Puzzle Pieces for PECS/Symmetrical Puzzle Pieces 48.5x97, 22 piece TAP/Female Connectors/symmetrical puzzle pieces - 4 female ends - 20 pieces F30.tap",
+ "out": "symmetrical puzzle pieces - 4 female ends - 20 pieces F30-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 20000,
+   "feed": 30,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 0.75,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "symmetrical puzzle pieces - 4 female ends - 20 pieces F30 T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     0
+    ],
+    [
+     "Layer 1",
+     10
+    ],
+    [
+     "Layer 1",
+     11
+    ],
+    [
+     "Layer 1",
+     1
+    ],
+    [
+     "Layer 1",
+     2
+    ],
+    [
+     "Layer 1",
+     12
+    ],
+    [
+     "Layer 1",
+     13
+    ],
+    [
+     "Layer 1",
+     14
+    ],
+    [
+     "Layer 1",
+     4
+    ],
+    [
+     "Layer 1",
+     3
+    ],
+    [
+     "Layer 1",
+     5
+    ],
+    [
+     "Layer 1",
+     15
+    ],
+    [
+     "Layer 1",
+     16
+    ],
+    [
+     "Layer 1",
+     6
+    ],
+    [
+     "Layer 1",
+     7
+    ],
+    [
+     "Layer 1",
+     17
+    ],
+    [
+     "Layer 1",
+     18
+    ],
+    [
+     "Layer 1",
+     8
+    ],
+    [
+     "Layer 1",
+     9
+    ],
+    [
+     "Layer 1",
+     19
+    ]
+   ]
+  }
+ ]
+}

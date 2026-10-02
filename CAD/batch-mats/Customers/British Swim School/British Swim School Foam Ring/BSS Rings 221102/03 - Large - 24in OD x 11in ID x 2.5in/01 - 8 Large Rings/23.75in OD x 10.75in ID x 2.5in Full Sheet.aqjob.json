@@ -1,0 +1,366 @@
+{
+ "name": "23.75in OD x 10.75in ID x 2.5in Full Sheet",
+ "crv": "../../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/British Swim School/British Swim School Foam Ring/BSS Rings 221102/03 - Large - 24in OD x 11in ID x 2.5in/01 - 8 Large Rings/23.75in OD x 10.75in ID x 2.5in Full Sheet.crv3d",
+ "vectric": "../../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/British Swim School/British Swim School Foam Ring/BSS Rings 221102/03 - Large - 24in OD x 11in ID x 2.5in/01 - 8 Large Rings/23.75in OD x 10.75in ID x 2.5in Full Sheet.tap",
+ "out": "23.75in OD x 10.75in ID x 2.5in Full Sheet-aq.tap",
+ "complete": false,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 4,
+   "toolDia": 0.5046,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1,
+   "passDepth": 1,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "23.75in OD x 10.75in ID x 2.5in Full Sheet T4 profile inside",
+   "select": [
+    [
+     "ID",
+     0
+    ],
+    [
+     "ID",
+     1
+    ],
+    [
+     "ID",
+     3
+    ],
+    [
+     "ID",
+     2
+    ],
+    [
+     "ID",
+     4
+    ],
+    [
+     "ID",
+     6
+    ],
+    [
+     "ID",
+     7
+    ],
+    [
+     "ID",
+     5
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 4,
+   "toolDia": 0.5059,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1,
+   "passDepth": 1,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "23.75in OD x 10.75in ID x 2.5in Full Sheet T4 profile outside",
+   "select": [
+    [
+     "OD",
+     0
+    ],
+    [
+     "OD",
+     1
+    ],
+    [
+     "OD",
+     3
+    ],
+    [
+     "OD",
+     2
+    ],
+    [
+     "OD",
+     4
+    ],
+    [
+     "OD",
+     6
+    ],
+    [
+     "OD",
+     7
+    ],
+    [
+     "OD",
+     5
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 7,
+   "toolDia": 0.5,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 2.5,
+   "passDepth": 1.25,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "23.75in OD x 10.75in ID x 2.5in Full Sheet T7 profile inside",
+   "select": [
+    [
+     "FR ID Pocket",
+     3
+    ],
+    [
+     "FR ID Pocket",
+     0
+    ],
+    [
+     "FR ID Pocket",
+     4
+    ],
+    [
+     "FR ID Pocket",
+     1
+    ],
+    [
+     "FR ID Pocket",
+     6
+    ],
+    [
+     "FR ID Pocket",
+     2
+    ],
+    [
+     "FR ID Pocket",
+     10
+    ],
+    [
+     "FR ID Pocket",
+     9
+    ],
+    [
+     "FR ID Pocket",
+     5
+    ],
+    [
+     "FR ID Pocket",
+     8
+    ],
+    [
+     "FR ID Pocket",
+     7
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 7,
+   "toolDia": 0.5,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 2.5,
+   "passDepth": 1.25,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 4,
+    "length": 0.9332,
+    "height": 0.125
+   },
+   "label": "23.75in OD x 10.75in ID x 2.5in Full Sheet T7 profile outside",
+   "select": [
+    [
+     "FR OD Profile",
+     10
+    ],
+    [
+     "FR OD Profile",
+     8
+    ],
+    [
+     "FR OD Profile",
+     7
+    ],
+    [
+     "FR OD Profile",
+     5
+    ],
+    [
+     "FR OD Profile",
+     6
+    ],
+    [
+     "FR OD Profile",
+     3
+    ],
+    [
+     "FR OD Profile",
+     1
+    ],
+    [
+     "FR OD Profile",
+     4
+    ],
+    [
+     "FR OD Profile",
+     0
+    ],
+    [
+     "FR OD Profile",
+     2
+    ],
+    [
+     "FR OD Profile",
+     9
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 7,
+   "toolDia": 0.5,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 2.45,
+   "passDepth": 1.225,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "23.75in OD x 10.75in ID x 2.5in Full Sheet T7 profile inside",
+   "select": [
+    [
+     "ID",
+     0
+    ],
+    [
+     "ID",
+     1
+    ],
+    [
+     "ID",
+     3
+    ],
+    [
+     "ID",
+     2
+    ],
+    [
+     "ID",
+     4
+    ],
+    [
+     "ID",
+     6
+    ],
+    [
+     "ID",
+     7
+    ],
+    [
+     "ID",
+     5
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 7,
+   "toolDia": 0.5,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 2.5,
+   "passDepth": 1.25,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "23.75in OD x 10.75in ID x 2.5in Full Sheet T7 profile outside",
+   "select": [
+    [
+     "OD",
+     0
+    ],
+    [
+     "OD",
+     1
+    ],
+    [
+     "OD",
+     3
+    ],
+    [
+     "OD",
+     2
+    ],
+    [
+     "OD",
+     4
+    ],
+    [
+     "OD",
+     5
+    ],
+    [
+     "OD",
+     7
+    ],
+    [
+     "OD",
+     6
+    ]
+   ]
+  }
+ ],
+ "unmatched": [
+  {
+   "tool": 7,
+   "pass": 27,
+   "why": "plunge at 12.5813,33.1782 hits no vector centroid"
+  },
+  {
+   "tool": 7,
+   "pass": 36,
+   "why": "plunge at 24.629,69.3016 hits no vector centroid"
+  },
+  {
+   "tool": 7,
+   "pass": 39,
+   "why": "plunge at 15.3108,61.0987 hits no vector centroid"
+  },
+  {
+   "tool": 7,
+   "pass": 42,
+   "why": "plunge at 12.5813,81.6982 hits no vector centroid"
+  },
+  {
+   "tool": 7,
+   "pass": 45,
+   "why": "plunge at 33.1882,84.4287 hits no vector centroid"
+  }
+ ]
+}

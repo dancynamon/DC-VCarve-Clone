@@ -1,0 +1,3616 @@
+{
+ "name": "Starfish 16x16 22 per sheet 120 keychains",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Starfish/03_OLD/Starfish 16x16 5 per sheet.crv",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Starfish/03_OLD/Starfish 16x16 22 per sheet 120 keychains.tap",
+ "out": "Starfish 16x16 22 per sheet 120 keychains-aq.tap",
+ "complete": false,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 5,
+   "toolDia": 0.125,
+   "rpm": 12000,
+   "feed": 40,
+   "plunge": 40,
+   "cutDepth": 0.075,
+   "passDepth": 0.075,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Starfish 16x16 22 per sheet 120 keychains T5 profile on",
+   "select": [
+    [
+     "Engrave",
+     1
+    ],
+    [
+     "Engrave",
+     0
+    ],
+    [
+     "Engrave",
+     7
+    ],
+    [
+     "Engrave",
+     6
+    ],
+    [
+     "Engrave",
+     8
+    ],
+    [
+     "Engrave",
+     9
+    ],
+    [
+     "Engrave",
+     4
+    ],
+    [
+     "Engrave",
+     5
+    ],
+    [
+     "Engrave",
+     3
+    ],
+    [
+     "Engrave",
+     2
+    ]
+   ]
+  },
+  {
+   "op": "drill",
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 75,
+   "plunge": 25,
+   "cutDepth": 1.51,
+   "clearZ": 0.2,
+   "label": "Starfish 16x16 22 per sheet 120 keychains T2 drill",
+   "select": [
+    [
+     "Drill",
+     3
+    ],
+    [
+     "Drill",
+     10
+    ],
+    [
+     "Drill",
+     14
+    ],
+    [
+     "Drill",
+     12
+    ],
+    [
+     "Drill",
+     4
+    ],
+    [
+     "Drill",
+     0
+    ],
+    [
+     "Drill",
+     5
+    ],
+    [
+     "Drill",
+     1
+    ],
+    [
+     "Drill",
+     2
+    ],
+    [
+     "Drill",
+     6
+    ],
+    [
+     "Drill",
+     9
+    ],
+    [
+     "Drill",
+     11
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 75,
+   "plunge": 25,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Starfish 16x16 22 per sheet 120 keychains T2 profile inside",
+   "select": [
+    [
+     "Pocket",
+     0
+    ],
+    [
+     "Pocket",
+     1
+    ],
+    [
+     "Pocket",
+     6
+    ],
+    [
+     "Pocket",
+     7
+    ],
+    [
+     "Pocket",
+     8
+    ],
+    [
+     "Pocket",
+     9
+    ],
+    [
+     "Pocket",
+     5
+    ],
+    [
+     "Pocket",
+     4
+    ],
+    [
+     "Pocket",
+     3
+    ],
+    [
+     "Pocket",
+     2
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 75,
+   "plunge": 25,
+   "cutDepth": 1.45,
+   "passDepth": 1.45,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Starfish 16x16 22 per sheet 120 keychains T2 profile outside",
+   "select": [
+    [
+     "Keychain Profile",
+     3
+    ],
+    [
+     "Keychain Profile",
+     10
+    ],
+    [
+     "Keychain Profile",
+     12
+    ],
+    [
+     "Keychain Profile",
+     14
+    ],
+    [
+     "Keychain Profile",
+     4
+    ],
+    [
+     "Keychain Profile",
+     0
+    ],
+    [
+     "Keychain Profile",
+     5
+    ],
+    [
+     "Keychain Profile",
+     1
+    ],
+    [
+     "Keychain Profile",
+     2
+    ],
+    [
+     "Keychain Profile",
+     6
+    ],
+    [
+     "Keychain Profile",
+     11
+    ],
+    [
+     "Keychain Profile",
+     9
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 75,
+   "plunge": 25,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Starfish 16x16 22 per sheet 120 keychains T2 profile outside",
+   "select": [
+    [
+     "Profile",
+     0
+    ],
+    [
+     "Profile",
+     3
+    ],
+    [
+     "Profile",
+     4
+    ],
+    [
+     "Profile",
+     2
+    ],
+    [
+     "Profile",
+     1
+    ]
+   ]
+  }
+ ],
+ "unmatched": [
+  {
+   "tool": 5,
+   "pass": 4,
+   "why": "no vector at constant offset (best spread 1.3711)",
+   "bbox": [
+    23.6305,
+    26.8974,
+    26.0524,
+    28.0255
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 5,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    23.0976,
+    28.6796,
+    26.5893,
+    30.5199
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 6,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    32.9527,
+    37.5218,
+    36.234,
+    40.2059
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 7,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    32.5882,
+    39.6609,
+    34.8201,
+    41.3922
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 8,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    32.426,
+    49.1359,
+    33.8345,
+    50.04
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 9,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    39.4504,
+    48.0201,
+    42.7295,
+    50.7079
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 10,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    40.8679,
+    50.1567,
+    43.0979,
+    51.8907
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 11,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    44.0925,
+    59.1721,
+    45.7125,
+    59.4714
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 12,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    39.7764,
+    59.4257,
+    41.1907,
+    60.3353
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 13,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    39.5292,
+    65.343,
+    42.8084,
+    68.0307
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 14,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    40.947,
+    67.4797,
+    43.1766,
+    69.2136
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 15,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    44.6663,
+    71.4152,
+    46.0806,
+    72.3248
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 16,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    47.0661,
+    75.6605,
+    47.3654,
+    77.2902
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 17,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    47.8926,
+    74.1029,
+    48.1919,
+    75.7229
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 18,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    39.7636,
+    79.0575,
+    43.0448,
+    81.7416
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 19,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    39.3992,
+    81.1966,
+    41.6311,
+    82.9277
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 20,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    38.9559,
+    85.8573,
+    39.2552,
+    87.487
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 21,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    38.7565,
+    89.4084,
+    40.378,
+    89.7076
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 22,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    40.8384,
+    91.6524,
+    42.4681,
+    91.9517
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 23,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    37.3556,
+    93.0893,
+    38.9847,
+    93.3887
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 24,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    35.8212,
+    91.0814,
+    37.4512,
+    91.3808
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 25,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    33.6274,
+    90.3338,
+    35.2571,
+    90.6331
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 26,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    33.0243,
+    92.6081,
+    34.4343,
+    93.5241
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 27,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    32.7093,
+    94.7931,
+    34.1193,
+    95.7092
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 28,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    26.2844,
+    94.8052,
+    27.6928,
+    95.7093
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 29,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    24.5812,
+    92.9741,
+    25.9945,
+    93.874
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 30,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    24.6204,
+    90.7665,
+    26.2504,
+    91.0659
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 31,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    20.959,
+    92.0263,
+    22.589,
+    92.3257
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 32,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    19.0874,
+    89.8391,
+    20.5017,
+    90.7487
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 33,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    16.6968,
+    90.313,
+    18.1081,
+    91.2254
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 34,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    16.0439,
+    88.1376,
+    17.4546,
+    89.0367
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 35,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    17.3646,
+    84.551,
+    18.2671,
+    85.9602
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 36,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    21.18,
+    87.3295,
+    22.5933,
+    88.2294
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 37,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    22.6992,
+    82.9159,
+    23.6004,
+    84.3261
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 38,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    27.8245,
+    86.5707,
+    30.056,
+    88.3017
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 39,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    28.1888,
+    84.4314,
+    31.4701,
+    87.1155
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 40,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    32.3085,
+    75.4311,
+    33.7185,
+    76.3471
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 41,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    26.9386,
+    72.1412,
+    29.1705,
+    73.8726
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 42,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    27.303,
+    70.0024,
+    30.5842,
+    72.6864
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 43,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    22.7945,
+    69.1064,
+    23.0938,
+    70.7358
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 44,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    19.0966,
+    67.8986,
+    20.0006,
+    69.307
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 45,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    15.9502,
+    69.822,
+    17.58,
+    70.1213
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 46,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    20.3807,
+    65.2308,
+    21.2806,
+    66.6441
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 47,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    17.133,
+    59.0549,
+    19.8171,
+    62.3362
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 48,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    15.9468,
+    58.6907,
+    17.6778,
+    60.922
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 49,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    24.3629,
+    60.9939,
+    25.7728,
+    61.91
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 50,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    29.6158,
+    58.9046,
+    32.8971,
+    61.5887
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 51,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    31.0297,
+    57.7184,
+    33.2615,
+    59.4496
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 52,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    23.1265,
+    48.3308,
+    26.4057,
+    51.0185
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 53,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    22.7583,
+    47.1479,
+    24.9878,
+    48.8819
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 54,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    14.8443,
+    39.8418,
+    17.0742,
+    41.5758
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 55,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    13.4267,
+    37.7051,
+    16.7059,
+    40.393
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 56,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    8.3484,
+    28.6409,
+    10.5781,
+    30.3749
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 57,
+   "why": "no vector at constant offset (best spread 2.9453)",
+   "bbox": [
+    6.9307,
+    26.5043,
+    10.2098,
+    29.1921
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 58,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    8.5624,
+    48.7032,
+    10.2962,
+    50.933
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 59,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    6.4256,
+    49.0715,
+    9.1133,
+    52.3507
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 60,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    5.0531,
+    57.3019,
+    6.6822,
+    57.6013
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 61,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    5.3794,
+    59.9401,
+    7.0091,
+    60.2394
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 62,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    8.0834,
+    62.1947,
+    9.4933,
+    63.1108
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 63,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    6.9307,
+    67.2917,
+    10.2098,
+    69.9795
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 64,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    8.3486,
+    69.4286,
+    10.5781,
+    71.1624
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 65,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    2.4857,
+    73.2866,
+    4.1154,
+    73.5859
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 66,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    3.3847,
+    74.3296,
+    5.0057,
+    74.6289
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 67,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    2.4857,
+    76.9677,
+    4.1154,
+    77.267
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 68,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    4.821,
+    77.617,
+    6.441,
+    77.9163
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 69,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    1.9417,
+    79.1107,
+    3.356,
+    80.0203
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 70,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    5.795,
+    85.4694,
+    6.9231,
+    87.8913
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 71,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    7.5772,
+    84.9325,
+    9.4176,
+    88.4242
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 72,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    12.6584,
+    89.5057,
+    14.0727,
+    90.4153
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 73,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    12.67,
+    92.3522,
+    14.08,
+    93.2682
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 74,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    12.7093,
+    94.7144,
+    14.1193,
+    95.6304
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 75,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    16.7253,
+    93.1649,
+    18.1379,
+    94.0754
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 76,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    19.7993,
+    94.2336,
+    21.2065,
+    95.1344
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 77,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    5.3789,
+    93.5848,
+    6.7873,
+    94.4888
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 78,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    4.3945,
+    91.8163,
+    5.7999,
+    92.7179
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 79,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    1.3599,
+    93.9949,
+    2.2598,
+    95.4082
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 80,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    16.0652,
+    76.7615,
+    18.7493,
+    80.0428
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 81,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    18.2042,
+    78.1753,
+    19.9356,
+    80.4072
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 82,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    36.4379,
+    70.8246,
+    37.8522,
+    71.7342
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 83,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    47.1868,
+    65.5506,
+    48.0854,
+    66.9631
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 84,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    47.8926,
+    60.8518,
+    48.1919,
+    62.4815
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 85,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    45.2022,
+    84.9598,
+    46.8319,
+    85.2591
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 86,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    45.1038,
+    86.9677,
+    46.7335,
+    87.267
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 87,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    44.7691,
+    88.9756,
+    46.3989,
+    89.2749
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 88,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    44.1195,
+    90.9834,
+    45.7493,
+    91.2827
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 89,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    47.8927,
+    89.6341,
+    48.1919,
+    91.2557
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 90,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    45.182,
+    93.0139,
+    46.5904,
+    93.9179
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 91,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    46.6584,
+    94.51,
+    48.0668,
+    95.414
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 92,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    1.3603,
+    63.9025,
+    2.2644,
+    65.3109
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 93,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    1.8964,
+    59.9354,
+    2.7963,
+    61.3488
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 94,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    1.3603,
+    57.2883,
+    2.2644,
+    58.6967
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 95,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    39.0646,
+    28.4209,
+    41.2964,
+    30.1521
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 96,
+   "why": "no vector at constant offset (best spread 2.968)",
+   "bbox": [
+    39.4289,
+    26.2818,
+    42.7103,
+    28.9659
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 97,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    46.2332,
+    26.1768,
+    47.6458,
+    27.0872
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 3,
+   "why": "plunge at 4.6844,18.659 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 4,
+   "why": "plunge at 1.235,20.0777 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 5,
+   "why": "plunge at 1.235,16.2391 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 7,
+   "why": "plunge at 11.2076,15.1879 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 8,
+   "why": "plunge at 16.5576,6.2667 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 12,
+   "why": "plunge at 32.5616,6.2667 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 18,
+   "why": "plunge at 45.5263,14.2468 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 19,
+   "why": "plunge at 46.9994,17.1941 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 20,
+   "why": "plunge at 48.5305,17.8848 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 21,
+   "why": "plunge at 48.5108,21.5659 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 22,
+   "why": "plunge at 48.4411,27.1004 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 23,
+   "why": "plunge at 48.0427,32.0366 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 24,
+   "why": "plunge at 44.3301,34.1905 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 25,
+   "why": "plunge at 46.7435,36.1507 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 26,
+   "why": "plunge at 48.5305,36.6643 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 27,
+   "why": "plunge at 43.7153,37.9911 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 28,
+   "why": "plunge at 43.8531,41.8256 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 29,
+   "why": "plunge at 45.6682,42.7461 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 30,
+   "why": "plunge at 48.0996,44.5269 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 31,
+   "why": "plunge at 46.9207,54.95 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 32,
+   "why": "plunge at 48.5305,55.5816 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 33,
+   "why": "plunge at 45.2901,56.8059 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 34,
+   "why": "plunge at 43.3419,59.7706 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 35,
+   "why": "plunge at 41.9844,60.3484 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 36,
+   "why": "plunge at 48.4911,63.2253 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 37,
+   "why": "plunge at 48.7222,67.4589 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 38,
+   "why": "plunge at 43.8725,71.402 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 39,
+   "why": "plunge at 46.7669,74.9167 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 40,
+   "why": "plunge at 48.4911,76.4733 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 41,
+   "why": "plunge at 47.5757,84.6606 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 42,
+   "why": "plunge at 47.4772,86.6685 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 43,
+   "why": "plunge at 47.1426,88.6763 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 44,
+   "why": "plunge at 46.493,90.6842 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 45,
+   "why": "plunge at 47.0849,92.3829 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 46,
+   "why": "plunge at 48.4911,92.0048 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 47,
+   "why": "plunge at 48.5613,93.879 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 48,
+   "why": "plunge at 40.0939,92.2509 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 49,
+   "why": "plunge at 38.0073,90.0068 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 50,
+   "why": "plunge at 36.0009,90.0346 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 51,
+   "why": "plunge at 35.0742,91.6801 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 52,
+   "why": "plunge at 35.2324,93.5374 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 53,
+   "why": "plunge at 36.6097,93.6879 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 54,
+   "why": "plunge at 34.9175,95.7225 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 55,
+   "why": "plunge at 28.1873,94.1742 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 56,
+   "why": "plunge at 24.0856,94.5096 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 57,
+   "why": "plunge at 23.8734,91.3651 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 58,
+   "why": "plunge at 21.2954,90.7618 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 59,
+   "why": "plunge at 20.212,92.6249 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 60,
+   "why": "plunge at 18.9332,94.0886 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 61,
+   "why": "plunge at 19.3021,95.7694 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 62,
+   "why": "plunge at 14.9175,95.6437 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 63,
+   "why": "plunge at 14.8781,93.2815 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 64,
+   "why": "plunge at 15.9001,90.2997 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 65,
+   "why": "plunge at 17.9511,87.501 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 66,
+   "why": "plunge at 18.8993,86.455 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 67,
+   "why": "plunge at 23.0889,86.6939 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 68,
+   "why": "plunge at 24.234,84.8212 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 69,
+   "why": "plunge at 31.5103,75.4178 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 70,
+   "why": "plunge at 35.6442,70.8115 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 71,
+   "why": "plunge at 26.571,61.9232 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 72,
+   "why": "plunge at 19.7451,64.7352 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 73,
+   "why": "plunge at 22.4952,68.3616 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 74,
+   "why": "plunge at 20.6316,69.8015 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 75,
+   "why": "plunge at 18.3237,69.5228 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 76,
+   "why": "plunge at 10.2915,63.124 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 77,
+   "why": "plunge at 7.7528,59.6409 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 78,
+   "why": "plunge at 4.3065,57.9005 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 79,
+   "why": "plunge at 2.8954,59.1912 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 80,
+   "why": "plunge at 1.2608,59.4399 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 81,
+   "why": "plunge at 6.1169,55.0933 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 82,
+   "why": "plunge at 12.4779,56.4876 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 83,
+   "why": "plunge at 19.0773,49.6919 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 84,
+   "why": "plunge at 8.8728,43.0657 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 85,
+   "why": "plunge at 5.9517,39.9517 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 86,
+   "why": "plunge at 7.8336,38.6713 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 87,
+   "why": "plunge at 6.6287,37.5342 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 88,
+   "why": "plunge at 4.8341,36.446 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 89,
+   "why": "plunge at 2.4206,34.4858 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 90,
+   "why": "plunge at 4.5585,32.3122 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 91,
+   "why": "plunge at 1.235,38.4635 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 92,
+   "why": "plunge at 1.6626,47.6568 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 93,
+   "why": "plunge at 2.8954,65.8054 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 94,
+   "why": "plunge at 4.8591,72.9874 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 95,
+   "why": "plunge at 4.8591,76.6685 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 96,
+   "why": "plunge at 4.0703,78.2155 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 97,
+   "why": "plunge at 4.1497,80.0335 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 98,
+   "why": "plunge at 2.6333,74.9281 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 99,
+   "why": "plunge at 6.2975,91.1821 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 100,
+   "why": "plunge at 7.2818,92.9538 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 101,
+   "why": "plunge at 2.8954,95.9038 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 102,
+   "why": "plunge at 11.8647,89.4926 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 103,
+   "why": "plunge at 38.6567,85.1136 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 104,
+   "why": "plunge at 36.901,53.8082 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 105,
+   "why": "plunge at 34.329,48.5049 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 106,
+   "why": "plunge at 31.7435,44.5366 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 107,
+   "why": "plunge at 25.6247,38.2035 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 108,
+   "why": "plunge at 27.45,34.7434 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 109,
+   "why": "plunge at 21.9578,34.6056 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 110,
+   "why": "plunge at 16.0926,29.168 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 111,
+   "why": "plunge at 19.3179,25.7391 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 112,
+   "why": "plunge at 23.7107,18.1247 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 113,
+   "why": "plunge at 27.2116,15.1879 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 114,
+   "why": "plunge at 39.7146,18.1247 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 115,
+   "why": "plunge at 41.6626,17.086 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 116,
+   "why": "plunge at 33.6228,29.1167 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 117,
+   "why": "plunge at 31.8209,28.6759 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 118,
+   "why": "plunge at 39.184,36.9693 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 119,
+   "why": "plunge at 1.235,23.9163 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 124,
+   "why": "no vector at constant offset (best spread 0.2873)",
+   "bbox": [
+    9.1293,
+    27.0745,
+    9.5541,
+    27.7291
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 125,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    7.6277,
+    27.9439,
+    8.0526,
+    28.5985
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 126,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    14.1238,
+    39.1447,
+    14.5486,
+    39.7993
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 127,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    15.6253,
+    38.2753,
+    16.0502,
+    38.9299
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 128,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    23.8332,
+    29.2204,
+    24.0706,
+    29.9848
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 129,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    25.5683,
+    29.2183,
+    25.8055,
+    29.9826
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 130,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    33.6637,
+    38.107,
+    34.0609,
+    38.7808
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 131,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    35.1674,
+    38.9726,
+    35.5645,
+    39.6464
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 132,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    40.1474,
+    49.4597,
+    40.5722,
+    50.1143
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 133,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    41.6489,
+    48.591,
+    42.0738,
+    49.2446
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 134,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    31.7891,
+    60.3318,
+    32.1863,
+    61.0052
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 135,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    30.2854,
+    59.4661,
+    30.6826,
+    60.1395
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 136,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    18.5587,
+    59.7661,
+    19.2315,
+    60.1633
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 137,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    17.6931,
+    61.2698,
+    18.3658,
+    61.667
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 138,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    9.1293,
+    67.8619,
+    9.5541,
+    68.5165
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 139,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    7.6277,
+    68.7313,
+    8.0526,
+    69.3859
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 140,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    17.515,
+    77.4311,
+    18.1878,
+    77.8283
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 141,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    16.6494,
+    78.9348,
+    17.3221,
+    79.332
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 142,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    8.1154,
+    85.7163,
+    8.8797,
+    85.9537
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 143,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    8.1175,
+    87.4512,
+    8.8818,
+    87.6887
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 144,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    28.9,
+    85.0168,
+    29.2972,
+    85.6903
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 145,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    30.4037,
+    85.8825,
+    30.8008,
+    86.556
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 146,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    40.4748,
+    79.6428,
+    40.872,
+    80.3163
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 147,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    41.9785,
+    80.5085,
+    42.3756,
+    81.182
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 148,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    40.2261,
+    66.7825,
+    40.651,
+    67.4371
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 149,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    41.7277,
+    65.9131,
+    42.1525,
+    66.5677
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 150,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    29.5178,
+    71.4533,
+    29.915,
+    72.1268
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 151,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    28.0141,
+    70.5877,
+    28.4114,
+    71.2612
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 152,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    23.7822,
+    49.7946,
+    24.207,
+    50.4492
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 153,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    25.2837,
+    48.9252,
+    25.7086,
+    49.5798
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 154,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    7.8656,
+    51.2288,
+    8.5195,
+    51.6538
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 155,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    6.9962,
+    49.7273,
+    7.6501,
+    50.1522
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 158,
+   "why": "no vector at constant offset (best spread 0.3061)",
+   "bbox": [
+    40.1398,
+    26.8653,
+    40.537,
+    27.5387
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 159,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    41.6435,
+    27.731,
+    42.0407,
+    28.4044
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 167,
+   "why": "no vector at constant offset (best spread 0.4701)",
+   "bbox": [
+    0.7501,
+    15.3363,
+    3.7347,
+    19.7747
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 168,
+   "why": "no vector at constant offset (best spread 0.718)",
+   "bbox": [
+    0.7501,
+    19.1748,
+    3.7348,
+    23.6135
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 169,
+   "why": "no vector at constant offset (best spread 1.595)",
+   "bbox": [
+    3.7426,
+    17.5217,
+    8.4924,
+    19.5714
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 171,
+   "why": "no vector at constant offset (best spread 1.2342)",
+   "bbox": [
+    8.8424,
+    14.414,
+    11.915,
+    18.8056
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 172,
+   "why": "no vector at constant offset (best spread 0.0392)",
+   "bbox": [
+    12.9401,
+    3.9018,
+    17.3323,
+    6.9741
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 176,
+   "why": "no vector at constant offset (best spread 0.039)",
+   "bbox": [
+    28.944,
+    3.9014,
+    33.3356,
+    6.9741
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 182,
+   "why": "no vector at constant offset (best spread 0.2045)",
+   "bbox": [
+    41.9906,
+    13.7619,
+    46.4291,
+    16.7466
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 183,
+   "why": "no vector at constant offset (best spread 0.4418)",
+   "bbox": [
+    43.1914,
+    16.2815,
+    47.9411,
+    18.3314
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 184,
+   "why": "no vector at constant offset (best spread 1.764)",
+   "bbox": [
+    46.1654,
+    17.1102,
+    49.2378,
+    21.5022
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 185,
+   "why": "no vector at constant offset (best spread 1.5934)",
+   "bbox": [
+    46.1455,
+    20.7918,
+    49.2182,
+    25.1834
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 186,
+   "why": "no vector at constant offset (best spread 2.83)",
+   "bbox": [
+    45.0411,
+    24.5125,
+    48.9457,
+    27.7131
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 187,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    44.2348,
+    31.1241,
+    48.9843,
+    33.1743
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 188,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    43.3881,
+    33.0538,
+    48.1382,
+    35.1028
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 189,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    43.2304,
+    37.0882,
+    46.2151,
+    41.5269
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 190,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    42.9356,
+    35.2383,
+    47.6851,
+    37.2884
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 191,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    46.1652,
+    35.8901,
+    49.2378,
+    40.2816
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 192,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    40.3173,
+    41.3408,
+    44.7556,
+    44.325
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 193,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    44.7656,
+    40.2466,
+    49.2039,
+    43.2309
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 194,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    47.187,
+    43.5851,
+    49.2369,
+    48.3349
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 195,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    46.1655,
+    54.8069,
+    49.2378,
+    59.1993
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 196,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    43.1127,
+    54.0375,
+    47.8624,
+    56.0872
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 197,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    41.7542,
+    56.3211,
+    46.1926,
+    59.3055
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 198,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    42.7002,
+    58.7618,
+    47.4502,
+    60.5119
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 199,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    47.4823,
+    59.117,
+    49.2324,
+    63.8669
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 200,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    46.5987,
+    63.6651,
+    49.2329,
+    68.1365
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 201,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    47.4824,
+    72.365,
+    49.2324,
+    77.1149
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 202,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    43.3679,
+    70.789,
+    47.2726,
+    73.9901
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 203,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    46.0256,
+    74.2753,
+    47.7756,
+    79.025
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 204,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    43.4674,
+    83.9193,
+    48.2173,
+    85.6692
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 205,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    43.369,
+    85.9272,
+    48.1188,
+    87.6772
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 206,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    43.0343,
+    87.935,
+    47.784,
+    89.6851
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 207,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    47.4823,
+    87.8965,
+    49.2324,
+    92.6464
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 208,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    39.4524,
+    91.2422,
+    44.2022,
+    92.9922
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 209,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    43.2911,
+    91.8721,
+    47.7626,
+    94.5065
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 210,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    44.7675,
+    93.3682,
+    49.239,
+    96.0025
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 211,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    35.9677,
+    92.6793,
+    40.7179,
+    94.4292
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 212,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    34.4328,
+    90.6713,
+    39.1825,
+    92.4213
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 213,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    37.9154,
+    84.472,
+    39.6653,
+    89.2219
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 214,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    37.3655,
+    88.9981,
+    42.1156,
+    90.7481
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 215,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    42.3847,
+    89.9429,
+    47.1346,
+    91.6929
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 216,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    31.8926,
+    89.2933,
+    36.6428,
+    91.0433
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 217,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    31.8324,
+    90.9494,
+    35.7372,
+    94.15
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 218,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    31.5174,
+    93.1344,
+    35.4222,
+    96.3351
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 219,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    23.408,
+    92.3861,
+    27.8794,
+    95.0203
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 220,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    24.3933,
+    93.6634,
+    28.8648,
+    96.298
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 221,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    18.6244,
+    93.6455,
+    23.0961,
+    96.2802
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 222,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    19.5706,
+    91.6162,
+    24.3203,
+    93.3662
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 223,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    15.3955,
+    89.6867,
+    19.3,
+    92.8876
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 224,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    17.8954,
+    88.1738,
+    21.8,
+    91.3748
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 225,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    14.1572,
+    86.9902,
+    18.6286,
+    89.625
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 226,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    11.3599,
+    88.8799,
+    15.2646,
+    92.0806
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 227,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    15.5333,
+    91.5006,
+    19.4378,
+    94.7016
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 228,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    11.4781,
+    90.6936,
+    15.3826,
+    93.8943
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 229,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    11.5174,
+    93.0558,
+    15.4221,
+    96.2564
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 230,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    3.488,
+    92.4429,
+    7.9594,
+    95.0775
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 231,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    2.5036,
+    90.6713,
+    6.9752,
+    93.306
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 232,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    0.7718,
+    92.11,
+    3.4062,
+    96.5815
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 233,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    0.7498,
+    77.4454,
+    4.6544,
+    80.6462
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 234,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    0.7509,
+    75.9272,
+    5.5008,
+    77.6772
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 235,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    0.7509,
+    72.2461,
+    5.501,
+    73.9961
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 236,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    1.9915,
+    73.9194,
+    6.7415,
+    75.6694
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 237,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    3.4285,
+    77.2067,
+    8.1785,
+    78.9568
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 238,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    16.7752,
+    82.6612,
+    19.4101,
+    87.1327
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 239,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    22.1105,
+    81.0273,
+    24.7448,
+    85.4988
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 240,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    19.2952,
+    86.1831,
+    23.7665,
+    88.8181
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 241,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    23.232,
+    90.3564,
+    27.9817,
+    92.1064
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 242,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    31.0056,
+    74.8052,
+    34.9104,
+    78.0058
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 243,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    35.1395,
+    70.1986,
+    39.0442,
+    73.3995
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 244,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    38.5844,
+    57.7604,
+    42.489,
+    60.9615
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 245,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    33.0929,
+    52.8959,
+    37.8429,
+    54.9449
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 246,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    30.5353,
+    47.9942,
+    35.0065,
+    50.629
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 247,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    27.9354,
+    43.6239,
+    32.6857,
+    45.6737
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 248,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    22.0888,
+    37.7187,
+    26.5272,
+    40.703
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 249,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    26.5375,
+    33.8017,
+    28.5875,
+    38.5513
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 250,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    21.0452,
+    33.6635,
+    23.095,
+    38.4137
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 251,
+   "why": "no vector at constant offset (best spread 2.5561)",
+   "bbox": [
+    13.593,
+    25.6321,
+    16.5774,
+    30.0706
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 252,
+   "why": "no vector at constant offset (best spread 2.2379)",
+   "bbox": [
+    16.9529,
+    24.9645,
+    20.0252,
+    29.3567
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 253,
+   "why": "no vector at constant offset (best spread 0.895)",
+   "bbox": [
+    21.2109,
+    14.5889,
+    24.1956,
+    19.0276
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 254,
+   "why": "no vector at constant offset (best spread 1.237)",
+   "bbox": [
+    24.8464,
+    14.4133,
+    27.9189,
+    18.8055
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 255,
+   "why": "no vector at constant offset (best spread 0.8951)",
+   "bbox": [
+    37.215,
+    14.5891,
+    40.1994,
+    19.0274
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 256,
+   "why": "no vector at constant offset (best spread 1.8624)",
+   "bbox": [
+    40.7501,
+    16.1443,
+    42.8002,
+    20.8939
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 257,
+   "why": "no vector at constant offset (best spread 2.5428)",
+   "bbox": [
+    32.9154,
+    25.499,
+    35.9877,
+    29.8913
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 258,
+   "why": "no vector at constant offset (best spread 2.3045)",
+   "bbox": [
+    29.3213,
+    25.1403,
+    32.3057,
+    29.5786
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 259,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    38.4092,
+    36.2619,
+    42.8015,
+    39.3343
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 260,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    15.4597,
+    47.3268,
+    19.8515,
+    50.3993
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 261,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    11.3407,
+    52.6795,
+    13.3906,
+    57.4297
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 262,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    3.665,
+    56.8919,
+    8.4148,
+    58.6418
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 263,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    2.5812,
+    54.6084,
+    7.0196,
+    57.593
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 264,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    3.6446,
+    58.8996,
+    8.3942,
+    60.6497
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 265,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    0.75,
+    58.7622,
+    3.3842,
+    63.2338
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 266,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    0.7718,
+    62.0115,
+    3.4062,
+    66.4831
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 267,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    6.8915,
+    60.536,
+    10.7959,
+    63.7369
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 268,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    0.7712,
+    55.3975,
+    3.4062,
+    59.8689
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 269,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    0.7502,
+    46.7149,
+    2.7992,
+    51.4649
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 270,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    3.5866,
+    39.1775,
+    6.6591,
+    43.5693
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 271,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    6.9311,
+    36.1719,
+    11.3694,
+    39.1561
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 272,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    5.3372,
+    42.5809,
+    9.7754,
+    45.5653
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 273,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    3.0928,
+    37.0494,
+    7.5311,
+    40.0338
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 274,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    1.026,
+    35.5334,
+    5.7763,
+    37.5832
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 275,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    1.4787,
+    33.349,
+    6.2286,
+    35.3981
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 276,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    0.7501,
+    37.5607,
+    3.7347,
+    41.9993
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 277,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    0.7506,
+    31.3996,
+    5.5002,
+    33.4496
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 278,
+   "why": "no vector at constant offset (best spread 2.2817)",
+   "bbox": [
+    0.7502,
+    23.0138,
+    3.7345,
+    27.4522
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 279,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    23.171,
+    59.3352,
+    27.0756,
+    62.536
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 280,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    19.2343,
+    64.0575,
+    21.8691,
+    68.529
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 281,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    21.7539,
+    67.7199,
+    23.5039,
+    72.4699
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 282,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    18.5081,
+    66.0076,
+    21.1424,
+    70.4789
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 283,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    14.2154,
+    68.7815,
+    18.9654,
+    70.5315
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 286,
+   "why": "no vector at constant offset (best spread 12.3769)",
+   "bbox": [
+    33.0334,
+    20.5926,
+    48.8987,
+    36.6278
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 290,
+   "why": "no vector at constant offset (best spread 12.4301)",
+   "bbox": [
+    16.9706,
+    21.8524,
+    32.7204,
+    37.6021
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 291,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    26.5569,
+    31.8328,
+    42.4222,
+    47.868
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 292,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    16.7142,
+    40.6715,
+    32.5862,
+    56.6947
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 293,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    33.2699,
+    42.3441,
+    49.1418,
+    58.3671
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 294,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    23.4275,
+    51.2425,
+    39.2927,
+    67.2779
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 295,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    33.3488,
+    59.6664,
+    49.2207,
+    75.6897
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 296,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    33.3679,
+    73.3682,
+    49.2332,
+    89.4034
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 297,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    21.7931,
+    78.7422,
+    37.6583,
+    94.7778
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 298,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    10.376,
+    70.5732,
+    26.4116,
+    86.4384
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 299,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    0.7501,
+    78.8015,
+    16.4999,
+    94.551
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 300,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    0.7502,
+    61.6156,
+    16.622,
+    77.6389
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 301,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    0.7494,
+    42.6593,
+    16.7727,
+    58.5312
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 302,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    9.4706,
+    52.6593,
+    25.5063,
+    68.5245
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 303,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    20.9074,
+    64.313,
+    36.7728,
+    80.3483
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 304,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    7.2463,
+    32.0289,
+    23.118,
+    48.0521
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 305,
+   "why": "no vector at constant offset (best spread 12.1666)",
+   "bbox": [
+    0.7502,
+    20.8281,
+    16.6219,
+    36.8513
+   ]
+  }
+ ]
+}

@@ -1,0 +1,36 @@
+{
+ "name": "T5 Bevel Handgrips test",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Noodle - Aquamentor Style/24in Octagonal Swim Stick for Big Blue/24in swim stick for big blue vertical production 2nd test piece.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Noodle - Aquamentor Style/24in Octagonal Swim Stick for Big Blue/T5 Bevel Handgrips test.tap",
+ "out": "T5 Bevel Handgrips test-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 5,
+   "toolDia": 0.125,
+   "rpm": 18000,
+   "feed": 80,
+   "plunge": 30,
+   "cutDepth": 0.25,
+   "passDepth": 0.25,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "T5 Bevel Handgrips test T5 profile on",
+   "select": [
+    [
+     "Hand Grip",
+     0
+    ],
+    [
+     "Hand Grip",
+     1
+    ]
+   ]
+  }
+ ]
+}

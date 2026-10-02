@@ -1,0 +1,159 @@
+{
+ "name": "T8 Drill Corners T3 IP D .3250",
+ "crv": "../../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Swim Angelfish/Symmetrical Puzzle Pieces for PECS/Symmetrical Puzzle Pieces 48.5x97, 22 piece TAP/Print Jigs/Male-Female Print JIg - New Layout - 9 and 18 pieces/mnf IP test.crv3d",
+ "vectric": "../../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Swim Angelfish/Symmetrical Puzzle Pieces for PECS/Symmetrical Puzzle Pieces 48.5x97, 22 piece TAP/Print Jigs/Male-Female Print JIg - New Layout - 9 and 18 pieces/T8 Drill Corners T3 IP D .3250.tap",
+ "out": "T8 Drill Corners T3 IP D .3250-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "drill",
+   "toolNum": 8,
+   "toolDia": 0.375,
+   "rpm": 10000,
+   "feed": 20,
+   "plunge": 20,
+   "cutDepth": 0.775,
+   "clearZ": 0.2,
+   "label": "T8 Drill Corners T3 IP D .3250 T8 drill",
+   "select": [
+    [
+     "drill corners",
+     8
+    ],
+    [
+     "drill corners",
+     9
+    ],
+    [
+     "drill corners",
+     10
+    ],
+    [
+     "drill corners",
+     0
+    ],
+    [
+     "drill corners",
+     2
+    ],
+    [
+     "drill corners",
+     3
+    ],
+    [
+     "drill corners",
+     1
+    ],
+    [
+     "drill corners",
+     4
+    ],
+    [
+     "drill corners",
+     5
+    ],
+    [
+     "drill corners",
+     21
+    ],
+    [
+     "drill corners",
+     22
+    ],
+    [
+     "drill corners",
+     11
+    ],
+    [
+     "drill corners",
+     12
+    ],
+    [
+     "drill corners",
+     13
+    ],
+    [
+     "drill corners",
+     14
+    ],
+    [
+     "drill corners",
+     15
+    ],
+    [
+     "drill corners",
+     16
+    ],
+    [
+     "drill corners",
+     17
+    ],
+    [
+     "drill corners",
+     18
+    ],
+    [
+     "drill corners",
+     19
+    ],
+    [
+     "drill corners",
+     20
+    ],
+    [
+     "drill corners",
+     6
+    ],
+    [
+     "drill corners",
+     7
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 3,
+   "toolDia": 0.3249,
+   "rpm": 18000,
+   "feed": 60,
+   "plunge": 20,
+   "cutDepth": 0.75,
+   "passDepth": 0.375,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "T8 Drill Corners T3 IP D .3250 T3 profile inside",
+   "select": [
+    [
+     "working",
+     1
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 3,
+   "toolDia": 0.3251,
+   "rpm": 18000,
+   "feed": 60,
+   "plunge": 20,
+   "cutDepth": 0.75,
+   "passDepth": 0.375,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "T8 Drill Corners T3 IP D .3250 T3 profile inside",
+   "select": [
+    [
+     "working",
+     0
+    ]
+   ]
+  }
+ ]
+}

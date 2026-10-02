@@ -1,0 +1,76 @@
+{
+ "name": "T3 Inside Profile Cut Out Male Pieces",
+ "crv": "../../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Swim Angelfish/Symmetrical Puzzle Pieces for PECS/Symmetrical Puzzle Pieces 48.5x97, 22 piece TAP/Print Jigs/Male Print Jig/male print jig.crv3d",
+ "vectric": "../../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Swim Angelfish/Symmetrical Puzzle Pieces for PECS/Symmetrical Puzzle Pieces 48.5x97, 22 piece TAP/Print Jigs/Male Print Jig/T3 Inside Profile Cut Out Male Pieces.tap",
+ "out": "T3 Inside Profile Cut Out Male Pieces-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 3,
+   "toolDia": 0.375,
+   "rpm": 18000,
+   "feed": 60,
+   "plunge": 20,
+   "cutDepth": 0.75,
+   "passDepth": 0.375,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "T3 Inside Profile Cut Out Male Pieces T3 profile inside",
+   "select": [
+    [
+     "male",
+     0
+    ],
+    [
+     "male",
+     1
+    ],
+    [
+     "male",
+     2
+    ],
+    [
+     "male",
+     3
+    ],
+    [
+     "male",
+     4
+    ],
+    [
+     "male",
+     5
+    ],
+    [
+     "male",
+     11
+    ],
+    [
+     "male",
+     10
+    ],
+    [
+     "male",
+     9
+    ],
+    [
+     "male",
+     8
+    ],
+    [
+     "male",
+     7
+    ],
+    [
+     "male",
+     6
+    ]
+   ]
+  }
+ ]
+}

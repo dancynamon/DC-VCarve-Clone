@@ -1,0 +1,126 @@
+{
+ "name": "24in swim stick for big blue vertical production 2nd test piece",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Noodle - Aquamentor Style/24in Octagonal Swim Stick for Big Blue/24in swim stick for big blue vertical production 2nd test piece.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Noodle - Aquamentor Style/24in Octagonal Swim Stick for Big Blue/24in swim stick for big blue vertical production 2nd test piece.tap",
+ "out": "24in swim stick for big blue vertical production 2nd test piece-aq.tap",
+ "complete": false,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 5,
+   "toolDia": 0.125,
+   "rpm": 18000,
+   "feed": 80,
+   "plunge": 30,
+   "cutDepth": 0.72,
+   "passDepth": 0.72,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "24in swim stick for big blue vertical production 2nd test piece T5 profile on",
+   "select": [
+    [
+     "Hand Grip",
+     0
+    ],
+    [
+     "Hand Grip",
+     1
+    ]
+   ]
+  }
+ ],
+ "unmatched": [
+  {
+   "tool": 5,
+   "pass": 0,
+   "why": "no vector at constant offset (best spread 0.9905)",
+   "bbox": [
+    0.205,
+    49.0076,
+    2.895,
+    74.1977
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 3,
+   "why": "no vector at constant offset (best spread 0.5093)",
+   "bbox": [
+    0.25,
+    53.7057,
+    2.8573,
+    57.6256
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 4,
+   "why": "no vector at constant offset (best spread 0.5094)",
+   "bbox": [
+    0.25,
+    65.5797,
+    2.8573,
+    69.4996
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 0,
+   "why": "no vector at constant offset (best spread 0.1677)",
+   "bbox": [
+    0.25,
+    65.5797,
+    0.4481,
+    69.4986
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 1,
+   "why": "no vector at constant offset (best spread 0.1667)",
+   "bbox": [
+    0.25,
+    53.7066,
+    0.4482,
+    57.6256
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 0,
+   "why": "no vector at constant offset (best spread 0.598)",
+   "bbox": [
+    0.3996,
+    53.8309,
+    2.7323,
+    57.5005
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 1,
+   "why": "no vector at constant offset (best spread 0.6005)",
+   "bbox": [
+    0.3997,
+    65.7048,
+    2.7323,
+    69.3744
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 2,
+   "why": "no vector at constant offset (best spread 0.5367)",
+   "bbox": [
+    0.125,
+    49.6026,
+    2.975,
+    73.6027
+   ]
+  }
+ ]
+}

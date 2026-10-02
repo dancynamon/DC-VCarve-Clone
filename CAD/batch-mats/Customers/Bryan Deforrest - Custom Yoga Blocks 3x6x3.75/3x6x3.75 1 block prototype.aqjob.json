@@ -1,0 +1,54 @@
+{
+ "name": "3x6x3.75 1 block prototype",
+ "crv": "../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Bryan Deforrest - Custom Yoga Blocks 3x6x3.75/1 block prototype.crv3d",
+ "vectric": "../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Bryan Deforrest - Custom Yoga Blocks 3x6x3.75/3x6x3.75 1 block prototype.tap",
+ "out": "3x6x3.75 1 block prototype-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 4,
+   "toolDia": 0.505,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 0.75,
+   "passDepth": 0.75,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "3x6x3.75 1 block prototype T4 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     0
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 7,
+   "toolDia": 0.5,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 3.75,
+   "passDepth": 1.25,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "3x6x3.75 1 block prototype T7 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     0
+    ]
+   ]
+  }
+ ]
+}

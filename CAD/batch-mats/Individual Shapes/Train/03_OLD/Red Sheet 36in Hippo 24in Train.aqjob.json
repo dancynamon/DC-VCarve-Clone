@@ -1,0 +1,87 @@
+{
+ "name": "Red Sheet 36in Hippo 24in Train",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Train/03_OLD/Train 24x12.crv",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Train/03_OLD/Red Sheet 36in Hippo 24in Train.tap",
+ "out": "Red Sheet 36in Hippo 24in Train-aq.tap",
+ "complete": false,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 5,
+   "toolDia": 3.6503,
+   "stepover": 0,
+   "rpm": 12000,
+   "feed": 40,
+   "plunge": 40,
+   "cutDepth": 0.08,
+   "passDepth": 0.08,
+   "clearZ": 0.8,
+   "label": "Red Sheet 36in Hippo 24in Train T5 pocket",
+   "select": [
+    [
+     "Layer 1",
+     0
+    ]
+   ]
+  }
+ ],
+ "unmatched": [
+  {
+   "tool": 5,
+   "pass": 1,
+   "why": "no vector at constant offset (best spread 1.2495)",
+   "bbox": [
+    8.8636,
+    4.1492,
+    10.9183,
+    6.3096
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 0,
+   "why": "no vector at constant offset (best spread 0.8951)",
+   "bbox": [
+    6.8652,
+    12.7578,
+    7.5739,
+    13.817
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 1,
+   "why": "no vector at constant offset (best spread 0.644)",
+   "bbox": [
+    15.5679,
+    10.8992,
+    16.3807,
+    11.8745
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 2,
+   "why": "no vector at constant offset (best spread 22.2603)",
+   "bbox": [
+    0.0169,
+    0.0169,
+    46.9772,
+    24.2667
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 3,
+   "why": "no vector at constant offset (best spread -)",
+   "bbox": [
+    24.3481,
+    19.2704,
+    49.5977,
+    34.5412
+   ]
+  }
+ ]
+}

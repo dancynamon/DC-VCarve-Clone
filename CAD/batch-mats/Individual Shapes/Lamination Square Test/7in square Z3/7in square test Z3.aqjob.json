@@ -1,0 +1,56 @@
+{
+ "name": "7in square test Z3",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Lamination Square Test/7in square Z3/7in square test Z3.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Lamination Square Test/7in square Z3/7in square test Z3.tap",
+ "out": "7in square test Z3-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 7,
+   "toolDia": 0.5,
+   "stepover": 0.7,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 3,
+   "passDepth": 1.5,
+   "clearZ": 0.25,
+   "label": "7in square test Z3 T7 pocket",
+   "select": [
+    [
+     "Layer 1",
+     2
+    ],
+    [
+     "Layer 1",
+     1
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 7,
+   "toolDia": 0.5,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 3,
+   "passDepth": 1.5,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "7in square test Z3 T7 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     3
+    ]
+   ]
+  }
+ ]
+}

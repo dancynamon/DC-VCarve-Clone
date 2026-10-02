@@ -1,0 +1,675 @@
+{
+ "name": "40x40 Swimm with Timm Swiss Cheese Mat - 2 mats per sheet",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Swimm with Timm/40x40 swiss cheese mat/40x40 Swimm with Timm Swiss Cheese Mat.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Swimm with Timm/40x40 swiss cheese mat/40x40 Swimm with Timm Swiss Cheese Mat - 2 mats per sheet.tap",
+ "out": "40x40 Swimm with Timm Swiss Cheese Mat - 2 mats per sheet-aq.tap",
+ "complete": false,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "pocket",
+   "climb": true,
+   "toolNum": 2,
+   "toolDia": 8.9144,
+   "stepover": 0.01,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "label": "40x40 Swimm with Timm Swiss Cheese Mat - 2 mats per sheet T2 pocket",
+   "select": [
+    [
+     "Layer 1",
+     0
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "40x40 Swimm with Timm Swiss Cheese Mat - 2 mats per sheet T2 profile inside",
+   "select": [
+    [
+     "Holes 6\" apart",
+     0
+    ],
+    [
+     "Holes 6\" apart",
+     1
+    ],
+    [
+     "Holes 6\" apart",
+     2
+    ],
+    [
+     "Holes 6\" apart",
+     3
+    ],
+    [
+     "Holes 6\" apart",
+     4
+    ],
+    [
+     "Holes 6\" apart",
+     5
+    ],
+    [
+     "Holes 6\" apart",
+     6
+    ],
+    [
+     "Holes 6\" apart",
+     13
+    ],
+    [
+     "Holes 6\" apart",
+     12
+    ],
+    [
+     "Holes 6\" apart",
+     11
+    ],
+    [
+     "Holes 6\" apart",
+     10
+    ],
+    [
+     "Holes 6\" apart",
+     9
+    ],
+    [
+     "Holes 6\" apart",
+     8
+    ],
+    [
+     "Holes 6\" apart",
+     7
+    ],
+    [
+     "Holes 6\" apart",
+     14
+    ],
+    [
+     "Holes 6\" apart",
+     15
+    ],
+    [
+     "Holes 6\" apart",
+     16
+    ],
+    [
+     "Holes 6\" apart",
+     17
+    ],
+    [
+     "Holes 6\" apart",
+     18
+    ],
+    [
+     "Holes 6\" apart",
+     19
+    ],
+    [
+     "Holes 6\" apart",
+     20
+    ],
+    [
+     "Holes 6\" apart",
+     27
+    ],
+    [
+     "Holes 6\" apart",
+     26
+    ],
+    [
+     "Holes 6\" apart",
+     25
+    ],
+    [
+     "Holes 6\" apart",
+     24
+    ],
+    [
+     "Holes 6\" apart",
+     23
+    ],
+    [
+     "Holes 6\" apart",
+     22
+    ],
+    [
+     "Holes 6\" apart",
+     21
+    ],
+    [
+     "Holes 6\" apart",
+     28
+    ],
+    [
+     "Holes 6\" apart",
+     29
+    ],
+    [
+     "Holes 6\" apart",
+     30
+    ],
+    [
+     "Holes 6\" apart",
+     31
+    ],
+    [
+     "Holes 6\" apart",
+     32
+    ],
+    [
+     "Holes 6\" apart",
+     33
+    ],
+    [
+     "Holes 6\" apart",
+     34
+    ],
+    [
+     "Holes 6\" apart",
+     41
+    ],
+    [
+     "Holes 6\" apart",
+     40
+    ],
+    [
+     "Holes 6\" apart",
+     39
+    ],
+    [
+     "Holes 6\" apart",
+     38
+    ],
+    [
+     "Holes 6\" apart",
+     37
+    ],
+    [
+     "Holes 6\" apart",
+     36
+    ],
+    [
+     "Holes 6\" apart",
+     35
+    ],
+    [
+     "Holes 6\" apart",
+     42
+    ],
+    [
+     "Holes 6\" apart",
+     43
+    ],
+    [
+     "Holes 6\" apart",
+     44
+    ],
+    [
+     "Holes 6\" apart",
+     45
+    ],
+    [
+     "Holes 6\" apart",
+     46
+    ],
+    [
+     "Holes 6\" apart",
+     47
+    ],
+    [
+     "Holes 6\" apart",
+     48
+    ],
+    [
+     "Holes 6\" apart",
+     55
+    ],
+    [
+     "Holes 6\" apart",
+     54
+    ],
+    [
+     "Holes 6\" apart",
+     53
+    ],
+    [
+     "Holes 6\" apart",
+     52
+    ],
+    [
+     "Holes 6\" apart",
+     51
+    ],
+    [
+     "Holes 6\" apart",
+     50
+    ],
+    [
+     "Holes 6\" apart",
+     49
+    ],
+    [
+     "Holes 6\" apart",
+     56
+    ],
+    [
+     "Holes 6\" apart",
+     57
+    ],
+    [
+     "Holes 6\" apart",
+     58
+    ],
+    [
+     "Holes 6\" apart",
+     59
+    ],
+    [
+     "Holes 6\" apart",
+     60
+    ],
+    [
+     "Holes 6\" apart",
+     61
+    ],
+    [
+     "Holes 6\" apart",
+     62
+    ],
+    [
+     "Holes 6\" apart",
+     69
+    ],
+    [
+     "Holes 6\" apart",
+     68
+    ],
+    [
+     "Holes 6\" apart",
+     67
+    ],
+    [
+     "Holes 6\" apart",
+     66
+    ],
+    [
+     "Holes 6\" apart",
+     65
+    ],
+    [
+     "Holes 6\" apart",
+     64
+    ],
+    [
+     "Holes 6\" apart",
+     63
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": true,
+   "toolNum": 2,
+   "toolDia": 0.3,
+   "stepover": 0.06,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "label": "40x40 Swimm with Timm Swiss Cheese Mat - 2 mats per sheet T2 pocket",
+   "select": [
+    [
+     "Holes 6\" apart",
+     2
+    ],
+    [
+     "Holes 6\" apart",
+     3
+    ],
+    [
+     "Holes 6\" apart",
+     4
+    ],
+    [
+     "Holes 6\" apart",
+     5
+    ],
+    [
+     "Holes 6\" apart",
+     9
+    ],
+    [
+     "Holes 6\" apart",
+     58
+    ],
+    [
+     "Holes 6\" apart",
+     59
+    ],
+    [
+     "Holes 6\" apart",
+     60
+    ],
+    [
+     "Holes 6\" apart",
+     68
+    ],
+    [
+     "Holes 6\" apart",
+     67
+    ],
+    [
+     "Holes 6\" apart",
+     66
+    ],
+    [
+     "Holes 6\" apart",
+     65
+    ],
+    [
+     "Holes 6\" apart",
+     64
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": true,
+   "toolNum": 2,
+   "toolDia": 8.836,
+   "stepover": 0.01,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "label": "40x40 Swimm with Timm Swiss Cheese Mat - 2 mats per sheet T2 pocket",
+   "select": [
+    [
+     "Layer 1",
+     1
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "40x40 Swimm with Timm Swiss Cheese Mat - 2 mats per sheet T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     0
+    ],
+    [
+     "Layer 1",
+     1
+    ]
+   ]
+  }
+ ],
+ "unmatched": [
+  {
+   "tool": 2,
+   "pass": 2,
+   "why": "no vector at constant offset (best spread 0.2993)",
+   "bbox": [
+    9.9572,
+    5.9036,
+    10.5822,
+    6.5998
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 18,
+   "why": "no vector at constant offset (best spread 0.2993)",
+   "bbox": [
+    24.9572,
+    12.9036,
+    25.5822,
+    13.5998
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 20,
+   "why": "no vector at constant offset (best spread 0.2993)",
+   "bbox": [
+    19.9572,
+    12.9036,
+    20.5822,
+    13.5998
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 34,
+   "why": "no vector at constant offset (best spread 0.2992)",
+   "bbox": [
+    19.9572,
+    19.9035,
+    20.5822,
+    20.5998
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 46,
+   "why": "no vector at constant offset (best spread 0.2992)",
+   "bbox": [
+    24.9572,
+    26.9035,
+    25.5822,
+    27.5998
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 48,
+   "why": "no vector at constant offset (best spread 0.2992)",
+   "bbox": [
+    19.9572,
+    26.9035,
+    20.5822,
+    27.5998
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 50,
+   "why": "no vector at constant offset (best spread 0.2993)",
+   "bbox": [
+    14.9572,
+    26.9036,
+    15.5822,
+    27.5998
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 58,
+   "why": "no vector at constant offset (best spread 0.2993)",
+   "bbox": [
+    9.9572,
+    33.9036,
+    10.5822,
+    34.5998
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 60,
+   "why": "no vector at constant offset (best spread 0.2993)",
+   "bbox": [
+    14.9572,
+    33.9036,
+    15.5822,
+    34.5998
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 62,
+   "why": "no vector at constant offset (best spread 0.2993)",
+   "bbox": [
+    19.9572,
+    33.9036,
+    20.5822,
+    34.5998
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 64,
+   "why": "no vector at constant offset (best spread 0.2993)",
+   "bbox": [
+    24.9572,
+    33.9036,
+    25.5822,
+    34.5998
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 66,
+   "why": "no vector at constant offset (best spread 0.2993)",
+   "bbox": [
+    29.9572,
+    33.9036,
+    30.5822,
+    34.5998
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 72,
+   "why": "no vector at constant offset (best spread 0.2993)",
+   "bbox": [
+    29.9572,
+    45.6636,
+    30.5822,
+    46.3598
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 74,
+   "why": "no vector at constant offset (best spread 0.2993)",
+   "bbox": [
+    24.9572,
+    45.6636,
+    25.5822,
+    46.3598
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 76,
+   "why": "no vector at constant offset (best spread 0.2993)",
+   "bbox": [
+    19.9572,
+    45.6636,
+    20.5822,
+    46.3598
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 78,
+   "why": "no vector at constant offset (best spread 0.2992)",
+   "bbox": [
+    14.9572,
+    45.6635,
+    15.5822,
+    46.3598
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 80,
+   "why": "no vector at constant offset (best spread 0.2992)",
+   "bbox": [
+    9.9572,
+    45.6635,
+    10.5822,
+    46.3598
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 88,
+   "why": "no vector at constant offset (best spread 0.2992)",
+   "bbox": [
+    14.9572,
+    52.6635,
+    15.5822,
+    53.3598
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 90,
+   "why": "no vector at constant offset (best spread 0.2993)",
+   "bbox": [
+    19.9572,
+    52.6636,
+    20.5822,
+    53.3598
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 92,
+   "why": "no vector at constant offset (best spread 0.2993)",
+   "bbox": [
+    24.9572,
+    52.6636,
+    25.5822,
+    53.3598
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 104,
+   "why": "no vector at constant offset (best spread 0.2993)",
+   "bbox": [
+    19.9572,
+    59.6636,
+    20.5822,
+    60.3598
+   ]
+  }
+ ]
+}

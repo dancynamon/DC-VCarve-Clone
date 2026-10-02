@@ -1,0 +1,416 @@
+{
+ "name": "Dolphin 16x16 Lori Klatt all changes",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Dolphin/01_CRV/Dolphin 16x16 Lori Klatt all changes.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Dolphin/01_CRV/Dolphin 16x16 Lori Klatt all changes.tap",
+ "out": "Dolphin 16x16 Lori Klatt all changes-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 5,
+   "toolDia": 0.125,
+   "rpm": 12000,
+   "feed": 40,
+   "plunge": 40,
+   "cutDepth": 0.08,
+   "passDepth": 0.08,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Dolphin 16x16 Lori Klatt all changes T5 profile on",
+   "select": [
+    [
+     "Import - 1 lori dolphin",
+     1
+    ],
+    [
+     "Import - 1 lori dolphin",
+     0
+    ],
+    [
+     "Import - 1 lori dolphin",
+     20
+    ],
+    [
+     "Import - 1 lori dolphin",
+     21
+    ],
+    [
+     "Import - 1 lori dolphin",
+     30
+    ],
+    [
+     "Import - 1 lori dolphin",
+     31
+    ],
+    [
+     "Import - 1 lori dolphin",
+     45
+    ],
+    [
+     "Import - 1 lori dolphin",
+     46
+    ],
+    [
+     "Import - 1 lori dolphin",
+     60
+    ],
+    [
+     "Import - 1 lori dolphin",
+     61
+    ],
+    [
+     "Import - 1 lori dolphin",
+     76
+    ],
+    [
+     "Import - 1 lori dolphin",
+     75
+    ],
+    [
+     "Import - 1 lori dolphin",
+     71
+    ],
+    [
+     "Import - 1 lori dolphin",
+     70
+    ],
+    [
+     "Import - 1 lori dolphin",
+     55
+    ],
+    [
+     "Import - 1 lori dolphin",
+     56
+    ],
+    [
+     "Import - 1 lori dolphin",
+     65
+    ],
+    [
+     "Import - 1 lori dolphin",
+     66
+    ],
+    [
+     "Import - 1 lori dolphin",
+     81
+    ],
+    [
+     "Import - 1 lori dolphin",
+     80
+    ],
+    [
+     "Import - 1 lori dolphin",
+     90
+    ],
+    [
+     "Import - 1 lori dolphin",
+     91
+    ],
+    [
+     "Import - 1 lori dolphin",
+     101
+    ],
+    [
+     "Import - 1 lori dolphin",
+     100
+    ],
+    [
+     "Import - 1 lori dolphin",
+     105
+    ],
+    [
+     "Import - 1 lori dolphin",
+     106
+    ],
+    [
+     "Import - 1 lori dolphin",
+     85
+    ],
+    [
+     "Import - 1 lori dolphin",
+     86
+    ],
+    [
+     "Import - 1 lori dolphin",
+     95
+    ],
+    [
+     "Import - 1 lori dolphin",
+     96
+    ],
+    [
+     "Import - 1 lori dolphin",
+     40
+    ],
+    [
+     "Import - 1 lori dolphin",
+     41
+    ],
+    [
+     "Import - 1 lori dolphin",
+     35
+    ],
+    [
+     "Import - 1 lori dolphin",
+     36
+    ],
+    [
+     "Import - 1 lori dolphin",
+     51
+    ],
+    [
+     "Import - 1 lori dolphin",
+     50
+    ],
+    [
+     "Import - 1 lori dolphin",
+     16
+    ],
+    [
+     "Import - 1 lori dolphin",
+     15
+    ],
+    [
+     "Import - 1 lori dolphin",
+     25
+    ],
+    [
+     "Import - 1 lori dolphin",
+     26
+    ],
+    [
+     "Import - 1 lori dolphin",
+     5
+    ],
+    [
+     "Import - 1 lori dolphin",
+     6
+    ],
+    [
+     "Import - 1 lori dolphin",
+     11
+    ],
+    [
+     "Import - 1 lori dolphin",
+     10
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Dolphin 16x16 Lori Klatt all changes T2 profile inside",
+   "select": [
+    [
+     "Import - 1 lori dolphin",
+     4
+    ],
+    [
+     "Import - 1 lori dolphin",
+     24
+    ],
+    [
+     "Import - 1 lori dolphin",
+     34
+    ],
+    [
+     "Import - 1 lori dolphin",
+     49
+    ],
+    [
+     "Import - 1 lori dolphin",
+     64
+    ],
+    [
+     "Import - 1 lori dolphin",
+     79
+    ],
+    [
+     "Import - 1 lori dolphin",
+     74
+    ],
+    [
+     "Import - 1 lori dolphin",
+     59
+    ],
+    [
+     "Import - 1 lori dolphin",
+     69
+    ],
+    [
+     "Import - 1 lori dolphin",
+     84
+    ],
+    [
+     "Import - 1 lori dolphin",
+     94
+    ],
+    [
+     "Import - 1 lori dolphin",
+     89
+    ],
+    [
+     "Import - 1 lori dolphin",
+     104
+    ],
+    [
+     "Import - 1 lori dolphin",
+     109
+    ],
+    [
+     "Import - 1 lori dolphin",
+     99
+    ],
+    [
+     "Import - 1 lori dolphin",
+     44
+    ],
+    [
+     "Import - 1 lori dolphin",
+     39
+    ],
+    [
+     "Import - 1 lori dolphin",
+     54
+    ],
+    [
+     "Import - 1 lori dolphin",
+     19
+    ],
+    [
+     "Import - 1 lori dolphin",
+     29
+    ],
+    [
+     "Import - 1 lori dolphin",
+     9
+    ],
+    [
+     "Import - 1 lori dolphin",
+     14
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Dolphin 16x16 Lori Klatt all changes T2 profile outside",
+   "select": [
+    [
+     "Perimeter",
+     0
+    ],
+    [
+     "Perimeter",
+     2
+    ],
+    [
+     "Perimeter",
+     8
+    ],
+    [
+     "Perimeter",
+     12
+    ],
+    [
+     "Perimeter",
+     16
+    ],
+    [
+     "Perimeter",
+     18
+    ],
+    [
+     "Perimeter",
+     24
+    ],
+    [
+     "Perimeter",
+     22
+    ],
+    [
+     "Perimeter",
+     30
+    ],
+    [
+     "Perimeter",
+     34
+    ],
+    [
+     "Perimeter",
+     38
+    ],
+    [
+     "Perimeter",
+     40
+    ],
+    [
+     "Perimeter",
+     32
+    ],
+    [
+     "Perimeter",
+     36
+    ],
+    [
+     "Perimeter",
+     42
+    ],
+    [
+     "Perimeter",
+     28
+    ],
+    [
+     "Perimeter",
+     20
+    ],
+    [
+     "Perimeter",
+     26
+    ],
+    [
+     "Perimeter",
+     10
+    ],
+    [
+     "Perimeter",
+     14
+    ],
+    [
+     "Perimeter",
+     4
+    ],
+    [
+     "Perimeter",
+     6
+    ]
+   ]
+  }
+ ]
+}

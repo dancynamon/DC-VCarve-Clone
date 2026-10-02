@@ -1,0 +1,584 @@
+{
+ "name": "16x32 mats with holes 0.5in thick",
+ "crv": "../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Fish Tails Swim School-Quality Swimming-Tracie Lowe/16x32 mats with holes 0.5in thick.crv",
+ "vectric": "../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Fish Tails Swim School-Quality Swimming-Tracie Lowe/16x32 mats with holes 0.5in thick.tap",
+ "out": "16x32 mats with holes 0.5in thick-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "stepover": 0.5,
+   "rpm": 24000,
+   "feed": 55,
+   "plunge": 20,
+   "cutDepth": 0.5,
+   "passDepth": 0.5,
+   "clearZ": 1,
+   "label": "16x32 mats with holes 0.5in thick T2 pocket",
+   "select": [
+    [
+     "1IN HOLES",
+     0
+    ],
+    [
+     "1IN HOLES",
+     1
+    ],
+    [
+     "1IN HOLES",
+     4
+    ],
+    [
+     "1IN HOLES",
+     5
+    ],
+    [
+     "1IN HOLES",
+     8
+    ],
+    [
+     "1IN HOLES",
+     9
+    ],
+    [
+     "1IN HOLES",
+     12
+    ],
+    [
+     "1IN HOLES",
+     70
+    ],
+    [
+     "1IN HOLES",
+     71
+    ],
+    [
+     "1IN HOLES",
+     74
+    ],
+    [
+     "1IN HOLES",
+     75
+    ],
+    [
+     "1IN HOLES",
+     78
+    ],
+    [
+     "1IN HOLES",
+     79
+    ],
+    [
+     "1IN HOLES",
+     82
+    ],
+    [
+     "1IN HOLES",
+     84
+    ],
+    [
+     "1IN HOLES",
+     85
+    ],
+    [
+     "1IN HOLES",
+     88
+    ],
+    [
+     "1IN HOLES",
+     89
+    ],
+    [
+     "1IN HOLES",
+     92
+    ],
+    [
+     "1IN HOLES",
+     93
+    ],
+    [
+     "1IN HOLES",
+     96
+    ],
+    [
+     "1IN HOLES",
+     94
+    ],
+    [
+     "1IN HOLES",
+     97
+    ],
+    [
+     "1IN HOLES",
+     110
+    ],
+    [
+     "1IN HOLES",
+     107
+    ],
+    [
+     "1IN HOLES",
+     108
+    ],
+    [
+     "1IN HOLES",
+     111
+    ],
+    [
+     "1IN HOLES",
+     124
+    ],
+    [
+     "1IN HOLES",
+     121
+    ],
+    [
+     "1IN HOLES",
+     122
+    ],
+    [
+     "1IN HOLES",
+     125
+    ],
+    [
+     "1IN HOLES",
+     123
+    ],
+    [
+     "1IN HOLES",
+     118
+    ],
+    [
+     "1IN HOLES",
+     117
+    ],
+    [
+     "1IN HOLES",
+     120
+    ],
+    [
+     "1IN HOLES",
+     109
+    ],
+    [
+     "1IN HOLES",
+     104
+    ],
+    [
+     "1IN HOLES",
+     103
+    ],
+    [
+     "1IN HOLES",
+     106
+    ],
+    [
+     "1IN HOLES",
+     95
+    ],
+    [
+     "1IN HOLES",
+     90
+    ],
+    [
+     "1IN HOLES",
+     91
+    ],
+    [
+     "1IN HOLES",
+     86
+    ],
+    [
+     "1IN HOLES",
+     87
+    ],
+    [
+     "1IN HOLES",
+     98
+    ],
+    [
+     "1IN HOLES",
+     99
+    ],
+    [
+     "1IN HOLES",
+     102
+    ],
+    [
+     "1IN HOLES",
+     100
+    ],
+    [
+     "1IN HOLES",
+     105
+    ],
+    [
+     "1IN HOLES",
+     116
+    ],
+    [
+     "1IN HOLES",
+     113
+    ],
+    [
+     "1IN HOLES",
+     114
+    ],
+    [
+     "1IN HOLES",
+     119
+    ],
+    [
+     "1IN HOLES",
+     115
+    ],
+    [
+     "1IN HOLES",
+     55
+    ],
+    [
+     "1IN HOLES",
+     52
+    ],
+    [
+     "1IN HOLES",
+     51
+    ],
+    [
+     "1IN HOLES",
+     54
+    ],
+    [
+     "1IN HOLES",
+     69
+    ],
+    [
+     "1IN HOLES",
+     66
+    ],
+    [
+     "1IN HOLES",
+     65
+    ],
+    [
+     "1IN HOLES",
+     68
+    ],
+    [
+     "1IN HOLES",
+     83
+    ],
+    [
+     "1IN HOLES",
+     80
+    ],
+    [
+     "1IN HOLES",
+     81
+    ],
+    [
+     "1IN HOLES",
+     76
+    ],
+    [
+     "1IN HOLES",
+     77
+    ],
+    [
+     "1IN HOLES",
+     72
+    ],
+    [
+     "1IN HOLES",
+     73
+    ],
+    [
+     "1IN HOLES",
+     56
+    ],
+    [
+     "1IN HOLES",
+     57
+    ],
+    [
+     "1IN HOLES",
+     60
+    ],
+    [
+     "1IN HOLES",
+     61
+    ],
+    [
+     "1IN HOLES",
+     64
+    ],
+    [
+     "1IN HOLES",
+     62
+    ],
+    [
+     "1IN HOLES",
+     67
+    ],
+    [
+     "1IN HOLES",
+     50
+    ],
+    [
+     "1IN HOLES",
+     47
+    ],
+    [
+     "1IN HOLES",
+     48
+    ],
+    [
+     "1IN HOLES",
+     53
+    ],
+    [
+     "1IN HOLES",
+     49
+    ],
+    [
+     "1IN HOLES",
+     44
+    ],
+    [
+     "1IN HOLES",
+     45
+    ],
+    [
+     "1IN HOLES",
+     41
+    ],
+    [
+     "1IN HOLES",
+     38
+    ],
+    [
+     "1IN HOLES",
+     39
+    ],
+    [
+     "1IN HOLES",
+     34
+    ],
+    [
+     "1IN HOLES",
+     35
+    ],
+    [
+     "1IN HOLES",
+     30
+    ],
+    [
+     "1IN HOLES",
+     31
+    ],
+    [
+     "1IN HOLES",
+     29
+    ],
+    [
+     "1IN HOLES",
+     28
+    ],
+    [
+     "1IN HOLES",
+     17
+    ],
+    [
+     "1IN HOLES",
+     16
+    ],
+    [
+     "1IN HOLES",
+     15
+    ],
+    [
+     "1IN HOLES",
+     14
+    ],
+    [
+     "1IN HOLES",
+     3
+    ],
+    [
+     "1IN HOLES",
+     2
+    ],
+    [
+     "1IN HOLES",
+     7
+    ],
+    [
+     "1IN HOLES",
+     18
+    ],
+    [
+     "1IN HOLES",
+     19
+    ],
+    [
+     "1IN HOLES",
+     20
+    ],
+    [
+     "1IN HOLES",
+     21
+    ],
+    [
+     "1IN HOLES",
+     32
+    ],
+    [
+     "1IN HOLES",
+     33
+    ],
+    [
+     "1IN HOLES",
+     36
+    ],
+    [
+     "1IN HOLES",
+     37
+    ],
+    [
+     "1IN HOLES",
+     40
+    ],
+    [
+     "1IN HOLES",
+     27
+    ],
+    [
+     "1IN HOLES",
+     24
+    ],
+    [
+     "1IN HOLES",
+     25
+    ],
+    [
+     "1IN HOLES",
+     23
+    ],
+    [
+     "1IN HOLES",
+     26
+    ],
+    [
+     "1IN HOLES",
+     13
+    ],
+    [
+     "1IN HOLES",
+     10
+    ],
+    [
+     "1IN HOLES",
+     11
+    ],
+    [
+     "1IN HOLES",
+     6
+    ],
+    [
+     "1IN HOLES",
+     22
+    ],
+    [
+     "1IN HOLES",
+     59
+    ],
+    [
+     "1IN HOLES",
+     58
+    ],
+    [
+     "1IN HOLES",
+     63
+    ],
+    [
+     "1IN HOLES",
+     46
+    ],
+    [
+     "1IN HOLES",
+     43
+    ],
+    [
+     "1IN HOLES",
+     42
+    ],
+    [
+     "1IN HOLES",
+     112
+    ],
+    [
+     "1IN HOLES",
+     101
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 55,
+   "plunge": 20,
+   "cutDepth": 0.5,
+   "passDepth": 0.5,
+   "clearZ": 1,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "16x32 mats with holes 0.5in thick T2 profile outside",
+   "select": [
+    [
+     "PROFILE",
+     0
+    ],
+    [
+     "PROFILE",
+     1
+    ],
+    [
+     "PROFILE",
+     4
+    ],
+    [
+     "PROFILE",
+     5
+    ],
+    [
+     "PROFILE",
+     6
+    ],
+    [
+     "PROFILE",
+     7
+    ],
+    [
+     "PROFILE",
+     8
+    ],
+    [
+     "PROFILE",
+     3
+    ],
+    [
+     "PROFILE",
+     2
+    ]
+   ]
+  }
+ ]
+}

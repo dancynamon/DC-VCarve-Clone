@@ -1,0 +1,536 @@
+{
+ "name": "Aquamentor Little Pals Swim Belts 48x24",
+ "crv": "../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Little Pool Pal Bricks and Swim Belts/Aquamentor Little Pals Swim Belts 48x24.crv3d",
+ "vectric": "../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Little Pool Pal Bricks and Swim Belts/Aquamentor Little Pals Swim Belts 48x24.tap",
+ "out": "Aquamentor Little Pals Swim Belts 48x24-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 5,
+   "toolDia": 0.125,
+   "rpm": 10000,
+   "feed": 50,
+   "plunge": 30,
+   "cutDepth": 0.08,
+   "passDepth": 0.08,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Aquamentor Little Pals Swim Belts 48x24 T5 profile on",
+   "select": [
+    [
+     "Engrave",
+     4
+    ],
+    [
+     "Engrave",
+     11
+    ],
+    [
+     "Engrave",
+     10
+    ],
+    [
+     "Engrave",
+     7
+    ],
+    [
+     "Engrave",
+     6
+    ],
+    [
+     "Engrave",
+     2
+    ],
+    [
+     "Engrave",
+     0
+    ],
+    [
+     "Engrave",
+     5
+    ],
+    [
+     "Engrave",
+     9
+    ],
+    [
+     "Engrave",
+     8
+    ],
+    [
+     "Engrave",
+     1
+    ],
+    [
+     "Engrave",
+     3
+    ],
+    [
+     "Engrave",
+     13
+    ],
+    [
+     "Engrave",
+     12
+    ],
+    [
+     "Engrave",
+     16
+    ],
+    [
+     "Engrave",
+     17
+    ],
+    [
+     "Engrave",
+     15
+    ],
+    [
+     "Engrave",
+     14
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.245,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Aquamentor Little Pals Swim Belts 48x24 T2 profile inside",
+   "select": [
+    [
+     "Pocket",
+     2
+    ],
+    [
+     "Pocket",
+     39
+    ],
+    [
+     "Pocket",
+     26
+    ],
+    [
+     "Pocket",
+     14
+    ],
+    [
+     "Pocket",
+     51
+    ],
+    [
+     "Pocket",
+     54
+    ],
+    [
+     "Pocket",
+     55
+    ],
+    [
+     "Pocket",
+     58
+    ],
+    [
+     "Pocket",
+     59
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "stepover": 0.5,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "label": "Aquamentor Little Pals Swim Belts 48x24 T2 pocket",
+   "select": [
+    [
+     "Pocket",
+     1
+    ],
+    [
+     "Pocket",
+     0
+    ],
+    [
+     "Pocket",
+     16
+    ],
+    [
+     "Pocket",
+     15
+    ],
+    [
+     "Pocket",
+     45
+    ],
+    [
+     "Pocket",
+     31
+    ],
+    [
+     "Pocket",
+     30
+    ],
+    [
+     "Pocket",
+     44
+    ],
+    [
+     "Pocket",
+     37
+    ],
+    [
+     "Pocket",
+     36
+    ],
+    [
+     "Pocket",
+     24
+    ],
+    [
+     "Pocket",
+     25
+    ],
+    [
+     "Pocket",
+     6
+    ],
+    [
+     "Pocket",
+     7
+    ],
+    [
+     "Pocket",
+     9
+    ],
+    [
+     "Pocket",
+     10
+    ],
+    [
+     "Pocket",
+     12
+    ],
+    [
+     "Pocket",
+     13
+    ],
+    [
+     "Pocket",
+     22
+    ],
+    [
+     "Pocket",
+     21
+    ],
+    [
+     "Pocket",
+     41
+    ],
+    [
+     "Pocket",
+     40
+    ],
+    [
+     "Pocket",
+     27
+    ],
+    [
+     "Pocket",
+     28
+    ],
+    [
+     "Pocket",
+     49
+    ],
+    [
+     "Pocket",
+     48
+    ],
+    [
+     "Pocket",
+     56
+    ],
+    [
+     "Pocket",
+     57
+    ],
+    [
+     "Pocket",
+     34
+    ],
+    [
+     "Pocket",
+     33
+    ],
+    [
+     "Pocket",
+     53
+    ],
+    [
+     "Pocket",
+     52
+    ],
+    [
+     "Pocket",
+     18
+    ],
+    [
+     "Pocket",
+     19
+    ],
+    [
+     "Pocket",
+     4
+    ],
+    [
+     "Pocket",
+     3
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.2451,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Aquamentor Little Pals Swim Belts 48x24 T2 profile inside",
+   "select": [
+    [
+     "Pocket",
+     17
+    ],
+    [
+     "Pocket",
+     46
+    ],
+    [
+     "Pocket",
+     47
+    ],
+    [
+     "Pocket",
+     38
+    ],
+    [
+     "Pocket",
+     42
+    ],
+    [
+     "Pocket",
+     50
+    ],
+    [
+     "Pocket",
+     5
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.2449,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Aquamentor Little Pals Swim Belts 48x24 T2 profile inside",
+   "select": [
+    [
+     "Pocket",
+     32
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.2453,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Aquamentor Little Pals Swim Belts 48x24 T2 profile inside",
+   "select": [
+    [
+     "Pocket",
+     8
+    ],
+    [
+     "Pocket",
+     11
+    ],
+    [
+     "Pocket",
+     29
+    ],
+    [
+     "Pocket",
+     20
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.2452,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Aquamentor Little Pals Swim Belts 48x24 T2 profile inside",
+   "select": [
+    [
+     "Pocket",
+     23
+    ],
+    [
+     "Pocket",
+     43
+    ],
+    [
+     "Pocket",
+     35
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Aquamentor Little Pals Swim Belts 48x24 T2 profile outside",
+   "select": [
+    [
+     "Profile",
+     0
+    ],
+    [
+     "Profile",
+     1
+    ],
+    [
+     "Profile",
+     8
+    ],
+    [
+     "Profile",
+     2
+    ],
+    [
+     "Profile",
+     6
+    ],
+    [
+     "Profile",
+     3
+    ],
+    [
+     "Profile",
+     7
+    ],
+    [
+     "Profile",
+     4
+    ],
+    [
+     "Profile",
+     9
+    ],
+    [
+     "Profile",
+     13
+    ],
+    [
+     "Profile",
+     15
+    ],
+    [
+     "Profile",
+     17
+    ],
+    [
+     "Profile",
+     11
+    ],
+    [
+     "Profile",
+     16
+    ],
+    [
+     "Profile",
+     12
+    ],
+    [
+     "Profile",
+     5
+    ],
+    [
+     "Profile",
+     14
+    ],
+    [
+     "Profile",
+     10
+    ]
+   ]
+  }
+ ]
+}

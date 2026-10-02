@@ -1,0 +1,156 @@
+{
+ "name": "2 more small foam rings",
+ "crv": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/British Swim School/British Swim School Foam Ring/British Swim Robert Stapf Foam Rings INV 18569/2 more small foam rings.crv3d",
+ "vectric": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/British Swim School/British Swim School Foam Ring/British Swim Robert Stapf Foam Rings INV 18569/2 more small foam rings.tap",
+ "out": "2 more small foam rings-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 10,
+   "toolDia": 1.4974,
+   "stepover": 0.75,
+   "rpm": 18000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 1.75,
+   "passDepth": 0.875,
+   "clearZ": 0.25,
+   "label": "2 more small foam rings T10 pocket",
+   "select": [
+    [
+     "OD",
+     15
+    ],
+    [
+     "OD",
+     14
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 4,
+   "toolDia": 0.5,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 2.75,
+   "passDepth": 2.75,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "2 more small foam rings T4 profile inside",
+   "select": [
+    [
+     "ID",
+     14
+    ],
+    [
+     "ID",
+     15
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 4,
+   "toolDia": 0.5078,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 2.75,
+   "passDepth": 2.75,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "2 more small foam rings T4 profile outside",
+   "select": [
+    [
+     "OD",
+     14
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 4,
+   "toolDia": 0.5079,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 2.75,
+   "passDepth": 2.75,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "2 more small foam rings T4 profile outside",
+   "select": [
+    [
+     "OD",
+     15
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 7,
+   "toolDia": 0.5,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 3.75,
+   "passDepth": 2.5,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "2 more small foam rings T7 profile inside",
+   "select": [
+    [
+     "ID",
+     14
+    ],
+    [
+     "ID",
+     15
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 7,
+   "toolDia": 0.5,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 3.75,
+   "passDepth": 2.75,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "2 more small foam rings T7 profile outside",
+   "select": [
+    [
+     "OD",
+     14
+    ],
+    [
+     "OD",
+     15
+    ]
+   ]
+  }
+ ]
+}

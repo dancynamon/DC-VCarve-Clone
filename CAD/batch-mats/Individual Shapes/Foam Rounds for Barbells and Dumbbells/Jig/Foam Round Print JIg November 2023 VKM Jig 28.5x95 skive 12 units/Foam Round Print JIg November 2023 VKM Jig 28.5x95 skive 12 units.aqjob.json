@@ -1,0 +1,30 @@
+{
+ "name": "Foam Round Print JIg November 2023 VKM Jig 28.5x95 skive 12 units",
+ "crv": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Foam Rounds for Barbells and Dumbbells/Jig/Foam Round Print JIg November 2023 VKM Jig 28.5x95 skive 12 units/FOAM~41F.CRV",
+ "vectric": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Foam Rounds for Barbells and Dumbbells/Jig/Foam Round Print JIg November 2023 VKM Jig 28.5x95 skive 12 units/Foam Round Print JIg November 2023 VKM Jig 28.5x95 skive 12 units.tap",
+ "out": "Foam Round Print JIg November 2023 VKM Jig 28.5x95 skive 12 units-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 7,
+   "toolDia": 0.5,
+   "stepover": 0.85,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 0.5,
+   "passDepth": 0.5,
+   "clearZ": 0.25,
+   "label": "Foam Round Print JIg November 2023 VKM Jig 28.5x95 skive 12 units T7 pocket",
+   "select": [
+    [
+     "OD Profile",
+     39
+    ]
+   ]
+  }
+ ]
+}

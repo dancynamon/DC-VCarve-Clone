@@ -49,7 +49,7 @@ function parseTap(text) {
       const bag = plunge ? cur.plungeFeeds : cur.feeds; bag[feed] = (bag[feed] || 0) + 1;
     }
   }
-  return tools.filter(t => t.segs.length);
+  return tools.filter(t => t.segs.some(s => !s.rapid));   // a header that only parks (G0 Z2 / G0 X0 Y0) before the first T is not a tool
 }
 
 function summarize(t) {

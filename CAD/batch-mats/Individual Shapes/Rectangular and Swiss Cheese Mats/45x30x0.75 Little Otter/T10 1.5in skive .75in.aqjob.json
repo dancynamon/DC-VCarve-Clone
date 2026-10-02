@@ -1,0 +1,45 @@
+{
+ "name": "T10 1.5in skive .75in",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Rectangular and Swiss Cheese Mats/45x30x0.75 Little Otter/45x30 for little otter.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Rectangular and Swiss Cheese Mats/45x30x0.75 Little Otter/T10 1.5in skive .75in.tap",
+ "out": "T10 1.5in skive .75in-aq.tap",
+ "complete": false,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 10,
+   "toolDia": 1.5,
+   "rpm": 18000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 0.75,
+   "passDepth": 0.75,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "T10 1.5in skive .75in T10 profile inside",
+   "select": [
+    [
+     "Holes 6\" apart",
+     75
+    ]
+   ]
+  }
+ ],
+ "unmatched": [
+  {
+   "tool": 10,
+   "pass": 0,
+   "why": "no vector at constant offset (best spread 21.171)",
+   "bbox": [
+    0.975,
+    1.808,
+    45.025,
+    90.683
+   ]
+  }
+ ]
+}

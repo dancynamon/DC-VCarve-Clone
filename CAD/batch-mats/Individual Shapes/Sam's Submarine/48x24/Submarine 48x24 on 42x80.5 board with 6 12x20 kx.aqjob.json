@@ -1,0 +1,108 @@
+{
+ "name": "Submarine 48x24 on 42x80.5 board with 6 12x20 kx",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Sam's Submarine/48x24/Submarine 48x24 on 42x80.5 board with 6 12x20 kx.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Sam's Submarine/48x24/Submarine 48x24 on 42x80.5 board with 6 12x20 kx.tap",
+ "out": "Submarine 48x24 on 42x80.5 board with 6 12x20 kx-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 5,
+   "toolDia": 0.125,
+   "rpm": 12000,
+   "feed": 40,
+   "plunge": 40,
+   "cutDepth": 0.1,
+   "passDepth": 0.1,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Submarine 48x24 on 42x80.5 board with 6 12x20 kx T5 profile on",
+   "select": [
+    [
+     "Import - Sub 48x24",
+     4
+    ],
+    [
+     "Import - Sub 48x24",
+     2
+    ],
+    [
+     "Import - Sub 48x24",
+     1
+    ],
+    [
+     "Import - Sub 48x24",
+     3
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Submarine 48x24 on 42x80.5 board with 6 12x20 kx T2 profile outside",
+   "select": [
+    [
+     "Import - Sub 48x24",
+     0
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 1,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Submarine 48x24 on 42x80.5 board with 6 12x20 kx T1 profile outside",
+   "select": [
+    [
+     "Profile T1",
+     0
+    ],
+    [
+     "Profile T1",
+     1
+    ],
+    [
+     "Profile T1",
+     5
+    ],
+    [
+     "Profile T1",
+     4
+    ],
+    [
+     "Profile T1",
+     3
+    ],
+    [
+     "Profile T1",
+     2
+    ]
+   ]
+  }
+ ]
+}

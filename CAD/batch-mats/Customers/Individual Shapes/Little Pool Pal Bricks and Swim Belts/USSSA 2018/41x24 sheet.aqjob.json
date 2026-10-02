@@ -1,0 +1,275 @@
+{
+ "name": "41x24 sheet",
+ "crv": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Little Pool Pal Bricks and Swim Belts/USSSA 2018/41x24 sheet.crv",
+ "vectric": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Little Pool Pal Bricks and Swim Belts/USSSA 2018/41x24 sheet.tap",
+ "out": "41x24 sheet-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 5,
+   "toolDia": 0.125,
+   "rpm": 12000,
+   "feed": 40,
+   "plunge": 40,
+   "cutDepth": 0.1,
+   "passDepth": 0.1,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "41x24 sheet T5 profile on",
+   "select": [
+    [
+     "engrave",
+     6
+    ],
+    [
+     "engrave",
+     5
+    ],
+    [
+     "engrave",
+     17
+    ],
+    [
+     "engrave",
+     18
+    ],
+    [
+     "engrave",
+     1
+    ],
+    [
+     "engrave",
+     0
+    ],
+    [
+     "engrave",
+     14
+    ],
+    [
+     "engrave",
+     13
+    ],
+    [
+     "engrave",
+     11
+    ],
+    [
+     "engrave",
+     12
+    ],
+    [
+     "engrave",
+     8
+    ],
+    [
+     "engrave",
+     7
+    ],
+    [
+     "engrave",
+     15
+    ],
+    [
+     "engrave",
+     16
+    ],
+    [
+     "engrave",
+     9
+    ],
+    [
+     "engrave",
+     10
+    ],
+    [
+     "engrave",
+     4
+    ],
+    [
+     "engrave",
+     2
+    ],
+    [
+     "engrave",
+     3
+    ]
+   ]
+  },
+  {
+   "op": "drill",
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 20,
+   "cutDepth": 1.5,
+   "clearZ": 0.2,
+   "label": "41x24 sheet T2 drill",
+   "select": [
+    [
+     "drill",
+     8
+    ],
+    [
+     "drill",
+     10
+    ],
+    [
+     "drill",
+     6
+    ],
+    [
+     "drill",
+     5
+    ],
+    [
+     "drill",
+     4
+    ],
+    [
+     "drill",
+     19
+    ],
+    [
+     "drill",
+     20
+    ],
+    [
+     "drill",
+     12
+    ],
+    [
+     "drill",
+     13
+    ],
+    [
+     "drill",
+     18
+    ],
+    [
+     "drill",
+     17
+    ],
+    [
+     "drill",
+     16
+    ],
+    [
+     "drill",
+     15
+    ],
+    [
+     "drill",
+     14
+    ],
+    [
+     "drill",
+     3
+    ],
+    [
+     "drill",
+     2
+    ],
+    [
+     "drill",
+     0
+    ],
+    [
+     "drill",
+     1
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 20,
+   "cutDepth": 1.48,
+   "passDepth": 1.48,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "41x24 sheet T2 profile outside",
+   "select": [
+    [
+     "profile",
+     4
+    ],
+    [
+     "profile",
+     1
+    ],
+    [
+     "profile",
+     2
+    ],
+    [
+     "profile",
+     0
+    ],
+    [
+     "profile",
+     11
+    ],
+    [
+     "profile",
+     3
+    ],
+    [
+     "profile",
+     9
+    ],
+    [
+     "profile",
+     12
+    ],
+    [
+     "profile",
+     10
+    ],
+    [
+     "profile",
+     13
+    ],
+    [
+     "profile",
+     8
+    ],
+    [
+     "profile",
+     14
+    ],
+    [
+     "profile",
+     15
+    ],
+    [
+     "profile",
+     16
+    ],
+    [
+     "profile",
+     7
+    ],
+    [
+     "profile",
+     6
+    ],
+    [
+     "profile",
+     5
+    ]
+   ]
+  }
+ ]
+}

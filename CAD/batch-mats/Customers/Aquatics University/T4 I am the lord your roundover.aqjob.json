@@ -1,0 +1,58 @@
+{
+ "name": "T4 I am the lord your roundover",
+ "crv": "../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Aquatics University/Aquatics University Roundover JR KX Proof vectors only Handles at Bottom v3.crv3d",
+ "vectric": "../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Aquatics University/T4 I am the lord your roundover.tap",
+ "out": "T4 I am the lord your roundover-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 4,
+   "toolDia": 0.6,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1,
+   "passDepth": 1,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "T4 I am the lord your roundover T4 profile inside",
+   "select": [
+    [
+     "Layer 1",
+     2
+    ],
+    [
+     "Layer 1",
+     1
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 4,
+   "toolDia": 0.6,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1,
+   "passDepth": 1,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "T4 I am the lord your roundover T4 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     0
+    ]
+   ]
+  }
+ ]
+}

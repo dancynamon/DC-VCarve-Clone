@@ -1,0 +1,100 @@
+{
+ "name": "T3 IP 18 Male",
+ "crv": "../../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Swim Angelfish/Symmetrical Puzzle Pieces for PECS/Symmetrical Puzzle Pieces 48.5x97, 22 piece TAP/Print Jigs/Male-Female Print JIg - New Layout - 9 and 18 pieces/mnf new layout.crv3d",
+ "vectric": "../../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Swim Angelfish/Symmetrical Puzzle Pieces for PECS/Symmetrical Puzzle Pieces 48.5x97, 22 piece TAP/Print Jigs/Male-Female Print JIg - New Layout - 9 and 18 pieces/T3 IP 18 Male.tap",
+ "out": "T3 IP 18 Male-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 3,
+   "toolDia": 0.375,
+   "rpm": 18000,
+   "feed": 60,
+   "plunge": 20,
+   "cutDepth": 0.75,
+   "passDepth": 0.375,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "T3 IP 18 Male T3 profile inside",
+   "select": [
+    [
+     "male",
+     0
+    ],
+    [
+     "male",
+     6
+    ],
+    [
+     "male",
+     7
+    ],
+    [
+     "male",
+     8
+    ],
+    [
+     "male",
+     2
+    ],
+    [
+     "male",
+     1
+    ],
+    [
+     "male",
+     3
+    ],
+    [
+     "male",
+     9
+    ],
+    [
+     "male",
+     10
+    ],
+    [
+     "male",
+     4
+    ],
+    [
+     "male",
+     5
+    ],
+    [
+     "male",
+     11
+    ],
+    [
+     "male",
+     17
+    ],
+    [
+     "male",
+     16
+    ],
+    [
+     "male",
+     15
+    ],
+    [
+     "male",
+     14
+    ],
+    [
+     "male",
+     13
+    ],
+    [
+     "male",
+     12
+    ]
+   ]
+  }
+ ]
+}

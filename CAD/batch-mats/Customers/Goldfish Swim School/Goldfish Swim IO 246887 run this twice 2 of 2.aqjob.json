@@ -1,0 +1,199 @@
+{
+ "name": "Goldfish Swim IO 246887 run this twice 2 of 2",
+ "crv": "../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Goldfish Swim School/Goldfish Swim IO 246887 take 2.crv3d",
+ "vectric": "../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Goldfish Swim School/Goldfish Swim IO 246887 run this twice 2 of 2.tap",
+ "out": "Goldfish Swim IO 246887 run this twice 2 of 2-aq.tap",
+ "complete": false,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 5,
+   "toolDia": 0.125,
+   "rpm": 10000,
+   "feed": 50,
+   "plunge": 30,
+   "cutDepth": 0.08,
+   "passDepth": 0.08,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Goldfish Swim IO 246887 run this twice 2 of 2 T5 profile on",
+   "select": [
+    [
+     "Engrave",
+     5
+    ],
+    [
+     "Engrave",
+     4
+    ],
+    [
+     "Engrave",
+     3
+    ],
+    [
+     "Engrave",
+     2
+    ],
+    [
+     "Engrave",
+     1
+    ],
+    [
+     "Engrave",
+     10
+    ],
+    [
+     "Engrave",
+     9
+    ],
+    [
+     "Engrave",
+     8
+    ],
+    [
+     "Engrave",
+     7
+    ],
+    [
+     "Engrave",
+     11
+    ],
+    [
+     "Engrave",
+     12
+    ],
+    [
+     "Engrave",
+     13
+    ],
+    [
+     "Engrave",
+     14
+    ],
+    [
+     "Engrave",
+     15
+    ],
+    [
+     "Engrave",
+     16
+    ],
+    [
+     "Engrave",
+     17
+    ],
+    [
+     "Engrave",
+     31
+    ],
+    [
+     "Engrave",
+     32
+    ],
+    [
+     "Engrave",
+     30
+    ],
+    [
+     "Engrave",
+     6
+    ],
+    [
+     "Engrave",
+     0
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "stepover": 0.5,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "label": "Goldfish Swim IO 246887 run this twice 2 of 2 T2 pocket",
+   "select": [
+    [
+     "Pocket",
+     0
+    ],
+    [
+     "Pocket",
+     1
+    ],
+    [
+     "Pocket",
+     2
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Goldfish Swim IO 246887 run this twice 2 of 2 T2 profile outside",
+   "select": [
+    [
+     "T2 Profile",
+     4
+    ],
+    [
+     "T2 Profile",
+     6
+    ],
+    [
+     "T2 Profile",
+     2
+    ],
+    [
+     "T2 Profile",
+     3
+    ],
+    [
+     "T2 Profile",
+     0
+    ],
+    [
+     "T2 Profile",
+     1
+    ],
+    [
+     "T2 Profile",
+     5
+    ]
+   ]
+  }
+ ],
+ "unmatched": [
+  {
+   "tool": 2,
+   "pass": 3,
+   "why": "no vector at constant offset (best spread 0.4258)",
+   "bbox": [
+    30.9633,
+    59.9148,
+    31.4629,
+    60.4143
+   ]
+  }
+ ]
+}

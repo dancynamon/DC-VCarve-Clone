@@ -1,0 +1,214 @@
+{
+ "name": "48x24 Foam Rounds",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Foam Rounds for Barbells and Dumbbells/48x24 Foam Rounds.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Foam Rounds for Barbells and Dumbbells/48x24 Foam Rounds.tap",
+ "out": "48x24 Foam Rounds-aq.tap",
+ "complete": false,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 7,
+   "toolDia": 0.5,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 2.5,
+   "passDepth": 1.25,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "48x24 Foam Rounds T7 profile inside",
+   "select": [
+    [
+     "ID Pocket",
+     21
+    ],
+    [
+     "ID Pocket",
+     22
+    ],
+    [
+     "ID Pocket",
+     23
+    ],
+    [
+     "ID Pocket",
+     24
+    ],
+    [
+     "ID Pocket",
+     25
+    ],
+    [
+     "ID Pocket",
+     26
+    ],
+    [
+     "ID Pocket",
+     27
+    ],
+    [
+     "ID Pocket",
+     20
+    ],
+    [
+     "ID Pocket",
+     19
+    ],
+    [
+     "ID Pocket",
+     18
+    ],
+    [
+     "ID Pocket",
+     17
+    ],
+    [
+     "ID Pocket",
+     16
+    ],
+    [
+     "ID Pocket",
+     15
+    ],
+    [
+     "ID Pocket",
+     14
+    ],
+    [
+     "ID Pocket",
+     8
+    ],
+    [
+     "ID Pocket",
+     7
+    ],
+    [
+     "ID Pocket",
+     0
+    ],
+    [
+     "ID Pocket",
+     1
+    ],
+    [
+     "ID Pocket",
+     2
+    ],
+    [
+     "ID Pocket",
+     3
+    ],
+    [
+     "ID Pocket",
+     4
+    ],
+    [
+     "ID Pocket",
+     5
+    ],
+    [
+     "ID Pocket",
+     6
+    ],
+    [
+     "ID Pocket",
+     13
+    ],
+    [
+     "ID Pocket",
+     12
+    ],
+    [
+     "ID Pocket",
+     11
+    ],
+    [
+     "ID Pocket",
+     10
+    ],
+    [
+     "ID Pocket",
+     9
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 25,
+   "cutDepth": 2.5,
+   "passDepth": 1.25,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 14,
+    "length": 0.7925,
+    "height": 0.035
+   },
+   "label": "48x24 Foam Rounds T2 profile on",
+   "select": [
+    [
+     "OD Profile",
+     3
+    ],
+    [
+     "OD Profile",
+     2
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 25,
+   "cutDepth": 2.5,
+   "passDepth": 1.25,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 14,
+    "length": 0.7923,
+    "height": 0.035
+   },
+   "label": "48x24 Foam Rounds T2 profile on",
+   "select": [
+    [
+     "OD Profile",
+     1
+    ],
+    [
+     "OD Profile",
+     0
+    ]
+   ]
+  }
+ ],
+ "unmatched": [
+  {
+   "tool": 2,
+   "pass": 1,
+   "why": "plunge at 1.0278,3.523 hits no vector centroid"
+  },
+  {
+   "tool": 2,
+   "pass": 4,
+   "why": "plunge at 4.1278,8.898 hits no vector centroid"
+  }
+ ]
+}

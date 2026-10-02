@@ -1,0 +1,100 @@
+{
+ "name": "T3 IP 18 Female",
+ "crv": "../../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Swim Angelfish/Symmetrical Puzzle Pieces for PECS/Symmetrical Puzzle Pieces 48.5x97, 22 piece TAP/Print Jigs/Male-Female Print JIg - New Layout - 9 and 18 pieces/mnf new layout.crv3d",
+ "vectric": "../../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Swim Angelfish/Symmetrical Puzzle Pieces for PECS/Symmetrical Puzzle Pieces 48.5x97, 22 piece TAP/Print Jigs/Male-Female Print JIg - New Layout - 9 and 18 pieces/T3 IP 18 Female.tap",
+ "out": "T3 IP 18 Female-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 3,
+   "toolDia": 0.375,
+   "rpm": 18000,
+   "feed": 60,
+   "plunge": 20,
+   "cutDepth": 0.75,
+   "passDepth": 0.375,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "T3 IP 18 Female T3 profile inside",
+   "select": [
+    [
+     "female",
+     1
+    ],
+    [
+     "female",
+     0
+    ],
+    [
+     "female",
+     12
+    ],
+    [
+     "female",
+     13
+    ],
+    [
+     "female",
+     3
+    ],
+    [
+     "female",
+     5
+    ],
+    [
+     "female",
+     15
+    ],
+    [
+     "female",
+     14
+    ],
+    [
+     "female",
+     17
+    ],
+    [
+     "female",
+     16
+    ],
+    [
+     "female",
+     8
+    ],
+    [
+     "female",
+     9
+    ],
+    [
+     "female",
+     4
+    ],
+    [
+     "female",
+     7
+    ],
+    [
+     "female",
+     10
+    ],
+    [
+     "female",
+     11
+    ],
+    [
+     "female",
+     6
+    ],
+    [
+     "female",
+     2
+    ]
+   ]
+  }
+ ]
+}

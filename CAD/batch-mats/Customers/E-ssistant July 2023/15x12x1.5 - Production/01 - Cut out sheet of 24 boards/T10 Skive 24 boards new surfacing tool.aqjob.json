@@ -1,0 +1,56 @@
+{
+ "name": "T10 Skive 24 boards new surfacing tool",
+ "crv": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/E-ssistant July 2023/15x12x1.5 - Production/01 - Cut out sheet of 24 boards/15x12x1.5 48x96 sheet.crv3d",
+ "vectric": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/E-ssistant July 2023/15x12x1.5 - Production/01 - Cut out sheet of 24 boards/T10 Skive 24 boards new surfacing tool.tap",
+ "out": "T10 Skive 24 boards new surfacing tool-aq.tap",
+ "complete": false,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 10,
+   "toolDia": 1.5,
+   "rpm": 18000,
+   "feed": 200,
+   "plunge": 25,
+   "cutDepth": 1.5,
+   "passDepth": 0.75,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "T10 Skive 24 boards new surfacing tool T10 profile inside",
+   "select": [
+    [
+     "11.8x20",
+     23
+    ]
+   ]
+  }
+ ],
+ "unmatched": [
+  {
+   "tool": 10,
+   "pass": 0,
+   "why": "no vector at constant offset (best spread 22.37)",
+   "bbox": [
+    1.585,
+    -0.01,
+    47.185,
+    91.01
+   ]
+  },
+  {
+   "tool": 10,
+   "pass": 2,
+   "why": "no vector at constant offset (best spread 22.37)",
+   "bbox": [
+    1.585,
+    -0.01,
+    47.185,
+    91.01
+   ]
+  }
+ ]
+}

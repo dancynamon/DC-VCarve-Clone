@@ -1,0 +1,131 @@
+{
+ "name": "Profile 3",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Dolphin/01_CRV/Dolphin 16x16 Lori Klatt no forefins.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Dolphin/01_CRV/Profile 3.tap",
+ "out": "Profile 3-aq.tap",
+ "complete": false,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 7.911,
+   "stepover": 0.01,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.45,
+   "passDepth": 1.45,
+   "clearZ": 0.8,
+   "label": "Profile 3 T2 pocket",
+   "select": [
+    [
+     "Perimeter",
+     0
+    ]
+   ]
+  }
+ ],
+ "unmatched": [
+  {
+   "tool": 2,
+   "pass": 1,
+   "why": "no vector at constant offset (best spread 1.5813)",
+   "bbox": [
+    2.4249,
+    13.5424,
+    4.3449,
+    15.4903
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 2,
+   "why": "no vector at constant offset (best spread 2.1598)",
+   "bbox": [
+    0.2399,
+    13.5425,
+    2.3997,
+    15.4903
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 3,
+   "why": "no vector at constant offset (best spread 1.3515)",
+   "bbox": [
+    4.236,
+    13.5425,
+    6.1132,
+    15.5192
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 4,
+   "why": "no vector at constant offset (best spread 0.0401)",
+   "bbox": [
+    6.9869,
+    14.4399,
+    7.022,
+    14.4973
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 5,
+   "why": "no vector at constant offset (best spread 1.7575)",
+   "bbox": [
+    6.0437,
+    13.5425,
+    8.1418,
+    15.4903
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 6,
+   "why": "no vector at constant offset (best spread 0.1539)",
+   "bbox": [
+    8.763,
+    14.126,
+    9.039,
+    14.2799
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 7,
+   "why": "no vector at constant offset (best spread 0.0315)",
+   "bbox": [
+    8.8484,
+    14.9503,
+    8.9712,
+    14.9818
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 8,
+   "why": "no vector at constant offset (best spread 1.9743)",
+   "bbox": [
+    8.0109,
+    13.5424,
+    9.801,
+    15.5482
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 9,
+   "why": "no vector at constant offset (best spread 1.4714)",
+   "bbox": [
+    9.8139,
+    13.5424,
+    11.7153,
+    15.5481
+   ]
+  }
+ ]
+}

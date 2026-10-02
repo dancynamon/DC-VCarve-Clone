@@ -1,0 +1,54 @@
+{
+ "name": "3x2x48 noodle t4 roundover t7 profile",
+ "crv": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Noodle - Aquamentor Style/Noodle 2# 3x2x40 and 60/48in Noodle/3x2x48 noodle t4 roundover t7 profile.crv3d",
+ "vectric": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Noodle - Aquamentor Style/Noodle 2# 3x2x40 and 60/48in Noodle/3x2x48 noodle t4 roundover t7 profile.tap",
+ "out": "3x2x48 noodle t4 roundover t7 profile-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 4,
+   "toolDia": 0.505,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1,
+   "passDepth": 1,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "3x2x48 noodle t4 roundover t7 profile T4 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     0
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 7,
+   "toolDia": 0.5,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 2,
+   "passDepth": 1,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "3x2x48 noodle t4 roundover t7 profile T7 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     0
+    ]
+   ]
+  }
+ ]
+}

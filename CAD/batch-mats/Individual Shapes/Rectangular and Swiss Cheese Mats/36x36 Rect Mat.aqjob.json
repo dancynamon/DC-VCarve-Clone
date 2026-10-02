@@ -1,0 +1,32 @@
+{
+ "name": "36x36 Rect Mat",
+ "crv": "../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Rectangular and Swiss Cheese Mats/36x36 Rect-Swiss Mat.crv3d",
+ "vectric": "../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Rectangular and Swiss Cheese Mats/36x36 Rect Mat.tap",
+ "out": "36x36 Rect Mat-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 35,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "36x36 Rect Mat T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     0
+    ]
+   ]
+  }
+ ]
+}

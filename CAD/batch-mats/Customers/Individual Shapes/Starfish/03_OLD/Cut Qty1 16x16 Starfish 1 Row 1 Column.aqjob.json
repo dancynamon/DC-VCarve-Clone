@@ -1,0 +1,144 @@
+{
+ "name": "Cut Qty1 16x16 Starfish 1 Row 1 Column",
+ "crv": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Starfish/03_OLD/Starfish on 50x20 scrap.crv",
+ "vectric": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Starfish/03_OLD/Cut Qty1 16x16 Starfish 1 Row 1 Column.tap",
+ "out": "Cut Qty1 16x16 Starfish 1 Row 1 Column-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 5,
+   "toolDia": 0.125,
+   "rpm": 12000,
+   "feed": 40,
+   "plunge": 40,
+   "cutDepth": 0.08,
+   "passDepth": 0.08,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Cut Qty1 16x16 Starfish 1 Row 1 Column T5 profile on",
+   "select": [
+    [
+     "Layer 2",
+     14
+    ],
+    [
+     "Layer 2",
+     13
+    ],
+    [
+     "Layer 2",
+     12
+    ],
+    [
+     "Layer 2",
+     1
+    ],
+    [
+     "Layer 2",
+     0
+    ],
+    [
+     "Layer 2",
+     5
+    ],
+    [
+     "Layer 2",
+     15
+    ],
+    [
+     "Layer 2",
+     16
+    ],
+    [
+     "Layer 2",
+     2
+    ],
+    [
+     "Layer 2",
+     3
+    ],
+    [
+     "Layer 2",
+     4
+    ],
+    [
+     "Layer 2",
+     7
+    ],
+    [
+     "Layer 2",
+     8
+    ],
+    [
+     "Layer 2",
+     6
+    ],
+    [
+     "Layer 2",
+     9
+    ],
+    [
+     "Layer 2",
+     10
+    ],
+    [
+     "Layer 2",
+     11
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 20,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Cut Qty1 16x16 Starfish 1 Row 1 Column T2 profile inside",
+   "select": [
+    [
+     "Layer 2",
+     18
+    ],
+    [
+     "Layer 2",
+     19
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 20,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Cut Qty1 16x16 Starfish 1 Row 1 Column T2 profile outside",
+   "select": [
+    [
+     "Layer 2",
+     17
+    ]
+   ]
+  }
+ ]
+}

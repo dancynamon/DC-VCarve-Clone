@@ -1,0 +1,247 @@
+{
+ "name": "Poseidon_s Castle 16x16",
+ "crv": "../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Castle/Poseidon's Castle 16x16.crv3d",
+ "vectric": "../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Castle/Poseidon_s Castle 16x16.tap",
+ "out": "Poseidon_s Castle 16x16-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "drill",
+   "toolNum": 5,
+   "toolDia": 0.125,
+   "rpm": 12000,
+   "feed": 40,
+   "plunge": 40,
+   "cutDepth": 0.1,
+   "clearZ": 0.8,
+   "label": "Poseidon_s Castle 16x16 T5 drill",
+   "select": [
+    [
+     "Engrave",
+     16
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 5,
+   "toolDia": 0.125,
+   "rpm": 12000,
+   "feed": 40,
+   "plunge": 40,
+   "cutDepth": 0.1,
+   "passDepth": 0.1,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Poseidon_s Castle 16x16 T5 profile on",
+   "select": [
+    [
+     "Engrave",
+     17
+    ],
+    [
+     "Engrave",
+     7
+    ],
+    [
+     "Engrave",
+     6
+    ],
+    [
+     "Engrave",
+     5
+    ],
+    [
+     "Engrave",
+     123
+    ],
+    [
+     "Engrave",
+     131
+    ],
+    [
+     "Engrave",
+     127
+    ],
+    [
+     "Engrave",
+     132
+    ],
+    [
+     "Engrave",
+     9
+    ],
+    [
+     "Engrave",
+     128
+    ],
+    [
+     "Engrave",
+     130
+    ],
+    [
+     "Engrave",
+     129
+    ],
+    [
+     "Engrave",
+     126
+    ],
+    [
+     "Engrave",
+     8
+    ],
+    [
+     "Engrave",
+     125
+    ],
+    [
+     "Engrave",
+     122
+    ],
+    [
+     "Engrave",
+     110
+    ],
+    [
+     "Engrave",
+     124
+    ],
+    [
+     "Engrave",
+     111
+    ],
+    [
+     "Engrave",
+     109
+    ],
+    [
+     "Engrave",
+     101
+    ],
+    [
+     "Engrave",
+     136
+    ],
+    [
+     "Engrave",
+     137
+    ],
+    [
+     "Engrave",
+     138
+    ],
+    [
+     "Engrave",
+     135
+    ],
+    [
+     "Engrave",
+     112
+    ],
+    [
+     "Engrave",
+     3
+    ],
+    [
+     "Engrave",
+     113
+    ],
+    [
+     "Engrave",
+     117
+    ],
+    [
+     "Engrave",
+     116
+    ],
+    [
+     "Engrave",
+     134
+    ],
+    [
+     "Engrave",
+     115
+    ],
+    [
+     "Engrave",
+     4
+    ],
+    [
+     "Engrave",
+     114
+    ],
+    [
+     "Engrave",
+     102
+    ],
+    [
+     "Engrave",
+     103
+    ],
+    [
+     "Engrave",
+     133
+    ],
+    [
+     "Engrave",
+     12
+    ],
+    [
+     "Engrave",
+     14
+    ],
+    [
+     "Engrave",
+     13
+    ],
+    [
+     "Engrave",
+     0
+    ],
+    [
+     "Engrave",
+     1
+    ],
+    [
+     "Engrave",
+     2
+    ],
+    [
+     "Engrave",
+     104
+    ],
+    [
+     "Engrave",
+     15
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": true,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 20,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Poseidon_s Castle 16x16 T2 profile outside",
+   "select": [
+    [
+     "Profile",
+     0
+    ]
+   ]
+  }
+ ]
+}

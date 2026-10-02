@@ -1,0 +1,32 @@
+{
+ "name": "T3 OP Print Jig 9 Pieces",
+ "crv": "../../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Swim Angelfish/Symmetrical Puzzle Pieces for PECS/Symmetrical Puzzle Pieces 48.5x97, 22 piece TAP/Print Jigs/Male-Female Print JIg - New Layout - 9 and 18 pieces/mnf IP test.crv3d",
+ "vectric": "../../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Swim Angelfish/Symmetrical Puzzle Pieces for PECS/Symmetrical Puzzle Pieces 48.5x97, 22 piece TAP/Print Jigs/Male-Female Print JIg - New Layout - 9 and 18 pieces/T3 OP Print Jig 9 Pieces.tap",
+ "out": "T3 OP Print Jig 9 Pieces-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 3,
+   "toolDia": 0.375,
+   "rpm": 18000,
+   "feed": 60,
+   "plunge": 20,
+   "cutDepth": 0.75,
+   "passDepth": 0.375,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "T3 OP Print Jig 9 Pieces T3 profile outside",
+   "select": [
+    [
+     "tmp",
+     1
+    ]
+   ]
+  }
+ ]
+}

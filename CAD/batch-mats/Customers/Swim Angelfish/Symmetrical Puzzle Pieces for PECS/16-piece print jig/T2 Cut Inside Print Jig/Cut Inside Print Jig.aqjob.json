@@ -1,0 +1,92 @@
+{
+ "name": "Cut Inside Print Jig",
+ "crv": "../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Swim Angelfish/Symmetrical Puzzle Pieces for PECS/16-piece print jig/symmetrical puzzle pieces 16-piece print jig.crv3d",
+ "vectric": "../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Swim Angelfish/Symmetrical Puzzle Pieces for PECS/16-piece print jig/T2 Cut Inside Print Jig/Cut Inside Print Jig.tap",
+ "out": "Cut Inside Print Jig-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 20000,
+   "feed": 80,
+   "plunge": 30,
+   "cutDepth": 2,
+   "passDepth": 2,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Cut Inside Print Jig T2 profile inside",
+   "select": [
+    [
+     "correct puzzle pieces",
+     3
+    ],
+    [
+     "correct puzzle pieces",
+     7
+    ],
+    [
+     "correct puzzle pieces",
+     11
+    ],
+    [
+     "correct puzzle pieces",
+     15
+    ],
+    [
+     "correct puzzle pieces",
+     14
+    ],
+    [
+     "correct puzzle pieces",
+     10
+    ],
+    [
+     "correct puzzle pieces",
+     6
+    ],
+    [
+     "correct puzzle pieces",
+     2
+    ],
+    [
+     "correct puzzle pieces",
+     1
+    ],
+    [
+     "correct puzzle pieces",
+     0
+    ],
+    [
+     "correct puzzle pieces",
+     4
+    ],
+    [
+     "correct puzzle pieces",
+     5
+    ],
+    [
+     "correct puzzle pieces",
+     9
+    ],
+    [
+     "correct puzzle pieces",
+     8
+    ],
+    [
+     "correct puzzle pieces",
+     12
+    ],
+    [
+     "correct puzzle pieces",
+     13
+    ]
+   ]
+  }
+ ]
+}

@@ -1,0 +1,45 @@
+{
+ "name": "SKIVE 4 BOARDS RASTER4 150IPM 50PCT STEPOVER",
+ "crv": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/E-ssistant July 2023/15x12x1.5 - Production/01 - Cut out sheet of 24 boards/15x12x1.5 48x96 sheet.crv3d",
+ "vectric": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/E-ssistant July 2023/15x12x1.5 - Production/01 - Cut out sheet of 24 boards/SKIVE 4 BOARDS RASTER4 150IPM 50PCT STEPOVER.tap",
+ "out": "SKIVE 4 BOARDS RASTER4 150IPM 50PCT STEPOVER-aq.tap",
+ "complete": false,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 10,
+   "toolDia": 1.5,
+   "rpm": 18000,
+   "feed": 150,
+   "plunge": 25,
+   "cutDepth": 0.01,
+   "passDepth": 0.01,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "SKIVE 4 BOARDS RASTER4 150IPM 50PCT STEPOVER T10 profile inside",
+   "select": [
+    [
+     "T10 Skive",
+     0
+    ]
+   ]
+  }
+ ],
+ "unmatched": [
+  {
+   "tool": 10,
+   "pass": 0,
+   "why": "no vector at constant offset (best spread 7.6151)",
+   "bbox": [
+    -0.85,
+    -0.0683,
+    49.35,
+    15.6817
+   ]
+  }
+ ]
+}

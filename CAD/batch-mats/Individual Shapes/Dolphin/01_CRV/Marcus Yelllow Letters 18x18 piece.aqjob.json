@@ -1,0 +1,78 @@
+{
+ "name": "Marcus Yelllow Letters 18x18 piece",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Dolphin/01_CRV/Marcus Letters Only.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Dolphin/01_CRV/Marcus Yelllow Letters 18x18 piece.tap",
+ "out": "Marcus Yelllow Letters 18x18 piece-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.45,
+   "passDepth": 0.725,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Marcus Yelllow Letters 18x18 piece T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     12
+    ],
+    [
+     "Layer 1",
+     13
+    ],
+    [
+     "Layer 1",
+     15
+    ],
+    [
+     "Layer 1",
+     16
+    ],
+    [
+     "Layer 1",
+     18
+    ],
+    [
+     "Layer 1",
+     19
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.45,
+   "passDepth": 0.725,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Marcus Yelllow Letters 18x18 piece T2 profile inside",
+   "select": [
+    [
+     "Layer 1",
+     14
+    ],
+    [
+     "Layer 1",
+     17
+    ]
+   ]
+  }
+ ]
+}

@@ -1,0 +1,40 @@
+{
+ "name": "fix only",
+ "crv": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Silver Bear Swim School/0.5in mats/28x44 mat - 3 units/28x44 mat - 3 units.crv3d",
+ "vectric": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Silver Bear Swim School/0.5in mats/28x44 mat - 3 units/fix only.tap",
+ "out": "fix only-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 10,
+   "toolDia": 0.375,
+   "rpm": 18000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 0.5,
+   "passDepth": 0.5,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "fix only T10 profile on",
+   "select": [
+    [
+     "Layer 1",
+     0
+    ],
+    [
+     "Layer 1",
+     1
+    ],
+    [
+     "Layer 1",
+     2
+    ]
+   ]
+  }
+ ]
+}

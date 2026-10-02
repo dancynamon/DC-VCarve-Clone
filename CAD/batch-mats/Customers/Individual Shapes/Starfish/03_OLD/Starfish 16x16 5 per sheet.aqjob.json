@@ -1,0 +1,495 @@
+{
+ "name": "Starfish 16x16 5 per sheet",
+ "crv": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Starfish/03_OLD/Starfish 16x16 5 per sheet.crv",
+ "vectric": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Starfish/03_OLD/Starfish 16x16 5 per sheet.tap",
+ "out": "Starfish 16x16 5 per sheet-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 5,
+   "toolDia": 0.125,
+   "rpm": 12000,
+   "feed": 40,
+   "plunge": 40,
+   "cutDepth": 0.075,
+   "passDepth": 0.075,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Starfish 16x16 5 per sheet T5 profile on",
+   "select": [
+    [
+     "Engrave",
+     1
+    ],
+    [
+     "Engrave",
+     0
+    ],
+    [
+     "Engrave",
+     10
+    ],
+    [
+     "Engrave",
+     16
+    ],
+    [
+     "Engrave",
+     23
+    ],
+    [
+     "Engrave",
+     19
+    ],
+    [
+     "Engrave",
+     21
+    ],
+    [
+     "Engrave",
+     15
+    ],
+    [
+     "Engrave",
+     6
+    ],
+    [
+     "Engrave",
+     7
+    ],
+    [
+     "Engrave",
+     12
+    ],
+    [
+     "Engrave",
+     11
+    ],
+    [
+     "Engrave",
+     2
+    ],
+    [
+     "Engrave",
+     3
+    ],
+    [
+     "Engrave",
+     9
+    ],
+    [
+     "Engrave",
+     8
+    ],
+    [
+     "Engrave",
+     13
+    ],
+    [
+     "Engrave",
+     22
+    ],
+    [
+     "Engrave",
+     17
+    ],
+    [
+     "Engrave",
+     14
+    ],
+    [
+     "Engrave",
+     20
+    ],
+    [
+     "Engrave",
+     18
+    ],
+    [
+     "Engrave",
+     24
+    ],
+    [
+     "Engrave",
+     4
+    ],
+    [
+     "Engrave",
+     5
+    ]
+   ]
+  },
+  {
+   "op": "drill",
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 75,
+   "plunge": 25,
+   "cutDepth": 1.51,
+   "clearZ": 0.2,
+   "label": "Starfish 16x16 5 per sheet T2 drill",
+   "select": [
+    [
+     "Drill",
+     3
+    ],
+    [
+     "Drill",
+     10
+    ],
+    [
+     "Drill",
+     14
+    ],
+    [
+     "Drill",
+     21
+    ],
+    [
+     "Drill",
+     15
+    ],
+    [
+     "Drill",
+     24
+    ],
+    [
+     "Drill",
+     28
+    ],
+    [
+     "Drill",
+     20
+    ],
+    [
+     "Drill",
+     26
+    ],
+    [
+     "Drill",
+     12
+    ],
+    [
+     "Drill",
+     7
+    ],
+    [
+     "Drill",
+     4
+    ],
+    [
+     "Drill",
+     0
+    ],
+    [
+     "Drill",
+     5
+    ],
+    [
+     "Drill",
+     8
+    ],
+    [
+     "Drill",
+     1
+    ],
+    [
+     "Drill",
+     2
+    ],
+    [
+     "Drill",
+     6
+    ],
+    [
+     "Drill",
+     9
+    ],
+    [
+     "Drill",
+     11
+    ],
+    [
+     "Drill",
+     13
+    ],
+    [
+     "Drill",
+     19
+    ],
+    [
+     "Drill",
+     22
+    ],
+    [
+     "Drill",
+     25
+    ],
+    [
+     "Drill",
+     23
+    ],
+    [
+     "Drill",
+     29
+    ],
+    [
+     "Drill",
+     27
+    ],
+    [
+     "Drill",
+     18
+    ],
+    [
+     "Drill",
+     16
+    ],
+    [
+     "Drill",
+     17
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 75,
+   "plunge": 25,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Starfish 16x16 5 per sheet T2 profile inside",
+   "select": [
+    [
+     "Pocket",
+     0
+    ],
+    [
+     "Pocket",
+     1
+    ],
+    [
+     "Pocket",
+     2
+    ],
+    [
+     "Pocket",
+     3
+    ],
+    [
+     "Pocket",
+     4
+    ],
+    [
+     "Pocket",
+     5
+    ],
+    [
+     "Pocket",
+     9
+    ],
+    [
+     "Pocket",
+     8
+    ],
+    [
+     "Pocket",
+     7
+    ],
+    [
+     "Pocket",
+     6
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 75,
+   "plunge": 25,
+   "cutDepth": 1.45,
+   "passDepth": 1.45,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Starfish 16x16 5 per sheet T2 profile outside",
+   "select": [
+    [
+     "Keychain Profile",
+     3
+    ],
+    [
+     "Keychain Profile",
+     12
+    ],
+    [
+     "Keychain Profile",
+     20
+    ],
+    [
+     "Keychain Profile",
+     24
+    ],
+    [
+     "Keychain Profile",
+     26
+    ],
+    [
+     "Keychain Profile",
+     28
+    ],
+    [
+     "Keychain Profile",
+     21
+    ],
+    [
+     "Keychain Profile",
+     14
+    ],
+    [
+     "Keychain Profile",
+     15
+    ],
+    [
+     "Keychain Profile",
+     10
+    ],
+    [
+     "Keychain Profile",
+     4
+    ],
+    [
+     "Keychain Profile",
+     17
+    ],
+    [
+     "Keychain Profile",
+     7
+    ],
+    [
+     "Keychain Profile",
+     0
+    ],
+    [
+     "Keychain Profile",
+     16
+    ],
+    [
+     "Keychain Profile",
+     5
+    ],
+    [
+     "Keychain Profile",
+     1
+    ],
+    [
+     "Keychain Profile",
+     8
+    ],
+    [
+     "Keychain Profile",
+     18
+    ],
+    [
+     "Keychain Profile",
+     27
+    ],
+    [
+     "Keychain Profile",
+     22
+    ],
+    [
+     "Keychain Profile",
+     6
+    ],
+    [
+     "Keychain Profile",
+     2
+    ],
+    [
+     "Keychain Profile",
+     11
+    ],
+    [
+     "Keychain Profile",
+     9
+    ],
+    [
+     "Keychain Profile",
+     13
+    ],
+    [
+     "Keychain Profile",
+     19
+    ],
+    [
+     "Keychain Profile",
+     23
+    ],
+    [
+     "Keychain Profile",
+     29
+    ],
+    [
+     "Keychain Profile",
+     25
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 75,
+   "plunge": 25,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Starfish 16x16 5 per sheet T2 profile outside",
+   "select": [
+    [
+     "Profile",
+     0
+    ],
+    [
+     "Profile",
+     3
+    ],
+    [
+     "Profile",
+     1
+    ],
+    [
+     "Profile",
+     4
+    ],
+    [
+     "Profile",
+     2
+    ]
+   ]
+  }
+ ]
+}

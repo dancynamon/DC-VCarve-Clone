@@ -1,0 +1,40 @@
+{
+ "name": "Profile 60x32 Mats",
+ "crv": "../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Rectangluar Mat/03_OLD/Rectangular Foam Mat 60x32/(3) Rectangular Foam Mats.crv",
+ "vectric": "../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Rectangluar Mat/03_OLD/Rectangular Foam Mat 60x32/Profile 60x32 Mats.tap",
+ "out": "Profile 60x32 Mats-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.475,
+   "passDepth": 1.475,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Profile 60x32 Mats T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     0
+    ],
+    [
+     "Layer 1",
+     1
+    ],
+    [
+     "Layer 1",
+     2
+    ]
+   ]
+  }
+ ]
+}

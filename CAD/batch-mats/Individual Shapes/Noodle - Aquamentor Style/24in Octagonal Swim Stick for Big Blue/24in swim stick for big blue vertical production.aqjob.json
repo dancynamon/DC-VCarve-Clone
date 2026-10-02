@@ -1,0 +1,148 @@
+{
+ "name": "24in swim stick for big blue vertical production",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Noodle - Aquamentor Style/24in Octagonal Swim Stick for Big Blue/24in swim stick for big blue vertical production.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Noodle - Aquamentor Style/24in Octagonal Swim Stick for Big Blue/24in swim stick for big blue vertical production.tap",
+ "out": "24in swim stick for big blue vertical production-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 5,
+   "toolDia": 1.44,
+   "rpm": 18000,
+   "feed": 80,
+   "plunge": 30,
+   "cutDepth": 0.72,
+   "passDepth": 0.72,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "24in swim stick for big blue vertical production T5 profile outside",
+   "select": [
+    [
+     "45 BEvel",
+     0
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 4,
+   "toolDia": 0.505,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 0.72,
+   "passDepth": 0.72,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "24in swim stick for big blue vertical production T4 profile inside",
+   "select": [
+    [
+     "Hand Grip",
+     0
+    ],
+    [
+     "Hand Grip",
+     1
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": true,
+   "toolNum": 4,
+   "toolDia": 0.5059,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 1,
+   "passDepth": 1,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "24in swim stick for big blue vertical production T4 profile outside",
+   "select": [
+    [
+     "Handle",
+     0
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "right",
+   "climb": false,
+   "toolNum": 4,
+   "toolDia": 0.5058,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 1,
+   "passDepth": 1,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "24in swim stick for big blue vertical production T4 profile right",
+   "select": [
+    [
+     "T4 Round Handgrip",
+     1
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "stepover": 0.49,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 0.72,
+   "passDepth": 0.72,
+   "clearZ": 0.25,
+   "label": "24in swim stick for big blue vertical production T2 pocket",
+   "select": [
+    [
+     "Hand Grip",
+     0
+    ],
+    [
+     "Hand Grip",
+     1
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "24in swim stick for big blue vertical production T2 profile inside",
+   "select": [
+    [
+     "Handle",
+     0
+    ]
+   ]
+  }
+ ]
+}

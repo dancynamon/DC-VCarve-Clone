@@ -1,0 +1,44 @@
+{
+ "name": "Do Roundover 4 boards G4 25 runs",
+ "crv": "../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/E-ssistant July 2023/15x12x1.5 - Production/02 - Create Roundover Jig/15x12x1.5 roundover 4 boards.crv3d",
+ "vectric": "../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/E-ssistant July 2023/15x12x1.5 - Production/02 - Create Roundover Jig/02b - Do Roundover/Do Roundover 4 boards G4 25 runs.tap",
+ "out": "Do Roundover 4 boards G4 25 runs-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 4,
+   "toolDia": 0.625,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1,
+   "passDepth": 1,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Do Roundover 4 boards G4 25 runs T4 profile outside",
+   "select": [
+    [
+     "11.8x20",
+     0
+    ],
+    [
+     "11.8x20",
+     1
+    ],
+    [
+     "11.8x20",
+     2
+    ],
+    [
+     "11.8x20",
+     3
+    ]
+   ]
+  }
+ ]
+}

@@ -1,0 +1,315 @@
+{
+ "name": "Hippo 96x48 with Aquamentor 9in Pool Pals",
+ "crv": "../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Hippo/03_OLD/Hippo 48x96/Hippo 96x48.crv3d",
+ "vectric": "../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Hippo/03_OLD/Hippo 48x96/Hippo 96x48 with Aquamentor 9in Pool Pals.tap",
+ "out": "Hippo 96x48 with Aquamentor 9in Pool Pals-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 5,
+   "toolDia": 0.125,
+   "rpm": 10000,
+   "feed": 50,
+   "plunge": 30,
+   "cutDepth": 0.08,
+   "passDepth": 0.08,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Hippo 96x48 with Aquamentor 9in Pool Pals T5 profile on",
+   "select": [
+    [
+     "Engrave",
+     4
+    ],
+    [
+     "Engrave",
+     5
+    ],
+    [
+     "Engrave",
+     2
+    ],
+    [
+     "Engrave",
+     3
+    ],
+    [
+     "Engrave",
+     0
+    ],
+    [
+     "Engrave",
+     1
+    ],
+    [
+     "Engrave",
+     7
+    ],
+    [
+     "Engrave",
+     9
+    ],
+    [
+     "Engrave",
+     8
+    ],
+    [
+     "Engrave",
+     20
+    ],
+    [
+     "Engrave",
+     21
+    ],
+    [
+     "Engrave",
+     6
+    ],
+    [
+     "Engrave",
+     19
+    ],
+    [
+     "Engrave",
+     18
+    ],
+    [
+     "Engrave",
+     12
+    ],
+    [
+     "Engrave",
+     13
+    ],
+    [
+     "Engrave",
+     16
+    ],
+    [
+     "Engrave",
+     17
+    ],
+    [
+     "Engrave",
+     14
+    ],
+    [
+     "Engrave",
+     15
+    ],
+    [
+     "Engrave",
+     10
+    ],
+    [
+     "Engrave",
+     11
+    ]
+   ]
+  },
+  {
+   "op": "drill",
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "clearZ": 0.8,
+   "label": "Hippo 96x48 with Aquamentor 9in Pool Pals T2 drill",
+   "select": [
+    [
+     "Drill",
+     6
+    ],
+    [
+     "Drill",
+     5
+    ],
+    [
+     "Drill",
+     4
+    ],
+    [
+     "Drill",
+     9
+    ],
+    [
+     "Drill",
+     13
+    ],
+    [
+     "Drill",
+     12
+    ],
+    [
+     "Drill",
+     15
+    ],
+    [
+     "Drill",
+     14
+    ],
+    [
+     "Drill",
+     11
+    ],
+    [
+     "Drill",
+     10
+    ],
+    [
+     "Drill",
+     16
+    ],
+    [
+     "Drill",
+     17
+    ],
+    [
+     "Drill",
+     7
+    ],
+    [
+     "Drill",
+     2
+    ],
+    [
+     "Drill",
+     8
+    ],
+    [
+     "Drill",
+     18
+    ],
+    [
+     "Drill",
+     19
+    ],
+    [
+     "Drill",
+     3
+    ],
+    [
+     "Drill",
+     1
+    ],
+    [
+     "Drill",
+     0
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "stepover": 0.5,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "label": "Hippo 96x48 with Aquamentor 9in Pool Pals T2 pocket",
+   "select": [
+    [
+     "Pocket",
+     0
+    ],
+    [
+     "Pocket",
+     1
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Hippo 96x48 with Aquamentor 9in Pool Pals T2 profile outside",
+   "select": [
+    [
+     "Profile",
+     7
+    ],
+    [
+     "Profile",
+     0
+    ],
+    [
+     "Profile",
+     5
+    ],
+    [
+     "Profile",
+     10
+    ],
+    [
+     "Profile",
+     12
+    ],
+    [
+     "Profile",
+     13
+    ],
+    [
+     "Profile",
+     11
+    ],
+    [
+     "Profile",
+     14
+    ],
+    [
+     "Profile",
+     8
+    ],
+    [
+     "Profile",
+     9
+    ],
+    [
+     "Profile",
+     3
+    ],
+    [
+     "Profile",
+     4
+    ],
+    [
+     "Profile",
+     15
+    ],
+    [
+     "Profile",
+     2
+    ],
+    [
+     "Profile",
+     1
+    ],
+    [
+     "Profile",
+     6
+    ]
+   ]
+  }
+ ]
+}

@@ -1,0 +1,321 @@
+{
+ "name": "9 unique shapes for lane line",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Big Blue Swim School/9 unique shapes for lane line/9 unique shapes for lane line.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Big Blue Swim School/9 unique shapes for lane line/9 unique shapes for lane line.tap",
+ "out": "9 unique shapes for lane line-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 5,
+   "toolDia": 0.125,
+   "rpm": 10000,
+   "feed": 50,
+   "plunge": 30,
+   "cutDepth": 0.08,
+   "passDepth": 0.08,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "9 unique shapes for lane line T5 profile on",
+   "select": [
+    [
+     "Engrave",
+     1
+    ],
+    [
+     "Engrave",
+     0
+    ],
+    [
+     "Engrave",
+     10
+    ],
+    [
+     "Engrave",
+     3
+    ],
+    [
+     "Engrave",
+     2
+    ],
+    [
+     "Engrave",
+     9
+    ],
+    [
+     "Engrave",
+     7
+    ],
+    [
+     "Engrave",
+     8
+    ],
+    [
+     "Engrave",
+     6
+    ],
+    [
+     "Engrave",
+     11
+    ],
+    [
+     "Engrave",
+     21
+    ],
+    [
+     "Engrave",
+     20
+    ],
+    [
+     "Engrave",
+     19
+    ],
+    [
+     "Engrave",
+     18
+    ],
+    [
+     "Engrave",
+     14
+    ],
+    [
+     "Engrave",
+     17
+    ],
+    [
+     "Engrave",
+     15
+    ],
+    [
+     "Engrave",
+     16
+    ],
+    [
+     "Engrave",
+     13
+    ],
+    [
+     "Engrave",
+     12
+    ],
+    [
+     "Engrave",
+     5
+    ],
+    [
+     "Engrave",
+     4
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "9 unique shapes for lane line T2 profile inside",
+   "select": [
+    [
+     "Pocket",
+     0
+    ],
+    [
+     "Pocket",
+     12
+    ],
+    [
+     "Pocket",
+     19
+    ],
+    [
+     "Pocket",
+     10
+    ],
+    [
+     "Pocket",
+     15
+    ],
+    [
+     "Pocket",
+     14
+    ],
+    [
+     "Pocket",
+     7
+    ],
+    [
+     "Pocket",
+     4
+    ],
+    [
+     "Pocket",
+     5
+    ],
+    [
+     "Pocket",
+     2
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "stepover": 0.5,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "label": "9 unique shapes for lane line T2 pocket",
+   "select": [
+    [
+     "Pocket",
+     1
+    ],
+    [
+     "Pocket",
+     13
+    ],
+    [
+     "Pocket",
+     20
+    ],
+    [
+     "Pocket",
+     11
+    ],
+    [
+     "Pocket",
+     16
+    ],
+    [
+     "Pocket",
+     9
+    ],
+    [
+     "Pocket",
+     6
+    ],
+    [
+     "Pocket",
+     18
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "stepover": 0.51,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "label": "9 unique shapes for lane line T2 pocket",
+   "select": [
+    [
+     "Pocket",
+     3
+    ]
+   ]
+  },
+  {
+   "op": "drill",
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "clearZ": 0.2,
+   "label": "9 unique shapes for lane line T2 drill",
+   "select": [
+    [
+     "Pocket",
+     17
+    ],
+    [
+     "Pocket",
+     7
+    ],
+    [
+     "Pocket",
+     8
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "9 unique shapes for lane line T2 profile outside",
+   "select": [
+    [
+     "Profile",
+     0
+    ],
+    [
+     "Profile",
+     1
+    ],
+    [
+     "Profile",
+     2
+    ],
+    [
+     "Profile",
+     3
+    ],
+    [
+     "Profile",
+     6
+    ],
+    [
+     "Profile",
+     8
+    ],
+    [
+     "Profile",
+     4
+    ],
+    [
+     "Profile",
+     5
+    ],
+    [
+     "Profile",
+     7
+    ]
+   ]
+  }
+ ]
+}

@@ -1,0 +1,32 @@
+{
+ "name": "2nd side roundover - 3x2x48 noodle - create jig",
+ "crv": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Noodle 2# 3x2x40 and 60/48in Noodle/2nd side roundover - 3x2x48 noodle t4 roundover t7 profile.crv3d",
+ "vectric": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Noodle 2# 3x2x40 and 60/48in Noodle/2nd side roundover - 3x2x48 noodle - create jig.tap",
+ "out": "2nd side roundover - 3x2x48 noodle - create jig-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 7,
+   "toolDia": 0.5,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1,
+   "passDepth": 1,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "2nd side roundover - 3x2x48 noodle - create jig T7 profile inside",
+   "select": [
+    [
+     "Layer 1",
+     0
+    ]
+   ]
+  }
+ ]
+}

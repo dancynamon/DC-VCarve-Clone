@@ -1,0 +1,44 @@
+{
+ "name": "02 - T2 - PROFILE ROUNDOVER JIG - 4 BOARDS -WaterWings Swim School - Custom Board - Single Bottom Handle -  11.8x20 Kickboard",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Waterwings Swim School/WaterWings September 2022 Custom 12x20 Kickboard 2nd side roundover.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Waterwings Swim School/2026/02 - T2 - PROFILE ROUNDOVER JIG - 4 BOARDS -WaterWings Swim School - Custom Board - Single Bottom Handle -  11.8x20 Kickboard.tap",
+ "out": "02 - T2 - PROFILE ROUNDOVER JIG - 4 BOARDS -WaterWings Swim School - Custom Board - Single Bottom Handle -  11.8x20 Kickboard-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1,
+   "passDepth": 1,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "02 - T2 - PROFILE ROUNDOVER JIG - 4 BOARDS -WaterWings Swim School - Custom Board - Single Bottom Handle -  11.8x20 Kickboard T2 profile inside",
+   "select": [
+    [
+     "Perimeter",
+     0
+    ],
+    [
+     "Perimeter",
+     1
+    ],
+    [
+     "Perimeter",
+     2
+    ],
+    [
+     "Perimeter",
+     3
+    ]
+   ]
+  }
+ ]
+}

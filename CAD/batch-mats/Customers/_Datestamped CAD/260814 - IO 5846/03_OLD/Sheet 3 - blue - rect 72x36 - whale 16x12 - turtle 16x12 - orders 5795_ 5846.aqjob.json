@@ -1,0 +1,636 @@
+{
+ "name": "Sheet 3 - blue - rect 72x36 - whale 16x12 - turtle 16x12 - orders 5795, 5846",
+ "crv": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/_Datestamped CAD/260814 - IO 5846/03_OLD/Sheet 3 - blue - rect 72x36 - whale 16x12 - turtle 16x12 - orders 5795, 5846.crv3d",
+ "vectric": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/_Datestamped CAD/260814 - IO 5846/03_OLD/Sheet 3 - blue - rect 72x36 - whale 16x12 - turtle 16x12 - orders 5795, 5846.tap",
+ "out": "Sheet 3 - blue - rect 72x36 - whale 16x12 - turtle 16x12 - orders 5795_ 5846-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "stepover": 0.5,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "label": "Sheet 3 - blue - rect 72x36 - whale 16x12 - turtle 16x12 - orders 5795, 5846 T2 pocket",
+   "select": [
+    [
+     "Pocket",
+     71
+    ],
+    [
+     "Pocket",
+     72
+    ],
+    [
+     "Pocket",
+     73
+    ],
+    [
+     "Pocket",
+     74
+    ],
+    [
+     "Pocket",
+     83
+    ],
+    [
+     "Pocket",
+     92
+    ],
+    [
+     "Pocket",
+     91
+    ],
+    [
+     "Pocket",
+     90
+    ],
+    [
+     "Pocket",
+     89
+    ],
+    [
+     "Pocket",
+     88
+    ],
+    [
+     "Pocket",
+     87
+    ],
+    [
+     "Pocket",
+     86
+    ],
+    [
+     "Pocket",
+     85
+    ],
+    [
+     "Pocket",
+     84
+    ],
+    [
+     "Pocket",
+     98
+    ],
+    [
+     "Pocket",
+     104
+    ],
+    [
+     "Pocket",
+     110
+    ],
+    [
+     "Pocket",
+     116
+    ],
+    [
+     "Pocket",
+     115
+    ],
+    [
+     "Pocket",
+     109
+    ],
+    [
+     "Pocket",
+     103
+    ],
+    [
+     "Pocket",
+     97
+    ],
+    [
+     "Pocket",
+     75
+    ],
+    [
+     "Pocket",
+     76
+    ],
+    [
+     "Pocket",
+     77
+    ],
+    [
+     "Pocket",
+     78
+    ],
+    [
+     "Pocket",
+     79
+    ],
+    [
+     "Pocket",
+     80
+    ],
+    [
+     "Pocket",
+     81
+    ],
+    [
+     "Pocket",
+     82
+    ],
+    [
+     "Pocket",
+     70
+    ],
+    [
+     "Pocket",
+     69
+    ],
+    [
+     "Pocket",
+     68
+    ],
+    [
+     "Pocket",
+     67
+    ],
+    [
+     "Pocket",
+     45
+    ],
+    [
+     "Pocket",
+     52
+    ],
+    [
+     "Pocket",
+     59
+    ],
+    [
+     "Pocket",
+     66
+    ],
+    [
+     "Pocket",
+     65
+    ],
+    [
+     "Pocket",
+     64
+    ],
+    [
+     "Pocket",
+     63
+    ],
+    [
+     "Pocket",
+     62
+    ],
+    [
+     "Pocket",
+     61
+    ],
+    [
+     "Pocket",
+     60
+    ],
+    [
+     "Pocket",
+     53
+    ],
+    [
+     "Pocket",
+     54
+    ],
+    [
+     "Pocket",
+     55
+    ],
+    [
+     "Pocket",
+     56
+    ],
+    [
+     "Pocket",
+     57
+    ],
+    [
+     "Pocket",
+     58
+    ],
+    [
+     "Pocket",
+     51
+    ],
+    [
+     "Pocket",
+     50
+    ],
+    [
+     "Pocket",
+     49
+    ],
+    [
+     "Pocket",
+     48
+    ],
+    [
+     "Pocket",
+     47
+    ],
+    [
+     "Pocket",
+     46
+    ],
+    [
+     "Pocket",
+     39
+    ],
+    [
+     "Pocket",
+     40
+    ],
+    [
+     "Pocket",
+     41
+    ],
+    [
+     "Pocket",
+     42
+    ],
+    [
+     "Pocket",
+     43
+    ],
+    [
+     "Pocket",
+     44
+    ],
+    [
+     "Pocket",
+     93
+    ],
+    [
+     "Pocket",
+     94
+    ],
+    [
+     "Pocket",
+     95
+    ],
+    [
+     "Pocket",
+     96
+    ],
+    [
+     "Pocket",
+     102
+    ],
+    [
+     "Pocket",
+     101
+    ],
+    [
+     "Pocket",
+     100
+    ],
+    [
+     "Pocket",
+     99
+    ],
+    [
+     "Pocket",
+     105
+    ],
+    [
+     "Pocket",
+     106
+    ],
+    [
+     "Pocket",
+     107
+    ],
+    [
+     "Pocket",
+     108
+    ],
+    [
+     "Pocket",
+     114
+    ],
+    [
+     "Pocket",
+     113
+    ],
+    [
+     "Pocket",
+     112
+    ],
+    [
+     "Pocket",
+     111
+    ],
+    [
+     "Pocket",
+     117
+    ],
+    [
+     "Pocket",
+     118
+    ],
+    [
+     "Pocket",
+     119
+    ],
+    [
+     "Pocket",
+     120
+    ],
+    [
+     "Pocket",
+     121
+    ],
+    [
+     "Pocket",
+     7
+    ],
+    [
+     "Pocket",
+     14
+    ],
+    [
+     "Pocket",
+     21
+    ],
+    [
+     "Pocket",
+     28
+    ],
+    [
+     "Pocket",
+     27
+    ],
+    [
+     "Pocket",
+     26
+    ],
+    [
+     "Pocket",
+     25
+    ],
+    [
+     "Pocket",
+     24
+    ],
+    [
+     "Pocket",
+     17
+    ],
+    [
+     "Pocket",
+     18
+    ],
+    [
+     "Pocket",
+     19
+    ],
+    [
+     "Pocket",
+     20
+    ],
+    [
+     "Pocket",
+     13
+    ],
+    [
+     "Pocket",
+     12
+    ],
+    [
+     "Pocket",
+     11
+    ],
+    [
+     "Pocket",
+     10
+    ],
+    [
+     "Pocket",
+     3
+    ],
+    [
+     "Pocket",
+     4
+    ],
+    [
+     "Pocket",
+     5
+    ],
+    [
+     "Pocket",
+     6
+    ],
+    [
+     "Pocket",
+     8
+    ],
+    [
+     "Pocket",
+     15
+    ],
+    [
+     "Pocket",
+     22
+    ],
+    [
+     "Pocket",
+     29
+    ],
+    [
+     "Pocket",
+     30
+    ],
+    [
+     "Pocket",
+     23
+    ],
+    [
+     "Pocket",
+     16
+    ],
+    [
+     "Pocket",
+     9
+    ],
+    [
+     "Pocket",
+     31
+    ],
+    [
+     "Pocket",
+     32
+    ],
+    [
+     "Pocket",
+     33
+    ],
+    [
+     "Pocket",
+     34
+    ],
+    [
+     "Pocket",
+     38
+    ],
+    [
+     "Pocket",
+     37
+    ],
+    [
+     "Pocket",
+     36
+    ],
+    [
+     "Pocket",
+     35
+    ],
+    [
+     "Pocket",
+     122
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "stepover": 0.49,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "label": "Sheet 3 - blue - rect 72x36 - whale 16x12 - turtle 16x12 - orders 5795, 5846 T2 pocket",
+   "select": [
+    [
+     "Pocket",
+     123
+    ],
+    [
+     "Pocket",
+     124
+    ],
+    [
+     "Pocket",
+     125
+    ],
+    [
+     "Pocket",
+     126
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Sheet 3 - blue - rect 72x36 - whale 16x12 - turtle 16x12 - orders 5795, 5846 T2 profile inside",
+   "select": [
+    [
+     "Pocket",
+     0
+    ],
+    [
+     "Pocket",
+     1
+    ],
+    [
+     "Pocket",
+     2
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 5,
+   "toolDia": 0.125,
+   "rpm": 10000,
+   "feed": 50,
+   "plunge": 30,
+   "cutDepth": 0.08,
+   "passDepth": 0.08,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Sheet 3 - blue - rect 72x36 - whale 16x12 - turtle 16x12 - orders 5795, 5846 T5 profile on",
+   "select": [
+    [
+     "Engrave",
+     1
+    ],
+    [
+     "Engrave",
+     0
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Sheet 3 - blue - rect 72x36 - whale 16x12 - turtle 16x12 - orders 5795, 5846 T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     0
+    ],
+    [
+     "Profile",
+     2
+    ],
+    [
+     "Profile",
+     0
+    ],
+    [
+     "Profile T1",
+     0
+    ],
+    [
+     "Profile T1",
+     1
+    ],
+    [
+     "Import - 48x24 Rect-Swiss Mat.ai",
+     0
+    ]
+   ]
+  }
+ ]
+}

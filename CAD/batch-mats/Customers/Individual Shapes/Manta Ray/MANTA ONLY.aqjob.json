@@ -1,0 +1,32 @@
+{
+ "name": "MANTA ONLY",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Manta Ray/MANTA RAY PLUS KX.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Manta Ray/MANTA ONLY.tap",
+ "out": "MANTA ONLY-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "MANTA ONLY T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     2
+    ]
+   ]
+  }
+ ]
+}

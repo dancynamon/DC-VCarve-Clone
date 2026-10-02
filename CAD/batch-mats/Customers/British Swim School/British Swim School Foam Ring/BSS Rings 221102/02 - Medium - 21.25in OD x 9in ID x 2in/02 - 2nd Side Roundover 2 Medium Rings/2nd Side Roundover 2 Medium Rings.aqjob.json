@@ -1,0 +1,62 @@
+{
+ "name": "2nd Side Roundover 2 Medium Rings",
+ "crv": "../../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/British Swim School/British Swim School Foam Ring/BSS Rings 221102/02 - Medium - 21.25in OD x 9in ID x 2in/02 - 2nd Side Roundover 2 Medium Rings/2nd side roundover 2 medium rings.crv3d",
+ "vectric": "../../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/British Swim School/British Swim School Foam Ring/BSS Rings 221102/02 - Medium - 21.25in OD x 9in ID x 2in/02 - 2nd Side Roundover 2 Medium Rings/2nd Side Roundover 2 Medium Rings.tap",
+ "out": "2nd Side Roundover 2 Medium Rings-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 4,
+   "toolDia": 0.625,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1,
+   "passDepth": 1,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "2nd Side Roundover 2 Medium Rings T4 profile inside",
+   "select": [
+    [
+     "ID",
+     1
+    ],
+    [
+     "ID",
+     3
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 4,
+   "toolDia": 0.625,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1,
+   "passDepth": 1,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "2nd Side Roundover 2 Medium Rings T4 profile outside",
+   "select": [
+    [
+     "ID",
+     0
+    ],
+    [
+     "ID",
+     2
+    ]
+   ]
+  }
+ ]
+}

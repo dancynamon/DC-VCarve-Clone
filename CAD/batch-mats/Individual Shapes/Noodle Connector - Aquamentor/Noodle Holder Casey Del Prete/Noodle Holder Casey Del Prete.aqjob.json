@@ -1,0 +1,118 @@
+{
+ "name": "Noodle Holder Casey Del Prete",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Noodle Connector - Aquamentor/Noodle Holder Casey Del Prete/Noodle Holder Casey Del Prete.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Noodle Connector - Aquamentor/Noodle Holder Casey Del Prete/Noodle Holder Casey Del Prete.tap",
+ "out": "Noodle Holder Casey Del Prete-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Noodle Holder Casey Del Prete T2 profile inside",
+   "select": [
+    [
+     "Drill",
+     0
+    ],
+    [
+     "Drill",
+     1
+    ],
+    [
+     "Drill",
+     2
+    ],
+    [
+     "Drill",
+     3
+    ],
+    [
+     "Drill",
+     4
+    ],
+    [
+     "Drill",
+     5
+    ],
+    [
+     "Drill",
+     6
+    ],
+    [
+     "Drill",
+     7
+    ],
+    [
+     "Drill",
+     15
+    ],
+    [
+     "Drill",
+     14
+    ],
+    [
+     "Drill",
+     13
+    ],
+    [
+     "Drill",
+     12
+    ],
+    [
+     "Drill",
+     11
+    ],
+    [
+     "Drill",
+     10
+    ],
+    [
+     "Drill",
+     9
+    ],
+    [
+     "Drill",
+     8
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Noodle Holder Casey Del Prete T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     0
+    ],
+    [
+     "Layer 1",
+     1
+    ]
+   ]
+  }
+ ]
+}

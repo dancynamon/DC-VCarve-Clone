@@ -1,0 +1,232 @@
+{
+ "name": "16in shapes with noodle holes - 5 total",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/British Swim School/British Swim School Rachael Proia - 16in shapes with Noodle Holes/16in shapes with noodle holes - 12 total.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/British Swim School/British Swim School Rachael Proia - 16in shapes with Noodle Holes/16in shapes with noodle holes - 5 total.tap",
+ "out": "16in shapes with noodle holes - 5 total-aq.tap",
+ "complete": false,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 5,
+   "toolDia": 0.125,
+   "rpm": 12000,
+   "feed": 40,
+   "plunge": 40,
+   "cutDepth": 0.1,
+   "passDepth": 0.1,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "16in shapes with noodle holes - 5 total T5 profile on",
+   "select": [
+    [
+     "Engrave",
+     0
+    ],
+    [
+     "Engrave",
+     1
+    ],
+    [
+     "Engrave",
+     13
+    ],
+    [
+     "Engrave",
+     14
+    ],
+    [
+     "Engrave",
+     15
+    ],
+    [
+     "Engrave",
+     16
+    ],
+    [
+     "Engrave",
+     2
+    ],
+    [
+     "Engrave",
+     3
+    ],
+    [
+     "Engrave",
+     4
+    ],
+    [
+     "Engrave",
+     5
+    ],
+    [
+     "Engrave",
+     6
+    ],
+    [
+     "Engrave",
+     7
+    ],
+    [
+     "Engrave",
+     8
+    ],
+    [
+     "Engrave",
+     10
+    ],
+    [
+     "Engrave",
+     9
+    ],
+    [
+     "Engrave",
+     11
+    ],
+    [
+     "Engrave",
+     12
+    ]
+   ]
+  },
+  {
+   "op": "drill",
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "clearZ": 0.25,
+   "label": "16in shapes with noodle holes - 5 total T2 drill",
+   "select": [
+    [
+     "Pocket",
+     1
+    ],
+    [
+     "Pocket",
+     2
+    ],
+    [
+     "Pocket",
+     3
+    ],
+    [
+     "Pocket",
+     4
+    ],
+    [
+     "Pocket",
+     5
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "16in shapes with noodle holes - 5 total T2 profile inside",
+   "select": [
+    [
+     "Noodle Holes",
+     0
+    ],
+    [
+     "Noodle Holes",
+     1
+    ],
+    [
+     "Noodle Holes",
+     8
+    ],
+    [
+     "Noodle Holes",
+     9
+    ],
+    [
+     "Noodle Holes",
+     2
+    ],
+    [
+     "Noodle Holes",
+     3
+    ],
+    [
+     "Noodle Holes",
+     5
+    ],
+    [
+     "Noodle Holes",
+     4
+    ],
+    [
+     "Noodle Holes",
+     7
+    ],
+    [
+     "Noodle Holes",
+     6
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "16in shapes with noodle holes - 5 total T2 profile outside",
+   "select": [
+    [
+     "Profile",
+     0
+    ],
+    [
+     "Profile",
+     4
+    ],
+    [
+     "Profile",
+     1
+    ],
+    [
+     "Profile",
+     3
+    ],
+    [
+     "Profile",
+     2
+    ]
+   ]
+  }
+ ],
+ "unmatched": [
+  {
+   "tool": 2,
+   "pass": 0,
+   "why": "plunge at 3.2561,4.9804 hits no vector centroid"
+  }
+ ]
+}

@@ -1,0 +1,206 @@
+{
+ "name": "01 - T1 - WaterWings Swim School - Custom Board - Single Bottom Handle -  11.8x20 Kickboard 48.5x97 full sheet",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Waterwings Swim School/WaterWings September 2022 Custom 12x20 Kickboard 48.5x97 full sheet.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Waterwings Swim School/2026/01 - T1 - WaterWings Swim School - Custom Board - Single Bottom Handle -  11.8x20 Kickboard 48.5x97 full sheet.tap",
+ "out": "01 - T1 - WaterWings Swim School - Custom Board - Single Bottom Handle -  11.8x20 Kickboard 48.5x97 full sheet-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 1,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "01 - T1 - WaterWings Swim School - Custom Board - Single Bottom Handle -  11.8x20 Kickboard 48.5x97 full sheet T1 profile inside",
+   "select": [
+    [
+     "Handle",
+     0
+    ],
+    [
+     "Handle",
+     5
+    ],
+    [
+     "Handle",
+     10
+    ],
+    [
+     "Handle",
+     15
+    ],
+    [
+     "Handle",
+     16
+    ],
+    [
+     "Handle",
+     11
+    ],
+    [
+     "Handle",
+     6
+    ],
+    [
+     "Handle",
+     1
+    ],
+    [
+     "Handle",
+     2
+    ],
+    [
+     "Handle",
+     7
+    ],
+    [
+     "Handle",
+     12
+    ],
+    [
+     "Handle",
+     17
+    ],
+    [
+     "Handle",
+     18
+    ],
+    [
+     "Handle",
+     13
+    ],
+    [
+     "Handle",
+     8
+    ],
+    [
+     "Handle",
+     3
+    ],
+    [
+     "Handle",
+     4
+    ],
+    [
+     "Handle",
+     9
+    ],
+    [
+     "Handle",
+     14
+    ],
+    [
+     "Handle",
+     19
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 1,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "01 - T1 - WaterWings Swim School - Custom Board - Single Bottom Handle -  11.8x20 Kickboard 48.5x97 full sheet T1 profile outside",
+   "select": [
+    [
+     "Perimeter",
+     0
+    ],
+    [
+     "Perimeter",
+     5
+    ],
+    [
+     "Perimeter",
+     6
+    ],
+    [
+     "Perimeter",
+     1
+    ],
+    [
+     "Perimeter",
+     2
+    ],
+    [
+     "Perimeter",
+     7
+    ],
+    [
+     "Perimeter",
+     8
+    ],
+    [
+     "Perimeter",
+     3
+    ],
+    [
+     "Perimeter",
+     4
+    ],
+    [
+     "Perimeter",
+     9
+    ],
+    [
+     "Perimeter",
+     14
+    ],
+    [
+     "Perimeter",
+     19
+    ],
+    [
+     "Perimeter",
+     18
+    ],
+    [
+     "Perimeter",
+     17
+    ],
+    [
+     "Perimeter",
+     12
+    ],
+    [
+     "Perimeter",
+     13
+    ],
+    [
+     "Perimeter",
+     11
+    ],
+    [
+     "Perimeter",
+     10
+    ],
+    [
+     "Perimeter",
+     15
+    ],
+    [
+     "Perimeter",
+     16
+    ]
+   ]
+  }
+ ]
+}

@@ -1,0 +1,32 @@
+{
+ "name": "Profile Outside Entire Print Jig",
+ "crv": "../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Swim Angelfish/Symmetrical Puzzle Pieces for PECS/16-piece print jig/symmetrical puzzle pieces 16-piece print jig.crv3d",
+ "vectric": "../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Swim Angelfish/Symmetrical Puzzle Pieces for PECS/16-piece print jig/Profile Outside Entire Print Jig/Profile Outside Entire Print Jig.tap",
+ "out": "Profile Outside Entire Print Jig-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 20000,
+   "feed": 80,
+   "plunge": 30,
+   "cutDepth": 2,
+   "passDepth": 2,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Profile Outside Entire Print Jig T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     0
+    ]
+   ]
+  }
+ ]
+}

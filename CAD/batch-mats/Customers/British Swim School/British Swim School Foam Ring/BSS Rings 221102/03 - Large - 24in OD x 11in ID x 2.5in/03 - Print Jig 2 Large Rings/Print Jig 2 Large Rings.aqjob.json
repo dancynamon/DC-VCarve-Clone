@@ -1,0 +1,58 @@
+{
+ "name": "Print Jig 2 Large Rings",
+ "crv": "../../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/British Swim School/British Swim School Foam Ring/BSS Rings 221102/03 - Large - 24in OD x 11in ID x 2.5in/03 - Print Jig 2 Large Rings/Print Jig 2 Large Rings.crv3d",
+ "vectric": "../../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/British Swim School/British Swim School Foam Ring/BSS Rings 221102/03 - Large - 24in OD x 11in ID x 2.5in/03 - Print Jig 2 Large Rings/Print Jig 2 Large Rings.tap",
+ "out": "Print Jig 2 Large Rings-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1,
+   "passDepth": 1,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Print Jig 2 Large Rings T2 profile inside",
+   "select": [
+    [
+     "OD",
+     0
+    ],
+    [
+     "OD",
+     1
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1,
+   "passDepth": 1,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Print Jig 2 Large Rings T2 profile outside",
+   "select": [
+    [
+     "FR ID Pocket",
+     0
+    ]
+   ]
+  }
+ ]
+}

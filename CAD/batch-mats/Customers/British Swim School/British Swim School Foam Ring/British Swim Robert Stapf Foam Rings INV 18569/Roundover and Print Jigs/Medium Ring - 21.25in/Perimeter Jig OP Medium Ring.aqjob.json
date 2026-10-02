@@ -1,0 +1,32 @@
+{
+ "name": "Perimeter Jig OP Medium Ring",
+ "crv": "../../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/British Swim School/British Swim School Foam Ring/British Swim Robert Stapf Foam Rings INV 18569/Roundover and Print Jigs/Medium Ring - 21.25in/Roundover Jig Medium Ring.crv3d",
+ "vectric": "../../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/British Swim School/British Swim School Foam Ring/British Swim Robert Stapf Foam Rings INV 18569/Roundover and Print Jigs/Medium Ring - 21.25in/Perimeter Jig OP Medium Ring.tap",
+ "out": "Perimeter Jig OP Medium Ring-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1,
+   "passDepth": 1,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Perimeter Jig OP Medium Ring T2 profile outside",
+   "select": [
+    [
+     "Roundover Boundary 2.0",
+     1
+    ]
+   ]
+  }
+ ]
+}

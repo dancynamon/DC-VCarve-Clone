@@ -1,0 +1,56 @@
+{
+ "name": "Roundover 1 84 and 6 60s",
+ "crv": "../../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Noodle - Aquamentor Style/Noodle 2# 3x2x40 and 60/84in + 60in noodle special/2nd side roundover - many noodles/2nd side roundover - 1 84 and 6 60s/2nd side roundover - 1 84 and 6 60s noodles.crv3d",
+ "vectric": "../../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Noodle - Aquamentor Style/Noodle 2# 3x2x40 and 60/84in + 60in noodle special/2nd side roundover - many noodles/2nd side roundover - 1 84 and 6 60s/Roundover 1 84 and 6 60s.tap",
+ "out": "Roundover 1 84 and 6 60s-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 4,
+   "toolDia": 0.625,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1,
+   "passDepth": 1,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Roundover 1 84 and 6 60s T4 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     1
+    ],
+    [
+     "Layer 1",
+     5
+    ],
+    [
+     "Layer 1",
+     6
+    ],
+    [
+     "Layer 1",
+     0
+    ],
+    [
+     "Layer 1",
+     2
+    ],
+    [
+     "Layer 1",
+     3
+    ],
+    [
+     "Layer 1",
+     4
+    ]
+   ]
+  }
+ ]
+}

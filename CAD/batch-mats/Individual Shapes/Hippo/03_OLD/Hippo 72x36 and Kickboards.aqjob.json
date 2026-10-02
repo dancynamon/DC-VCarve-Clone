@@ -1,0 +1,190 @@
+{
+ "name": "Hippo 72x36 and Kickboards",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Hippo/03_OLD/Hippo 72x36 and Kickboards.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Hippo/03_OLD/Hippo 72x36 and Kickboards.tap",
+ "out": "Hippo 72x36 and Kickboards-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 5,
+   "toolDia": 0.125,
+   "rpm": 12000,
+   "feed": 40,
+   "plunge": 40,
+   "cutDepth": 0.1,
+   "passDepth": 0.1,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Hippo 72x36 and Kickboards T5 profile on",
+   "select": [
+    [
+     "Engrave",
+     0
+    ],
+    [
+     "Engrave",
+     1
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 4,
+   "toolDia": 0.5051,
+   "rpm": 22000,
+   "feed": 80,
+   "plunge": 25,
+   "cutDepth": 1,
+   "passDepth": 1,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Hippo 72x36 and Kickboards T4 profile outside",
+   "select": [
+    [
+     "kickboards",
+     0
+    ],
+    [
+     "kickboards",
+     1
+    ],
+    [
+     "kickboards",
+     2
+    ],
+    [
+     "kickboards",
+     3
+    ],
+    [
+     "kickboards",
+     7
+    ],
+    [
+     "kickboards",
+     6
+    ],
+    [
+     "kickboards",
+     8
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 4,
+   "toolDia": 0.505,
+   "rpm": 22000,
+   "feed": 80,
+   "plunge": 25,
+   "cutDepth": 1,
+   "passDepth": 1,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Hippo 72x36 and Kickboards T4 profile outside",
+   "select": [
+    [
+     "kickboards",
+     5
+    ],
+    [
+     "kickboards",
+     4
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "stepover": 0.5,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 20,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "label": "Hippo 72x36 and Kickboards T2 pocket",
+   "select": [
+    [
+     "Pocket",
+     1
+    ],
+    [
+     "Pocket",
+     0
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 20,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Hippo 72x36 and Kickboards T2 profile outside",
+   "select": [
+    [
+     "Profile",
+     0
+    ],
+    [
+     "kickboards",
+     0
+    ],
+    [
+     "kickboards",
+     1
+    ],
+    [
+     "kickboards",
+     2
+    ],
+    [
+     "kickboards",
+     3
+    ],
+    [
+     "kickboards",
+     7
+    ],
+    [
+     "kickboards",
+     6
+    ],
+    [
+     "kickboards",
+     8
+    ],
+    [
+     "kickboards",
+     5
+    ],
+    [
+     "kickboards",
+     4
+    ]
+   ]
+  }
+ ]
+}

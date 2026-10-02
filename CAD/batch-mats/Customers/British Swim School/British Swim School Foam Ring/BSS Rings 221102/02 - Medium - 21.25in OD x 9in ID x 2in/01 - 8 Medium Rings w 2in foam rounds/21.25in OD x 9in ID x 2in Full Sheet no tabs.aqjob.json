@@ -1,0 +1,418 @@
+{
+ "name": "21.25in OD x 9in ID x 2in Full Sheet no tabs",
+ "crv": "../../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/British Swim School/British Swim School Foam Ring/BSS Rings 221102/02 - Medium - 21.25in OD x 9in ID x 2in/01 - 8 Medium Rings w 2in foam rounds/21.25in OD x 9in ID x 2in Full Sheet.crv3d",
+ "vectric": "../../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/British Swim School/British Swim School Foam Ring/BSS Rings 221102/02 - Medium - 21.25in OD x 9in ID x 2in/01 - 8 Medium Rings w 2in foam rounds/21.25in OD x 9in ID x 2in Full Sheet no tabs.tap",
+ "out": "21.25in OD x 9in ID x 2in Full Sheet no tabs-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 4,
+   "toolDia": 0.5,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 1,
+   "passDepth": 1,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "21.25in OD x 9in ID x 2in Full Sheet no tabs T4 profile inside",
+   "select": [
+    [
+     "ID",
+     0
+    ],
+    [
+     "ID",
+     1
+    ],
+    [
+     "ID",
+     3
+    ],
+    [
+     "ID",
+     2
+    ],
+    [
+     "ID",
+     4
+    ],
+    [
+     "ID",
+     5
+    ],
+    [
+     "ID",
+     7
+    ],
+    [
+     "ID",
+     6
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 4,
+   "toolDia": 0.5058,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 1,
+   "passDepth": 1,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "21.25in OD x 9in ID x 2in Full Sheet no tabs T4 profile outside",
+   "select": [
+    [
+     "OD",
+     0
+    ],
+    [
+     "OD",
+     1
+    ],
+    [
+     "OD",
+     3
+    ],
+    [
+     "OD",
+     2
+    ],
+    [
+     "OD",
+     4
+    ],
+    [
+     "OD",
+     5
+    ],
+    [
+     "OD",
+     7
+    ],
+    [
+     "OD",
+     6
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 7,
+   "toolDia": 0.5,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 2,
+   "passDepth": 1,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "21.25in OD x 9in ID x 2in Full Sheet no tabs T7 profile inside",
+   "select": [
+    [
+     "FR ID Pocket",
+     5
+    ],
+    [
+     "FR ID Pocket",
+     10
+    ],
+    [
+     "FR ID Pocket",
+     4
+    ],
+    [
+     "FR ID Pocket",
+     25
+    ],
+    [
+     "FR ID Pocket",
+     24
+    ],
+    [
+     "FR ID Pocket",
+     7
+    ],
+    [
+     "FR ID Pocket",
+     23
+    ],
+    [
+     "FR ID Pocket",
+     22
+    ],
+    [
+     "FR ID Pocket",
+     2
+    ],
+    [
+     "FR ID Pocket",
+     21
+    ],
+    [
+     "FR ID Pocket",
+     20
+    ],
+    [
+     "FR ID Pocket",
+     1
+    ],
+    [
+     "FR ID Pocket",
+     11
+    ],
+    [
+     "FR ID Pocket",
+     15
+    ],
+    [
+     "FR ID Pocket",
+     16
+    ],
+    [
+     "FR ID Pocket",
+     17
+    ],
+    [
+     "FR ID Pocket",
+     18
+    ],
+    [
+     "FR ID Pocket",
+     19
+    ],
+    [
+     "FR ID Pocket",
+     14
+    ],
+    [
+     "FR ID Pocket",
+     13
+    ],
+    [
+     "FR ID Pocket",
+     12
+    ],
+    [
+     "FR ID Pocket",
+     0
+    ],
+    [
+     "FR ID Pocket",
+     8
+    ],
+    [
+     "FR ID Pocket",
+     3
+    ],
+    [
+     "FR ID Pocket",
+     9
+    ],
+    [
+     "FR ID Pocket",
+     6
+    ],
+    [
+     "ID",
+     0
+    ],
+    [
+     "ID",
+     2
+    ],
+    [
+     "ID",
+     4
+    ],
+    [
+     "ID",
+     6
+    ],
+    [
+     "ID",
+     7
+    ],
+    [
+     "ID",
+     5
+    ],
+    [
+     "ID",
+     3
+    ],
+    [
+     "ID",
+     1
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 7,
+   "toolDia": 0.5,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 2,
+   "passDepth": 1,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "21.25in OD x 9in ID x 2in Full Sheet no tabs T7 profile outside",
+   "select": [
+    [
+     "FR OD Profile",
+     5
+    ],
+    [
+     "FR OD Profile",
+     10
+    ],
+    [
+     "FR OD Profile",
+     4
+    ],
+    [
+     "FR OD Profile",
+     25
+    ],
+    [
+     "FR OD Profile",
+     24
+    ],
+    [
+     "FR OD Profile",
+     23
+    ],
+    [
+     "FR OD Profile",
+     22
+    ],
+    [
+     "FR OD Profile",
+     21
+    ],
+    [
+     "FR OD Profile",
+     20
+    ],
+    [
+     "FR OD Profile",
+     19
+    ],
+    [
+     "FR OD Profile",
+     18
+    ],
+    [
+     "FR OD Profile",
+     17
+    ],
+    [
+     "FR OD Profile",
+     16
+    ],
+    [
+     "FR OD Profile",
+     15
+    ],
+    [
+     "FR OD Profile",
+     11
+    ],
+    [
+     "FR OD Profile",
+     14
+    ],
+    [
+     "FR OD Profile",
+     13
+    ],
+    [
+     "FR OD Profile",
+     12
+    ],
+    [
+     "FR OD Profile",
+     0
+    ],
+    [
+     "FR OD Profile",
+     8
+    ],
+    [
+     "FR OD Profile",
+     2
+    ],
+    [
+     "FR OD Profile",
+     9
+    ],
+    [
+     "FR OD Profile",
+     7
+    ],
+    [
+     "FR OD Profile",
+     6
+    ],
+    [
+     "FR OD Profile",
+     3
+    ],
+    [
+     "FR OD Profile",
+     1
+    ],
+    [
+     "OD",
+     0
+    ],
+    [
+     "OD",
+     1
+    ],
+    [
+     "OD",
+     3
+    ],
+    [
+     "OD",
+     2
+    ],
+    [
+     "OD",
+     4
+    ],
+    [
+     "OD",
+     5
+    ],
+    [
+     "OD",
+     7
+    ],
+    [
+     "OD",
+     6
+    ]
+   ]
+  }
+ ]
+}

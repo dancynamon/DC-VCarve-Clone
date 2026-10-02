@@ -1,0 +1,95 @@
+{
+ "name": "Whale 48x32",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Whale/Whale 48x36/Whale 48x32.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Whale/Whale 48x36/Whale 48x32.tap",
+ "out": "Whale 48x32-aq.tap",
+ "complete": false,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 5,
+   "toolDia": 0.125,
+   "rpm": 12000,
+   "feed": 40,
+   "plunge": 40,
+   "cutDepth": 0.08,
+   "passDepth": 0.08,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Whale 48x32 T5 profile on",
+   "select": [
+    [
+     "Profile",
+     1
+    ],
+    [
+     "Engrave",
+     1
+    ],
+    [
+     "Engrave",
+     0
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "stepover": 0.5,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 20,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "label": "Whale 48x32 T2 pocket",
+   "select": [
+    [
+     "Pocket",
+     0
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 20,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Whale 48x32 T2 profile outside",
+   "select": [
+    [
+     "Profile",
+     0
+    ]
+   ]
+  }
+ ],
+ "unmatched": [
+  {
+   "tool": 5,
+   "pass": 0,
+   "why": "no vector at constant offset (best spread 1.7733)",
+   "bbox": [
+    9.8535,
+    2.061,
+    15.137,
+    3.3268
+   ]
+  }
+ ]
+}

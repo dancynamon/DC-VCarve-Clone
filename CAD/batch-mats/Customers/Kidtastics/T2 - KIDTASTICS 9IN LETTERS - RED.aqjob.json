@@ -1,0 +1,44 @@
+{
+ "name": "T2 - KIDTASTICS 9IN LETTERS - RED",
+ "crv": "../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Kidtastics/9IN LETTERS - RED.crv3d",
+ "vectric": "../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Kidtastics/T2 - KIDTASTICS 9IN LETTERS - RED.tap",
+ "out": "T2 - KIDTASTICS 9IN LETTERS - RED-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "T2 - KIDTASTICS 9IN LETTERS - RED T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     8
+    ],
+    [
+     "Layer 1",
+     9
+    ],
+    [
+     "Layer 1",
+     10
+    ],
+    [
+     "Layer 1",
+     11
+    ]
+   ]
+  }
+ ]
+}

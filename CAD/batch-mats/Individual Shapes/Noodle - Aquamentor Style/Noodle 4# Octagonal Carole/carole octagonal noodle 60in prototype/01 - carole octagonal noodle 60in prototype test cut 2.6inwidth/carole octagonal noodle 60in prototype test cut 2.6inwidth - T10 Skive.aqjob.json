@@ -1,0 +1,45 @@
+{
+ "name": "carole octagonal noodle 60in prototype test cut 2.6inwidth - T10 Skive",
+ "crv": "../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Noodle - Aquamentor Style/Noodle 4# Octagonal Carole/carole octagonal noodle 60in prototype/01 - carole octagonal noodle 60in prototype test cut 2.6inwidth/carole octagonal noodle 60in prototype test cut 2.6inwidth.crv3d",
+ "vectric": "../../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Noodle - Aquamentor Style/Noodle 4# Octagonal Carole/carole octagonal noodle 60in prototype/01 - carole octagonal noodle 60in prototype test cut 2.6inwidth/carole octagonal noodle 60in prototype test cut 2.6inwidth - T10 Skive.tap",
+ "out": "carole octagonal noodle 60in prototype test cut 2.6inwidth - T10 Skive-aq.tap",
+ "complete": false,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 10,
+   "toolDia": 0.875,
+   "rpm": 18000,
+   "feed": 200,
+   "plunge": 25,
+   "cutDepth": 0.01,
+   "passDepth": 0.01,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "carole octagonal noodle 60in prototype test cut 2.6inwidth - T10 Skive T10 profile inside",
+   "select": [
+    [
+     "Layer 1",
+     2
+    ]
+   ]
+  }
+ ],
+ "unmatched": [
+  {
+   "tool": 10,
+   "pass": 0,
+   "why": "no vector at constant offset (best spread 5.1)",
+   "bbox": [
+    0.651,
+    0.5009,
+    11.151,
+    60.3626
+   ]
+  }
+ ]
+}

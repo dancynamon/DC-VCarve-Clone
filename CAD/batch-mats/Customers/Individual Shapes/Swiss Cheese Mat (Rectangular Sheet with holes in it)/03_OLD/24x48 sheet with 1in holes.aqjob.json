@@ -1,0 +1,132 @@
+{
+ "name": "24x48 sheet with 1in holes",
+ "crv": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Swiss Cheese Mat (Rectangular Sheet with holes in it)/03_OLD/24x48 sheet with 1in holes.crv",
+ "vectric": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Swiss Cheese Mat (Rectangular Sheet with holes in it)/03_OLD/24x48 sheet with 1in holes.tap",
+ "out": "24x48 sheet with 1in holes-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "stepover": 0.38,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 20,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "label": "24x48 sheet with 1in holes T2 pocket",
+   "select": [
+    [
+     "Holes 6\" apart",
+     0
+    ],
+    [
+     "Holes 6\" apart",
+     1
+    ],
+    [
+     "Holes 6\" apart",
+     2
+    ],
+    [
+     "Holes 6\" apart",
+     3
+    ],
+    [
+     "Holes 6\" apart",
+     4
+    ],
+    [
+     "Holes 6\" apart",
+     5
+    ],
+    [
+     "Holes 6\" apart",
+     6
+    ],
+    [
+     "Holes 6\" apart",
+     7
+    ],
+    [
+     "Holes 6\" apart",
+     8
+    ],
+    [
+     "Holes 6\" apart",
+     9
+    ],
+    [
+     "Holes 6\" apart",
+     10
+    ],
+    [
+     "Holes 6\" apart",
+     11
+    ],
+    [
+     "Holes 6\" apart",
+     12
+    ],
+    [
+     "Holes 6\" apart",
+     13
+    ],
+    [
+     "Holes 6\" apart",
+     14
+    ],
+    [
+     "Holes 6\" apart",
+     15
+    ],
+    [
+     "Holes 6\" apart",
+     16
+    ],
+    [
+     "Holes 6\" apart",
+     17
+    ],
+    [
+     "Holes 6\" apart",
+     18
+    ],
+    [
+     "Holes 6\" apart",
+     19
+    ],
+    [
+     "Holes 6\" apart",
+     20
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 20,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "24x48 sheet with 1in holes T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     0
+    ]
+   ]
+  }
+ ]
+}

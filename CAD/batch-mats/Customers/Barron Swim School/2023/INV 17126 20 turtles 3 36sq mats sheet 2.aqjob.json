@@ -1,0 +1,242 @@
+{
+ "name": "INV 17126 20 turtles 3 36sq mats sheet 2",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Barron Swim School/2023/INV 17126 20 turtles 3 36sq mats.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Barron Swim School/2023/INV 17126 20 turtles 3 36sq mats sheet 2.tap",
+ "out": "INV 17126 20 turtles 3 36sq mats sheet 2-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "INV 17126 20 turtles 3 36sq mats sheet 2 T2 profile inside",
+   "select": [
+    [
+     "Pocket",
+     4
+    ],
+    [
+     "Pocket",
+     5
+    ],
+    [
+     "Pocket",
+     18
+    ],
+    [
+     "Pocket",
+     19
+    ],
+    [
+     "Pocket",
+     22
+    ],
+    [
+     "Pocket",
+     23
+    ],
+    [
+     "Pocket",
+     26
+    ],
+    [
+     "Pocket",
+     27
+    ],
+    [
+     "Pocket",
+     30
+    ],
+    [
+     "Pocket",
+     31
+    ],
+    [
+     "Pocket",
+     33
+    ],
+    [
+     "Pocket",
+     32
+    ],
+    [
+     "Pocket",
+     29
+    ],
+    [
+     "Pocket",
+     28
+    ],
+    [
+     "Pocket",
+     25
+    ],
+    [
+     "Pocket",
+     24
+    ],
+    [
+     "Pocket",
+     21
+    ],
+    [
+     "Pocket",
+     20
+    ],
+    [
+     "Pocket",
+     7
+    ],
+    [
+     "Pocket",
+     6
+    ],
+    [
+     "Pocket",
+     10
+    ],
+    [
+     "Pocket",
+     11
+    ],
+    [
+     "Pocket",
+     13
+    ],
+    [
+     "Pocket",
+     12
+    ],
+    [
+     "Pocket",
+     14
+    ],
+    [
+     "Pocket",
+     15
+    ],
+    [
+     "Pocket",
+     17
+    ],
+    [
+     "Pocket",
+     16
+    ],
+    [
+     "Pocket",
+     8
+    ],
+    [
+     "Pocket",
+     9
+    ],
+    [
+     "Pocket",
+     3
+    ],
+    [
+     "Pocket",
+     2
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "INV 17126 20 turtles 3 36sq mats sheet 2 T2 profile outside",
+   "select": [
+    [
+     "Profile",
+     7
+    ],
+    [
+     "Profile",
+     1
+    ],
+    [
+     "Profile",
+     8
+    ],
+    [
+     "Profile",
+     9
+    ],
+    [
+     "Profile",
+     3
+    ],
+    [
+     "Profile",
+     14
+    ],
+    [
+     "Profile",
+     10
+    ],
+    [
+     "Profile",
+     11
+    ],
+    [
+     "Profile",
+     16
+    ],
+    [
+     "Profile",
+     18
+    ],
+    [
+     "Profile",
+     12
+    ],
+    [
+     "Profile",
+     20
+    ],
+    [
+     "Profile",
+     19
+    ],
+    [
+     "Profile",
+     17
+    ],
+    [
+     "Profile",
+     15
+    ],
+    [
+     "Profile",
+     13
+    ],
+    [
+     "Profile",
+     2
+    ]
+   ]
+  }
+ ]
+}

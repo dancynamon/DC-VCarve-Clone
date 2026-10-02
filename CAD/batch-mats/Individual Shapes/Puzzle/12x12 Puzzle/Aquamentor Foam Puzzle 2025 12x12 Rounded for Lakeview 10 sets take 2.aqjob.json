@@ -1,0 +1,490 @@
+{
+ "name": "Aquamentor Foam Puzzle 2025 12x12 Rounded for Lakeview 10 sets take 2",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Puzzle/12x12 Puzzle/Aquamentor Foam Puzzle 2025 12x12 Rounded for Lakeview 10 sets take 2.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Puzzle/12x12 Puzzle/Aquamentor Foam Puzzle 2025 12x12 Rounded for Lakeview 10 sets take 2.tap",
+ "out": "Aquamentor Foam Puzzle 2025 12x12 Rounded for Lakeview 10 sets take 2-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "right",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 30,
+   "cutDepth": 0.1,
+   "passDepth": 0.1,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Aquamentor Foam Puzzle 2025 12x12 Rounded for Lakeview 10 sets take 2 T2 profile right",
+   "select": [
+    [
+     "1,0",
+     59
+    ],
+    [
+     "1,0",
+     55
+    ],
+    [
+     "1,0",
+     58
+    ],
+    [
+     "1,0",
+     56
+    ],
+    [
+     "1,0",
+     57
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Aquamentor Foam Puzzle 2025 12x12 Rounded for Lakeview 10 sets take 2 T2 profile outside",
+   "select": [
+    [
+     "1,0",
+     5
+    ],
+    [
+     "1,0",
+     6
+    ],
+    [
+     "1,0",
+     7
+    ],
+    [
+     "1,0",
+     8
+    ],
+    [
+     "1,0",
+     9
+    ],
+    [
+     "1,0",
+     10
+    ],
+    [
+     "1,0",
+     11
+    ],
+    [
+     "1,0",
+     12
+    ],
+    [
+     "1,0",
+     13
+    ],
+    [
+     "1,0",
+     22
+    ],
+    [
+     "Layer 1",
+     10
+    ],
+    [
+     "1,0",
+     21
+    ],
+    [
+     "Layer 1",
+     9
+    ],
+    [
+     "1,0",
+     20
+    ],
+    [
+     "Layer 1",
+     8
+    ],
+    [
+     "1,0",
+     19
+    ],
+    [
+     "1,0",
+     18
+    ],
+    [
+     "Layer 1",
+     7
+    ],
+    [
+     "1,0",
+     17
+    ],
+    [
+     "Layer 1",
+     6
+    ],
+    [
+     "1,0",
+     16
+    ],
+    [
+     "Layer 1",
+     5
+    ],
+    [
+     "1,0",
+     15
+    ],
+    [
+     "Layer 1",
+     4
+    ],
+    [
+     "1,0",
+     14
+    ],
+    [
+     "Layer 1",
+     11
+    ],
+    [
+     "Layer 1",
+     12
+    ],
+    [
+     "Layer 1",
+     13
+    ],
+    [
+     "Layer 1",
+     14
+    ],
+    [
+     "Layer 1",
+     15
+    ],
+    [
+     "Layer 1",
+     16
+    ],
+    [
+     "Layer 1",
+     17
+    ],
+    [
+     "Layer 1",
+     18
+    ],
+    [
+     "Layer 1",
+     19
+    ],
+    [
+     "Layer 1",
+     28
+    ],
+    [
+     "Layer 1",
+     27
+    ],
+    [
+     "Layer 1",
+     26
+    ],
+    [
+     "Layer 1",
+     25
+    ],
+    [
+     "Layer 1",
+     24
+    ],
+    [
+     "Layer 1",
+     23
+    ],
+    [
+     "Layer 1",
+     22
+    ],
+    [
+     "Layer 1",
+     21
+    ],
+    [
+     "Layer 1",
+     20
+    ],
+    [
+     "Layer 1",
+     29
+    ],
+    [
+     "1,0",
+     24
+    ],
+    [
+     "1,0",
+     23
+    ],
+    [
+     "1,0",
+     25
+    ],
+    [
+     "Layer 1",
+     30
+    ],
+    [
+     "Layer 1",
+     31
+    ],
+    [
+     "1,0",
+     26
+    ],
+    [
+     "1,0",
+     27
+    ],
+    [
+     "1,0",
+     28
+    ],
+    [
+     "Layer 1",
+     33
+    ],
+    [
+     "Layer 1",
+     32
+    ],
+    [
+     "Layer 1",
+     34
+    ],
+    [
+     "1,0",
+     29
+    ],
+    [
+     "1,0",
+     30
+    ],
+    [
+     "Layer 1",
+     35
+    ],
+    [
+     "Layer 1",
+     36
+    ],
+    [
+     "Layer 1",
+     37
+    ],
+    [
+     "1,0",
+     31
+    ],
+    [
+     "1,0",
+     33
+    ],
+    [
+     "1,0",
+     42
+    ],
+    [
+     "1,0",
+     41
+    ],
+    [
+     "1,0",
+     32
+    ],
+    [
+     "1,0",
+     43
+    ],
+    [
+     "1,0",
+     34
+    ],
+    [
+     "1,0",
+     44
+    ],
+    [
+     "1,0",
+     35
+    ],
+    [
+     "1,0",
+     45
+    ],
+    [
+     "1,0",
+     36
+    ],
+    [
+     "1,0",
+     46
+    ],
+    [
+     "1,0",
+     37
+    ],
+    [
+     "1,0",
+     47
+    ],
+    [
+     "1,0",
+     38
+    ],
+    [
+     "1,0",
+     48
+    ],
+    [
+     "1,0",
+     39
+    ],
+    [
+     "1,0",
+     50
+    ],
+    [
+     "1,0",
+     51
+    ],
+    [
+     "1,0",
+     49
+    ],
+    [
+     "1,0",
+     40
+    ],
+    [
+     "Layer 1",
+     43
+    ],
+    [
+     "Layer 1",
+     42
+    ],
+    [
+     "1,0",
+     53
+    ],
+    [
+     "1,0",
+     52
+    ],
+    [
+     "Layer 1",
+     41
+    ],
+    [
+     "Layer 1",
+     57
+    ],
+    [
+     "Layer 1",
+     40
+    ],
+    [
+     "Layer 1",
+     39
+    ],
+    [
+     "Layer 1",
+     38
+    ],
+    [
+     "Layer 1",
+     59
+    ],
+    [
+     "Layer 1",
+     47
+    ],
+    [
+     "Layer 1",
+     45
+    ],
+    [
+     "Layer 1",
+     50
+    ],
+    [
+     "Layer 1",
+     58
+    ],
+    [
+     "Layer 1",
+     48
+    ],
+    [
+     "1,0",
+     54
+    ],
+    [
+     "Layer 1",
+     56
+    ],
+    [
+     "Layer 1",
+     53
+    ],
+    [
+     "Layer 1",
+     55
+    ],
+    [
+     "Layer 1",
+     52
+    ],
+    [
+     "Layer 1",
+     49
+    ],
+    [
+     "Layer 1",
+     46
+    ],
+    [
+     "Layer 1",
+     54
+    ],
+    [
+     "Layer 1",
+     44
+    ],
+    [
+     "Layer 1",
+     51
+    ]
+   ]
+  }
+ ]
+}

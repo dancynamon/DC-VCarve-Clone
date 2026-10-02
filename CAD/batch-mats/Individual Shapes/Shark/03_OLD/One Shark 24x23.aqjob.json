@@ -1,0 +1,102 @@
+{
+ "name": "One Shark 24x23",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Shark/03_OLD/Shark 24x23.crv",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Shark/03_OLD/One Shark 24x23.tap",
+ "out": "One Shark 24x23-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 5,
+   "toolDia": 0.125,
+   "rpm": 12000,
+   "feed": 40,
+   "plunge": 40,
+   "cutDepth": 0.1,
+   "passDepth": 0.1,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "One Shark 24x23 T5 profile on",
+   "select": [
+    [
+     "Engrave",
+     0
+    ],
+    [
+     "Engrave",
+     7
+    ],
+    [
+     "Engrave",
+     6
+    ],
+    [
+     "Engrave",
+     5
+    ],
+    [
+     "Engrave",
+     4
+    ],
+    [
+     "Engrave",
+     3
+    ],
+    [
+     "Engrave",
+     2
+    ],
+    [
+     "Engrave",
+     1
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "stepover": 0.5,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 20,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "label": "One Shark 24x23 T2 pocket",
+   "select": [
+    [
+     "Pocket",
+     0
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 20,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "One Shark 24x23 T2 profile outside",
+   "select": [
+    [
+     "Profile",
+     0
+    ]
+   ]
+  }
+ ]
+}

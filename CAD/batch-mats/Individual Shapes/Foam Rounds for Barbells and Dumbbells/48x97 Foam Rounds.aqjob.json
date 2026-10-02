@@ -1,0 +1,563 @@
+{
+ "name": "48x97 Foam Rounds",
+ "crv": "../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Foam Rounds for Barbells and Dumbbells/48x97 Foam Rounds.crv3d",
+ "vectric": "../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Foam Rounds for Barbells and Dumbbells/48x97 Foam Rounds.tap",
+ "out": "48x97 Foam Rounds-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 7,
+   "toolDia": 0.5,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 2.5,
+   "passDepth": 1.25,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "48x97 Foam Rounds T7 profile inside",
+   "select": [
+    [
+     "ID Pocket",
+     0
+    ],
+    [
+     "ID Pocket",
+     1
+    ],
+    [
+     "ID Pocket",
+     2
+    ],
+    [
+     "ID Pocket",
+     3
+    ],
+    [
+     "ID Pocket",
+     4
+    ],
+    [
+     "ID Pocket",
+     5
+    ],
+    [
+     "ID Pocket",
+     6
+    ],
+    [
+     "ID Pocket",
+     7
+    ],
+    [
+     "ID Pocket",
+     8
+    ],
+    [
+     "ID Pocket",
+     9
+    ],
+    [
+     "ID Pocket",
+     10
+    ],
+    [
+     "ID Pocket",
+     11
+    ],
+    [
+     "ID Pocket",
+     12
+    ],
+    [
+     "ID Pocket",
+     13
+    ],
+    [
+     "ID Pocket",
+     14
+    ],
+    [
+     "ID Pocket",
+     28
+    ],
+    [
+     "ID Pocket",
+     27
+    ],
+    [
+     "ID Pocket",
+     26
+    ],
+    [
+     "ID Pocket",
+     25
+    ],
+    [
+     "ID Pocket",
+     24
+    ],
+    [
+     "ID Pocket",
+     23
+    ],
+    [
+     "ID Pocket",
+     22
+    ],
+    [
+     "ID Pocket",
+     21
+    ],
+    [
+     "ID Pocket",
+     20
+    ],
+    [
+     "ID Pocket",
+     19
+    ],
+    [
+     "ID Pocket",
+     18
+    ],
+    [
+     "ID Pocket",
+     17
+    ],
+    [
+     "ID Pocket",
+     16
+    ],
+    [
+     "ID Pocket",
+     15
+    ],
+    [
+     "ID Pocket",
+     31
+    ],
+    [
+     "ID Pocket",
+     32
+    ],
+    [
+     "ID Pocket",
+     33
+    ],
+    [
+     "ID Pocket",
+     34
+    ],
+    [
+     "ID Pocket",
+     35
+    ],
+    [
+     "ID Pocket",
+     36
+    ],
+    [
+     "ID Pocket",
+     37
+    ],
+    [
+     "ID Pocket",
+     38
+    ],
+    [
+     "ID Pocket",
+     39
+    ],
+    [
+     "ID Pocket",
+     40
+    ],
+    [
+     "ID Pocket",
+     41
+    ],
+    [
+     "ID Pocket",
+     42
+    ],
+    [
+     "ID Pocket",
+     43
+    ],
+    [
+     "ID Pocket",
+     44
+    ],
+    [
+     "ID Pocket",
+     58
+    ],
+    [
+     "ID Pocket",
+     57
+    ],
+    [
+     "ID Pocket",
+     56
+    ],
+    [
+     "ID Pocket",
+     55
+    ],
+    [
+     "ID Pocket",
+     54
+    ],
+    [
+     "ID Pocket",
+     53
+    ],
+    [
+     "ID Pocket",
+     52
+    ],
+    [
+     "ID Pocket",
+     51
+    ],
+    [
+     "ID Pocket",
+     50
+    ],
+    [
+     "ID Pocket",
+     49
+    ],
+    [
+     "ID Pocket",
+     48
+    ],
+    [
+     "ID Pocket",
+     47
+    ],
+    [
+     "ID Pocket",
+     46
+    ],
+    [
+     "ID Pocket",
+     45
+    ],
+    [
+     "ID Pocket",
+     30
+    ],
+    [
+     "ID Pocket",
+     60
+    ],
+    [
+     "ID Pocket",
+     61
+    ],
+    [
+     "ID Pocket",
+     62
+    ],
+    [
+     "ID Pocket",
+     63
+    ],
+    [
+     "ID Pocket",
+     64
+    ],
+    [
+     "ID Pocket",
+     65
+    ],
+    [
+     "ID Pocket",
+     66
+    ],
+    [
+     "ID Pocket",
+     67
+    ],
+    [
+     "ID Pocket",
+     68
+    ],
+    [
+     "ID Pocket",
+     69
+    ],
+    [
+     "ID Pocket",
+     70
+    ],
+    [
+     "ID Pocket",
+     71
+    ],
+    [
+     "ID Pocket",
+     72
+    ],
+    [
+     "ID Pocket",
+     73
+    ],
+    [
+     "ID Pocket",
+     74
+    ],
+    [
+     "ID Pocket",
+     88
+    ],
+    [
+     "ID Pocket",
+     87
+    ],
+    [
+     "ID Pocket",
+     86
+    ],
+    [
+     "ID Pocket",
+     85
+    ],
+    [
+     "ID Pocket",
+     84
+    ],
+    [
+     "ID Pocket",
+     83
+    ],
+    [
+     "ID Pocket",
+     82
+    ],
+    [
+     "ID Pocket",
+     81
+    ],
+    [
+     "ID Pocket",
+     80
+    ],
+    [
+     "ID Pocket",
+     79
+    ],
+    [
+     "ID Pocket",
+     78
+    ],
+    [
+     "ID Pocket",
+     77
+    ],
+    [
+     "ID Pocket",
+     76
+    ],
+    [
+     "ID Pocket",
+     75
+    ],
+    [
+     "ID Pocket",
+     90
+    ],
+    [
+     "ID Pocket",
+     91
+    ],
+    [
+     "ID Pocket",
+     92
+    ],
+    [
+     "ID Pocket",
+     93
+    ],
+    [
+     "ID Pocket",
+     94
+    ],
+    [
+     "ID Pocket",
+     95
+    ],
+    [
+     "ID Pocket",
+     96
+    ],
+    [
+     "ID Pocket",
+     97
+    ],
+    [
+     "ID Pocket",
+     98
+    ],
+    [
+     "ID Pocket",
+     99
+    ],
+    [
+     "ID Pocket",
+     100
+    ],
+    [
+     "ID Pocket",
+     101
+    ],
+    [
+     "ID Pocket",
+     102
+    ],
+    [
+     "ID Pocket",
+     103
+    ],
+    [
+     "ID Pocket",
+     104
+    ],
+    [
+     "ID Pocket",
+     118
+    ],
+    [
+     "ID Pocket",
+     117
+    ],
+    [
+     "ID Pocket",
+     116
+    ],
+    [
+     "ID Pocket",
+     115
+    ],
+    [
+     "ID Pocket",
+     114
+    ],
+    [
+     "ID Pocket",
+     113
+    ],
+    [
+     "ID Pocket",
+     112
+    ],
+    [
+     "ID Pocket",
+     111
+    ],
+    [
+     "ID Pocket",
+     110
+    ],
+    [
+     "ID Pocket",
+     109
+    ],
+    [
+     "ID Pocket",
+     108
+    ],
+    [
+     "ID Pocket",
+     107
+    ],
+    [
+     "ID Pocket",
+     106
+    ],
+    [
+     "ID Pocket",
+     105
+    ],
+    [
+     "ID Pocket",
+     119
+    ],
+    [
+     "ID Pocket",
+     89
+    ],
+    [
+     "ID Pocket",
+     59
+    ],
+    [
+     "ID Pocket",
+     29
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 25,
+   "cutDepth": 2.5,
+   "passDepth": 1.25,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 30,
+    "length": 0.5347,
+    "height": 0.0125
+   },
+   "label": "48x97 Foam Rounds T2 profile on",
+   "select": [
+    [
+     "OD Profile",
+     0
+    ],
+    [
+     "OD Profile",
+     1
+    ],
+    [
+     "OD Profile",
+     2
+    ],
+    [
+     "OD Profile",
+     3
+    ],
+    [
+     "OD Profile",
+     4
+    ],
+    [
+     "OD Profile",
+     5
+    ],
+    [
+     "OD Profile",
+     6
+    ],
+    [
+     "OD Profile",
+     7
+    ]
+   ]
+  }
+ ]
+}

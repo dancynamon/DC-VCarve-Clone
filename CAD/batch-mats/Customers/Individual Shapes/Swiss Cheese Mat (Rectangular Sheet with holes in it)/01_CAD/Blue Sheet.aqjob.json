@@ -1,0 +1,332 @@
+{
+ "name": "Blue Sheet",
+ "crv": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Swiss Cheese Mat (Rectangular Sheet with holes in it)/01_CAD/Swiss Cheese Mat 48x24.crv3d",
+ "vectric": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Swiss Cheese Mat (Rectangular Sheet with holes in it)/01_CAD/Blue Sheet.tap",
+ "out": "Blue Sheet-aq.tap",
+ "complete": false,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "stepover": 0.5,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "label": "Blue Sheet T2 pocket",
+   "select": [
+    [
+     "Holes 6\" apart",
+     7
+    ],
+    [
+     "Holes 6\" apart",
+     6
+    ],
+    [
+     "Holes 6\" apart",
+     5
+    ],
+    [
+     "Holes 6\" apart",
+     4
+    ],
+    [
+     "Holes 6\" apart",
+     3
+    ],
+    [
+     "Holes 6\" apart",
+     2
+    ],
+    [
+     "Holes 6\" apart",
+     1
+    ],
+    [
+     "Holes 6\" apart",
+     0
+    ],
+    [
+     "Holes 6\" apart",
+     13
+    ],
+    [
+     "Holes 6\" apart",
+     12
+    ],
+    [
+     "Holes 6\" apart",
+     11
+    ],
+    [
+     "Holes 6\" apart",
+     10
+    ],
+    [
+     "Holes 6\" apart",
+     9
+    ],
+    [
+     "Holes 6\" apart",
+     8
+    ],
+    [
+     "Holes 6\" apart",
+     14
+    ],
+    [
+     "Holes 6\" apart",
+     15
+    ],
+    [
+     "Holes 6\" apart",
+     16
+    ],
+    [
+     "Holes 6\" apart",
+     17
+    ],
+    [
+     "Holes 6\" apart",
+     18
+    ],
+    [
+     "Holes 6\" apart",
+     19
+    ],
+    [
+     "Holes 6\" apart",
+     20
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Blue Sheet T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     0
+    ]
+   ]
+  }
+ ],
+ "unmatched": [
+  {
+   "tool": 5,
+   "pass": 0,
+   "why": "no vector at constant offset (best spread 0.6752)",
+   "bbox": [
+    16.9696,
+    29.0207,
+    19.3915,
+    30.1487
+   ]
+  },
+  {
+   "tool": 5,
+   "pass": 1,
+   "why": "no vector at constant offset (best spread 1.8162)",
+   "bbox": [
+    16.4366,
+    30.8029,
+    19.9283,
+    32.6432
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 14,
+   "why": "no vector at constant offset (best spread 0.2911)",
+   "bbox": [
+    17.1722,
+    31.3438,
+    17.4096,
+    32.1081
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 15,
+   "why": "no vector at constant offset (best spread 0.2911)",
+   "bbox": [
+    18.9073,
+    31.3415,
+    19.1446,
+    32.1059
+   ]
+  },
+  {
+   "tool": 2,
+   "pass": 24,
+   "why": "no vector at constant offset (best spread 6.8557)",
+   "bbox": [
+    10.3097,
+    23.9758,
+    26.0594,
+    39.7256
+   ]
+  },
+  {
+   "tool": 1,
+   "pass": 0,
+   "why": "no vector at constant offset (best spread 9.4754)",
+   "bbox": [
+    0.135,
+    39.09,
+    12.185,
+    59.34
+   ]
+  },
+  {
+   "tool": 1,
+   "pass": 1,
+   "why": "no vector at constant offset (best spread 9.6816)",
+   "bbox": [
+    12.195,
+    39.09,
+    24.245,
+    59.34
+   ]
+  },
+  {
+   "tool": 1,
+   "pass": 2,
+   "why": "no vector at constant offset (best spread 6.5843)",
+   "bbox": [
+    12.195,
+    57.6332,
+    24.245,
+    77.8833
+   ]
+  },
+  {
+   "tool": 1,
+   "pass": 3,
+   "why": "no vector at constant offset (best spread 6.4539)",
+   "bbox": [
+    0.135,
+    57.6333,
+    12.185,
+    77.8833
+   ]
+  },
+  {
+   "tool": 1,
+   "pass": 4,
+   "why": "no vector at constant offset (best spread 7.709)",
+   "bbox": [
+    0.135,
+    76.1765,
+    12.185,
+    96.4266
+   ]
+  },
+  {
+   "tool": 1,
+   "pass": 5,
+   "why": "no vector at constant offset (best spread 7.7085)",
+   "bbox": [
+    12.195,
+    76.1766,
+    24.245,
+    96.4266
+   ]
+  },
+  {
+   "tool": 1,
+   "pass": 6,
+   "why": "no vector at constant offset (best spread 7.7122)",
+   "bbox": [
+    24.255,
+    76.1766,
+    36.305,
+    96.4266
+   ]
+  },
+  {
+   "tool": 1,
+   "pass": 7,
+   "why": "no vector at constant offset (best spread 7.7157)",
+   "bbox": [
+    36.315,
+    76.1766,
+    48.365,
+    96.4266
+   ]
+  },
+  {
+   "tool": 1,
+   "pass": 8,
+   "why": "no vector at constant offset (best spread 6.9721)",
+   "bbox": [
+    36.315,
+    57.6333,
+    48.365,
+    77.8833
+   ]
+  },
+  {
+   "tool": 1,
+   "pass": 9,
+   "why": "no vector at constant offset (best spread 9.1317)",
+   "bbox": [
+    36.315,
+    39.09,
+    48.365,
+    59.34
+   ]
+  },
+  {
+   "tool": 1,
+   "pass": 10,
+   "why": "no vector at constant offset (best spread 9.8314)",
+   "bbox": [
+    24.255,
+    39.09,
+    36.305,
+    59.34
+   ]
+  },
+  {
+   "tool": 1,
+   "pass": 11,
+   "why": "no vector at constant offset (best spread 6.7752)",
+   "bbox": [
+    24.255,
+    57.6333,
+    36.305,
+    77.8833
+   ]
+  },
+  {
+   "tool": 1,
+   "pass": 12,
+   "why": "no vector at constant offset (best spread 8.6227)",
+   "bbox": [
+    26.6221,
+    25.6628,
+    46.8721,
+    37.7128
+   ]
+  }
+ ]
+}

@@ -1,0 +1,60 @@
+{
+ "name": "T2 Profile X0Y0-X1Y3",
+ "crv": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Swim Angelfish/Foam Stopsign for Swim Angelfish/T2 Profile 1 2 3 4 8 F90/T2 Profile 1 2 3 4 8 F90.crv3d",
+ "vectric": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Swim Angelfish/Foam Stopsign for Swim Angelfish/T2 Profile 1 2 3 4 8 F90/T2 Profile X0Y0-X1Y3.tap",
+ "out": "T2 Profile X0Y0-X1Y3-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 35,
+   "plunge": 25,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "T2 Profile X0Y0-X1Y3 T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     0
+    ],
+    [
+     "Layer 1",
+     4
+    ],
+    [
+     "Layer 1",
+     5
+    ],
+    [
+     "Layer 1",
+     1
+    ],
+    [
+     "Layer 1",
+     2
+    ],
+    [
+     "Layer 1",
+     6
+    ],
+    [
+     "Layer 1",
+     7
+    ],
+    [
+     "Layer 1",
+     33
+    ]
+   ]
+  }
+ ]
+}

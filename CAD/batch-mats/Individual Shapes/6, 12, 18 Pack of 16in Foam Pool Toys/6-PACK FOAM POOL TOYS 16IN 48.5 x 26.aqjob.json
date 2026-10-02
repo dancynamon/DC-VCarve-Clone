@@ -1,0 +1,200 @@
+{
+ "name": "6-PACK FOAM POOL TOYS 16IN 48.5 x 26",
+ "crv": "../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/6, 12, 18 Pack of 16in Foam Pool Toys/6-PACK FOAM POOL TOYS 16IN 48.5 x 26.crv3d",
+ "vectric": "../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/6, 12, 18 Pack of 16in Foam Pool Toys/6-PACK FOAM POOL TOYS 16IN 48.5 x 26.tap",
+ "out": "6-PACK FOAM POOL TOYS 16IN 48.5 x 26-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 5,
+   "toolDia": 0.125,
+   "rpm": 12000,
+   "feed": 40,
+   "plunge": 15,
+   "cutDepth": 0.1,
+   "passDepth": 0.05,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "6-PACK FOAM POOL TOYS 16IN 48.5 x 26 T5 profile on",
+   "select": [
+    [
+     "Engrave",
+     0
+    ],
+    [
+     "Engrave",
+     1
+    ],
+    [
+     "Engrave",
+     2
+    ],
+    [
+     "Engrave",
+     3
+    ],
+    [
+     "Engrave",
+     4
+    ],
+    [
+     "Engrave",
+     5
+    ],
+    [
+     "Engrave",
+     20
+    ],
+    [
+     "Engrave",
+     19
+    ],
+    [
+     "Engrave",
+     17
+    ],
+    [
+     "Engrave",
+     18
+    ],
+    [
+     "Engrave",
+     7
+    ],
+    [
+     "Engrave",
+     12
+    ],
+    [
+     "Engrave",
+     14
+    ],
+    [
+     "Engrave",
+     13
+    ],
+    [
+     "Engrave",
+     15
+    ],
+    [
+     "Engrave",
+     16
+    ],
+    [
+     "Engrave",
+     23
+    ],
+    [
+     "Engrave",
+     22
+    ],
+    [
+     "Engrave",
+     8
+    ],
+    [
+     "Engrave",
+     10
+    ],
+    [
+     "Engrave",
+     9
+    ],
+    [
+     "Engrave",
+     24
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "6-PACK FOAM POOL TOYS 16IN 48.5 x 26 T2 profile inside",
+   "select": [
+    [
+     "Pocket",
+     0
+    ],
+    [
+     "Pocket",
+     3
+    ],
+    [
+     "Pocket",
+     2
+    ],
+    [
+     "Pocket",
+     4
+    ],
+    [
+     "Pocket",
+     7
+    ],
+    [
+     "Pocket",
+     5
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "6-PACK FOAM POOL TOYS 16IN 48.5 x 26 T2 profile outside",
+   "select": [
+    [
+     "Profile",
+     0
+    ],
+    [
+     "Profile",
+     1
+    ],
+    [
+     "Profile",
+     5
+    ],
+    [
+     "Profile",
+     4
+    ],
+    [
+     "Profile",
+     2
+    ],
+    [
+     "Profile",
+     3
+    ]
+   ]
+  }
+ ]
+}

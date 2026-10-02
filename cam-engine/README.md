@@ -175,6 +175,20 @@ Edit `camcore.js`, run `node test.js` (keep it green), then re-embed into the HT
 opentype + camcore + cadcore + dxfparse + the app). Ask Claude to "rebuild the
 CAD/CAM HTML from cam-engine."
 
+## VCarve library → our G-code (no VCarve): `tap2spec` · `tapcompare` · `batch`
+- `node cam-engine/batch.js "<VCarve folder>" --outdir CAD/batch-x --recursive --resume --budget 140` — for every Vectric
+  `.tap`: pair it with the `.crv/.crv3d` that explains it (same folder, else parent), recover the recipe (`tap2spec.js`:
+  tool, side, diameter from the measured offset, depths/pass depth, climb/conventional, leads, tabs, offset pockets with
+  stepover, drills), re-post it straight from the CRV (`repost.js` specs now take `"crv"`), compare to Vectric's cut
+  (`tapcompare.js`), and write `-aq-AIRCUT.tap` for every PASS. `report.md/json` per run; `--resume` continues.
+- **Gate (`tapcompare.js`)**: material-level, 0.005". Every Vectric cut point must be removed by ours and vice versa,
+  judged with the tool's radius (`shoptools.json`, else the diameter measured from the job), so pocket ring order or
+  arc-vs-line output pass and a moved wall, missing tab, extra pass or overcut fail. Where Vectric's own chord sags off
+  the CRV offset and ours is on it, the job passes with a "Vectric chord error" note. `taptest.js` holds the must-fail cases.
+- Unsupported (reported PARTIAL): 3D/ramped roundover passes (T10 surfacing), raster clearing, V-carve recovery.
+- Engine fixes found by this: on-the-line cut of a closed vector skipped its closing edge; arc fit could bow 0.01" across
+  a long straight run (`ARC_UNEVEN_SAG`).
+
 ## `.crv` / `.crv3d` import (VCarve / Aspire)
 Open / Import (and the native picker, and drag-drop) accept `.crv` and `.crv3d`. `handleOpenedFile` routes them to
 `importCRV(name, arrayBuffer)`, which calls **`CRVPARSE.toShapes(bytes, {tol})`** from `cam-engine/crvparse.js` — the

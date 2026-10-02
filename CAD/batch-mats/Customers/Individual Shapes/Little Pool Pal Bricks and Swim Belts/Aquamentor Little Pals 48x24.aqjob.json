@@ -1,0 +1,299 @@
+{
+ "name": "Aquamentor Little Pals 48x24",
+ "crv": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Little Pool Pal Bricks and Swim Belts/Aquamentor Little Pals 48x24.crv3d",
+ "vectric": "../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Little Pool Pal Bricks and Swim Belts/Aquamentor Little Pals 48x24.tap",
+ "out": "Aquamentor Little Pals 48x24-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 5,
+   "toolDia": 0.125,
+   "rpm": 10000,
+   "feed": 50,
+   "plunge": 30,
+   "cutDepth": 0.08,
+   "passDepth": 0.08,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Aquamentor Little Pals 48x24 T5 profile on",
+   "select": [
+    [
+     "Engrave",
+     4
+    ],
+    [
+     "Engrave",
+     11
+    ],
+    [
+     "Engrave",
+     10
+    ],
+    [
+     "Engrave",
+     7
+    ],
+    [
+     "Engrave",
+     6
+    ],
+    [
+     "Engrave",
+     2
+    ],
+    [
+     "Engrave",
+     0
+    ],
+    [
+     "Engrave",
+     5
+    ],
+    [
+     "Engrave",
+     9
+    ],
+    [
+     "Engrave",
+     8
+    ],
+    [
+     "Engrave",
+     1
+    ],
+    [
+     "Engrave",
+     3
+    ],
+    [
+     "Engrave",
+     13
+    ],
+    [
+     "Engrave",
+     12
+    ],
+    [
+     "Engrave",
+     16
+    ],
+    [
+     "Engrave",
+     17
+    ],
+    [
+     "Engrave",
+     15
+    ],
+    [
+     "Engrave",
+     14
+    ]
+   ]
+  },
+  {
+   "op": "drill",
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "clearZ": 0.2,
+   "label": "Aquamentor Little Pals 48x24 T2 drill",
+   "select": [
+    [
+     "Drill",
+     0
+    ],
+    [
+     "Drill",
+     5
+    ],
+    [
+     "Drill",
+     1
+    ],
+    [
+     "Drill",
+     8
+    ],
+    [
+     "Drill",
+     12
+    ],
+    [
+     "Drill",
+     13
+    ],
+    [
+     "Drill",
+     20
+    ],
+    [
+     "Drill",
+     21
+    ],
+    [
+     "Drill",
+     23
+    ],
+    [
+     "Drill",
+     22
+    ],
+    [
+     "Drill",
+     11
+    ],
+    [
+     "Drill",
+     15
+    ],
+    [
+     "Drill",
+     14
+    ],
+    [
+     "Drill",
+     7
+    ],
+    [
+     "Drill",
+     9
+    ],
+    [
+     "Drill",
+     19
+    ],
+    [
+     "Drill",
+     18
+    ],
+    [
+     "Drill",
+     4
+    ],
+    [
+     "Drill",
+     3
+    ],
+    [
+     "Drill",
+     6
+    ],
+    [
+     "Drill",
+     2
+    ],
+    [
+     "Drill",
+     16
+    ],
+    [
+     "Drill",
+     17
+    ],
+    [
+     "Drill",
+     10
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Aquamentor Little Pals 48x24 T2 profile outside",
+   "select": [
+    [
+     "Profile",
+     0
+    ],
+    [
+     "Profile",
+     1
+    ],
+    [
+     "Profile",
+     8
+    ],
+    [
+     "Profile",
+     2
+    ],
+    [
+     "Profile",
+     6
+    ],
+    [
+     "Profile",
+     3
+    ],
+    [
+     "Profile",
+     7
+    ],
+    [
+     "Profile",
+     4
+    ],
+    [
+     "Profile",
+     9
+    ],
+    [
+     "Profile",
+     13
+    ],
+    [
+     "Profile",
+     15
+    ],
+    [
+     "Profile",
+     17
+    ],
+    [
+     "Profile",
+     11
+    ],
+    [
+     "Profile",
+     16
+    ],
+    [
+     "Profile",
+     12
+    ],
+    [
+     "Profile",
+     5
+    ],
+    [
+     "Profile",
+     14
+    ],
+    [
+     "Profile",
+     10
+    ]
+   ]
+  }
+ ]
+}

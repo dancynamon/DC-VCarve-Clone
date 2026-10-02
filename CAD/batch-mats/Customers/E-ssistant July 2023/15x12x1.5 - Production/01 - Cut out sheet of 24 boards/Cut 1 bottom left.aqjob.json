@@ -1,0 +1,32 @@
+{
+ "name": "Cut 1 bottom left",
+ "crv": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/E-ssistant July 2023/15x12x1.5 - Production/01 - Cut out sheet of 24 boards/15x12x1.5 48x96 sheet.crv3d",
+ "vectric": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/E-ssistant July 2023/15x12x1.5 - Production/01 - Cut out sheet of 24 boards/Cut 1 bottom left.tap",
+ "out": "Cut 1 bottom left-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 1,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 80,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Cut 1 bottom left T1 profile outside",
+   "select": [
+    [
+     "11.8x20",
+     0
+    ]
+   ]
+  }
+ ]
+}

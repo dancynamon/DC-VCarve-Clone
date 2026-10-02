@@ -1,0 +1,218 @@
+{
+ "name": "72x36 Train plus 13 Turtles",
+ "crv": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Train/03_OLD/72x36 Train plus 14 Turtles.crv",
+ "vectric": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/Individual Shapes/Train/03_OLD/72x36 Train plus 13 Turtles.tap",
+ "out": "72x36 Train plus 13 Turtles-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "72x36 Train plus 13 Turtles T2 profile inside",
+   "select": [
+    [
+     "Pocket",
+     2
+    ],
+    [
+     "Pocket",
+     3
+    ],
+    [
+     "Pocket",
+     0
+    ],
+    [
+     "Pocket",
+     1
+    ],
+    [
+     "Pocket",
+     4
+    ],
+    [
+     "Pocket",
+     5
+    ],
+    [
+     "Pocket",
+     6
+    ],
+    [
+     "Pocket",
+     7
+    ],
+    [
+     "Pocket",
+     8
+    ],
+    [
+     "Pocket",
+     9
+    ],
+    [
+     "Pocket",
+     10
+    ],
+    [
+     "Pocket",
+     11
+    ],
+    [
+     "Pocket",
+     13
+    ],
+    [
+     "Pocket",
+     12
+    ],
+    [
+     "Pocket",
+     19
+    ],
+    [
+     "Pocket",
+     18
+    ],
+    [
+     "Pocket",
+     22
+    ],
+    [
+     "Pocket",
+     23
+    ],
+    [
+     "Pocket",
+     25
+    ],
+    [
+     "Pocket",
+     24
+    ],
+    [
+     "Pocket",
+     20
+    ],
+    [
+     "Pocket",
+     21
+    ],
+    [
+     "Pocket",
+     16
+    ],
+    [
+     "Pocket",
+     17
+    ],
+    [
+     "Pocket",
+     27
+    ],
+    [
+     "Pocket",
+     26
+    ],
+    [
+     "Pocket",
+     14
+    ],
+    [
+     "Pocket",
+     15
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.475,
+   "passDepth": 1.475,
+   "clearZ": 0.8,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "72x36 Train plus 13 Turtles T2 profile outside",
+   "select": [
+    [
+     "Profile",
+     0
+    ],
+    [
+     "Profile",
+     3
+    ],
+    [
+     "Profile",
+     4
+    ],
+    [
+     "Profile",
+     5
+    ],
+    [
+     "Profile",
+     6
+    ],
+    [
+     "Profile",
+     7
+    ],
+    [
+     "Profile",
+     8
+    ],
+    [
+     "Profile",
+     10
+    ],
+    [
+     "Profile",
+     14
+    ],
+    [
+     "Profile",
+     9
+    ],
+    [
+     "Profile",
+     11
+    ],
+    [
+     "Profile",
+     13
+    ],
+    [
+     "Profile",
+     16
+    ],
+    [
+     "Profile",
+     15
+    ],
+    [
+     "Profile",
+     12
+    ]
+   ]
+  }
+ ]
+}

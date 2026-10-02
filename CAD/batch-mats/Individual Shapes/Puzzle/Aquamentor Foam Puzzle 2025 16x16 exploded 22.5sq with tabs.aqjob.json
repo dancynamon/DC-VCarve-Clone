@@ -1,0 +1,449 @@
+{
+ "name": "Aquamentor Foam Puzzle 2025 16x16 exploded 22.5sq with tabs",
+ "crv": "../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Puzzle/Aquamentor Foam Puzzle 2025 16x16 exploded take 2.crv3d",
+ "vectric": "../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Puzzle/Aquamentor Foam Puzzle 2025 16x16 exploded 22.5sq with tabs.tap",
+ "out": "Aquamentor Foam Puzzle 2025 16x16 exploded 22.5sq with tabs-aq.tap",
+ "complete": false,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 3,
+    "length": 1.238,
+    "height": 0.05
+   },
+   "label": "Aquamentor Foam Puzzle 2025 16x16 exploded 22.5sq with tabs T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     0
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.45,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 3,
+    "length": 1.2362,
+    "height": 0.05
+   },
+   "label": "Aquamentor Foam Puzzle 2025 16x16 exploded 22.5sq with tabs T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     1
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.45,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 4,
+    "length": 1.2358,
+    "height": 0.05
+   },
+   "label": "Aquamentor Foam Puzzle 2025 16x16 exploded 22.5sq with tabs T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     5
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.45,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 4,
+    "length": 1.2452,
+    "height": 0.05
+   },
+   "label": "Aquamentor Foam Puzzle 2025 16x16 exploded 22.5sq with tabs T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     8
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 5,
+    "length": 1.241,
+    "height": 0.05
+   },
+   "label": "Aquamentor Foam Puzzle 2025 16x16 exploded 22.5sq with tabs T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     6
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 5,
+    "length": 1.2401,
+    "height": 0.05
+   },
+   "label": "Aquamentor Foam Puzzle 2025 16x16 exploded 22.5sq with tabs T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     4
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 3,
+    "length": 1.2353,
+    "height": 0.05
+   },
+   "label": "Aquamentor Foam Puzzle 2025 16x16 exploded 22.5sq with tabs T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     2
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 2,
+    "length": 1.2444,
+    "height": 0.05
+   },
+   "label": "Aquamentor Foam Puzzle 2025 16x16 exploded 22.5sq with tabs T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     3
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 3,
+    "length": 1.2399,
+    "height": 0.05
+   },
+   "label": "Aquamentor Foam Puzzle 2025 16x16 exploded 22.5sq with tabs T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     9
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 4,
+    "length": 1.2473,
+    "height": 0.05
+   },
+   "label": "Aquamentor Foam Puzzle 2025 16x16 exploded 22.5sq with tabs T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     10
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 3,
+    "length": 1.2377,
+    "height": 0.05
+   },
+   "label": "Aquamentor Foam Puzzle 2025 16x16 exploded 22.5sq with tabs T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     14
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 5,
+    "length": 1.2403,
+    "height": 0.05
+   },
+   "label": "Aquamentor Foam Puzzle 2025 16x16 exploded 22.5sq with tabs T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     13
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.45,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 5,
+    "length": 1.2406,
+    "height": 0.05
+   },
+   "label": "Aquamentor Foam Puzzle 2025 16x16 exploded 22.5sq with tabs T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     12
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.45,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 4,
+    "length": 1.24,
+    "height": 0.05
+   },
+   "label": "Aquamentor Foam Puzzle 2025 16x16 exploded 22.5sq with tabs T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     11
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.45,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 1,
+    "length": 0.4119,
+    "height": 0.05
+   },
+   "label": "Aquamentor Foam Puzzle 2025 16x16 exploded 22.5sq with tabs T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     15
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.2,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "tabs": {
+    "count": 2,
+    "length": 1.2489,
+    "height": 0.05
+   },
+   "label": "Aquamentor Foam Puzzle 2025 16x16 exploded 22.5sq with tabs T2 profile outside",
+   "select": [
+    [
+     "Layer 1",
+     7
+    ]
+   ]
+  }
+ ],
+ "unmatched": [
+  {
+   "tool": 2,
+   "pass": 14,
+   "why": "plunge at 17.3071,17.6097 hits no vector centroid"
+  }
+ ]
+}

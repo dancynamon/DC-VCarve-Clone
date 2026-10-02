@@ -1,0 +1,288 @@
+{
+ "name": "Lori Klatt Dolphins - 50 small 16x16 2 large 48x48 - Sheet 1",
+ "crv": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Dolphin/01_CRV/Lori Klatt Special Dolphin/Lori Klatt Dolphins - 50 small 16x16 2 large 48x48.crv3d",
+ "vectric": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Individual Shapes/Dolphin/01_CRV/Lori Klatt Special Dolphin/Lori Klatt Dolphins - 50 small 16x16 2 large 48x48 - Sheet 1.tap",
+ "out": "Lori Klatt Dolphins - 50 small 16x16 2 large 48x48 - Sheet 1-aq.tap",
+ "complete": true,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "profile",
+   "side": "on",
+   "climb": false,
+   "toolNum": 5,
+   "toolDia": 0.125,
+   "rpm": 12000,
+   "feed": 40,
+   "plunge": 40,
+   "cutDepth": 0.08,
+   "passDepth": 0.08,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Lori Klatt Dolphins - 50 small 16x16 2 large 48x48 - Sheet 1 T5 profile on",
+   "select": [
+    [
+     "Engrave",
+     3
+    ],
+    [
+     "Engrave",
+     2
+    ],
+    [
+     "Engrave",
+     4
+    ],
+    [
+     "Engrave",
+     5
+    ],
+    [
+     "Engrave",
+     11
+    ],
+    [
+     "Engrave",
+     10
+    ],
+    [
+     "Engrave",
+     13
+    ],
+    [
+     "Engrave",
+     12
+    ],
+    [
+     "Engrave",
+     19
+    ],
+    [
+     "Engrave",
+     18
+    ],
+    [
+     "Engrave",
+     16
+    ],
+    [
+     "Engrave",
+     17
+    ],
+    [
+     "Engrave",
+     14
+    ],
+    [
+     "Engrave",
+     15
+    ],
+    [
+     "Engrave",
+     9
+    ],
+    [
+     "Engrave",
+     8
+    ],
+    [
+     "Engrave",
+     7
+    ],
+    [
+     "Engrave",
+     6
+    ],
+    [
+     "Engrave",
+     1
+    ],
+    [
+     "Engrave",
+     0
+    ],
+    [
+     "Engrave",
+     21
+    ],
+    [
+     "Engrave",
+     20
+    ],
+    [
+     "Engrave",
+     25
+    ],
+    [
+     "Engrave",
+     24
+    ],
+    [
+     "Engrave",
+     23
+    ],
+    [
+     "Engrave",
+     22
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "stepover": 0.5,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.25,
+   "label": "Lori Klatt Dolphins - 50 small 16x16 2 large 48x48 - Sheet 1 T2 pocket",
+   "select": [
+    [
+     "Pocket Eyes",
+     1
+    ],
+    [
+     "Pocket Eyes",
+     0
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Lori Klatt Dolphins - 50 small 16x16 2 large 48x48 - Sheet 1 T2 profile inside",
+   "select": [
+    [
+     "Pocket Eyes",
+     3
+    ],
+    [
+     "Pocket Eyes",
+     4
+    ],
+    [
+     "Pocket Eyes",
+     7
+    ],
+    [
+     "Pocket Eyes",
+     8
+    ],
+    [
+     "Pocket Eyes",
+     5
+    ],
+    [
+     "Pocket Eyes",
+     6
+    ],
+    [
+     "Pocket Eyes",
+     2
+    ],
+    [
+     "Pocket Eyes",
+     9
+    ],
+    [
+     "Pocket Eyes",
+     11
+    ],
+    [
+     "Pocket Eyes",
+     12
+    ],
+    [
+     "Pocket Eyes",
+     10
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 2,
+   "toolDia": 0.25,
+   "rpm": 24000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 1.5,
+   "passDepth": 1.5,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "Lori Klatt Dolphins - 50 small 16x16 2 large 48x48 - Sheet 1 T2 profile outside",
+   "select": [
+    [
+     "Perimeter",
+     1
+    ],
+    [
+     "Perimeter",
+     0
+    ],
+    [
+     "Perimeter",
+     3
+    ],
+    [
+     "Perimeter",
+     4
+    ],
+    [
+     "Perimeter",
+     7
+    ],
+    [
+     "Perimeter",
+     8
+    ],
+    [
+     "Perimeter",
+     10
+    ],
+    [
+     "Perimeter",
+     12
+    ],
+    [
+     "Perimeter",
+     11
+    ],
+    [
+     "Perimeter",
+     9
+    ],
+    [
+     "Perimeter",
+     6
+    ],
+    [
+     "Perimeter",
+     2
+    ],
+    [
+     "Perimeter",
+     5
+    ]
+   ]
+  }
+ ]
+}

@@ -1,0 +1,500 @@
+{
+ "name": "British Swim Robert Stapf Foam Rings INV 18569 - Sheet 1",
+ "crv": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/British Swim School/British Swim School Foam Ring/British Swim Robert Stapf Foam Rings INV 18569/British Swim Robert Stapf Foam Rings INV 18569.crv3d",
+ "vectric": "../../../../../../../VCarve Pro/Foam Pool Mats and Shapes/Customers/British Swim School/British Swim School Foam Ring/British Swim Robert Stapf Foam Rings INV 18569/British Swim Robert Stapf Foam Rings INV 18569 - Sheet 1.tap",
+ "out": "British Swim Robert Stapf Foam Rings INV 18569 - Sheet 1-aq.tap",
+ "complete": false,
+ "generatedBy": "tap2spec",
+ "ops": [
+  {
+   "op": "pocket",
+   "climb": true,
+   "toolNum": 10,
+   "toolDia": 3.9972,
+   "stepover": 0.28,
+   "rpm": 18000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 1.75,
+   "passDepth": 0.875,
+   "clearZ": 0.25,
+   "label": "British Swim Robert Stapf Foam Rings INV 18569 - Sheet 1 T10 pocket",
+   "select": [
+    [
+     "OD",
+     2
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": true,
+   "toolNum": 10,
+   "toolDia": 3.2472,
+   "stepover": 0.35,
+   "rpm": 18000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 1.75,
+   "passDepth": 0.875,
+   "clearZ": 0.25,
+   "label": "British Swim Robert Stapf Foam Rings INV 18569 - Sheet 1 T10 pocket",
+   "select": [
+    [
+     "OD",
+     1
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": true,
+   "toolNum": 10,
+   "toolDia": 3.9971,
+   "stepover": 0.28,
+   "rpm": 18000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 1.75,
+   "passDepth": 0.875,
+   "clearZ": 0.25,
+   "label": "British Swim Robert Stapf Foam Rings INV 18569 - Sheet 1 T10 pocket",
+   "select": [
+    [
+     "OD",
+     3
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 10,
+   "toolDia": 1.4975,
+   "stepover": 0.75,
+   "rpm": 18000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 1.75,
+   "passDepth": 0.875,
+   "clearZ": 0.25,
+   "label": "British Swim Robert Stapf Foam Rings INV 18569 - Sheet 1 T10 pocket",
+   "select": [
+    [
+     "Roundover Boundary 2.0",
+     0
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": true,
+   "toolNum": 10,
+   "toolDia": 4.7472,
+   "stepover": 0.24,
+   "rpm": 18000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 1.25,
+   "passDepth": 0.625,
+   "clearZ": 0.25,
+   "label": "British Swim Robert Stapf Foam Rings INV 18569 - Sheet 1 T10 pocket",
+   "select": [
+    [
+     "OD",
+     6
+    ],
+    [
+     "OD",
+     4
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": false,
+   "toolNum": 10,
+   "toolDia": 1.4975,
+   "stepover": 0.75,
+   "rpm": 18000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 1.25,
+   "passDepth": 0.625,
+   "clearZ": 0.25,
+   "label": "British Swim Robert Stapf Foam Rings INV 18569 - Sheet 1 T10 pocket",
+   "select": [
+    [
+     "Roundover Boundary 2.5",
+     0
+    ]
+   ]
+  },
+  {
+   "op": "pocket",
+   "climb": true,
+   "toolNum": 10,
+   "toolDia": 4.7471,
+   "stepover": 0.24,
+   "rpm": 18000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 1.25,
+   "passDepth": 0.625,
+   "clearZ": 0.25,
+   "label": "British Swim Robert Stapf Foam Rings INV 18569 - Sheet 1 T10 pocket",
+   "select": [
+    [
+     "OD",
+     0
+    ],
+    [
+     "OD",
+     5
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 4,
+   "toolDia": 0.5,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 2.75,
+   "passDepth": 2.75,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "British Swim Robert Stapf Foam Rings INV 18569 - Sheet 1 T4 profile inside",
+   "select": [
+    [
+     "ID",
+     4
+    ],
+    [
+     "ID",
+     6
+    ],
+    [
+     "ID",
+     5
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 4,
+   "toolDia": 0.5079,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 2.75,
+   "passDepth": 2.75,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "British Swim Robert Stapf Foam Rings INV 18569 - Sheet 1 T4 profile outside",
+   "select": [
+    [
+     "OD",
+     2
+    ],
+    [
+     "OD",
+     3
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 4,
+   "toolDia": 0.5078,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 2.75,
+   "passDepth": 2.75,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "British Swim Robert Stapf Foam Rings INV 18569 - Sheet 1 T4 profile outside",
+   "select": [
+    [
+     "OD",
+     1
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 4,
+   "toolDia": 0.5,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 2.25,
+   "passDepth": 0.75,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "British Swim Robert Stapf Foam Rings INV 18569 - Sheet 1 T4 profile inside",
+   "select": [
+    [
+     "ID",
+     0
+    ],
+    [
+     "ID",
+     1
+    ],
+    [
+     "ID",
+     2
+    ],
+    [
+     "ID",
+     3
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 4,
+   "toolDia": 0.5079,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 2.25,
+   "passDepth": 0.75,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "British Swim Robert Stapf Foam Rings INV 18569 - Sheet 1 T4 profile outside",
+   "select": [
+    [
+     "OD",
+     6
+    ],
+    [
+     "OD",
+     0
+    ],
+    [
+     "OD",
+     4
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 4,
+   "toolDia": 0.5078,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 25,
+   "cutDepth": 2.25,
+   "passDepth": 0.75,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "British Swim Robert Stapf Foam Rings INV 18569 - Sheet 1 T4 profile outside",
+   "select": [
+    [
+     "OD",
+     5
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "inside",
+   "climb": false,
+   "toolNum": 7,
+   "toolDia": 0.5,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 3.75,
+   "passDepth": 2.5,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "British Swim Robert Stapf Foam Rings INV 18569 - Sheet 1 T7 profile inside",
+   "select": [
+    [
+     "ID",
+     4
+    ],
+    [
+     "ID",
+     6
+    ],
+    [
+     "ID",
+     5
+    ],
+    [
+     "ID",
+     0
+    ],
+    [
+     "ID",
+     1
+    ],
+    [
+     "ID",
+     2
+    ],
+    [
+     "ID",
+     3
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 7,
+   "toolDia": 0.5,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 3.75,
+   "passDepth": 2.75,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "British Swim Robert Stapf Foam Rings INV 18569 - Sheet 1 T7 profile outside",
+   "select": [
+    [
+     "OD",
+     2
+    ],
+    [
+     "OD",
+     1
+    ],
+    [
+     "OD",
+     3
+    ]
+   ]
+  },
+  {
+   "op": "profile",
+   "side": "outside",
+   "climb": false,
+   "toolNum": 7,
+   "toolDia": 0.5,
+   "rpm": 22000,
+   "feed": 100,
+   "plunge": 30,
+   "cutDepth": 3.75,
+   "passDepth": 2.5,
+   "clearZ": 0.25,
+   "leadType": "none",
+   "leadLen": 0.25,
+   "label": "British Swim Robert Stapf Foam Rings INV 18569 - Sheet 1 T7 profile outside",
+   "select": [
+    [
+     "OD",
+     6
+    ],
+    [
+     "OD",
+     5
+    ],
+    [
+     "OD",
+     0
+    ],
+    [
+     "OD",
+     4
+    ]
+   ]
+  }
+ ],
+ "unmatched": [
+  {
+   "tool": 10,
+   "pass": 2,
+   "why": "no vector at constant offset (best spread 5.7677)",
+   "bbox": [
+    9.9112,
+    70.3587,
+    22.9921,
+    84.456
+   ]
+  },
+  {
+   "tool": 10,
+   "pass": 7,
+   "why": "no vector at constant offset (best spread 5.7677)",
+   "bbox": [
+    9.9112,
+    70.3587,
+    22.9921,
+    84.456
+   ]
+  },
+  {
+   "tool": 10,
+   "pass": 12,
+   "why": "no vector at constant offset (best spread 11.4699)",
+   "bbox": [
+    4.27,
+    4.27,
+    44.2148,
+    61.6557
+   ]
+  },
+  {
+   "tool": 10,
+   "pass": 14,
+   "why": "no vector at constant offset (best spread 5.0897)",
+   "bbox": [
+    25.8128,
+    35.5336,
+    31.8972,
+    43.1875
+   ]
+  },
+  {
+   "tool": 10,
+   "pass": 19,
+   "why": "no vector at constant offset (best spread 11.4699)",
+   "bbox": [
+    4.27,
+    4.27,
+    44.2148,
+    61.6557
+   ]
+  },
+  {
+   "tool": 10,
+   "pass": 21,
+   "why": "no vector at constant offset (best spread 5.0897)",
+   "bbox": [
+    25.8128,
+    35.5336,
+    31.8972,
+    43.1875
+   ]
+  }
+ ]
+}
