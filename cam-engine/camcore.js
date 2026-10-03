@@ -191,6 +191,7 @@ function profileOp(contours, opts){
   const r=o.toolDia/2, warnings=[], passesAll=[]; let leadSkipped=false;
   const depths=[]; let d=Math.min(o.passDepth,o.cutDepth);
   while(d<o.cutDepth-1e-9){depths.push(d);d+=o.passDepth;} depths.push(o.cutDepth);
+  if(Array.isArray(o.depths)&&o.depths.length){ depths.length=0; for(const v of o.depths) depths.push(+v); }   // explicit pass list (VCarve _mctddDepthValues)
   const openSide = (o.side==='left'||o.side==='right');
   for(const c of contours){
     let loops, pts=(o.reverse && !c.closed)?reversed(c.pts):c.pts;
@@ -406,6 +407,7 @@ function pocketOp(contours, opts){
   const region=regionFromLoops(loops);
   const depths=[]; let d=Math.min(o.passDepth,o.cutDepth);
   while(d<o.cutDepth-1e-9){depths.push(d);d+=o.passDepth;} depths.push(o.cutDepth);
+  if(Array.isArray(o.depths)&&o.depths.length){ depths.length=0; for(const v of o.depths) depths.push(+v); }   // explicit pass list (VCarve _mctddDepthValues)
   const passes=[];
   if(o.pocketStyle==='raster'){
     // fill boundary = region pulled one tool-radius inside the wall (the XY region is depth-independent, so compute rows once)
@@ -894,7 +896,10 @@ function postProcess(job, post){
   P.header(L,job,P);
   job.ops.forEach((op,oi)=>{
     const clear = op.clearZ!=null?op.clearZ:0.25;
-    P.opStart(L, op, P, oi===0);
+    // Vectric's ShopSabre post: consecutive toolpaths on the same tool + speed run with NO tool-change block
+    const prevOp = oi>0 ? job.ops[oi-1] : null;
+    const sameTool = prevOp && P.mergeSameTool && prevOp.toolNum===op.toolNum && Math.round(prevOp.rpm)===Math.round(op.rpm);
+    if(!sameTool) P.opStart(L, op, P, oi===0);
     op.passes.forEach(pass=>{
       const path=pass.path; if(!path.length)return;
       const cutZ=pass.z, tabZ=pass.z+(pass.tabHeight||0);
@@ -979,7 +984,7 @@ const POSTS={
   // Exact match to Dan's Vectric post: ShopSabre_DC_ATC_speed_arc_inch.pp
   shopsabre:{
     name:'ShopSabre DC ATC Speed Arc (inch)', decimals:4, feedDecimals:1, eol:'\r\n',
-    safeZ:2.0, parkX:0.0, parkY:115.0, warmupDwell:4, arcs:true, arcTol:0.0015, helical:true,
+    safeZ:2.0, parkX:0.0, parkY:115.0, warmupDwell:4, arcs:true, arcTol:0.0015, helical:true, mergeSameTool:true,
     axisFmt:(a,v,dp)=>`${a}${(Math.abs(v)<1e-9?0:v).toFixed(dp)}`,
     header(L){ L.push('G90'); L.push(''); },
     // HEADER tool block (isFirst, has Z2 + feed line) vs TOOLCHANGE (no Z2/feed)

@@ -1250,8 +1250,9 @@ function parseCrv(u8, opts) {
         if (raw.length < 2) continue;
         const pts = raw.map(p => ({ x: p[0] * k, y: p[1] * k }));
         const ent = { type: 'LWPOLYLINE', layer: layerName, closed: c.closed,
-                      source: 'crv', cls: o.cls, origin: c.origin || 'drawing',
+                      source: 'crv', cls: o.cls, guid: o.guid, origin: c.origin || 'drawing',
                       contourVersion: c.version, spans: c.spans.length, chainGap: c.chainGap };
+        ent.spanEnds = c.spans.map(s => ({ x: s.x1 * k, y: s.y1 * k, type: s.type })); ent.start = c.spans.length ? { x: (c.spans[0].x0 != null ? c.spans[0].x0 : pts[0].x / k) * k, y: (c.spans[0].y0 != null ? c.spans[0].y0 : pts[0].y / k) * k } : null;
         polys.push({ layer: layerName, type: 'LWPOLYLINE', pts: pts, ent: ent });
       }
     }
