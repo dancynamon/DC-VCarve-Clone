@@ -297,6 +297,15 @@ function crvArcGeom(s) {
   return { cx, cy, r, a0: Math.atan2(s.y0 - cy, s.x0 - cx), sweep };
 }
 
+// Point on a span at its own parameter t in [0,1] (line: lerp, arc: sweep fraction, bezier: B(t)) — this is
+// how a vcToolpathTab (spanIndex, t) is placed. Assumes t is the span's native parameter; CONFIRM on BT-02.
+function crvSpanAt(s, t) {
+  if (s.type === 'arc') { const a = crvArcGeom(s); if (a) { const ang = a.a0 + a.sweep * t; return [a.cx + a.r * Math.cos(ang), a.cy + a.r * Math.sin(ang)]; } }
+  if (s.type === 'bezier') { const u = 1 - t;
+    return [u*u*u*s.x0 + 3*u*u*t*s.c1x + 3*u*t*t*s.c2x + t*t*t*s.x1, u*u*u*s.y0 + 3*u*u*t*s.c1y + 3*u*t*t*s.c2y + t*t*t*s.y1]; }
+  return [s.x0 + (s.x1 - s.x0) * t, s.y0 + (s.y1 - s.y0) * t];
+}
+
 function crvSegDist(px, py, ax, ay, bx, by) {
   const dx = bx - ax, dy = by - ay;
   const L = Math.hypot(dx, dy);
@@ -1252,7 +1261,7 @@ function parseCrv(u8, opts) {
         const ent = { type: 'LWPOLYLINE', layer: layerName, closed: c.closed,
                       source: 'crv', cls: o.cls, guid: o.guid, origin: c.origin || 'drawing',
                       contourVersion: c.version, spans: c.spans.length, chainGap: c.chainGap };
-        ent.spanEnds = c.spans.map(s => ({ x: s.x1 * k, y: s.y1 * k, type: s.type })); ent.start = c.spans.length ? { x: (c.spans[0].x0 != null ? c.spans[0].x0 : pts[0].x / k) * k, y: (c.spans[0].y0 != null ? c.spans[0].y0 : pts[0].y / k) * k } : null;
+        ent.tabs = (o.contours.length === 1 ? o.tabs : []).filter(tb => c.spans[tb.spanIndex]).map(tb => { const q = crvSpanAt(c.spans[tb.spanIndex], tb.t); return { x: q[0] * k, y: q[1] * k }; }); ent.spanEnds = c.spans.map(s => ({ x: s.x1 * k, y: s.y1 * k, type: s.type })); ent.start = c.spans.length ? { x: (c.spans[0].x0 != null ? c.spans[0].x0 : pts[0].x / k) * k, y: (c.spans[0].y0 != null ? c.spans[0].y0 : pts[0].y / k) * k } : null;
         polys.push({ layer: layerName, type: 'LWPOLYLINE', pts: pts, ent: ent });
       }
     }

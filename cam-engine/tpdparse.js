@@ -78,9 +78,12 @@ function parseSelections(b, vectorGuids) {
 function parseToolpathData(b, vectorGuids) {
   const strs = allCStrings(b), params = parseParams(b, strs), tools = parseTools(b);
   const tpNames = new Set(params.filter(p => /ToolpathName$/.test(p.name)).map(p => p.value));
-  // headers: a toolpath name CString preceded by u32 version + GUID16 (not a parameter value)
-  const headers = strs.filter(c => tpNames.has(c.s) && u32(b, c.o - 20) === 5 && !(params.some(p => p.o < c.o && /ToolpathName$/.test(p.name) && c.o - p.o < 80)))
-                      .map(c => ({ o: c.o, name: c.s, guid: hex(b, c.o - 16, 16) }));
+  // headers: <class tag "...Toolpath" | class ref 0x80nn> u32 version GUID16 CString name. Detected by STRUCTURE, not by
+  // name, because composite children carry suffixed names ("T9T3 Pocket [Clear]") that no parameter repeats.
+  const isToolpathTag = o => { let k = o - 1, nm = ''; while (k > 0 && b[k] >= 32 && b[k] < 127 && nm.length < 40) { nm = String.fromCharCode(b[k]) + nm; k--; } return /Toolpath$/.test(nm); };
+  const headers = strs.filter(c => { const v = u32(b, c.o - 20); if (!(v >= 1 && v <= 40)) return false;
+      const ref = b[c.o - 21] === 0x80 && b[c.o - 22] > 0; return (ref || isToolpathTag(c.o - 20)) && c.s.length > 0 && !/^_/.test(c.s); })
+    .map(c => ({ o: c.o, name: c.s, base: c.s.replace(/\s*\[[^\]]*\]\s*$/, ''), part: (/\[([^\]]*)\]\s*$/.exec(c.s) || [])[1] || null, guid: hex(b, c.o - 16, 16) }));
   // selections: veEntityGroup by name, plus class-ref'd groups found as "u32 ver(2) u32 0 u32 n GUIDs" right after a header's tool/params
   const sels = parseSelections(b, vectorGuids);
   const tps = [];
@@ -89,13 +92,14 @@ function parseToolpathData(b, vectorGuids) {
     const P = {}; for (const p of params) if (p.o > h.o && p.o < end) P[p.name] = p.value;
     const T = []; for (const t of tools.filter(t => t.o > h.o && t.o < end)) if (!T.some(x => x.toolNum === t.toolNum && x.dia === t.dia && x.feed === t.feed)) T.push(t);
     const S = sels.filter(s => s.o > h.o && s.o < end);
-    tps.push({ name: h.name, guid: h.guid, o: h.o, end, type: P.ToolpathType || null, params: P, tools: T, selection: S.length ? S[0].guids : null });
+    tps.push({ name: h.base, part: h.part, guid: h.guid, o: h.o, end, type: P.ToolpathType || null, params: P, tools: T, selection: S.length ? S[0].guids : null });
   });
   // composite toolpaths repeat their name on a child header: fold the child into the parent
   const merged = [];
   for (const t of tps) {
     const prev = merged[merged.length - 1];
     if (prev && prev.name === t.name) {
+      if (t.part) (prev.parts = prev.parts || []).push({ part: t.part, tools: t.tools, params: t.params, selection: t.selection });
       Object.assign(prev.params, t.params);
       for (const x of t.tools) if (!prev.tools.some(y => y.toolNum === x.toolNum && y.dia === x.dia && y.feed === x.feed)) prev.tools.push(x);
       if (t.selection) prev.selection = [...new Set([...(prev.selection || []), ...t.selection])];

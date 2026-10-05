@@ -116,14 +116,23 @@ function offsetOpenPath(pts, delta, joinType){
   return run;
 }
 
-function withTabs(loop, count, tabLen, closed){
+function withTabs(loop, count, tabLen, closed, points){
   closed = closed!==false;
+  if(points && points.length) count = points.length;            // placed tabs (VCarve vcToolpathTab) win over count
   if(!count||count<1||!tabLen) return loop.map(p=>({x:p.x,y:p.y,tab:false}));
   const n=loop.length, segLen=[]; let total=0;
   const last = closed?n:n-1;
   for(let i=0;i<last;i++){const a=loop[i],b=loop[(i+1)%n];const L=dist(a,b);segLen.push(L);total+=L;}
   if(total===0) return loop.map(p=>({x:p.x,y:p.y,tab:false}));
-  const centers=[]; for(let k=0;k<count;k++) centers.push((k+0.5)/count*total);
+  const centers=[];
+  if(points && points.length){
+    // each placed tab sits where the vector's tab point projects onto this (offset) loop
+    for(const q of points){ let best=Infinity, at=0, acc=0;
+      for(let i=0;i<last;i++){ const a=loop[i],b=loop[(i+1)%n],L=segLen[i],dx=b.x-a.x,dy=b.y-a.y;
+        let t=L>0?((q.x-a.x)*dx+(q.y-a.y)*dy)/(L*L):0; t=Math.max(0,Math.min(1,t));
+        const d=Math.hypot(a.x+dx*t-q.x,a.y+dy*t-q.y); if(d<best){best=d;at=acc+L*t;} acc+=L; }
+      centers.push(at); }
+  } else for(let k=0;k<count;k++) centers.push((k+0.5)/count*total);
   const half=Math.min(tabLen, total/count*0.9)/2;
   const iv=centers.map(c=>[c-half,c+half]);
   function inTab(pos){for(const [s,e] of iv){let a=((s%total)+total)%total,b=((e%total)+total)%total;if(a<=b){if(pos>=a&&pos<=b)return true;}else{if(pos>=a||pos<=b)return true;}}return false;}
@@ -214,11 +223,15 @@ function profileOp(contours, opts){
       if(c.closed && o.side!=='on' && !openSide){
         const wantCCW=(o.side==='outside')?!o.climb:o.climb;
         lp=wantCCW?ensureCCW(lp):ensureCW(lp);
+      } else if(c.closed && o.side==='on' && o.orientOn){
+        // opt-in only: Vectric's Quick Engrave follows the VECTOR's own direction (Fish 36x24); Little Pals disagreed but
+        // its TAP is stale against its CRV (tabs too). Settle on blind test BT-06.
+        lp=o.climb?ensureCW(lp):ensureCCW(lp);
       }
-      const tabH=(o.tabs&&o.tabs.count>0&&o.tabs.height)||0;
-      const wantTabs=(o.tabs && o.tabs.count>0 && (c.closed || openSide || o.side==='on'));
+      const tabH=(o.tabs&&(o.tabs.count>0||(o.tabs.points&&o.tabs.points.length))&&o.tabs.height)||0;
+      const wantTabs=(o.tabs && (o.tabs.count>0 || (o.tabs.points&&o.tabs.points.length)) && (c.closed || openSide || o.side==='on'));
       const plain=lp.map(p=>({x:p.x,y:p.y,tab:false}));
-      const tabbed=wantTabs?withTabs(lp,o.tabs.count,o.tabs.length,c.closed):plain;
+      const tabbed=wantTabs?withTabs(lp,o.tabs.count,o.tabs.length,c.closed,o.tabs.points):plain;
       let closed=c.closed&&o.side!=='on';
       // On-the-line cut of a CLOSED vector is emitted as an open path, so it must end where it began —
       // without the repeated start point the closing edge is never cut (a gap in every engraved outline).
@@ -526,7 +539,9 @@ function centroid(pts){
 }
 function drillOp(contours, opts){
   const o=Object.assign({toolNum:1,toolDia:0.25,topZ:0,cutDepth:0.25,peck:0,safeZ:0.25,feed:120,plunge:40,rpm:18000},opts||{});
-  const points=contours.filter(c=>c.closed && c.pts && c.pts.length>=3).map(c=>centroid(c.pts));
+  const points=[];
+  for(const c of contours.filter(c=>c.closed && c.pts && c.pts.length>=3)){ const p=centroid(c.pts);
+    if(!points.some(q=>Math.hypot(q.x-p.x,q.y-p.y)<0.001)) points.push(p); }   // one hole per position (stacked/duplicate vectors drill once, as VCarve does)
   const warnings=[]; if(!points.length) warnings.push('Drill needs closed contour(s) — drills one hole at each centroid');
   const depths=[];
   if(o.peck&&o.peck>0){ let d=Math.min(o.peck,o.cutDepth); while(d<o.cutDepth-1e-9){depths.push(d); d+=o.peck;} depths.push(o.cutDepth); }

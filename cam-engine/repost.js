@@ -111,13 +111,25 @@ function repostJob(src, spec) {
     } else if (o.op === 'pocket' && o.groupIslands !== false) {
       // one pocket over ALL selected vectors: nested ones are islands (even-odd), as VCarve treats a selection
       const cs = CAM.assembleContours(entries.map(e => ({ closed: e.ent.closed, pts: e.ent.pts })));
+      if (o.restOf) {
+        // rest machining only: what a restOf-diameter tool leaves behind, cut with this (smaller) tool
+        const r = CAM.pocketOp(cs, Object.assign({}, o, { toolDia: o.restOf, finishDia: o.toolDia, finishNum: o.toolNum }));
+        if (o.finishWall) {   // VCarve runs the small tool around the whole pocket wall, then any rest areas
+          const w = CAM.profileOp(cs, Object.assign({}, o, { side: 'inside' }));
+          w.ops.forEach(sub => sub.passes.forEach(q => passes.push(q)));
+        }
+        r.ops.slice(1).forEach(sub => sub.passes.forEach(q => passes.push(q)));
+        r.warnings.filter(w => !(o.finishWall && /already cleared everything/.test(w))).forEach(w => warnings.push(`${o.label || o.op}: ${w}`));
+      } else {
       const r = CAM.pocketOp(cs, o);
       for (const sub of r.ops) sub.passes.forEach(q => passes.push(q));
       r.warnings.forEach(w => warnings.push(`${o.label || o.op}: ${w}`));
+      }
     } else {
       for (const e of entries) {
         const cs = CAM.assembleContours([{ closed: e.ent.closed, pts: e.ent.pts }]);
         const p = Object.assign({}, o, e.over);
+        if (p.tabs && e.ent.tabs && e.ent.tabs.length) p.tabs = Object.assign({}, p.tabs, { points: e.ent.tabs });   // tabs placed on the vector in VCarve
         const r = (o.op === 'pocket') ? CAM.pocketOp(cs, p)
           : (o.op === 'vcarve') ? CAM.vcarveOp(cs, Object.assign({}, p, { maxDepth: p.cutDepth, step: p.vstep }))
           : CAM.profileOp(cs, p);

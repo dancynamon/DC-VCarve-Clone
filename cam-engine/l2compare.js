@@ -77,7 +77,7 @@ if (require.main === module) {
   if (json) console.log(JSON.stringify(r, null, 1));
   else {
     console.log(`${r.pass ? 'L2 PASS' : 'L2 FAIL'}  (L1 ${r.l1 ? 'pass' : 'FAIL'})  ${path.basename(pos[0])} vs ${path.basename(pos[1])}`);
-    const groups = {}; for (const x of r.issues) { const k = x.what.replace(/pass \d+ @[-\d.,]+ /, 'pass * ').replace(/#\d+/, ''); (groups[k] = groups[k] || []).push(x); }
+    const groups = {}; for (const x of r.issues) { const k = x.what.replace(/pass \d+ @[-\d.,]+ /, 'pass * ').replace(/pass \d+ \(z [-\d.]+\)/, 'pass *').replace(/#\d+/, ''); (groups[k] = groups[k] || []).push(x); }
     for (const [k, v] of Object.entries(groups)) console.log(`  ${v.length > 1 ? v.length + 'x ' : ''}${k}: vectric ${v[0].vectric ?? ''} ours ${v[0].ours ?? ''}${v[0].off ? ' (off ' + v[0].off + ')' : ''}`);
   }
   process.exit(r.pass ? 0 : 1);
