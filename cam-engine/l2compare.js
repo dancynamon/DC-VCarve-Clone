@@ -21,8 +21,16 @@ function describe(tool) {
     for (const s of ps) { const isUp = s.z1 > zmin + 0.01 && s.z1 < 0; if (isUp && !up) floorRuns.push(1); up = isUp; }
     const first = ps.find(s => s.z1 < s.z0 && Math.hypot(s.x1 - s.x0, s.y1 - s.y0) < 1e-9) || ps[0];
     const firstCut = cut[0];
-    return { entry: { x: first.x1, y: first.y1 }, depth: +zmin.toFixed(4), len, cx: len ? cx / len : first.x1, cy: len ? cy / len : first.y1,
-             dir: Math.abs(area) < 1e-6 ? 'open' : (area > 0 ? 'CCW' : 'CW'), tabs: floorRuns.length,
+    const ccx = len ? cx / len : first.x1, ccy = len ? cy / len : first.y1;
+    // direction of the LAST full loop (outermost pocket ring / the profile itself): walk back from the end
+    // accumulating the angle swept around the pass centroid until one full turn
+    let sweep = 0;
+    for (let k = cut.length - 1; k >= 0 && Math.abs(sweep) < 2 * Math.PI; k--) {
+      const s = cut[k]; let d = Math.atan2(s.y1 - ccy, s.x1 - ccx) - Math.atan2(s.y0 - ccy, s.x0 - ccx);
+      while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; sweep += d;
+    }
+    return { entry: { x: first.x1, y: first.y1 }, depth: +zmin.toFixed(4), len, cx: ccx, cy: ccy,
+             dir: Math.abs(sweep) < Math.PI ? 'open' : (sweep > 0 ? 'CCW' : 'CW'), tabs: floorRuns.length,
              ramp: !!(firstCut && firstCut.z1 < firstCut.z0 - 1e-6), leadArc: !!(firstCut && firstCut.arc) };
   });
   const top = o => Object.entries(o).sort((a, b) => b[1] - a[1]).map(e => +e[0])[0] ?? null;

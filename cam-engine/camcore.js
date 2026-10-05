@@ -442,7 +442,9 @@ function pocketOp(contours, opts){
     if(!rings.length){ warnings.push('Tool too large to enter the pocket region'); }
     let rampEntrySkipped=false;
     // orient first: climb/conventional decides traversal, and the link start point is picked along it
-    const oriented=rings.map(lp=>o.climb?ensureCW(lp):ensureCCW(lp));
+    // Same convention as an inside profile (CW spindle): climb = CCW around the wall, conventional = CW.
+    // It was the other way round; Vectric posts conventional pockets CW (Swiss Cheese / Big Blue mats).
+    const oriented=rings.map(lp=>o.climb?ensureCCW(lp):ensureCW(lp));
     // linked pockets spiral innermost-first; unlinked keeps the historical outermost-first ring order
     const chains = o.linkRings===false ? oriented.map(lp=>[lp])
                                        : linkRings(oriented.slice().reverse(), so, region, o.linkMax);

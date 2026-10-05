@@ -25,6 +25,13 @@ const depthList = s => (s || '').split(';').map(x => x.trim()).filter(Boolean).m
 function toOp(tp, warnings) {
   const P = tp.params, t = tp.tools[0];
   if (!t) { warnings.push(`${tp.name}: no tool record`); return null; }
+  if (tp.type === 'Drill') {
+    const d = { op: 'drill', toolNum: t.toolNum, toolDia: t.dia, rpm: t.rpm, feed: t.feed, plunge: t.plunge, cutDepth: P._dpdCutDepth, label: tp.name };
+    if (P._dpdPeckDrill) d.peck = t.passDepth;                   // VCarve pecks by the tool's pass depth
+    if (P._dpdUseDwell && P._dpdDwellTime) warnings.push(`${tp.name}: dwell ${P._dpdDwellTime}s not emitted yet`);
+    if (P._dpdRetractGap) warnings.push(`${tp.name}: peck retract gap ${P._dpdRetractGap} not mapped yet`);
+    return d;
+  }
   const pre = /^Pocket/.test(tp.type) ? '_pkpd' : '_ppd';
   const depths = depthList(P._mctddDepthValues ?? P._mctddDepthValues_Tool_1);
   const cutDepth = P[pre + 'CutDepth'];

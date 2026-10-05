@@ -108,6 +108,12 @@ function repostJob(src, spec) {
       const r = CAM.drillOp(cs, o);
       r.ops[0].passes.forEach(p => passes.push(p));
       r.warnings.forEach(w => warnings.push(`${o.label || o.op}: ${w}`));
+    } else if (o.op === 'pocket' && o.groupIslands !== false) {
+      // one pocket over ALL selected vectors: nested ones are islands (even-odd), as VCarve treats a selection
+      const cs = CAM.assembleContours(entries.map(e => ({ closed: e.ent.closed, pts: e.ent.pts })));
+      const r = CAM.pocketOp(cs, o);
+      for (const sub of r.ops) sub.passes.forEach(q => passes.push(q));
+      r.warnings.forEach(w => warnings.push(`${o.label || o.op}: ${w}`));
     } else {
       for (const e of entries) {
         const cs = CAM.assembleContours([{ closed: e.ent.closed, pts: e.ent.pts }]);

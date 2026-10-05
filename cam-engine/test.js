@@ -120,8 +120,10 @@ console.log('\n(post-pp assertions added)');
   ok('linked spiral is one open path', passes[0].closed===false);
   ok('linked spiral holds every ring\'s points', passes[0].path.length >= unlinked.reduce((n,p)=>n+p.path.length,0),
      `${passes[0].path.length} vs ${unlinked.reduce((n,p)=>n+p.path.length,0)}`);
-  // climb -> CW rings
-  ok('pocket climb CW', CAM.signedArea(passes[0].path.map(p=>({x:p.x,y:p.y})))<0);
+  // climb -> CCW rings inside a pocket (CW spindle: climb outside = CW, inside = CCW); conventional = CW, which is what Vectric posts
+  ok('pocket climb CCW', CAM.signedArea(passes[0].path.map(p=>({x:p.x,y:p.y})))>0);
+
+
   // multi-depth multiplies pass count
   const pk2 = CAM.pocketOp(sq, {toolDia:0.5, stepover:0.5, cutDepth:0.5, passDepth:0.25, topZ:0});
   ok('pocket multi-depth', pk2.ops[0].passes.length===passes.length*2, pk2.ops[0].passes.length);
