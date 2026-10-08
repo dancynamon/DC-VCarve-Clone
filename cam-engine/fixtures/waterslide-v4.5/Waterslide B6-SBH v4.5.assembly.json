@@ -1,0 +1,39 @@
+{
+  "format": "aqcam-assembly",
+  "version": 1,
+  "name": "Waterslide B6-SBH v4.5 (48.5x97)",
+  "units": "in",
+  "notes": "Assembly frame = the base sheet's own X/Y (inches), Z up from the floor. Parts are picked by a point inside their OUTSIDE_PROFILE (\"at\", sheet coords). flip = turned over about the part's long centre line (as-cut top face down). on.face \"top\"/\"bottom\" = the host part's as-cut faces. The slide arch keeps the sheet length and the foot-to-foot chord fixed, so its height follows the 2D outline.",
+  "sheets": [
+    {"id":"base","file":"WATERSLIDE B6-SBH v4.5 - 1 BASE - 48.5x97 - 1.5in - single setup.dxf","thickness":1.5,"color":"#f2c14e","label":"Sheet 1 · base (1.5\")"},
+    {"id":"slide","file":"WATERSLIDE B6-SBH v4.5 - 2 SLIDE - 48.5x97 - 1.5in - TOP ONLY - single setup.dxf","thickness":1.5,"color":"#2f6fd0","label":"Sheet 2 · slide (1.5\")"},
+    {"id":"slideB","file":"WATERSLIDE B6-SBH v4.5 - 2B SLIDE UNDERSIDE - flip cut piece in place - RUN SECOND.dxf","thickness":1.5,"label":"Sheet 2B · slide underside (flip in place)","setupOf":{"part":"slide","mirror":"x"}},
+    {"id":"red","file":"WATERSLIDE B6-SBH v4.5 - 3 RED - 2 STEPS + 20 CAPS - 48.5x97 - 1.5in - single setup.dxf","thickness":1.5,"color":"#d64545","label":"Sheet 3 · RED steps + caps (1.5\")"}
+  ],
+  "parts": [
+    {"id":"base","label":"Base 35.5 x 71.5","sheet":"base","at":[18,36],"flip":true,"place":{"at":[0,0,0]}},
+    {"id":"slide","label":"Slide 35.5 x 71.5 (arched)","sheet":"slide","at":[18,36],"bend":{"type":"arch","footA":9,"footB":7.5,"chord":55.8601},"place":{"at":[0,0.2653,1.5]}},
+    {"id":"step1","label":"Step 1 (12 in)","sheet":"red","at":[2,12.25],"anchor":[2,12.25],"rotate":90,"on":{"part":"slide","face":"top","at":[18,47.401]}},
+    {"id":"step2","label":"Step 2 (6 in)","sheet":"red","at":[5.76,12.25],"anchor":[5.76,12.25],"rotate":90,"on":{"part":"slide","face":"top","at":[18,54.7974]}},
+    {"id":"CT1","label":"Foot cap top 1","sheet":"red","at":[9.1,1.58],"anchor":[9.1,1.58],"flip":true,"lift":-1,"on":{"part":"slide","face":"top","at":[4.25,6.7347]}},
+    {"id":"CT2","label":"Foot cap top 2","sheet":"red","at":[9.1,4.5],"anchor":[9.1,4.5],"flip":true,"lift":-1,"on":{"part":"slide","face":"top","at":[18,6.7347]}},
+    {"id":"CT3","label":"Foot cap top 3","sheet":"red","at":[9.1,7.42],"anchor":[9.1,7.42],"flip":true,"lift":-1,"on":{"part":"slide","face":"top","at":[31.75,6.7347]}},
+    {"id":"CT4","label":"Foot cap top 4","sheet":"red","at":[9.1,10.34],"anchor":[9.1,10.34],"flip":true,"lift":-1,"on":{"part":"slide","face":"top","at":[4.25,68.3894]}},
+    {"id":"CT5","label":"Foot cap top 5","sheet":"red","at":[9.1,13.26],"anchor":[9.1,13.26],"flip":true,"lift":-1,"on":{"part":"slide","face":"top","at":[18,68.3894]}},
+    {"id":"CT6","label":"Foot cap top 6","sheet":"red","at":[9.1,16.18],"anchor":[9.1,16.18],"flip":true,"lift":-1,"on":{"part":"slide","face":"top","at":[31.75,68.3894]}},
+    {"id":"CB1","label":"Foot cap under base 1","sheet":"red","at":[9.1,19.1],"anchor":[9.1,19.1],"flip":true,"lift":-1,"on":{"part":"base","face":"top","at":[4.25,6.75]}},
+    {"id":"CB2","label":"Foot cap under base 2","sheet":"red","at":[9.1,22.02],"anchor":[9.1,22.02],"flip":true,"lift":-1,"on":{"part":"base","face":"top","at":[18,6.75]}},
+    {"id":"CB3","label":"Foot cap under base 3","sheet":"red","at":[12.02,1.58],"anchor":[12.02,1.58],"flip":true,"lift":-1,"on":{"part":"base","face":"top","at":[31.75,6.75]}},
+    {"id":"CB4","label":"Foot cap under base 4","sheet":"red","at":[12.02,4.5],"anchor":[12.02,4.5],"flip":true,"lift":-1,"on":{"part":"base","face":"top","at":[4.25,52.7798]}},
+    {"id":"CB5","label":"Foot cap under base 5","sheet":"red","at":[12.02,7.42],"anchor":[12.02,7.42],"flip":true,"lift":-1,"on":{"part":"base","face":"top","at":[18,52.7798]}},
+    {"id":"CB6","label":"Foot cap under base 6","sheet":"red","at":[12.02,10.34],"anchor":[12.02,10.34],"flip":true,"lift":-1,"on":{"part":"base","face":"top","at":[31.75,52.7798]}},
+    {"id":"SC1","label":"Step cap top 1","sheet":"red","at":[12.02,13.26],"anchor":[12.02,13.26],"flip":true,"lift":-1,"on":{"part":"step1","face":"top","at":[2,5.25]}},
+    {"id":"SC2","label":"Step cap top 2","sheet":"red","at":[12.02,16.18],"anchor":[12.02,16.18],"flip":true,"lift":-1,"on":{"part":"step1","face":"top","at":[2,19.25]}},
+    {"id":"SC3","label":"Step cap top 3","sheet":"red","at":[12.02,19.1],"anchor":[12.02,19.1],"flip":true,"lift":-1,"on":{"part":"step2","face":"top","at":[5.76,5.25]}},
+    {"id":"SC4","label":"Step cap top 4","sheet":"red","at":[12.02,22.02],"anchor":[12.02,22.02],"flip":true,"lift":-1,"on":{"part":"step2","face":"top","at":[5.76,19.25]}},
+    {"id":"SC5","label":"Step cap under slide 5","sheet":"red","at":[14.94,1.58],"anchor":[14.94,1.58],"flip":true,"lift":-1,"on":{"part":"slide","face":"bottom","at":[11,47.401]}},
+    {"id":"SC6","label":"Step cap under slide 6","sheet":"red","at":[14.94,4.5],"anchor":[14.94,4.5],"flip":true,"lift":-1,"on":{"part":"slide","face":"bottom","at":[25,47.401]}},
+    {"id":"SC7","label":"Step cap under slide 7","sheet":"red","at":[14.94,7.42],"anchor":[14.94,7.42],"flip":true,"lift":-1,"on":{"part":"slide","face":"bottom","at":[11,54.7974]}},
+    {"id":"SC8","label":"Step cap under slide 8","sheet":"red","at":[14.94,10.34],"anchor":[14.94,10.34],"flip":true,"lift":-1,"on":{"part":"slide","face":"bottom","at":[25,54.7974]}}
+  ]
+}
