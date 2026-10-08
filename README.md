@@ -41,6 +41,17 @@ Rebuilt from screenshots of Dan's own Aspire install (`docs/vcarve-reference/`):
   from one `THEMES` table in `studio_app.js`, so retuning is a single edit.
 
 ## What it does
+- **Pan with ⌘-drag** (Mac Command key; Alt-drag or middle button also) in the 2D view, whatever tool is active. Starts in the Select tool.
+- **Arithmetic in every number field:** type `35.5/2`, `12+3*0.25`, `(48.5-2)/3` — resolves in place on Enter / Tab / leaving the
+  field (bad input turns the field red and is left alone). ↑/↓ step by the field's step.
+- **Cursor precision:** positions are free to 0.0001" (readout always 4 decimals); object points (corners, centers,
+  midpoints) still attract within 7px. **Hold S to snap to the grid** for rough placement (tick Grid-snap to always snap);
+  hold Ctrl for no object snap either. Arrow keys nudge the selection 0.001" · Shift 0.1" · Alt/Option 0.0001".
+- **Zoom-adaptive grid:** drawn on the job sheet only (not the pasteboard around it), a darker line every inch, and it
+  subdivides as you zoom — 0.5 → 0.25 → 0.1 → … → 0.0001". Zoom goes to 40000 px/in.
+- **Position panel (Properties):** a 9-box anchor picks which point of the selection's bounding box X / Y report — any corner, edge
+  middle or center — and typing X / Y / W / H (arithmetic allowed) moves or resizes the selection about that point. Shares the anchor
+  with the draw forms and the edit dialog.
 - **Rotate…** (Edit menu, Transform Objects, right-click): exact angle, CW / CCW, live preview, and a 9-box **pivot** — any
   corner, edge middle or the center of the selection. The corner rotate grips use the same pivot; Shift snaps to the
   "Rot °" increment (default 5°). Moving a selection snaps its anchor point to the grid / object snaps (Ctrl = free).

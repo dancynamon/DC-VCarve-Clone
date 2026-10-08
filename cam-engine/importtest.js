@@ -198,5 +198,24 @@ ok('assertDxf: a DXF with no vectors is an error, not an empty toolpath', (funct
   const empty = '0\nSECTION\n2\nENTITIES\n0\nENDSEC\n0\nEOF\n';
   try { RP.dxfToContours(empty); return false; } catch (e) { return /no usable vectors/.test(e.message); } })());
 
+// DXF layers land in the Layers tab: a 2-layer file registers both names; every shape's layer is known.
+(() => {
+  const line = (l, x1, y1, x2, y2, col) => `0\nLINE\n8\n${l}\n${col != null ? '62\n' + col + '\n' : ''}10\n${x1}\n20\n${y1}\n11\n${x2}\n21\n${y2}\n`;
+  const circ = (l, cx, cy, r) => `0\nCIRCLE\n8\n${l}\n10\n${cx}\n20\n${cy}\n40\n${r}\n`;
+  const txt = '0\nSECTION\n2\nENTITIES\n' + line('OUTSIDE_PROFILE', 0, 0, 10, 0, 1) + line('OUTSIDE_PROFILE', 10, 0, 10, 5)
+    + circ('POCKET_1.35D_0.50DEEP_TOP', 3, 3, 0.675) + '0\nENDSEC\n0\nEOF\n';
+  const ps = []; for (const e of parseDxf(txt)) for (const p of entityToPolys(e)) ps.push(p);
+  const sh = C.dxfPolysToShapes(ps);
+  const layers = new Map([['0', { visible: true, color: '#1b2b3f' }]]);
+  const used = C.registerDxfLayers(layers, ps);
+  ok('dxf layers: both names registered', layers.has('OUTSIDE_PROFILE') && layers.has('POCKET_1.35D_0.50DEEP_TOP'), [...layers.keys()]);
+  ok('dxf layers: every shape layer is in doc.layers', sh.length === 3 && sh.every(s => layers.has(s.layer)), sh.map(s => s.layer));
+  ok('dxf layers: entity ACI colour used (1 = red)', layers.get('OUTSIDE_PROFILE').color === '#ff0000', layers.get('OUTSIDE_PROFILE'));
+  ok('dxf layers: POCKET default blue', layers.get('POCKET_1.35D_0.50DEEP_TOP').color === '#2a6fdb');
+  ok('dxf layers: name defaults', C.defaultLayerColor('INSIDE_PROFILE') === '#d0342c' && C.defaultLayerColor('SHEET') === '#9aa0a6' && C.defaultLayerColor('foo') === '#1b2b3f');
+  ok('dxf layers: existing layer untouched', (() => { const m = new Map([['OUTSIDE_PROFILE', { visible: false, color: '#123456' }]]); C.registerDxfLayers(m, ps); return m.get('OUTSIDE_PROFILE').color === '#123456' && m.get('OUTSIDE_PROFILE').visible === false; })());
+  ok('dxf layers: returns names in first-seen order', used.join('|') === 'OUTSIDE_PROFILE|POCKET_1.35D_0.50DEEP_TOP', used);
+})();
+
 console.log(`\n${pass}/${pass + fail} import checks passed`);
 process.exit(fail ? 1 : 0);

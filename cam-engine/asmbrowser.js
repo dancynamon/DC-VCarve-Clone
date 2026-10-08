@@ -91,10 +91,10 @@ const ok = (name, cond, extra) => { if (cond) { pass++; console.log('  ok   ' + 
   const ppi = await page.evaluate(() => view.ppi);
   const c0 = await W2Sp(4.25, 6.7347);
   const statsAt = await page.evaluate(() => window.__asmStats.at);
-  await page.keyboard.down('Meta');
+  // plain drag = free move (main: snap only while S is held; Cmd-drag pans)
   await page.mouse.move(c0.x, c0.y); await page.mouse.down();
   await page.mouse.move(c0.x + 0.25 * ppi, c0.y, { steps: 3 }); await page.mouse.move(c0.x + 0.5 * ppi, c0.y, { steps: 3 });
-  await page.mouse.up(); await page.keyboard.up('Meta');
+  await page.mouse.up();
   await page.waitForFunction(at => window.__asmStats.at > at, statsAt);
   await page.waitForTimeout(120);
   const moved = await page.evaluate(() => { const d = doc.shapes.find(s => s.layer === 'DRILL_0.375_THRU' && sel.has(s.id)); const b = CADCORE.bboxAll([d]); return { x: (b.minX + b.maxX) / 2, y: (b.minY + b.maxY) / 2 }; });
