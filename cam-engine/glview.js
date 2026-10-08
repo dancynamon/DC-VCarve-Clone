@@ -278,6 +278,185 @@ function createRenderer(canvas) {
   };
 }
 
+// ---------- assembly view: many solid parts, each its own colour, pickable ----------
+// Picking is CPU ray casting against the parts' own triangle soups (no GPU readback, testable headless).
+function invert4(m) {
+  const a = m, o = new Float32Array(16);
+  const b00 = a[0]*a[5]-a[1]*a[4], b01 = a[0]*a[6]-a[2]*a[4], b02 = a[0]*a[7]-a[3]*a[4], b03 = a[1]*a[6]-a[2]*a[5];
+  const b04 = a[1]*a[7]-a[3]*a[5], b05 = a[2]*a[7]-a[3]*a[6], b06 = a[8]*a[13]-a[9]*a[12], b07 = a[8]*a[14]-a[10]*a[12];
+  const b08 = a[8]*a[15]-a[11]*a[12], b09 = a[9]*a[14]-a[10]*a[13], b10 = a[9]*a[15]-a[11]*a[13], b11 = a[10]*a[15]-a[11]*a[14];
+  let det = b00*b11 - b01*b10 + b02*b09 + b03*b08 - b04*b07 + b05*b06; if (!det) return null; det = 1 / det;
+  o[0] = (a[5]*b11 - a[6]*b10 + a[7]*b09)*det; o[1] = (a[2]*b10 - a[1]*b11 - a[3]*b09)*det; o[2] = (a[13]*b05 - a[14]*b04 + a[15]*b03)*det; o[3] = (a[10]*b04 - a[9]*b05 - a[11]*b03)*det;
+  o[4] = (a[6]*b08 - a[4]*b11 - a[7]*b07)*det; o[5] = (a[0]*b11 - a[2]*b08 + a[3]*b07)*det; o[6] = (a[14]*b02 - a[12]*b05 - a[15]*b01)*det; o[7] = (a[8]*b05 - a[10]*b02 + a[11]*b01)*det;
+  o[8] = (a[4]*b10 - a[5]*b08 + a[7]*b06)*det; o[9] = (a[1]*b08 - a[0]*b10 - a[3]*b06)*det; o[10] = (a[12]*b04 - a[13]*b02 + a[15]*b00)*det; o[11] = (a[9]*b02 - a[8]*b04 - a[11]*b00)*det;
+  o[12] = (a[5]*b07 - a[4]*b09 - a[6]*b06)*det; o[13] = (a[0]*b09 - a[1]*b07 + a[2]*b06)*det; o[14] = (a[13]*b01 - a[12]*b03 - a[14]*b00)*det; o[15] = (a[8]*b03 - a[9]*b01 + a[10]*b00)*det;
+  return o;
+}
+function xform4(m, v) { const x = v[0], y = v[1], z = v[2], w = v[3];
+  return [m[0]*x + m[4]*y + m[8]*z + m[12]*w, m[1]*x + m[5]*y + m[9]*z + m[13]*w, m[2]*x + m[6]*y + m[10]*z + m[14]*w, m[3]*x + m[7]*y + m[11]*z + m[15]*w]; }
+// pixel (px,py) in a w x h viewport -> world ray {o, d} for projection*view `pv`
+function screenRay(pv, w, h, px, py) {
+  const inv = invert4(pv); if (!inv) return null;
+  const nx = 2 * px / w - 1, ny = 1 - 2 * py / h;
+  const a = xform4(inv, [nx, ny, -1, 1]), b = xform4(inv, [nx, ny, 1, 1]);
+  const o = [a[0]/a[3], a[1]/a[3], a[2]/a[3]], e = [b[0]/b[3], b[1]/b[3], b[2]/b[3]];
+  return { o, d: _norm(_sub(e, o)) };
+}
+function meshBounds(pos) { const b = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < pos.length; i += 3) for (let k = 0; k < 3; k++) { const v = pos[i + k]; if (v < b[k]) b[k] = v; if (v > b[k + 3]) b[k + 3] = v; }
+  return b; }
+function rayBox(r, b) { let t0 = 0, t1 = Infinity;
+  for (let k = 0; k < 3; k++) { const inv = 1 / r.d[k]; let a = (b[k] - r.o[k]) * inv, c = (b[k + 3] - r.o[k]) * inv; if (a > c) { const t = a; a = c; c = t; } t0 = Math.max(t0, a); t1 = Math.min(t1, c); if (t0 > t1) return false; }
+  return true; }
+// nearest hit over parts [{id, positions (soup), bounds}] -> {id, t} or null (Moller-Trumbore, two-sided)
+function pickParts(ray, parts) {
+  let best = null;
+  for (const p of parts) {
+    if (p.visible === false || !p.positions) continue;
+    if (p.bounds && !rayBox(ray, p.bounds)) continue;
+    const P = p.positions, o = ray.o, d = ray.d;
+    for (let i = 0; i < P.length; i += 9) {
+      const e1x = P[i+3]-P[i], e1y = P[i+4]-P[i+1], e1z = P[i+5]-P[i+2], e2x = P[i+6]-P[i], e2y = P[i+7]-P[i+1], e2z = P[i+8]-P[i+2];
+      const px = d[1]*e2z - d[2]*e2y, py = d[2]*e2x - d[0]*e2z, pz = d[0]*e2y - d[1]*e2x;
+      const det = e1x*px + e1y*py + e1z*pz; if (Math.abs(det) < 1e-12) continue;
+      const inv = 1 / det, tx = o[0]-P[i], ty = o[1]-P[i+1], tz = o[2]-P[i+2];
+      const u = (tx*px + ty*py + tz*pz) * inv; if (u < 0 || u > 1) continue;
+      const qx = ty*e1z - tz*e1y, qy = tz*e1x - tx*e1z, qz = tx*e1y - ty*e1x;
+      const v = (d[0]*qx + d[1]*qy + d[2]*qz) * inv; if (v < 0 || u + v > 1) continue;
+      const t = (e2x*qx + e2y*qy + e2z*qz) * inv;
+      if (t > 1e-6 && (!best || t < best.t)) best = { id: p.id, t };
+    }
+  }
+  return best;
+}
+
+const VS_ASM = `attribute vec3 aPos; attribute vec3 aNrm; uniform mat4 uProj, uView;
+varying vec3 vN; varying vec3 vP; void main(){ vN = aNrm; vP = aPos; gl_Position = uProj * uView * vec4(aPos, 1.0); }`;
+const FS_ASM = `precision mediump float; varying vec3 vN; varying vec3 vP;
+uniform vec3 uColor, uLight, uEye; uniform float uHi, uDim;
+void main(){ vec3 n = normalize(vN); vec3 v = normalize(uEye - vP); if (dot(n, v) < 0.0) n = -n;
+  float lam = max(dot(n, normalize(uLight)), 0.0), fill = max(dot(n, normalize(vec3(0.5, 0.7, 0.35))), 0.0) * 0.25;
+  vec3 c = uColor * (0.32 + 0.6 * lam + fill);
+  float rim = pow(1.0 - max(dot(n, v), 0.0), 2.0);
+  c = mix(c, vec3(1.0, 0.55, 0.12), uHi * 0.45) + vec3(1.0, 0.6, 0.2) * uHi * rim * 0.6;
+  c = mix(c, vec3(0.6, 0.64, 0.7), uDim * 0.55);
+  gl_FragColor = vec4(c, 1.0); }`;
+
+// parts: setPart(id, {positions, normals}, colorRGB) / removePart / setHighlight(Set) / pick(px,py) / frameAll()
+function createAssemblyRenderer(canvas) {
+  let gl = null;
+  try { gl = canvas.getContext('webgl', { antialias: true, preserveDrawingBuffer: true }) || canvas.getContext('experimental-webgl'); } catch (e) { return null; }
+  if (!gl) return null;
+  const sh = (t, src) => { const s = gl.createShader(t); gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
+  let prog, progL;
+  try {
+    prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS_ASM)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS_ASM)); gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+    progL = gl.createProgram(); gl.attachShader(progL, sh(gl.VERTEX_SHADER, VS_LINE)); gl.attachShader(progL, sh(gl.FRAGMENT_SHADER, FS_LINE)); gl.linkProgram(progL);
+    if (!gl.getProgramParameter(progL, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(progL));
+  } catch (e) { return null; }
+  const loc = { pos: gl.getAttribLocation(prog, 'aPos'), nrm: gl.getAttribLocation(prog, 'aNrm'), proj: gl.getUniformLocation(prog, 'uProj'),
+    view: gl.getUniformLocation(prog, 'uView'), color: gl.getUniformLocation(prog, 'uColor'), light: gl.getUniformLocation(prog, 'uLight'),
+    eye: gl.getUniformLocation(prog, 'uEye'), hi: gl.getUniformLocation(prog, 'uHi'), dim: gl.getUniformLocation(prog, 'uDim') };
+  const locL = { pos: gl.getAttribLocation(progL, 'aPos'), col: gl.getAttribLocation(progL, 'aCol'), proj: gl.getUniformLocation(progL, 'uProj'), view: gl.getUniformLocation(progL, 'uView') };
+  gl.enable(gl.DEPTH_TEST);
+  const parts = new Map();          // id -> {id, bufP, bufN, count, color, positions, bounds, visible}
+  let highlight = new Set(), clear = [0.93, 0.95, 0.98], grid = null;
+  const cam = { target: [0, 0, 0], yaw: -Math.PI / 2 + 0.6, pitch: 0.5, dist: 120 };
+  let lastPV = null;
+  function setPart(id, mesh, color) {
+    let p = parts.get(id);
+    if (!p) { p = { id, bufP: gl.createBuffer(), bufN: gl.createBuffer() }; parts.set(id, p); }
+    gl.bindBuffer(gl.ARRAY_BUFFER, p.bufP); gl.bufferData(gl.ARRAY_BUFFER, mesh.positions, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, p.bufN); gl.bufferData(gl.ARRAY_BUFFER, mesh.normals, gl.STATIC_DRAW);
+    p.count = mesh.positions.length / 3; p.positions = mesh.positions; p.bounds = meshBounds(mesh.positions);
+    if (color) p.color = color; if (p.visible == null) p.visible = true;
+  }
+  function removePart(id) { const p = parts.get(id); if (!p) return; gl.deleteBuffer(p.bufP); gl.deleteBuffer(p.bufN); parts.delete(id); }
+  function bounds() { const b = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+    for (const p of parts.values()) if (p.visible !== false && p.bounds) for (let k = 0; k < 3; k++) { b[k] = Math.min(b[k], p.bounds[k]); b[k + 3] = Math.max(b[k + 3], p.bounds[k + 3]); }
+    return isFinite(b[0]) ? b : [0, 0, 0, 10, 10, 1]; }
+  function buildGrid() {   // floor grid, 6" squares, under the whole assembly
+    const b = bounds(), pad = 12, s = 6, x0 = Math.floor((b[0] - pad) / s) * s, x1 = Math.ceil((b[3] + pad) / s) * s, y0 = Math.floor((b[1] - pad) / s) * s, y1 = Math.ceil((b[4] + pad) / s) * s, z = Math.min(0, b[2]) - 0.01;
+    const P = [], Cc = [], col = [0.78, 0.81, 0.86];
+    for (let x = x0; x <= x1; x += s) { P.push(x, y0, z, x, y1, z); Cc.push(...col, ...col); }
+    for (let y = y0; y <= y1; y += s) { P.push(x0, y, z, x1, y, z); Cc.push(...col, ...col); }
+    if (!grid) grid = { bufP: gl.createBuffer(), bufC: gl.createBuffer() };
+    gl.bindBuffer(gl.ARRAY_BUFFER, grid.bufP); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(P), gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, grid.bufC); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(Cc), gl.STATIC_DRAW);
+    grid.count = P.length / 3;
+  }
+  const FOVY = 38 * Math.PI / 180;
+  function frameAll() { const b = bounds(); cam.target = [(b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2];
+    // fit the bounding sphere inside the NARROWER field of view (a tall split pane is narrow, not short)
+    const r = Math.max(1, Math.hypot(b[3] - b[0], b[4] - b[1], b[5] - b[2]) / 2);
+    const aspect = Math.max(0.2, (canvas.clientWidth || 1) / Math.max(1, canvas.clientHeight || 1));
+    const half = Math.min(FOVY / 2, Math.atan(Math.tan(FOVY / 2) * aspect));
+    cam.dist = r / Math.sin(half) * 1.04; buildGrid(); }
+  function resize() {
+    const dpr = Math.min(2, (typeof devicePixelRatio === 'number') ? devicePixelRatio : 1);
+    const w = Math.max(1, Math.round(canvas.clientWidth * dpr)), h = Math.max(1, Math.round(canvas.clientHeight * dpr));
+    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  }
+  function matrices() {
+    const aspect = canvas.width / Math.max(1, canvas.height);
+    const proj = perspective(FOVY, aspect, Math.max(0.05, cam.dist * 0.01), cam.dist * 10 + 200);
+    const eye = orbitEye(cam.target, cam.yaw, cam.pitch, cam.dist);
+    return { proj, view: lookAt(eye, cam.target, [0, 0, 1]), eye };
+  }
+  function draw() {
+    resize();
+    gl.clearColor(clear[0], clear[1], clear[2], 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    const m = matrices(); lastPV = multiply(m.proj, m.view);
+    if (grid && grid.count) {
+      gl.useProgram(progL); gl.uniformMatrix4fv(locL.proj, false, m.proj); gl.uniformMatrix4fv(locL.view, false, m.view);
+      gl.bindBuffer(gl.ARRAY_BUFFER, grid.bufP); gl.enableVertexAttribArray(locL.pos); gl.vertexAttribPointer(locL.pos, 3, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, grid.bufC); gl.enableVertexAttribArray(locL.col); gl.vertexAttribPointer(locL.col, 3, gl.FLOAT, false, 0, 0);
+      gl.drawArrays(gl.LINES, 0, grid.count);
+      gl.disableVertexAttribArray(locL.col);
+    }
+    gl.useProgram(prog);
+    gl.uniformMatrix4fv(loc.proj, false, m.proj); gl.uniformMatrix4fv(loc.view, false, m.view);
+    gl.uniform3fv(loc.light, [-0.35, -0.55, 0.76]); gl.uniform3fv(loc.eye, m.eye);
+    const anyHi = highlight.size > 0;
+    for (const p of parts.values()) {
+      if (p.visible === false || !p.count) continue;
+      gl.uniform3fv(loc.color, p.color || [0.6, 0.65, 0.75]);
+      gl.uniform1f(loc.hi, highlight.has(p.id) ? 1 : 0);
+      gl.uniform1f(loc.dim, anyHi && !highlight.has(p.id) ? 0.35 : 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, p.bufP); gl.enableVertexAttribArray(loc.pos); gl.vertexAttribPointer(loc.pos, 3, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, p.bufN); gl.enableVertexAttribArray(loc.nrm); gl.vertexAttribPointer(loc.nrm, 3, gl.FLOAT, false, 0, 0);
+      gl.drawArrays(gl.TRIANGLES, 0, p.count);
+    }
+  }
+  function pick(px, py) {   // CSS pixels within the canvas
+    if (!lastPV) draw();
+    const r = screenRay(lastPV, canvas.clientWidth, canvas.clientHeight, px, py);
+    return r ? pickParts(r, [...parts.values()]) : null;
+  }
+  return {
+    gl, cam, parts, setPart, removePart, frameAll, draw, resize, pick, bounds,
+    project(p) {   // world point -> CSS pixels in the canvas (labels, tests)
+      if (!lastPV) draw();
+      const c = xform4(lastPV, [p[0], p[1], p[2], 1]); if (c[3] <= 0) return null;
+      return { x: (c[0] / c[3] * 0.5 + 0.5) * canvas.clientWidth, y: (0.5 - c[1] / c[3] * 0.5) * canvas.clientHeight };
+    },
+    setHighlight(ids) { highlight = new Set(ids || []); },
+    setVisible(id, on) { const p = parts.get(id); if (p) p.visible = !!on; },
+    setClear(c) { clear = c; },
+    orbit(dx, dy) { cam.yaw -= dx; cam.pitch = clampPitch(cam.pitch + dy); },
+    pan(dx, dy) {
+      const right = [-Math.sin(cam.yaw), Math.cos(cam.yaw), 0];
+      const upv = [-Math.cos(cam.yaw) * Math.sin(cam.pitch), -Math.sin(cam.yaw) * Math.sin(cam.pitch), Math.cos(cam.pitch)];
+      for (let i = 0; i < 3; i++) cam.target[i] += right[i] * dx + upv[i] * dy;
+    },
+    zoom(f) { cam.dist = Math.max(0.5, Math.min(5000, cam.dist * f)); }
+  };
+}
+
 return { identity, multiply, perspective, lookAt, orbitEye, clampPitch, PITCH_LIMIT,
-  buildHeightMesh, buildToolpathLines, createRenderer };
+  buildHeightMesh, buildToolpathLines, createRenderer,
+  invert4, screenRay, pickParts, meshBounds, createAssemblyRenderer };
 });
