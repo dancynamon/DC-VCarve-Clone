@@ -1672,9 +1672,10 @@ function postJob(){ if(!opsQueue.length){ setMsg('Job queue empty — "Add op" f
   if(!allOps.length){ setMsg('Job produced no cuttable passes.'); return; }
   lastGcode=g; toolpaths=toolpathSegs(g); drillMarks=dpts.length?dpts:null; if(dpts.length)drillDia=0.25;
   const sheetFile=(typeof ASM!=='undefined' && ASM.active && asmSheet(ASM.active)) ? asmSheet(ASM.active).file : '';
-  render(); download(sheetFile ? sheetFile.replace(/\.dxf$/i,'')+'.tap' : 'job.tap', g);
+  const tapName=sheetFile ? sheetFile.replace(/\.dxf$/i,'')+'.tap' : 'job.tap';
+  render(); download(tapName, g);
   const arcN=(g.match(/^G[23] /gm)||[]).length, tools=allOps.map(o=>'T'+o.toolNum).join('→');
-  setMsg('Posted job: '+allOps.length+' ops ('+tools+'), '+arcN+' arc move(s) → job.tap'+(warns.length?' · WARN: '+warns[0]:'')); }
+  setMsg('Posted job: '+allOps.length+' ops ('+tools+'), '+arcN+' arc move(s) → '+tapName+(warns.length?' · WARN: '+warns[0]:'')); }
 
 // ---- self-test: build a sample design and run every CAM op (studio-only smoke test of the pure core) ----
 function runSelfTest(){

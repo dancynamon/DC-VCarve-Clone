@@ -14,6 +14,7 @@
  */
 const ASM = {
   on: false, data: null, name: '', sheets: [], active: null, cache: new Map(), r: null, failed: false,
+  pb: { on: false, key: '', moves: null, tw: null, t: 0, playing: false, last: 0, timer: 0, tools: {} },
   lastFp: null, lastHi: '', raf: 0, stats: { ms: 0, rebuilt: [], parts: 0, at: 0 }, built: null, flat: true
 };
 const ASM_LAYER_COLORS = { profile: '#1b2b3f', inside: '#b8541c', drill: '#8a2f8f', pocket: '#1f7a3a', skip: '#b8860b', sheet: '#9aa5b1', unknown: '#3b4fb8' };
@@ -68,7 +69,7 @@ function asmLoadSheet(id, quiet) {
   applyJobInputs(); buildQueueList(); syncPanels(); fitJob();
   const pick = document.getElementById('asmSheet'); if (pick) pick.value = id;
   if (!quiet) setMsg('Editing ' + (sh.label || sh.file || id) + ' — ' + doc.shapes.length + ' shape(s), ' + opsQueue.length + ' toolpath(s)');
-  ASM.lastFp = null; render();
+  ASM.lastFp = null; if (ASM.pb.on) { asmPbPlay(false); ASM.pb.key = ''; ASM.pb.t = Infinity; } render();
 }
 function asmItemsOf(shapes) {
   const out = [];
@@ -256,7 +257,89 @@ function asmRefresh(force) {
     ASM.stats = { ms: Math.round(performance.now() - t0), rebuilt: ASM.built.rebuilt.slice(), parts: ASM.built.parts.length, at: Date.now(), errors: ASM.built.errors };
     asmStatus();
   }
+  asmPbAfterRefresh();
   window.__asmStats = Object.assign({ highlight: hi }, ASM.stats);
+}
+
+// ---- toolpath playback (idea from 3D-Product-Viewer's CNC panel, rebuilt on this studio's own post) ------------
+// The open sheet's toolpaths are posted exactly as Post Job would, parsed back into timed moves, and drawn on the
+// placed parts through each part's own mapping — so they follow the flipped base, the arched slide, a 2B setup.
+function asmPbKey() {
+  return ASM.lastFp + '|' + JSON.stringify(opsQueue.map(q => [q.p, q.sel, q.ids, q.visible])) + '|' + !!(document.getElementById('camArcs') || {}).checked;
+}
+function asmPbTargets() {
+  if (!ASM.built) return [];
+  const here = p => !ASM.sheets.length || p.sheet === ASM.active;
+  return ASM.built.parts.filter(p => here(p) || p.setupSheets.indexOf(ASM.active) >= 0)
+    .map(p => ({ id: p.id, outline: p.outline, bbox: p.bbox, map: p.map, T: p.T, setup: here(p) ? null : { cx2: p.cx2 } }));
+}
+function asmPbBuild() {
+  const pb = ASM.pb; pb.timer = 0;
+  if (!pb.on || !ASM.r) return;
+  const frac = pb.tw && pb.tw.total ? pb.t / pb.tw.total : 1;
+  const visible = opsQueue.filter(q => q.visible !== false);
+  if (!visible.length) { asmPbClear('No toolpaths on this sheet'); return; }
+  const post = Object.assign({}, CAM.POSTS[(document.getElementById('camPost') || {}).value || 'shopsabre']);
+  post.arcs = !!(document.getElementById('camArcs') || { checked: true }).checked;
+  const pj = ASSEMBLY.postQueue(CAM, visible, contoursForOp, post);
+  if (!pj.gcode) { asmPbClear('Toolpaths produced no cuts'); return; }
+  pb.moves = ASSEMBLY.tapMoves(pj.gcode);
+  pb.tw = ASSEMBLY.toolpathWorld(pb.moves, asmPbTargets());
+  pb.tools = {}; for (const q of opsQueue) pb.tools[q.p.toolNum] = q.p.toolDia;
+  pb.key = asmPbKey();
+  ASM.r.setLines(pb.tw);
+  pb.t = Math.max(0, Math.min(1, frac)) * pb.tw.total;
+  for (const id of ['asmRew', 'asmPlay', 'asmScrub']) document.getElementById(id).disabled = false;
+  asmPbApply();
+}
+function asmPbClear(why) {
+  const pb = ASM.pb; pb.moves = null; pb.tw = null; pb.playing = false;
+  if (ASM.r) { ASM.r.setLines(null); ASM.r.setTool(null); ASM.r.draw(); }
+  for (const id of ['asmRew', 'asmPlay', 'asmScrub']) { const el = document.getElementById(id); if (el) el.disabled = true; }
+  const pl = document.getElementById('asmPlay'); if (pl) pl.textContent = '▶';
+  const tm = document.getElementById('asmTime'); if (tm) tm.textContent = why || '—';
+}
+function asmPbApply() {
+  const pb = ASM.pb; if (!pb.tw || !ASM.r) return;
+  const at = ASSEMBLY.toolpathAt(pb.moves, pb.tw, pb.t);
+  const done = pb.t >= pb.tw.total - 1e-9;
+  ASM.r.setLineDraw(done ? pb.tw.vertexCount : (at ? at.vertices : 0));
+  ASM.r.setTool(at && at.tip && !done ? { tip: at.tip, axis: at.axis, radius: (pb.tools[at.tool] || 0.25) / 2, length: 4 } : null);
+  ASM.r.draw();
+  const sc = document.getElementById('asmScrub'); if (sc && document.activeElement !== sc) sc.value = String(Math.round(pb.t / (pb.tw.total || 1) * 1000));
+  const tm = document.getElementById('asmTime');
+  if (tm) tm.textContent = (at ? 'T' + at.tool + (at.rapid ? ' rapid' : '') + ' · ' : '') + fmtTime(pb.t) + ' / ' + fmtTime(pb.tw.total);
+  window.__asmPlay = { t: pb.t, total: pb.tw.total, tip: at && at.tip, axis: at && at.axis, tool: at && at.tool, line: at && at.line, vertices: done ? pb.tw.vertexCount : (at ? at.vertices : 0), lines: pb.tw.vertexCount / 2, playing: pb.playing };
+}
+function asmPbTick(ts) {
+  const pb = ASM.pb; if (!pb.playing || !pb.tw) return;
+  const dt = pb.last ? Math.min(0.25, (ts - pb.last) / 1000) : 0; pb.last = ts;
+  pb.t = Math.min(pb.tw.total, pb.t + dt * (parseFloat(document.getElementById('asmSpeed').value) || 30));
+  if (pb.t >= pb.tw.total) asmPbPlay(false);
+  asmPbApply();
+  if (pb.playing) requestAnimationFrame(asmPbTick);
+}
+function asmPbPlay(on) {
+  const pb = ASM.pb; if (!pb.tw) return;
+  if (on && pb.t >= pb.tw.total - 1e-9) pb.t = 0;   // play from the end = start over
+  pb.playing = !!on; pb.last = 0;
+  document.getElementById('asmPlay').textContent = pb.playing ? '⏸' : '▶';
+  if (pb.playing) requestAnimationFrame(asmPbTick);
+}
+function asmPbToggle(on) {
+  const pb = ASM.pb; pb.on = !!on;
+  const cb = document.getElementById('asmTp'); if (cb) cb.checked = pb.on;
+  if (!pb.on) { asmPbClear(); return; }
+  pb.t = Infinity; pb.tw = null; asmPbBuild();   // starts showing the whole job; press ▶ to watch it cut
+  if (pb.tw) { pb.t = pb.tw.total; asmPbApply(); }
+}
+// after an assembly refresh: rebuild playback when the sheet or its toolpaths changed (debounced — posting a
+// big sheet takes longer than re-meshing one part, and the 3D must stay quick while dragging)
+function asmPbAfterRefresh() {
+  const pb = ASM.pb; if (!pb.on) return;
+  if (asmPbKey() === pb.key) return;
+  if (pb.timer) clearTimeout(pb.timer);
+  pb.timer = setTimeout(asmPbBuild, 250);
 }
 function asmStatus() {
   const el = document.getElementById('asmStat'); if (!el || !ASM.built) return;
@@ -271,12 +354,17 @@ function asmStatus() {
 function asmReset() {
   ASM.sheets = []; ASM.data = null; ASM.active = null; ASM.flat = true; ASM.name = ''; ASM.cache = new Map(); ASM.built = null; ASM.lastFp = null;
   if (ASM.r) for (const id of [...ASM.r.parts.keys()]) ASM.r.removePart(id);
+  if (ASM.pb.on) asmPbToggle(false);
   asmBuildSheetPicker();
 }
 function asmInit() {
   const g = id => document.getElementById(id);
   const inp = g('asmInput'); if (inp) inp.onchange = e => { const fs = [...e.target.files]; inp.value = ''; if (fs.length) asmOpenFiles(fs); };
   const pick = g('asmSheet'); if (pick) pick.onchange = e => asmLoadSheet(e.target.value);
+  const tpc = g('asmTp'); if (tpc) tpc.onchange = e => asmPbToggle(e.target.checked);
+  const pl = g('asmPlay'); if (pl) pl.onclick = () => asmPbPlay(!ASM.pb.playing);
+  const rw = g('asmRew'); if (rw) rw.onclick = () => { asmPbPlay(false); ASM.pb.t = 0; asmPbApply(); };
+  const sc = g('asmScrub'); if (sc) sc.oninput = e => { if (!ASM.pb.tw) return; asmPbPlay(false); ASM.pb.t = (+e.target.value / 1000) * ASM.pb.tw.total; asmPbApply(); };
   const fit = g('asmFit'); if (fit) fit.onclick = () => { if (ASM.r) { ASM.r.frameAll(); ASM.r.draw(); } };
   const iso = g('asmIso'); if (iso) iso.onclick = () => { if (ASM.r) { ASM.r.frameAll(); ASM.r.cam.yaw = -Math.PI / 2 + 0.6; ASM.r.cam.pitch = 0.5; ASM.r.draw(); } };
   const side = g('asmSide'); if (side) side.onclick = () => { if (ASM.r) { ASM.r.frameAll(); ASM.r.cam.yaw = 0; ASM.r.cam.pitch = 0.05; ASM.r.draw(); } };

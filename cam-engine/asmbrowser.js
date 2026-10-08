@@ -129,6 +129,30 @@ const ok = (name, cond, extra) => { if (cond) { pass++; console.log('  ok   ' + 
     changed.length + ' line(s) changed, X values ' + [...xs].slice(0, 6).join(' '));
   ok('TAP drills the new position to exactly -T', /G0 X\S+ Y6\.7347 Z0\.2000\r?\nG1 Z-1\.5000 F20\.0/.test(after.text) && after.text.indexOf('X' + nx + ' Y6.7347 Z0.2000') >= 0, 'X' + nx);
 
+  // ---- toolpath playback in the 3D pane (slide sheet, after the edit)
+  await page.check('#asmTp');
+  await page.waitForFunction(() => window.__asmPlay && window.__asmPlay.lines > 0, null, { timeout: 10000 });
+  let pbs = await page.evaluate(() => window.__asmPlay);
+  ok('toolpaths drawn on the placed slide', pbs.lines > 3000 && pbs.vertices === pbs.lines * 2 && Math.abs(pbs.t - pbs.total) < 1e-6, pbs.lines + ' moves, ' + (pbs.total / 60).toFixed(1) + ' min');
+  const firstDrill = await page.evaluate(() => { const m = ASM.pb.moves, i = m.findIndex(q => !q.rapid); ASM.pb.t = m[i].t1; asmPbApply(); return window.__asmPlay; });
+  ok('playback follows the edit: first drill at the moved hole, bottom of the slide', firstDrill.tool === 8 && Math.abs(firstDrill.tip[0] - moved.x) < 0.01 && Math.abs(firstDrill.tip[1] - 6.75) < 0.01 && Math.abs(firstDrill.tip[2] - 1.5) < 0.01,
+    'T' + firstDrill.tool + ' @ ' + firstDrill.tip.map(v => v.toFixed(3)).join(', '));
+  await page.click('#asmRew');
+  await page.selectOption('#asmSpeed', '300');
+  await page.click('#asmPlay');
+  await page.waitForTimeout(900);
+  pbs = await page.evaluate(() => window.__asmPlay);
+  ok('▶ plays: playhead advances, tool drawn, lines grow', pbs.playing && pbs.t > 30 && pbs.tip && pbs.vertices > 0 && pbs.vertices < pbs.lines * 2, (pbs.t / 60).toFixed(2) + ' min · ' + pbs.vertices / 2 + ' moves drawn');
+  await page.screenshot({ path: path.join(OUT, '2b-playback.png') });
+  await page.click('#asmPlay');
+  const paused = await page.evaluate(() => window.__asmPlay.t); await page.waitForTimeout(300);
+  ok('⏸ pauses', await page.evaluate(t => window.__asmPlay.t === t && !ASM.pb.playing, paused));
+  await page.evaluate(() => { const el = document.getElementById('asmScrub'); el.value = '500'; el.dispatchEvent(new Event('input')); });
+  pbs = await page.evaluate(() => window.__asmPlay);
+  ok('scrubber jumps to mid-job', Math.abs(pbs.t / pbs.total - 0.5) < 0.002, (pbs.t / pbs.total).toFixed(3));
+  await page.uncheck('#asmTp');
+  ok('toolpaths off clears the overlay', await page.evaluate(() => !ASM.pb.tw && document.getElementById('asmPlay').disabled));
+
   // ---- 3D -> 2D: click step 1 in the 3D view
   await page.evaluate(() => { ASM.r.frameAll(); ASM.r.cam.yaw = Math.PI / 2 + 0.5; ASM.r.cam.pitch = 0.45; ASM.r.draw(); });   // from the step (exit) side: the arch hides them from the default view
   const tgt = await page.evaluate(() => { const p = ASM.built.parts.find(q => q.id === 'step1'), P = ASM.r.parts.get('step1').positions;

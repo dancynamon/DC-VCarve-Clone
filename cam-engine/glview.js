@@ -365,6 +365,28 @@ function createAssemblyRenderer(canvas) {
   let highlight = new Set(), clear = [0.93, 0.95, 0.98], grid = null;
   const cam = { target: [0, 0, 0], yaw: -Math.PI / 2 + 0.6, pitch: 0.5, dist: 120 };
   let lastPV = null;
+  // toolpath playback: a LINES buffer drawn up to `lineDraw` vertices, plus a tool marker (always on top)
+  const tp = { bufP: gl.createBuffer(), bufC: gl.createBuffer(), count: 0, draw: 0, toolP: gl.createBuffer(), toolC: gl.createBuffer(), toolN: 0 };
+  function setLines(lm) {
+    tp.count = lm ? lm.vertexCount : 0; tp.draw = tp.count;
+    if (!tp.count) return;
+    gl.bindBuffer(gl.ARRAY_BUFFER, tp.bufP); gl.bufferData(gl.ARRAY_BUFFER, lm.positions, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, tp.bufC); gl.bufferData(gl.ARRAY_BUFFER, lm.colors, gl.STATIC_DRAW);
+  }
+  function setTool(t) {   // {tip:[x,y,z], axis:[x,y,z] (away from the part), radius, length} or null
+    if (!t || !t.tip) { tp.toolN = 0; return; }
+    const ax = _norm(t.axis || [0, 0, 1]), r = t.radius || 0.125, L = t.length || 2.5;
+    let u = _cross(ax, [0, 0, 1]); if (Math.hypot(u[0], u[1], u[2]) < 1e-6) u = _cross(ax, [1, 0, 0]); u = _norm(u);
+    const w = _cross(ax, u), P = [], Cc = [], red = [0.86, 0.12, 0.1], steel = [0.25, 0.28, 0.33];
+    const ring = (h, rr, col) => { for (let k = 0; k < 20; k++) { const a = k / 20 * 2 * Math.PI, b = (k + 1) / 20 * 2 * Math.PI;
+      for (const q of [a, b]) { P.push(t.tip[0] + ax[0] * h + (u[0] * Math.cos(q) + w[0] * Math.sin(q)) * rr, t.tip[1] + ax[1] * h + (u[1] * Math.cos(q) + w[1] * Math.sin(q)) * rr, t.tip[2] + ax[2] * h + (u[2] * Math.cos(q) + w[2] * Math.sin(q)) * rr); Cc.push(...col); } } };
+    ring(0, r, red); ring(0, Math.max(0.6, r * 3), [1, 0.5, 0.05]); ring(L * 0.35, r, steel); ring(L, r * 1.6, steel);   // orange halo keeps the tip findable at assembly zoom
+    for (let k = 0; k < 4; k++) { const q = k * Math.PI / 2, ox = (u[0] * Math.cos(q) + w[0] * Math.sin(q)) * r, oy = (u[1] * Math.cos(q) + w[1] * Math.sin(q)) * r, oz = (u[2] * Math.cos(q) + w[2] * Math.sin(q)) * r;
+      P.push(t.tip[0] + ox, t.tip[1] + oy, t.tip[2] + oz, t.tip[0] + ax[0] * L + ox, t.tip[1] + ax[1] * L + oy, t.tip[2] + ax[2] * L + oz); Cc.push(...red, ...steel); }
+    gl.bindBuffer(gl.ARRAY_BUFFER, tp.toolP); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(P), gl.DYNAMIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, tp.toolC); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(Cc), gl.DYNAMIC_DRAW);
+    tp.toolN = P.length / 3;
+  }
   function setPart(id, mesh, color) {
     let p = parts.get(id);
     if (!p) { p = { id, bufP: gl.createBuffer(), bufN: gl.createBuffer() }; parts.set(id, p); }
@@ -420,6 +442,7 @@ function createAssemblyRenderer(canvas) {
     gl.useProgram(prog);
     gl.uniformMatrix4fv(loc.proj, false, m.proj); gl.uniformMatrix4fv(loc.view, false, m.view);
     gl.uniform3fv(loc.light, [-0.35, -0.55, 0.76]); gl.uniform3fv(loc.eye, m.eye);
+    gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(1.5, 2);   // push solids back so toolpath lines on their faces win
     const anyHi = highlight.size > 0;
     for (const p of parts.values()) {
       if (p.visible === false || !p.count) continue;
@@ -430,6 +453,16 @@ function createAssemblyRenderer(canvas) {
       gl.bindBuffer(gl.ARRAY_BUFFER, p.bufN); gl.enableVertexAttribArray(loc.nrm); gl.vertexAttribPointer(loc.nrm, 3, gl.FLOAT, false, 0, 0);
       gl.drawArrays(gl.TRIANGLES, 0, p.count);
     }
+    gl.disable(gl.POLYGON_OFFSET_FILL);
+    const lines = (bp, bc, n) => { gl.bindBuffer(gl.ARRAY_BUFFER, bp); gl.enableVertexAttribArray(locL.pos); gl.vertexAttribPointer(locL.pos, 3, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, bc); gl.enableVertexAttribArray(locL.col); gl.vertexAttribPointer(locL.col, 3, gl.FLOAT, false, 0, 0); gl.drawArrays(gl.LINES, 0, n); };
+    if ((tp.count && tp.draw) || tp.toolN) {
+      gl.disableVertexAttribArray(loc.nrm);
+      gl.useProgram(progL); gl.uniformMatrix4fv(locL.proj, false, m.proj); gl.uniformMatrix4fv(locL.view, false, m.view);
+      if (tp.count && tp.draw) lines(tp.bufP, tp.bufC, Math.min(tp.draw, tp.count));
+      if (tp.toolN) { gl.disable(gl.DEPTH_TEST); lines(tp.toolP, tp.toolC, tp.toolN); gl.enable(gl.DEPTH_TEST); }
+      gl.disableVertexAttribArray(locL.col);
+    }
   }
   function pick(px, py) {   // CSS pixels within the canvas
     if (!lastPV) draw();
@@ -437,7 +470,8 @@ function createAssemblyRenderer(canvas) {
     return r ? pickParts(r, [...parts.values()]) : null;
   }
   return {
-    gl, cam, parts, setPart, removePart, frameAll, draw, resize, pick, bounds,
+    gl, cam, parts, setPart, removePart, frameAll, draw, resize, pick, bounds, setLines, setTool,
+    setLineDraw(n) { tp.draw = Math.max(0, n | 0); },
     project(p) {   // world point -> CSS pixels in the canvas (labels, tests)
       if (!lastPV) draw();
       const c = xform4(lastPV, [p[0], p[1], p[2], 1]); if (c[3] <= 0) return null;

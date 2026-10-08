@@ -156,6 +156,31 @@ const flat = A.buildAssembly(A.defaultAssembly([{ id: 'red', w: 48.5 }]), { red:
 ok('no assembly file: every part extruded flat', flat.parts.length === 22 && flat.parts.every(p => G.meshBounds(p.mesh.positions)[2] >= -1e-9));
 ok('bad assembly reports problems', A.validateAssembly({ format: 'x', sheets: [], parts: [{ id: 'a', sheet: 'q' }] }).length >= 3);
 
+// ---- toolpath playback
+const mv = A.tapMoves('G90\r\nT2\r\nZ2\r\nS24000\r\nM3\r\ng4 x 4\r\nF100.0\r\nG0 X1.0000 Y1.0000 Z0.2000\r\nG1 Z-0.5000 F30.0\r\nG1 X3.0000 Y1.0000 F100.0\r\nG2 X3.0000 Y1.0000 I0.0000 J0.5000\r\nG0 Z0.2000\r\nM5\r\n');
+const cutLen = mv.filter(m => !m.rapid).reduce((a, m) => a + Math.hypot(m.x1 - m.x0, m.y1 - m.y0, m.z1 - m.z0), 0);
+ok('tapMoves: plunge + line + full circle', near(cutLen, 0.7 + 2 + Math.PI, 0.01), cutLen);
+ok('tapMoves: dwell / spindle lines are not moves, tool tracked', mv.every(m => m.tool === 2) && !mv.some(m => m.x1 === 4));
+ok('tapMoves: time from feed', near(mv[mv.length - 1].t1, (2 + Math.PI) / 100 * 60 + 0.7 / 30 * 60 + (Math.hypot(1, 1, 1.8) + 0.7) / 300 * 60, 0.05), mv[mv.length - 1].t1);
+ok('tapMoves: long lines split for bending', mv.filter(m => !m.rapid && m.y0 === 1 && m.y1 === 1 && m.x1 > m.x0).length === 4);
+const bS = A.buildAssembly(asm, sheets, new Map());
+const tgOf = sid => bS.parts.filter(p => p.sheet === sid || p.setupSheets.indexOf(sid) >= 0).map(p => Object.assign({}, p, { setup: p.sheet === sid ? null : { cx2: p.cx2 } }));
+const slideMoves = A.tapMoves(postSheet(shapes.slide, 1.5).gcode), slideTW = A.toolpathWorld(slideMoves, tgOf('slide'));
+const firstCut = slideMoves.findIndex(m => !m.rapid), at0 = A.toolpathAt(slideMoves, slideTW, slideMoves[firstCut].t1);
+const dHole = A.partAt(A.extractParts(sheets.slide.items, 1.5).parts, { x: 18, y: 36 }).cuts.find(c => c.layer === 'DRILL_0.375_THRU');
+ok('playback: first cut is a T8 drill bottoming out on the slide underside', at0.tool === 8 && near(at0.tip[2], 1.5, 0.01) && near(at0.axis[2], 1, 0.02), JSON.stringify(at0.tip));
+ok('playback: park move left out, everything else drawn', slideTW.vertexCount / 2 >= slideMoves.length - 100 && slideTW.vertexCount / 2 < slideMoves.length);
+const prof = slideMoves.filter(m => !m.rapid && near(m.z1, -1.5, 1e-6) && m.tool === 2);
+const apex = prof.reduce((a, m, i) => { const q = A.toolpathAt(slideMoves, slideTW, m.t1); return q && q.tip[2] > a ? q.tip[2] : a; }, 0);
+ok('playback: the slide profile follows the arch', apex > 19 && apex < 21, apex);
+const baseMoves = A.tapMoves(postSheet(shapes.base, 1.5).gcode), baseTW = A.toolpathWorld(baseMoves, tgOf('base'));
+const b0 = A.toolpathAt(baseMoves, baseTW, baseMoves[baseMoves.findIndex(m => !m.rapid)].t1);
+ok('playback: flipped base is cut from below', near(b0.axis[2], -1, 1e-6) && near(b0.tip[2], 1.5, 1e-6));
+const bMoves = A.tapMoves(postSheet(shapes.slideB, 1.5).gcode), bTW = A.toolpathWorld(bMoves, tgOf('slideB'));
+const bb0 = A.toolpathAt(bMoves, bTW, bMoves[bMoves.findIndex(m => !m.rapid)].t1);
+ok('playback: 2B setup lands on the slide underside', bb0.axis[2] < -0.3 && bb0.tip[2] > 5, JSON.stringify(bb0.tip) + ' ' + JSON.stringify(bb0.axis));
+ok('playback: scrub monotone vertex count', [0.1, 0.3, 0.6, 0.9].map(f => A.toolpathAt(slideMoves, slideTW, f * slideTW.total).vertices).every((v, i, a) => !i || v >= a[i - 1]));
+
 // ---- picking math
 const proj = G.perspective(0.8, 1, 0.1, 1000), view = G.lookAt([0, 0, 50], [0, 0, 0], [0, 1, 0]);
 const r0 = G.screenRay(G.multiply(proj, view), 200, 200, 100, 100);

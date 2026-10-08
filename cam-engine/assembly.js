@@ -675,12 +675,109 @@ function buildAssembly(asm, sheets, cache) {
     if (prev && prev.key === key) mesh = prev.mesh;
     else { mesh = partSolid(e._part, { map: m.map, ybreaks: m.ybreaks }); cache.set('mesh:' + e.id, { key, mesh }); rebuilt.push(e.id); }
     const sd = sheetDef.get(e.sheet) || {};
+    const pbb = bboxPts(e._part.outline);
     out.push({ id: e.id, label: e.label || e.id, sheet: e.sheet, color: e.color || sd.color || '#8fa3bf', ids: e._part.ids, outlineId: e._part.outlineId,
-      setupSheets: e._setupSheets || [], mesh, info: m.info });
+      setupSheets: e._setupSheets || [], mesh, info: m.info,
+      map: m.map, T: m.T, outline: e._part.outline, bbox: pbb, cx2: pbb.minX + pbb.maxX });   // map/T/outline: toolpath playback
   }
   const unplaced = [];
   for (const id in extracted) for (const p of extracted[id].parts) if (!used.has(p)) unplaced.push({ sheet: id, key: p.key, bbox: p.bbox });
   return { parts: out, errors, rebuilt, unplaced };
+}
+
+// ---------------------------------------------------------------- toolpath playback
+// G-code -> timed moves {x0,y0,z0,x1,y1,z1,rapid,tool,feed,t0,t1,line}. Arcs are tessellated and long lines split
+// (maxSeg) so every piece can be bent with its part. Time = length / feed (rapids at opts.rapid ipm), seconds.
+function tapMoves(text, opts) {
+  const o = Object.assign({ rapid: 300, arcStep: 0.05, maxSeg: 0.5 }, opts || {});
+  let x = 0, y = 0, z = 2, mode = 'G0', feed = 60, tool = 0, t = 0, n = 0;
+  const out = [];
+  const push = (x1, y1, z1, rapid) => {
+    const len = Math.hypot(x1 - x, y1 - y, z1 - z);
+    if (len < 1e-9) return;
+    const pieces = Math.max(1, Math.ceil(Math.hypot(x1 - x, y1 - y) / o.maxSeg));
+    for (let i = 1; i <= pieces; i++) {
+      const f = i / pieces, ax = x + (x1 - x) * (i - 1) / pieces, ay = y + (y1 - y) * (i - 1) / pieces, az = z + (z1 - z) * (i - 1) / pieces;
+      const bx = x + (x1 - x) * f, by = y + (y1 - y) * f, bz = z + (z1 - z) * f;
+      const dt = Math.hypot(bx - ax, by - ay, bz - az) / Math.max(1e-6, rapid ? o.rapid : feed) * 60;
+      out.push({ x0: ax, y0: ay, z0: az, x1: bx, y1: by, z1: bz, rapid, tool, feed: rapid ? o.rapid : feed, t0: t, t1: t + dt, line: n });
+      t += dt;
+    }
+    x = x1; y = y1; z = z1;
+  };
+  for (const raw of String(text).split(/\r?\n/)) {
+    n++;
+    const ln = raw.replace(/\(.*?\)/g, '').replace(/;.*$/, '').trim().toUpperCase();
+    if (!ln) continue;
+    const tm = /^T(\d+)/.exec(ln); if (tm) { tool = +tm[1]; continue; }
+    if (/^G4\b|^G0?4\s/.test(ln) || /^[MS%]/.test(ln) || /^G9[01]\b/.test(ln) || /^G2[01]\b/.test(ln) || /^G1[789]\b/.test(ln) || /^G4[09]\b/.test(ln)) continue;
+    const v = c => { const r = new RegExp(c + '\\s*(-?\\d*\\.?\\d+)').exec(ln); return r ? +r[1] : null; };
+    const g = /^G0*([0-3])(?![0-9])/.exec(ln); if (g) mode = 'G' + g[1];
+    const F = v('F'); if (F != null) feed = F;
+    const nx = v('X'), ny = v('Y'), nz = v('Z');
+    if (nx == null && ny == null && nz == null) continue;
+    const X1 = nx == null ? x : nx, Y1 = ny == null ? y : ny, Z1 = nz == null ? z : nz;
+    if ((mode === 'G2' || mode === 'G3') && (v('I') != null || v('J') != null)) {
+      const cx = x + (v('I') || 0), cy = y + (v('J') || 0), r = Math.hypot(x - cx, y - cy);
+      let a0 = Math.atan2(y - cy, x - cx), a1 = Math.atan2(Y1 - cy, X1 - cx);
+      if (mode === 'G2') { while (a1 >= a0 - 1e-12) a1 -= 2 * Math.PI; } else { while (a1 <= a0 + 1e-12) a1 += 2 * Math.PI; }
+      const k = Math.max(2, Math.ceil(Math.abs(a1 - a0) * r / o.arcStep)), z0 = z;
+      for (let i = 1; i <= k; i++) { const a = a0 + (a1 - a0) * i / k;
+        push(i === k ? X1 : cx + r * Math.cos(a), i === k ? Y1 : cy + r * Math.sin(a), z0 + (Z1 - z0) * i / k, false); }
+    } else push(X1, Y1, Z1, mode === 'G0');
+  }
+  return out;
+}
+// Timed moves -> world-space line buffers, through the placed part each move sits on.
+// targets: [{outline, bbox, map(x,y,z)->{p,n}, T, setup?:{cx2}}] — a setup target is a flip-in-place second setup:
+// its sheet x is mirrored and its Z0 is the part's bottom face. Moves farther than `reach` from every part
+// (the final park, the Z2 lift at the origin) are left out of the picture but keep their time.
+function toolpathWorld(moves, targets, opts) {
+  const o = Object.assign({ reach: 1.0, cutColors: { 8: [0.82, 0.32, 0.9] }, cutColor: [1, 0.72, 0.16], rapidColor: [0.52, 0.58, 0.68] }, opts || {});
+  const pick = (x, y) => {
+    let best = null, bd = Infinity;
+    for (const tg of targets) {
+      const b = tg.bbox, dx = Math.max(b.minX - x, 0, x - b.maxX), dy = Math.max(b.minY - y, 0, y - b.maxY), d = Math.hypot(dx, dy);
+      if (d === 0 && pointInPoly({ x, y }, tg.outline)) return tg;
+      const c = tg._c || (tg._c = centroidOf(tg.outline)), dd = d + 1e-3 * Math.hypot(c.x - x, c.y - y);
+      if (dd < bd) { bd = dd; best = tg; }
+    }
+    return bd <= o.reach ? best : null;
+  };
+  const world = (tg, x, y, z) => tg.setup ? tg.map(tg.setup.cx2 - x, y, -z) : tg.map(x, y, tg.T + z);
+  const n = moves.length;
+  const pos = new Float32Array(n * 6), col = new Float32Array(n * 6), at = new Float32Array(n * 6), axis = new Float32Array(n * 3), drawn = new Uint8Array(n);
+  let v = 0;
+  for (let i = 0; i < n; i++) {
+    const m = moves[i], ta = pick(m.x0, m.y0), tb = pick(m.x1, m.y1);
+    if (!ta || !tb) continue;
+    const A = world(ta, m.x0, m.y0, m.z0), B = world(tb, m.x1, m.y1, m.z1), up = B.n(tb.setup ? [0, 0, -1] : [0, 0, 1]);
+    const c = m.rapid ? o.rapidColor : (o.cutColors[m.tool] || o.cutColor);
+    pos.set([A.p[0], A.p[1], A.p[2], B.p[0], B.p[1], B.p[2]], v * 6);
+    col.set([c[0], c[1], c[2], c[0], c[1], c[2]], v * 6);
+    at.set([A.p[0], A.p[1], A.p[2], B.p[0], B.p[1], B.p[2]], i * 6);
+    axis.set(up, i * 3); drawn[i] = 1; v++;
+    m._v = v;   // lines to draw once this move is done
+  }
+  let last = 0;
+  const upto = new Uint32Array(n);   // vertex count to draw after move i
+  for (let i = 0; i < n; i++) { if (drawn[i]) last = moves[i]._v; upto[i] = last * 2; }
+  return { positions: pos.subarray(0, v * 6), colors: col.subarray(0, v * 6), vertexCount: v * 2, upto, at, axis, drawn,
+    total: n ? moves[n - 1].t1 : 0 };
+}
+// Playhead t (s) -> {move index, tool tip world point, tool axis, vertices to draw}; null before anything is shown.
+function toolpathAt(moves, tw, t) {
+  const n = moves.length; if (!n) return null;
+  let lo = 0, hi = n - 1;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (moves[mid].t1 < t) lo = mid + 1; else hi = mid; }
+  let i = lo;
+  while (i > 0 && !tw.drawn[i]) i--;                   // park / off-part moves: hold the tool at the last visible point
+  if (!tw.drawn[i]) return { index: lo, tip: null, axis: null, vertices: 0, tool: moves[lo].tool };
+  const m = moves[i], f = i === lo && m.t1 > m.t0 ? Math.max(0, Math.min(1, (t - m.t0) / (m.t1 - m.t0))) : 1;
+  const a = tw.at.subarray(i * 6, i * 6 + 6);
+  const tip = [a[0] + (a[3] - a[0]) * f, a[1] + (a[4] - a[1]) * f, a[2] + (a[5] - a[2]) * f];
+  const verts = (i > 0 ? tw.upto[i - 1] : 0) + (f > 0 ? 2 : 0);
+  return { index: lo, tip, axis: Array.from(tw.axis.subarray(i * 3, i * 3 + 3)), vertices: Math.min(tw.upto[i], verts), tool: m.tool, line: m.line, rapid: m.rapid };
 }
 
 function validateAssembly(a) {
@@ -701,6 +798,6 @@ function validateAssembly(a) {
 
 return { layerRule, isLayerJob, DAN_STYLE, jobFromLayers, selectByRule, opResult, postQueue,
   extractParts, partSignature, partAt, setupCuts, partSolid, partMapper, archPath, bendMapper, buildAssembly,
-  earcut, triangulateEx, splitTriByY, regionMinus, defaultAssembly, validateAssembly,
+  earcut, triangulateEx, splitTriByY, regionMinus, defaultAssembly, validateAssembly, tapMoves, toolpathWorld, toolpathAt,
   pointInPoly, centroidOf, bboxPts, area };
 });
