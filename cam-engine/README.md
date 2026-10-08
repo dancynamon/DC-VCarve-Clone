@@ -104,6 +104,41 @@ The older `gcode-cadcam-260614.html` remains as the import-a-file → CAM/backpl
 
 ---
 
+## ★ NEW: 2D + 3D Assembly view (live) — `assembly.js` · `studio_asm.js` · `glview.js`
+View tab **2D + 3D Assembly** splits the stage: the 2D sheet editor stays on the left, a lit 3D assembly of every part
+is on the right. Edit in 2D (move a hole, resize a pocket, change an outline) and only that part's mesh is rebuilt
+(foot-hole move on the waterslide slide: ~45 ms). Select in 2D → the part lights up in 3D; click a part in 3D → the
+editor switches to its sheet and selects its outline + cuts.
+
+- **Layer names drive everything** (Claude's R12 DXFs): `OUTSIDE_PROFILE` (one closed loop = one part),
+  `INSIDE_CUT` (thru cut-outs/slots), `DRILL_<dia>_THRU`, `POCKET_<D>D_<depth>DEEP` (depth read from the name);
+  `*_VECTOR_ONLY`, `SHEET`, `NOTES` are never cut. Opening one such DXF sets the sheet size (SHEET rect), thickness
+  (`1.5in` in the file name) and the toolpath list automatically.
+- **Toolpath defaults = Dan's VCarve style** (`ASSEMBLY.DAN_STYLE`): safe Z 0.20 · T8 3/8 drill first, exactly −T ·
+  T2 1/4 pockets one full-depth pass (biggest first, 50% stepover, CW) · slots/cut-outs pocketed clear · sheet
+  profiles CCW, one pass −T, no tabs · small parts (longest side ≤ 6") −T+0.025 onion skin · park X0 Y115 (post).
+  A pocket narrower than the tool is plunged at its centre rather than dropped. The studio and the CLI share one
+  code path (`ASSEMBLY.opResult` / `postQueue`), so they post byte-identical G-code.
+- **Assembly file** `<product>.assembly.json`, kept next to the DXFs. Open it together with its DXFs
+  (File ▸ Open Assembly…, Open Assembly Folder…, or drop them all at once). Each part is picked by a point inside its
+  outline and placed by: `flip` (turned over about its long centre line — as-cut top face down), `bend`
+  (`{type:"arch", footA, footB, chord}` — flat feet + raised-cosine arch; sheet length and chord are fixed, so the
+  arch height follows the 2D outline), `place.at`/`rotate`, or `on:{part, face:"top"|"bottom", at:[x,y]}` + `anchor`,
+  `rotate`, `lift` to stand on another part's as-cut face (steps on the slide, caps on bolts). A sheet with
+  `setupOf:{part, mirror:"x"}` is a flip-in-place second setup: its cuts go into that part's bottom face.
+  Example: `fixtures/waterslide-v4.5/Waterslide B6-SBH v4.5.assembly.json` (base flipped, slide arched to 17.9",
+  steps at 12/6", all 20 caps). Without an assembly file the open sheet's parts show extruded flat.
+- **Solids** (`ASSEMBLY.partSolid`): exact, by depth bands — each band's section is outline − (cuts spanning it)
+  (Clipper), faces between bands triangulated (built-in earcut), walls per band; bent parts are split along the
+  bend's breaks so every facet lies on one straight segment. Colour by sheet (base / slide / red).
+- `asmtap.js` — CLI: `node cam-engine/asmtap.js sheet.dxf --list --out sheet.tap [--move LAYER@X,Y=DX,DY]`.
+- `asmtest.js` (in `npm test`) and `asmbrowser.js` — headless Chromium end-to-end check on the v4.5 sheets:
+  open, 2D marquee + drag a foot hole, 3D rebuilds only the slide (<200 ms, hole verified by ray casts), the
+  regenerated .tap equals the CLI post of the same edit, 3D click selects in 2D.
+  `node cam-engine/build.js && node cam-engine/asmbrowser.js --out /tmp/asm` (needs playwright-core + Chromium).
+- Against Dan's v4.5 reference TAPs (`tapcompare.js`): slide + 2B underside are the same cut; the differences
+  are the style rules above (drill −1.500 not −1.525, onion skin on caps, one-pass pockets, slots cleared).
+
 ## 2D VCarve-parity roadmap — status
 | ID | Feature | Status |
 |----|---------|--------|
@@ -134,7 +169,8 @@ install, works offline), and posts G-code that matches our ShopSabre/WinCNC.
 - `package/opentype.js` — opentype.js 1.3.4 (MIT). TTF/OTF glyph-outline parsing for outline text. Embedded in the HTML too.
 - `clipart.js` — pure procedural shape library (built-in art, normalization, placement, .aqclip). Embedded in the HTML too.
 - `bitmaptrace.js` — pure bitmap tracer (threshold / despeckle / boundary trace / simplify / smooth). Embedded in the HTML too.
-- `test.js` — Node test harness. Run `npm test` from the repo root for all seven suites.
+- `assembly.js` / `studio_asm.js` — layer-named DXFs → toolpaths + 3D assembly; the split 2D + 3D view (see above).
+- `test.js` — Node test harness. Run `npm test` from the repo root for all suites.
 
 ## Architecture (single-file, modular inside)
 The HTML embeds three scripts: **Clipper** → **camcore** → **app**.
