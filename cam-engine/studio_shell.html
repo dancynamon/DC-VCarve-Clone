@@ -86,6 +86,19 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .formfoot .tb.primary{background:linear-gradient(var(--accent-bright),#178a54);border-color:var(--accent-bd);color:#fff}
 .formhint{width:100%;font-size:10px;color:var(--ink-dim);line-height:1.35}
 .stage{grid-area:stage;position:relative;overflow:hidden}
+.stage.split #cv,.stage.split #hud{width:50%}
+.asmpane{position:absolute;top:0;bottom:0;right:0;width:50%;display:none;border-left:2px solid var(--bd);background:#edf1f6}
+.stage.split .asmpane{display:block}
+body.dark .asmpane{background:#1c212b}
+#asmGl{position:absolute;inset:0;width:100%;height:100%;cursor:grab}
+#asmGl.drag{cursor:grabbing}
+.asmbar{position:absolute;top:8px;left:8px;z-index:3;display:flex;align-items:center;gap:6px;background:var(--bg-card);border:1px solid var(--bd);border-radius:8px;padding:4px 8px;box-shadow:0 2px 10px rgba(20,40,70,.18);font-size:10px;color:var(--ink-dim)}
+.asmbar label{display:flex;align-items:center;gap:4px;text-transform:uppercase;letter-spacing:.4px}
+.asmbar select{background:var(--bg-input);border:1px solid var(--btn-bd);color:var(--ink);border-radius:3px;padding:2px 4px;font-family:inherit;font-size:11px;max-width:260px}
+.asmbar .tb{font-size:10px;padding:3px 7px}.asmbar .sep{width:1px;height:16px;background:var(--bd)}
+.asmstat{position:absolute;left:8px;right:8px;bottom:30px;z-index:3;font-size:11px;color:var(--ink);background:var(--bg-card);border:1px solid var(--bd);border-radius:6px;padding:4px 8px;opacity:.92;pointer-events:none}
+.asmhint{position:absolute;left:8px;bottom:8px;z-index:3;font-size:10px;color:var(--ink-dim);pointer-events:none}
+
 #cv{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair}
 #hud{position:absolute;inset:0;pointer-events:none}
 #gl{position:absolute;inset:0;width:100%;height:100%;display:none;cursor:grab}
@@ -262,7 +275,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
       <button data-act="new">New</button><button data-act="open">Open / Import…<span class="k">Ctrl+O</span></button><div class="msep"></div>
       <button data-act="save">Save<span class="k">Ctrl+S</span></button><button data-act="saveas">Save As…<span class="k">Ctrl+Shift+S</span></button><div class="msep"></div>
       <button data-act="expdxf">Export DXF</button><button data-act="expsvg">Export SVG</button>
-      <div class="msep"></div><button data-act="trace">Import Bitmap / Trace…</button></div></div>
+      <div class="msep"></div><button data-act="asmopen">Open Assembly (JSON + DXFs)…</button><button data-act="asmfolder">Open Assembly Folder…</button><button data-act="asmsave">Save Assembly JSON</button><div class="msep"></div><button data-act="trace">Import Bitmap / Trace…</button></div></div>
     <div class="menu" data-menu="edit">Edit<div class="mdrop">
       <button data-act="undo">Undo<span class="k">Ctrl+Z</span></button><button data-act="redo">Redo<span class="k">Ctrl+Y</span></button><div class="msep"></div>
       <button data-act="job">Job Size and Position…</button><div class="msep"></div>
@@ -278,7 +291,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
       <button data-act="op:inlay">Inlay Toolpath…</button><div class="msep"></div>
       <button data-act="recalc">Preview Visible Toolpaths</button><button data-act="post">Save Toolpaths…</button></div></div>
     <div class="menu" data-menu="view">View<div class="mdrop">
-      <button data-act="v2d">2D View</button><button data-act="v3d">3D View</button><div class="msep"></div>
+      <button data-act="v2d">2D View</button><button data-act="v3d">3D View</button><button data-act="vasm">2D + 3D Assembly</button><div class="msep"></div>
       <button data-act="fit">Zoom to Fit</button><button data-act="fitjob">Zoom to Job</button><div class="msep"></div>
       <button data-act="rulers"><span class="chk">✓</span>Rulers</button><button data-act="dark"><span class="chk"></span>Dark Mode</button></div></div>
     <div class="menu" data-menu="help">Help<div class="mdrop">
@@ -287,6 +300,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
       <div class="msep"></div>
       <button data-act="keys">Keyboard Shortcuts</button><button data-act="selftest">Run Self-test</button>
       <div class="hver" id="helpVer"></div></div></div>
+    <input type="file" id="asmInput" multiple accept=".json,.dxf" style="display:none">
     <input type="file" id="fileInput" accept=".aqcam,.aqtpl,.aqclip,.crv,.crv3d,.dxf,.svg,.pdf,.png,.jpg,.jpeg,.gif,.bmp,.webp" style="display:none">
     
     
@@ -460,10 +474,11 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
     </div>
   </div>
 
-<div class="stage"><div class="viewtabs"><button class="vtab active" data-view="2d" data-tip="Edit vectors">2D View</button><button class="vtab" data-view="preview" data-tip="Machining preview of all visible toolpaths">3D View</button></div>
+<div class="stage"><div class="viewtabs"><button class="vtab active" data-view="2d" data-tip="Edit vectors">2D View</button><button class="vtab" data-view="preview" data-tip="Machining preview of all visible toolpaths">3D View</button><button class="vtab" data-view="asm" data-tip="2D sheet editor + live 3D assembly of every part, side by side">2D + 3D Assembly</button></div>
     <div class="simctrl" id="simCtrl"><button class="tb" id="simTop" data-tip="Straight-down view (matches 2D)">Top</button><button class="tb" id="simIso" data-tip="3/4 view">Iso</button><button class="tb" id="simFront" data-tip="Low front view">Front</button><span class="sep"></span><label data-tip="Left-drag = pan &#183; Option/Alt-drag (or middle / right button) = orbit &#183; wheel = zoom &#183; double-click = reframe">Alt-drag = orbit</label></div>
     <div class="restorebar" id="restoreBar"><span id="restoreMsg">Restore last session?</span><button class="tb" id="restoreYes">Restore</button><button class="tb" id="restoreNo">Dismiss</button></div>
-    <canvas id="cv"></canvas><canvas id="gl"></canvas><canvas id="hud"></canvas><div class="glhint" id="glHint">drag to pan · Option/Alt-drag (or middle / right button) to orbit · wheel to zoom · double-click to reset</div></div>
+    <canvas id="cv"></canvas><canvas id="gl"></canvas><canvas id="hud"></canvas>
+    <div class="asmpane" id="asmPane"><canvas id="asmGl"></canvas><div class="asmbar"><label id="asmSheetWrap" style="display:none" data-tip="The sheet the 2D editor is showing">Sheet <select id="asmSheet"></select></label><span class="sep"></span><button class="tb" id="asmIso" data-tip="3/4 view">Iso</button><button class="tb" id="asmSide" data-tip="Side elevation">Side</button><button class="tb" id="asmTop" data-tip="Plan view">Top</button><button class="tb" id="asmFit" data-tip="Frame the whole assembly">Fit</button></div><div class="asmstat" id="asmStat">3D assembly</div><div class="asmhint">drag = orbit · Shift/right-drag = pan · wheel = zoom · click a part = select it in 2D · double-click = fit</div></div><div class="glhint" id="glHint">drag to pan · Option/Alt-drag (or middle / right button) to orbit · wheel to zoom · double-click to reset</div></div>
 
   <div class="rdock">
     <div class="dockhead"><span id="rdockTitle">Toolpaths</span><span class="pin">▣</span></div>

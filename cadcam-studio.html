@@ -86,6 +86,19 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .formfoot .tb.primary{background:linear-gradient(var(--accent-bright),#178a54);border-color:var(--accent-bd);color:#fff}
 .formhint{width:100%;font-size:10px;color:var(--ink-dim);line-height:1.35}
 .stage{grid-area:stage;position:relative;overflow:hidden}
+.stage.split #cv,.stage.split #hud{width:50%}
+.asmpane{position:absolute;top:0;bottom:0;right:0;width:50%;display:none;border-left:2px solid var(--bd);background:#edf1f6}
+.stage.split .asmpane{display:block}
+body.dark .asmpane{background:#1c212b}
+#asmGl{position:absolute;inset:0;width:100%;height:100%;cursor:grab}
+#asmGl.drag{cursor:grabbing}
+.asmbar{position:absolute;top:8px;left:8px;z-index:3;display:flex;align-items:center;gap:6px;background:var(--bg-card);border:1px solid var(--bd);border-radius:8px;padding:4px 8px;box-shadow:0 2px 10px rgba(20,40,70,.18);font-size:10px;color:var(--ink-dim)}
+.asmbar label{display:flex;align-items:center;gap:4px;text-transform:uppercase;letter-spacing:.4px}
+.asmbar select{background:var(--bg-input);border:1px solid var(--btn-bd);color:var(--ink);border-radius:3px;padding:2px 4px;font-family:inherit;font-size:11px;max-width:260px}
+.asmbar .tb{font-size:10px;padding:3px 7px}.asmbar .sep{width:1px;height:16px;background:var(--bd)}
+.asmstat{position:absolute;left:8px;right:8px;bottom:30px;z-index:3;font-size:11px;color:var(--ink);background:var(--bg-card);border:1px solid var(--bd);border-radius:6px;padding:4px 8px;opacity:.92;pointer-events:none}
+.asmhint{position:absolute;left:8px;bottom:8px;z-index:3;font-size:10px;color:var(--ink-dim);pointer-events:none}
+
 #cv{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair}
 #hud{position:absolute;inset:0;pointer-events:none}
 #gl{position:absolute;inset:0;width:100%;height:100%;display:none;cursor:grab}
@@ -262,7 +275,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
       <button data-act="new">New</button><button data-act="open">Open / Import…<span class="k">Ctrl+O</span></button><div class="msep"></div>
       <button data-act="save">Save<span class="k">Ctrl+S</span></button><button data-act="saveas">Save As…<span class="k">Ctrl+Shift+S</span></button><div class="msep"></div>
       <button data-act="expdxf">Export DXF</button><button data-act="expsvg">Export SVG</button>
-      <div class="msep"></div><button data-act="trace">Import Bitmap / Trace…</button></div></div>
+      <div class="msep"></div><button data-act="asmopen">Open Assembly (JSON + DXFs)…</button><button data-act="asmfolder">Open Assembly Folder…</button><button data-act="asmsave">Save Assembly JSON</button><div class="msep"></div><button data-act="trace">Import Bitmap / Trace…</button></div></div>
     <div class="menu" data-menu="edit">Edit<div class="mdrop">
       <button data-act="undo">Undo<span class="k">Ctrl+Z</span></button><button data-act="redo">Redo<span class="k">Ctrl+Y</span></button><div class="msep"></div>
       <button data-act="job">Job Size and Position…</button><div class="msep"></div>
@@ -278,7 +291,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
       <button data-act="op:inlay">Inlay Toolpath…</button><div class="msep"></div>
       <button data-act="recalc">Preview Visible Toolpaths</button><button data-act="post">Save Toolpaths…</button></div></div>
     <div class="menu" data-menu="view">View<div class="mdrop">
-      <button data-act="v2d">2D View</button><button data-act="v3d">3D View</button><div class="msep"></div>
+      <button data-act="v2d">2D View</button><button data-act="v3d">3D View</button><button data-act="vasm">2D + 3D Assembly</button><div class="msep"></div>
       <button data-act="fit">Zoom to Fit</button><button data-act="fitjob">Zoom to Job</button><div class="msep"></div>
       <button data-act="rulers"><span class="chk">✓</span>Rulers</button><button data-act="dark"><span class="chk"></span>Dark Mode</button></div></div>
     <div class="menu" data-menu="help">Help<div class="mdrop">
@@ -287,6 +300,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
       <div class="msep"></div>
       <button data-act="keys">Keyboard Shortcuts</button><button data-act="selftest">Run Self-test</button>
       <div class="hver" id="helpVer"></div></div></div>
+    <input type="file" id="asmInput" multiple accept=".json,.dxf" style="display:none">
     <input type="file" id="fileInput" accept=".aqcam,.aqtpl,.aqclip,.crv,.crv3d,.dxf,.svg,.pdf,.png,.jpg,.jpeg,.gif,.bmp,.webp" style="display:none">
     
     
@@ -460,10 +474,11 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
     </div>
   </div>
 
-<div class="stage"><div class="viewtabs"><button class="vtab active" data-view="2d" data-tip="Edit vectors">2D View</button><button class="vtab" data-view="preview" data-tip="Machining preview of all visible toolpaths">3D View</button></div>
+<div class="stage"><div class="viewtabs"><button class="vtab active" data-view="2d" data-tip="Edit vectors">2D View</button><button class="vtab" data-view="preview" data-tip="Machining preview of all visible toolpaths">3D View</button><button class="vtab" data-view="asm" data-tip="2D sheet editor + live 3D assembly of every part, side by side">2D + 3D Assembly</button></div>
     <div class="simctrl" id="simCtrl"><button class="tb" id="simTop" data-tip="Straight-down view (matches 2D)">Top</button><button class="tb" id="simIso" data-tip="3/4 view">Iso</button><button class="tb" id="simFront" data-tip="Low front view">Front</button><span class="sep"></span><label data-tip="Left-drag = pan &#183; Option/Alt-drag (or middle / right button) = orbit &#183; wheel = zoom &#183; double-click = reframe">Alt-drag = orbit</label></div>
     <div class="restorebar" id="restoreBar"><span id="restoreMsg">Restore last session?</span><button class="tb" id="restoreYes">Restore</button><button class="tb" id="restoreNo">Dismiss</button></div>
-    <canvas id="cv"></canvas><canvas id="gl"></canvas><canvas id="hud"></canvas><div class="glhint" id="glHint">drag to pan · Option/Alt-drag (or middle / right button) to orbit · wheel to zoom · double-click to reset</div></div>
+    <canvas id="cv"></canvas><canvas id="gl"></canvas><canvas id="hud"></canvas>
+    <div class="asmpane" id="asmPane"><canvas id="asmGl"></canvas><div class="asmbar"><label id="asmSheetWrap" style="display:none" data-tip="The sheet the 2D editor is showing">Sheet <select id="asmSheet"></select></label><span class="sep"></span><button class="tb" id="asmIso" data-tip="3/4 view">Iso</button><button class="tb" id="asmSide" data-tip="Side elevation">Side</button><button class="tb" id="asmTop" data-tip="Plan view">Top</button><button class="tb" id="asmFit" data-tip="Frame the whole assembly">Fit</button></div><div class="asmstat" id="asmStat">3D assembly</div><div class="asmhint">drag = orbit · Shift/right-drag = pan · wheel = zoom · click a part = select it in 2D · double-click = fit</div></div><div class="glhint" id="glHint">drag to pan · Option/Alt-drag (or middle / right button) to orbit · wheel to zoom · double-click to reset</div></div>
 
   <div class="rdock">
     <div class="dockhead"><span id="rdockTitle">Toolpaths</span><span class="pin">▣</span></div>
@@ -577,7 +592,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
     <span><span class="v" id="zoomlbl"></span></span>
     <span id="msg" class="v"></span>
     <button class="tb" id="btnTheme" title="Switch to dark mode" style="margin-left:auto;font-size:10px;padding:1px 7px">☾ Dark</button>
-    <span class="ver" id="appVer" title="Build version">v0.3.0 · build 260909.2323</span>
+    <span class="ver" id="appVer" title="Build version">v0.3.0 · build 261008.1057</span>
   </div>
 </div>
 <div id="tip"></div>
@@ -8321,6 +8336,9 @@ const SCALE = 100000, TOL = 1e-4;
 const ARC_TOL = 0.001;        // ClipperOffset arc tolerance: how far an offset round join may sit off true
 const ARC_CHORD_RATIO = 12;    // max chord / median chord inside one fitted arc — a real curve is near-uniform
 const ARC_MAX_SAG = 0.05;      // hard cap (in) on how far a fitted arc may depart from the polyline it replaces
+const ARC_UNEVEN_SAG = 0.002;  // ...and the cap for a chord noticeably LONGER than its neighbours (> 2x median). A uniformly
+                               // coarse circle is still a circle; one long straight run inside a curve is not: it got a
+                               // 0.0104" bow before this (Barron turtles sheet, vs Vectric's straight line).
 function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
 function near(a,b,t){return dist(a,b)<=(t==null?TOL:t);}
 function signedArea(pts){let s=0;for(let i=0,n=pts.length;i<n;i++){const a=pts[i],b=pts[(i+1)%n];s+=a.x*b.y-b.x*a.y;}return s/2;}
@@ -8424,14 +8442,23 @@ function offsetOpenPath(pts, delta, joinType){
   return run;
 }
 
-function withTabs(loop, count, tabLen, closed){
+function withTabs(loop, count, tabLen, closed, points){
   closed = closed!==false;
+  if(points && points.length) count = points.length;            // placed tabs (VCarve vcToolpathTab) win over count
   if(!count||count<1||!tabLen) return loop.map(p=>({x:p.x,y:p.y,tab:false}));
   const n=loop.length, segLen=[]; let total=0;
   const last = closed?n:n-1;
   for(let i=0;i<last;i++){const a=loop[i],b=loop[(i+1)%n];const L=dist(a,b);segLen.push(L);total+=L;}
   if(total===0) return loop.map(p=>({x:p.x,y:p.y,tab:false}));
-  const centers=[]; for(let k=0;k<count;k++) centers.push((k+0.5)/count*total);
+  const centers=[];
+  if(points && points.length){
+    // each placed tab sits where the vector's tab point projects onto this (offset) loop
+    for(const q of points){ let best=Infinity, at=0, acc=0;
+      for(let i=0;i<last;i++){ const a=loop[i],b=loop[(i+1)%n],L=segLen[i],dx=b.x-a.x,dy=b.y-a.y;
+        let t=L>0?((q.x-a.x)*dx+(q.y-a.y)*dy)/(L*L):0; t=Math.max(0,Math.min(1,t));
+        const d=Math.hypot(a.x+dx*t-q.x,a.y+dy*t-q.y); if(d<best){best=d;at=acc+L*t;} acc+=L; }
+      centers.push(at); }
+  } else for(let k=0;k<count;k++) centers.push((k+0.5)/count*total);
   const half=Math.min(tabLen, total/count*0.9)/2;
   const iv=centers.map(c=>[c-half,c+half]);
   function inTab(pos){for(const [s,e] of iv){let a=((s%total)+total)%total,b=((e%total)+total)%total;if(a<=b){if(pos>=a&&pos<=b)return true;}else{if(pos>=a||pos<=b)return true;}}return false;}
@@ -8499,6 +8526,7 @@ function profileOp(contours, opts){
   const r=o.toolDia/2, warnings=[], passesAll=[]; let leadSkipped=false;
   const depths=[]; let d=Math.min(o.passDepth,o.cutDepth);
   while(d<o.cutDepth-1e-9){depths.push(d);d+=o.passDepth;} depths.push(o.cutDepth);
+  if(Array.isArray(o.depths)&&o.depths.length){ depths.length=0; for(const v of o.depths) depths.push(+v); }   // explicit pass list (VCarve _mctddDepthValues)
   const openSide = (o.side==='left'||o.side==='right');
   for(const c of contours){
     let loops, pts=(o.reverse && !c.closed)?reversed(c.pts):c.pts;
@@ -8521,12 +8549,20 @@ function profileOp(contours, opts){
       if(c.closed && o.side!=='on' && !openSide){
         const wantCCW=(o.side==='outside')?!o.climb:o.climb;
         lp=wantCCW?ensureCCW(lp):ensureCW(lp);
+      } else if(c.closed && o.side==='on' && o.orientOn){
+        // opt-in only: Vectric's Quick Engrave follows the VECTOR's own direction (Fish 36x24); Little Pals disagreed but
+        // its TAP is stale against its CRV (tabs too). Settle on blind test BT-06.
+        lp=o.climb?ensureCW(lp):ensureCCW(lp);
       }
-      const tabH=(o.tabs&&o.tabs.count>0&&o.tabs.height)||0;
-      const wantTabs=(o.tabs && o.tabs.count>0 && (c.closed || openSide || o.side==='on'));
+      const tabH=(o.tabs&&(o.tabs.count>0||(o.tabs.points&&o.tabs.points.length))&&o.tabs.height)||0;
+      const wantTabs=(o.tabs && (o.tabs.count>0 || (o.tabs.points&&o.tabs.points.length)) && (c.closed || openSide || o.side==='on'));
       const plain=lp.map(p=>({x:p.x,y:p.y,tab:false}));
-      const tabbed=wantTabs?withTabs(lp,o.tabs.count,o.tabs.length,c.closed):plain;
+      const tabbed=wantTabs?withTabs(lp,o.tabs.count,o.tabs.length,c.closed,o.tabs.points):plain;
       let closed=c.closed&&o.side!=='on';
+      // On-the-line cut of a CLOSED vector is emitted as an open path, so it must end where it began —
+      // without the repeated start point the closing edge is never cut (a gap in every engraved outline).
+      if(c.closed && o.side==='on' && plain.length>1){ const f=plain[0]; plain.push({x:f.x,y:f.y,tab:false});
+        if(tabbed!==plain){ const g=tabbed[0]; tabbed.push({x:g.x,y:g.y,tab:g.tab}); } }
       const lead=pts0=>{
         if(!(closed && o.leadType && o.leadType!=='none')) return {path:pts0, closed};
         const interiorSign=signedArea(lp)>0?1:-1;                       // left normal = interior when CCW
@@ -8710,6 +8746,7 @@ function pocketOp(contours, opts){
   const region=regionFromLoops(loops);
   const depths=[]; let d=Math.min(o.passDepth,o.cutDepth);
   while(d<o.cutDepth-1e-9){depths.push(d);d+=o.passDepth;} depths.push(o.cutDepth);
+  if(Array.isArray(o.depths)&&o.depths.length){ depths.length=0; for(const v of o.depths) depths.push(+v); }   // explicit pass list (VCarve _mctddDepthValues)
   const passes=[];
   if(o.pocketStyle==='raster'){
     // fill boundary = region pulled one tool-radius inside the wall (the XY region is depth-independent, so compute rows once)
@@ -8744,7 +8781,9 @@ function pocketOp(contours, opts){
     if(!rings.length){ warnings.push('Tool too large to enter the pocket region'); }
     let rampEntrySkipped=false;
     // orient first: climb/conventional decides traversal, and the link start point is picked along it
-    const oriented=rings.map(lp=>o.climb?ensureCW(lp):ensureCCW(lp));
+    // Same convention as an inside profile (CW spindle): climb = CCW around the wall, conventional = CW.
+    // It was the other way round; Vectric posts conventional pockets CW (Swiss Cheese / Big Blue mats).
+    const oriented=rings.map(lp=>o.climb?ensureCCW(lp):ensureCW(lp));
     // linked pockets spiral innermost-first; unlinked keeps the historical outermost-first ring order
     const chains = o.linkRings===false ? oriented.map(lp=>[lp])
                                        : linkRings(oriented.slice().reverse(), so, region, o.linkMax);
@@ -8826,7 +8865,9 @@ function centroid(pts){
 }
 function drillOp(contours, opts){
   const o=Object.assign({toolNum:1,toolDia:0.25,topZ:0,cutDepth:0.25,peck:0,safeZ:0.25,feed:120,plunge:40,rpm:18000},opts||{});
-  const points=contours.filter(c=>c.closed && c.pts && c.pts.length>=3).map(c=>centroid(c.pts));
+  const points=[];
+  for(const c of contours.filter(c=>c.closed && c.pts && c.pts.length>=3)){ const p=centroid(c.pts);
+    if(!points.some(q=>Math.hypot(q.x-p.x,q.y-p.y)<0.001)) points.push(p); }   // one hole per position (stacked/duplicate vectors drill once, as VCarve does)
   const warnings=[]; if(!points.length) warnings.push('Drill needs closed contour(s) — drills one hole at each centroid');
   const depths=[];
   if(o.peck&&o.peck>0){ let d=Math.min(o.peck,o.cutDepth); while(d<o.cutDepth-1e-9){depths.push(d); d+=o.peck;} depths.push(o.cutDepth); }
@@ -9091,6 +9132,7 @@ function arcCovers(P,i,j,arc,tol,maxStep){
     if(max>2*r) return false;                                    // chord longer than the diameter
     const sag=r-Math.sqrt(Math.max(0,r*r-max*max/4));
     if(sag>ARC_MAX_SAG) return false;                            // departs too far from the polyline
+    if(med>0 && max>2*med && sag>Math.max(tol,ARC_UNEVEN_SAG)) return false; // bows off a long straight run
   }
   let prevAng=null, dir=0;
   for(let k=i;k<=j;k++){
@@ -9197,7 +9239,10 @@ function postProcess(job, post){
   P.header(L,job,P);
   job.ops.forEach((op,oi)=>{
     const clear = op.clearZ!=null?op.clearZ:0.25;
-    P.opStart(L, op, P, oi===0);
+    // Vectric's ShopSabre post: consecutive toolpaths on the same tool + speed run with NO tool-change block
+    const prevOp = oi>0 ? job.ops[oi-1] : null;
+    const sameTool = prevOp && P.mergeSameTool && prevOp.toolNum===op.toolNum && Math.round(prevOp.rpm)===Math.round(op.rpm);
+    if(!sameTool) P.opStart(L, op, P, oi===0);
     op.passes.forEach(pass=>{
       const path=pass.path; if(!path.length)return;
       const cutZ=pass.z, tabZ=pass.z+(pass.tabHeight||0);
@@ -9282,7 +9327,7 @@ const POSTS={
   // Exact match to Dan's Vectric post: ShopSabre_DC_ATC_speed_arc_inch.pp
   shopsabre:{
     name:'ShopSabre DC ATC Speed Arc (inch)', decimals:4, feedDecimals:1, eol:'\r\n',
-    safeZ:2.0, parkX:0.0, parkY:115.0, warmupDwell:4, arcs:true, arcTol:0.0015, helical:true,
+    safeZ:2.0, parkX:0.0, parkY:115.0, warmupDwell:4, arcs:true, arcTol:0.0015, helical:true, mergeSameTool:true,
     axisFmt:(a,v,dp)=>`${a}${(Math.abs(v)<1e-9?0:v).toFixed(dp)}`,
     header(L){ L.push('G90'); L.push(''); },
     // HEADER tool block (isFirst, has Z2 + feed line) vs TOOLCHANGE (no Z2/feed)
@@ -11917,9 +11962,2220 @@ function createRenderer(canvas) {
   };
 }
 
+// ---------- assembly view: many solid parts, each its own colour, pickable ----------
+// Picking is CPU ray casting against the parts' own triangle soups (no GPU readback, testable headless).
+function invert4(m) {
+  const a = m, o = new Float32Array(16);
+  const b00 = a[0]*a[5]-a[1]*a[4], b01 = a[0]*a[6]-a[2]*a[4], b02 = a[0]*a[7]-a[3]*a[4], b03 = a[1]*a[6]-a[2]*a[5];
+  const b04 = a[1]*a[7]-a[3]*a[5], b05 = a[2]*a[7]-a[3]*a[6], b06 = a[8]*a[13]-a[9]*a[12], b07 = a[8]*a[14]-a[10]*a[12];
+  const b08 = a[8]*a[15]-a[11]*a[12], b09 = a[9]*a[14]-a[10]*a[13], b10 = a[9]*a[15]-a[11]*a[13], b11 = a[10]*a[15]-a[11]*a[14];
+  let det = b00*b11 - b01*b10 + b02*b09 + b03*b08 - b04*b07 + b05*b06; if (!det) return null; det = 1 / det;
+  o[0] = (a[5]*b11 - a[6]*b10 + a[7]*b09)*det; o[1] = (a[2]*b10 - a[1]*b11 - a[3]*b09)*det; o[2] = (a[13]*b05 - a[14]*b04 + a[15]*b03)*det; o[3] = (a[10]*b04 - a[9]*b05 - a[11]*b03)*det;
+  o[4] = (a[6]*b08 - a[4]*b11 - a[7]*b07)*det; o[5] = (a[0]*b11 - a[2]*b08 + a[3]*b07)*det; o[6] = (a[14]*b02 - a[12]*b05 - a[15]*b01)*det; o[7] = (a[8]*b05 - a[10]*b02 + a[11]*b01)*det;
+  o[8] = (a[4]*b10 - a[5]*b08 + a[7]*b06)*det; o[9] = (a[1]*b08 - a[0]*b10 - a[3]*b06)*det; o[10] = (a[12]*b04 - a[13]*b02 + a[15]*b00)*det; o[11] = (a[9]*b02 - a[8]*b04 - a[11]*b00)*det;
+  o[12] = (a[5]*b07 - a[4]*b09 - a[6]*b06)*det; o[13] = (a[0]*b09 - a[1]*b07 + a[2]*b06)*det; o[14] = (a[13]*b01 - a[12]*b03 - a[14]*b00)*det; o[15] = (a[8]*b03 - a[9]*b01 + a[10]*b00)*det;
+  return o;
+}
+function xform4(m, v) { const x = v[0], y = v[1], z = v[2], w = v[3];
+  return [m[0]*x + m[4]*y + m[8]*z + m[12]*w, m[1]*x + m[5]*y + m[9]*z + m[13]*w, m[2]*x + m[6]*y + m[10]*z + m[14]*w, m[3]*x + m[7]*y + m[11]*z + m[15]*w]; }
+// pixel (px,py) in a w x h viewport -> world ray {o, d} for projection*view `pv`
+function screenRay(pv, w, h, px, py) {
+  const inv = invert4(pv); if (!inv) return null;
+  const nx = 2 * px / w - 1, ny = 1 - 2 * py / h;
+  const a = xform4(inv, [nx, ny, -1, 1]), b = xform4(inv, [nx, ny, 1, 1]);
+  const o = [a[0]/a[3], a[1]/a[3], a[2]/a[3]], e = [b[0]/b[3], b[1]/b[3], b[2]/b[3]];
+  return { o, d: _norm(_sub(e, o)) };
+}
+function meshBounds(pos) { const b = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < pos.length; i += 3) for (let k = 0; k < 3; k++) { const v = pos[i + k]; if (v < b[k]) b[k] = v; if (v > b[k + 3]) b[k + 3] = v; }
+  return b; }
+function rayBox(r, b) { let t0 = 0, t1 = Infinity;
+  for (let k = 0; k < 3; k++) { const inv = 1 / r.d[k]; let a = (b[k] - r.o[k]) * inv, c = (b[k + 3] - r.o[k]) * inv; if (a > c) { const t = a; a = c; c = t; } t0 = Math.max(t0, a); t1 = Math.min(t1, c); if (t0 > t1) return false; }
+  return true; }
+// nearest hit over parts [{id, positions (soup), bounds}] -> {id, t} or null (Moller-Trumbore, two-sided)
+function pickParts(ray, parts) {
+  let best = null;
+  for (const p of parts) {
+    if (p.visible === false || !p.positions) continue;
+    if (p.bounds && !rayBox(ray, p.bounds)) continue;
+    const P = p.positions, o = ray.o, d = ray.d;
+    for (let i = 0; i < P.length; i += 9) {
+      const e1x = P[i+3]-P[i], e1y = P[i+4]-P[i+1], e1z = P[i+5]-P[i+2], e2x = P[i+6]-P[i], e2y = P[i+7]-P[i+1], e2z = P[i+8]-P[i+2];
+      const px = d[1]*e2z - d[2]*e2y, py = d[2]*e2x - d[0]*e2z, pz = d[0]*e2y - d[1]*e2x;
+      const det = e1x*px + e1y*py + e1z*pz; if (Math.abs(det) < 1e-12) continue;
+      const inv = 1 / det, tx = o[0]-P[i], ty = o[1]-P[i+1], tz = o[2]-P[i+2];
+      const u = (tx*px + ty*py + tz*pz) * inv; if (u < 0 || u > 1) continue;
+      const qx = ty*e1z - tz*e1y, qy = tz*e1x - tx*e1z, qz = tx*e1y - ty*e1x;
+      const v = (d[0]*qx + d[1]*qy + d[2]*qz) * inv; if (v < 0 || u + v > 1) continue;
+      const t = (e2x*qx + e2y*qy + e2z*qz) * inv;
+      if (t > 1e-6 && (!best || t < best.t)) best = { id: p.id, t };
+    }
+  }
+  return best;
+}
+
+const VS_ASM = `attribute vec3 aPos; attribute vec3 aNrm; uniform mat4 uProj, uView;
+varying vec3 vN; varying vec3 vP; void main(){ vN = aNrm; vP = aPos; gl_Position = uProj * uView * vec4(aPos, 1.0); }`;
+const FS_ASM = `precision mediump float; varying vec3 vN; varying vec3 vP;
+uniform vec3 uColor, uLight, uEye; uniform float uHi, uDim;
+void main(){ vec3 n = normalize(vN); vec3 v = normalize(uEye - vP); if (dot(n, v) < 0.0) n = -n;
+  float lam = max(dot(n, normalize(uLight)), 0.0), fill = max(dot(n, normalize(vec3(0.5, 0.7, 0.35))), 0.0) * 0.25;
+  vec3 c = uColor * (0.32 + 0.6 * lam + fill);
+  float rim = pow(1.0 - max(dot(n, v), 0.0), 2.0);
+  c = mix(c, vec3(1.0, 0.55, 0.12), uHi * 0.45) + vec3(1.0, 0.6, 0.2) * uHi * rim * 0.6;
+  c = mix(c, vec3(0.6, 0.64, 0.7), uDim * 0.55);
+  gl_FragColor = vec4(c, 1.0); }`;
+
+// parts: setPart(id, {positions, normals}, colorRGB) / removePart / setHighlight(Set) / pick(px,py) / frameAll()
+function createAssemblyRenderer(canvas) {
+  let gl = null;
+  try { gl = canvas.getContext('webgl', { antialias: true, preserveDrawingBuffer: true }) || canvas.getContext('experimental-webgl'); } catch (e) { return null; }
+  if (!gl) return null;
+  const sh = (t, src) => { const s = gl.createShader(t); gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
+  let prog, progL;
+  try {
+    prog = gl.createProgram(); gl.attachShader(prog, sh(gl.VERTEX_SHADER, VS_ASM)); gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS_ASM)); gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+    progL = gl.createProgram(); gl.attachShader(progL, sh(gl.VERTEX_SHADER, VS_LINE)); gl.attachShader(progL, sh(gl.FRAGMENT_SHADER, FS_LINE)); gl.linkProgram(progL);
+    if (!gl.getProgramParameter(progL, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(progL));
+  } catch (e) { return null; }
+  const loc = { pos: gl.getAttribLocation(prog, 'aPos'), nrm: gl.getAttribLocation(prog, 'aNrm'), proj: gl.getUniformLocation(prog, 'uProj'),
+    view: gl.getUniformLocation(prog, 'uView'), color: gl.getUniformLocation(prog, 'uColor'), light: gl.getUniformLocation(prog, 'uLight'),
+    eye: gl.getUniformLocation(prog, 'uEye'), hi: gl.getUniformLocation(prog, 'uHi'), dim: gl.getUniformLocation(prog, 'uDim') };
+  const locL = { pos: gl.getAttribLocation(progL, 'aPos'), col: gl.getAttribLocation(progL, 'aCol'), proj: gl.getUniformLocation(progL, 'uProj'), view: gl.getUniformLocation(progL, 'uView') };
+  gl.enable(gl.DEPTH_TEST);
+  const parts = new Map();          // id -> {id, bufP, bufN, count, color, positions, bounds, visible}
+  let highlight = new Set(), clear = [0.93, 0.95, 0.98], grid = null;
+  const cam = { target: [0, 0, 0], yaw: -Math.PI / 2 + 0.6, pitch: 0.5, dist: 120 };
+  let lastPV = null;
+  function setPart(id, mesh, color) {
+    let p = parts.get(id);
+    if (!p) { p = { id, bufP: gl.createBuffer(), bufN: gl.createBuffer() }; parts.set(id, p); }
+    gl.bindBuffer(gl.ARRAY_BUFFER, p.bufP); gl.bufferData(gl.ARRAY_BUFFER, mesh.positions, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, p.bufN); gl.bufferData(gl.ARRAY_BUFFER, mesh.normals, gl.STATIC_DRAW);
+    p.count = mesh.positions.length / 3; p.positions = mesh.positions; p.bounds = meshBounds(mesh.positions);
+    if (color) p.color = color; if (p.visible == null) p.visible = true;
+  }
+  function removePart(id) { const p = parts.get(id); if (!p) return; gl.deleteBuffer(p.bufP); gl.deleteBuffer(p.bufN); parts.delete(id); }
+  function bounds() { const b = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+    for (const p of parts.values()) if (p.visible !== false && p.bounds) for (let k = 0; k < 3; k++) { b[k] = Math.min(b[k], p.bounds[k]); b[k + 3] = Math.max(b[k + 3], p.bounds[k + 3]); }
+    return isFinite(b[0]) ? b : [0, 0, 0, 10, 10, 1]; }
+  function buildGrid() {   // floor grid, 6" squares, under the whole assembly
+    const b = bounds(), pad = 12, s = 6, x0 = Math.floor((b[0] - pad) / s) * s, x1 = Math.ceil((b[3] + pad) / s) * s, y0 = Math.floor((b[1] - pad) / s) * s, y1 = Math.ceil((b[4] + pad) / s) * s, z = Math.min(0, b[2]) - 0.01;
+    const P = [], Cc = [], col = [0.78, 0.81, 0.86];
+    for (let x = x0; x <= x1; x += s) { P.push(x, y0, z, x, y1, z); Cc.push(...col, ...col); }
+    for (let y = y0; y <= y1; y += s) { P.push(x0, y, z, x1, y, z); Cc.push(...col, ...col); }
+    if (!grid) grid = { bufP: gl.createBuffer(), bufC: gl.createBuffer() };
+    gl.bindBuffer(gl.ARRAY_BUFFER, grid.bufP); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(P), gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ARRAY_BUFFER, grid.bufC); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(Cc), gl.STATIC_DRAW);
+    grid.count = P.length / 3;
+  }
+  const FOVY = 38 * Math.PI / 180;
+  function frameAll() { const b = bounds(); cam.target = [(b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2];
+    // fit the bounding sphere inside the NARROWER field of view (a tall split pane is narrow, not short)
+    const r = Math.max(1, Math.hypot(b[3] - b[0], b[4] - b[1], b[5] - b[2]) / 2);
+    const aspect = Math.max(0.2, (canvas.clientWidth || 1) / Math.max(1, canvas.clientHeight || 1));
+    const half = Math.min(FOVY / 2, Math.atan(Math.tan(FOVY / 2) * aspect));
+    cam.dist = r / Math.sin(half) * 1.04; buildGrid(); }
+  function resize() {
+    const dpr = Math.min(2, (typeof devicePixelRatio === 'number') ? devicePixelRatio : 1);
+    const w = Math.max(1, Math.round(canvas.clientWidth * dpr)), h = Math.max(1, Math.round(canvas.clientHeight * dpr));
+    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  }
+  function matrices() {
+    const aspect = canvas.width / Math.max(1, canvas.height);
+    const proj = perspective(FOVY, aspect, Math.max(0.05, cam.dist * 0.01), cam.dist * 10 + 200);
+    const eye = orbitEye(cam.target, cam.yaw, cam.pitch, cam.dist);
+    return { proj, view: lookAt(eye, cam.target, [0, 0, 1]), eye };
+  }
+  function draw() {
+    resize();
+    gl.clearColor(clear[0], clear[1], clear[2], 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    const m = matrices(); lastPV = multiply(m.proj, m.view);
+    if (grid && grid.count) {
+      gl.useProgram(progL); gl.uniformMatrix4fv(locL.proj, false, m.proj); gl.uniformMatrix4fv(locL.view, false, m.view);
+      gl.bindBuffer(gl.ARRAY_BUFFER, grid.bufP); gl.enableVertexAttribArray(locL.pos); gl.vertexAttribPointer(locL.pos, 3, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, grid.bufC); gl.enableVertexAttribArray(locL.col); gl.vertexAttribPointer(locL.col, 3, gl.FLOAT, false, 0, 0);
+      gl.drawArrays(gl.LINES, 0, grid.count);
+      gl.disableVertexAttribArray(locL.col);
+    }
+    gl.useProgram(prog);
+    gl.uniformMatrix4fv(loc.proj, false, m.proj); gl.uniformMatrix4fv(loc.view, false, m.view);
+    gl.uniform3fv(loc.light, [-0.35, -0.55, 0.76]); gl.uniform3fv(loc.eye, m.eye);
+    const anyHi = highlight.size > 0;
+    for (const p of parts.values()) {
+      if (p.visible === false || !p.count) continue;
+      gl.uniform3fv(loc.color, p.color || [0.6, 0.65, 0.75]);
+      gl.uniform1f(loc.hi, highlight.has(p.id) ? 1 : 0);
+      gl.uniform1f(loc.dim, anyHi && !highlight.has(p.id) ? 0.35 : 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, p.bufP); gl.enableVertexAttribArray(loc.pos); gl.vertexAttribPointer(loc.pos, 3, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ARRAY_BUFFER, p.bufN); gl.enableVertexAttribArray(loc.nrm); gl.vertexAttribPointer(loc.nrm, 3, gl.FLOAT, false, 0, 0);
+      gl.drawArrays(gl.TRIANGLES, 0, p.count);
+    }
+  }
+  function pick(px, py) {   // CSS pixels within the canvas
+    if (!lastPV) draw();
+    const r = screenRay(lastPV, canvas.clientWidth, canvas.clientHeight, px, py);
+    return r ? pickParts(r, [...parts.values()]) : null;
+  }
+  return {
+    gl, cam, parts, setPart, removePart, frameAll, draw, resize, pick, bounds,
+    project(p) {   // world point -> CSS pixels in the canvas (labels, tests)
+      if (!lastPV) draw();
+      const c = xform4(lastPV, [p[0], p[1], p[2], 1]); if (c[3] <= 0) return null;
+      return { x: (c[0] / c[3] * 0.5 + 0.5) * canvas.clientWidth, y: (0.5 - c[1] / c[3] * 0.5) * canvas.clientHeight };
+    },
+    setHighlight(ids) { highlight = new Set(ids || []); },
+    setVisible(id, on) { const p = parts.get(id); if (p) p.visible = !!on; },
+    setClear(c) { clear = c; },
+    orbit(dx, dy) { cam.yaw -= dx; cam.pitch = clampPitch(cam.pitch + dy); },
+    pan(dx, dy) {
+      const right = [-Math.sin(cam.yaw), Math.cos(cam.yaw), 0];
+      const upv = [-Math.cos(cam.yaw) * Math.sin(cam.pitch), -Math.sin(cam.yaw) * Math.sin(cam.pitch), Math.cos(cam.pitch)];
+      for (let i = 0; i < 3; i++) cam.target[i] += right[i] * dx + upv[i] * dy;
+    },
+    zoom(f) { cam.dist = Math.max(0.5, Math.min(5000, cam.dist * f)); }
+  };
+}
+
 return { identity, multiply, perspective, lookAt, orbitEye, clampPitch, PITCH_LIMIT,
-  buildHeightMesh, buildToolpathLines, createRenderer };
+  buildHeightMesh, buildToolpathLines, createRenderer,
+  invert4, screenRay, pickParts, meshBounds, createAssemblyRenderer };
 });
+
+</script>
+<script>
+/* assembly.js — 2D sheets -> 3D product assembly, and layer-named DXFs -> toolpaths. Pure (no DOM); node + browser.
+ *
+ * Claude's R12 DXFs carry the machining intent in their layer names:
+ *   OUTSIDE_PROFILE            part outlines (one closed loop = one part)
+ *   INSIDE_CUT                 thru cut-outs / slots inside a part (pocketed clear, no slug)
+ *   DRILL_<dia>_THRU           drilled thru holes
+ *   POCKET_<D>D_<depth>DEEP    blind pockets, depth read from the name
+ *   *_VECTOR_ONLY, SHEET, NOTES   reference only — never cut, never solid
+ * layerRule() reads a name; jobFromLayers() turns a sheet into a toolpath list in Dan's VCarve style (DAN_STYLE);
+ * opResult()/postQueue() run that list through camcore so the studio and the CLI post byte-identical G-code.
+ *
+ * The same layers describe the solid part: extractParts() groups every cut with the outline it sits in, and
+ * partSolid() builds the exact solid — the outline extruded by the sheet thickness, thru cuts as holes, pockets
+ * cut to depth from the top (or bottom, for a flip setup) — as a lit triangle soup, optionally bent along an arch.
+ * An assembly file (.assembly.json, stored next to the DXFs) places each part in 3D: flip, bend, translate, or
+ * stand on another part's face ("on"). placeAssembly() resolves it into world-space meshes.
+ */
+(function (root, factory) {
+  const Clip = (typeof require === 'function') ? require('./package/clipper.js') : root.ClipperLib;
+  const mod = factory(Clip);
+  if (typeof module !== 'undefined' && module.exports) module.exports = mod;
+  root.ASSEMBLY = mod;
+})(typeof self !== 'undefined' ? self : this, function (ClipperLib) {
+'use strict';
+
+// ---------------------------------------------------------------- layer names -> intent
+function layerRule(name) {
+  const n = String(name == null ? '' : name).toUpperCase().trim();
+  if (/(^|_)VECTOR_ONLY$/.test(n)) return { kind: 'skip', why: 'vector only' };
+  if (n === 'SHEET') return { kind: 'sheet' };
+  if (n === 'NOTES' || n === 'NOTE' || n === 'TEXT' || n === 'DIMS' || n === 'DIMENSIONS') return { kind: 'skip', why: 'notes' };
+  if (n === 'OUTSIDE_PROFILE') return { kind: 'profile' };
+  if (n === 'INSIDE_CUT') return { kind: 'inside' };
+  let m = /^DRILL_(\d*\.?\d+)_THRU$/.exec(n);
+  if (m) return { kind: 'drill', dia: +m[1] };
+  m = /^POCKET_(\d*\.?\d+)D_(\d*\.?\d+)DEEP$/.exec(n);
+  if (m) return { kind: 'pocket', dia: +m[1], depth: +m[2] };
+  return { kind: 'unknown' };
+}
+const CUT_KINDS = { profile: 1, inside: 1, drill: 1, pocket: 1 };
+function isLayerJob(layerNames) { return (layerNames || []).some(n => CUT_KINDS[layerRule(n).kind]); }
+
+// Dan's VCarve job style. safeZ = the rapid height between cuts (the post still lifts to Z2 before parking).
+const DAN_STYLE = {
+  safeZ: 0.2,
+  endmill: { toolNum: 2, toolDia: 0.25, rpm: 24000, feed: 100, plunge: 30, stepover: 0.5 },   // T2 1/4 Vortex
+  drills: [{ toolNum: 8, toolDia: 0.375, rpm: 10000, feed: 62.5, plunge: 20 }],                // T8 3/8 drill
+  smallPart: 6.0,      // outline whose longest side is <= this profiles with an onion skin
+  onionSkin: 0.025,    // small parts stop this far above the spoilboard
+  park: { x: 0, y: 115 }
+};
+
+function bboxPts(pts) { const b = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+  for (const p of pts) { if (p.x < b.minX) b.minX = p.x; if (p.y < b.minY) b.minY = p.y; if (p.x > b.maxX) b.maxX = p.x; if (p.y > b.maxY) b.maxY = p.y; }
+  return b; }
+function r4(v) { return Math.round(v * 1e4) / 1e4; }
+
+// Sheet -> toolpath list. `layers` = the layer names present (in first-seen order). Returns queue entries the
+// studio keeps as-is: {name, p (camParams-compatible), sel:{layers, minSize?, maxSize?}}. Order: T8 drills first,
+// then T2 pockets (biggest first, each ONE full-depth pass), slots pocketed clear, small parts (onion skin),
+// sheet parts (CCW, one pass, no tabs) — so the job has exactly one tool change.
+function jobFromLayers(layers, thickness, style) {
+  const S = Object.assign({}, DAN_STYLE, style || {});
+  const T = Math.abs(+thickness || 0.75), E = S.endmill;
+  const base = t => ({ toolNum: t.toolNum, toolDia: t.toolDia, rpm: t.rpm, feed: t.feed, plunge: t.plunge, topZ: 0, clearZ: S.safeZ,
+    tabs: { count: 0, length: 0.4, height: 0.1 }, leadType: 'none', leadLen: 0.25, rampLen: 0 });
+  const pocketP = depth => Object.assign(base(E), { op: 'pocket', cutDepth: depth, passDepth: depth, climb: false,
+    stepover: E.stepover, pocketStyle: 'offset', rampEntry: false, finishDia: 0 });
+  const drills = [], pockets = [], slots = [], profiles = [], skipped = [];
+  for (const name of layers || []) {
+    const r = layerRule(name);
+    if (r.kind === 'drill') {
+      const d = (S.drills || []).find(t => Math.abs(t.toolDia - r.dia) < 0.002);
+      if (d) drills.push({ name: 'Drill Ø' + r.dia + ' thru (T' + d.toolNum + ')', p: Object.assign(base(d), { op: 'drill', cutDepth: T, passDepth: T, peck: 0 }), sel: { layers: [name] } });
+      else if (r.dia > E.toolDia) slots.push({ name: 'Hole Ø' + r.dia + ' milled thru (no drill that size)', p: pocketP(T), sel: { layers: [name] } });
+      else skipped.push({ layer: name, why: 'Ø' + r.dia + ' hole: no drill that size and smaller than the endmill' });
+    } else if (r.kind === 'pocket') {
+      const depth = Math.min(r.depth, T);
+      pockets.push({ dia: r.dia, depth, name: 'Pocket Ø' + r.dia + ' × ' + depth + ' deep', p: pocketP(depth), sel: { layers: [name] } });
+    } else if (r.kind === 'inside') {
+      slots.push({ name: 'Slots / cut-outs pocketed clear', p: pocketP(T), sel: { layers: [name] } });
+    } else if (r.kind === 'profile') {
+      const prof = depth => Object.assign(base(E), { op: 'profile', side: 'outside', climb: false, cutDepth: depth, passDepth: depth });
+      profiles.push({ name: 'Profile small parts (onion skin ' + S.onionSkin + ')', p: prof(r4(T - S.onionSkin)), sel: { layers: [name], maxSize: S.smallPart } });
+      profiles.push({ name: 'Profile sheet parts (one pass, no tabs)', p: prof(T), sel: { layers: [name], minSize: S.smallPart } });
+    } else if (r.kind !== 'sheet' && r.kind !== 'skip') skipped.push({ layer: name, why: 'layer name has no machining rule' });
+  }
+  pockets.sort((a, b) => b.dia - a.dia || a.depth - b.depth);
+  const queue = drills.concat(pockets, slots, profiles).map(q => ({ name: q.name, p: q.p, sel: q.sel, visible: true }));
+  return { queue, skipped };
+}
+
+// Which shapes a layer-rule toolpath cuts. items: [{id, layer, bbox:{minX..maxY}}] (one per shape).
+function selectByRule(items, sel) {
+  if (!sel || !sel.layers) return items;
+  const L = new Set(sel.layers);
+  return items.filter(it => {
+    if (!L.has(it.layer)) return false;
+    const b = it.bbox; if (!b) return true;
+    const size = Math.max(b.maxX - b.minX, b.maxY - b.minY);
+    if (sel.maxSize != null && size > sel.maxSize + 1e-9) return false;
+    if (sel.minSize != null && size <= sel.minSize + 1e-9) return false;
+    return true;
+  });
+}
+
+// One toolpath -> camcore ops. Same dispatch the studio has always used, plus: a pocket the endmill cannot
+// enter (POCKET_0.26D with a 1/4 tool) is plunged at its centre instead of silently dropped.
+function opResult(CAM, p, contours) {
+  const res = (p.op === 'pocket') ? CAM.pocketOp(contours, p)
+    : (p.op === 'drill') ? CAM.drillOp(contours, p)
+    : (p.op === 'vcarve') ? CAM.vcarveOp(contours, Object.assign({}, p, { maxDepth: p.cutDepth, step: p.vstep }))
+    : (p.op === 'inlay') ? CAM.inlayOp(contours, Object.assign({}, p, { step: p.vstep }))
+    : CAM.profileOp(contours, p);
+  for (const op of res.ops) op.clearZ = p.clearZ;
+  if (p.op === 'pocket' && res.ops.length) {
+    const op = res.ops[0], closed = contours.filter(c => c.closed && c.pts && c.pts.length >= 3);
+    const ctrs = closed.map(c => centroidOf(c.pts));
+    for (let ci = 0; ci < closed.length; ci++) {
+      const c = closed[ci];
+      // an island (or a loop holding one) is not an unreachable pocket — leave those alone
+      if (closed.some((d, di) => di !== ci && (pointInPoly(ctrs[di], c.pts) || pointInPoly(ctrs[ci], d.pts)))) continue;
+      const hit = op.passes.some(ps => ps.path.some(q => pointInPoly(q, c.pts)));
+      if (hit) continue;
+      const ctr = CAM.centroid(c.pts);
+      const depths = []; let d = Math.min(p.passDepth || p.cutDepth, p.cutDepth);
+      while (d < p.cutDepth - 1e-9) { depths.push(d); d += (p.passDepth || p.cutDepth); } depths.push(p.cutDepth);
+      for (const dd of depths) op.passes.push({ z: (p.topZ || 0) - dd, tabHeight: 0, closed: false, path: [{ x: ctr.x, y: ctr.y, tab: false }] });
+      res.warnings = (res.warnings || []).filter(w => !/Tool too large/.test(w)).concat(['Pocket narrower than the tool at ' + ctr.x.toFixed(3) + ',' + ctr.y.toFixed(3) + ' — plunged at its centre']);
+    }
+  }
+  return res;
+}
+
+// Post a whole toolpath list. contoursFor(q) -> camcore contours for that entry. Shared by studio + CLI.
+function postQueue(CAM, queue, contoursFor, post) {
+  const allOps = [], points = []; let warnings = [];
+  for (const q of queue) {
+    if (q.visible === false) continue;
+    const res = opResult(CAM, q.p, contoursFor(q));
+    for (const op of res.ops) if (op.passes.length) allOps.push(op);
+    if (res.points) points.push(...res.points);
+    if (res.warnings) warnings = warnings.concat(res.warnings);
+  }
+  if (!allOps.length) return { gcode: '', ops: [], points, warnings: warnings.concat(['Job produced no cuttable passes']) };
+  const P = Object.assign({}, CAM.POSTS.shopsabre, post || {});
+  const ordered = CAM.orderPasses({ name: 'job - ' + allOps.length + ' ops', units: 'inch', ops: allOps });
+  return { gcode: CAM.postProcess(ordered, P), ops: allOps, points, warnings };
+}
+
+// ---------------------------------------------------------------- geometry helpers
+function area(pts) { let s = 0; for (let i = 0, n = pts.length; i < n; i++) { const a = pts[i], b = pts[(i + 1) % n]; s += a.x * b.y - b.x * a.y; } return s / 2; }
+function pointInPoly(p, pts) { let c = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const a = pts[i], b = pts[j];
+    if ((a.y > p.y) !== (b.y > p.y) && p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x) c = !c; }
+  return c; }
+function centroidOf(pts) { let A = 0, cx = 0, cy = 0;
+  for (let i = 0, n = pts.length; i < n; i++) { const a = pts[i], b = pts[(i + 1) % n], cr = a.x * b.y - b.x * a.y; A += cr; cx += (a.x + b.x) * cr; cy += (a.y + b.y) * cr; }
+  if (Math.abs(A) < 1e-12) { let sx = 0, sy = 0; for (const p of pts) { sx += p.x; sy += p.y; } return { x: sx / pts.length, y: sy / pts.length }; }
+  return { x: cx / (3 * A), y: cy / (3 * A) }; }
+function closeLoop(pts) { const a = pts[0], b = pts[pts.length - 1];
+  return (pts.length > 2 && Math.hypot(a.x - b.x, a.y - b.y) < 1e-6) ? pts.slice(0, -1) : pts.slice(); }
+
+// ---------------------------------------------------------------- sheet -> parts
+// items: [{id, layer, pts, closed}] — every flattened loop of every shape on the sheet.
+// A part = one closed loop on a profile layer, plus every cut whose centre lies inside it (smallest outline wins,
+// so a cap whose clearing pocket is bigger than the cap itself still belongs to the cap).
+function extractParts(items, thickness) {
+  const T = Math.abs(+thickness || 0.75);
+  const outlines = [], cuts = [];
+  for (const it of items) {
+    if (!it || !it.closed || !it.pts || it.pts.length < 3) continue;
+    const r = layerRule(it.layer);
+    const pts = closeLoop(it.pts);
+    if (pts.length < 3) continue;
+    if (r.kind === 'profile') outlines.push({ id: it.id, loop: it.loop || 0, layer: it.layer, pts, area: Math.abs(area(pts)), bbox: bboxPts(pts) });
+    else if (r.kind === 'drill' || r.kind === 'inside') cuts.push({ id: it.id, layer: it.layer, kind: r.kind, pts, z0: 0, z1: T });
+    else if (r.kind === 'pocket') { const d = Math.min(Math.abs(r.depth), T); cuts.push({ id: it.id, layer: it.layer, kind: d >= T - 1e-9 ? 'inside' : 'pocket', pts, z0: T - d, z1: T }); }
+  }
+  outlines.sort((a, b) => a.area - b.area);
+  const parts = outlines.map(o => ({ key: o.id + (o.loop ? ':' + o.loop : ''), outlineId: o.id, outline: o.pts, bbox: o.bbox, area: o.area, cuts: [], ids: [o.id], thickness: T }));
+  const loose = [];
+  for (const c of cuts) {
+    const ctr = centroidOf(c.pts);
+    let host = null;
+    for (let i = 0; i < outlines.length; i++) if (pointInPoly(ctr, outlines[i].pts)) { host = parts[i]; break; }
+    if (host) { host.cuts.push(c); if (host.ids.indexOf(c.id) < 0) host.ids.push(c.id); }
+    else loose.push(c);
+  }
+  // stable order: bottom-left first (reading order of the sheet), so "Part N" labels don't jump around
+  parts.sort((a, b) => (a.bbox.minY - b.bbox.minY) || (a.bbox.minX - b.bbox.minX));
+  return { parts, loose };
+}
+// a short fingerprint of a part's machined geometry: rebuild its mesh only when this changes
+function partSignature(part, extra) {
+  const q = v => Math.round(v * 2000);
+  const loop = pts => pts.map(p => q(p.x) + ',' + q(p.y)).join(' ');
+  return part.thickness + '|' + loop(part.outline) + '|' + part.cuts.map(c => c.z0.toFixed(4) + ':' + c.z1.toFixed(4) + ':' + loop(c.pts)).sort().join('/') + '|' + (extra || '');
+}
+// which part was picked from a sheet point (assembly refs use a point inside the outline)
+function partAt(parts, pt) {
+  let best = null;
+  for (const p of parts) if (pointInPoly(pt, p.outline) && (!best || p.area < best.area)) best = p;
+  if (best) return best;
+  let bd = Infinity;
+  for (const p of parts) { const c = centroidOf(p.outline), d = Math.hypot(c.x - pt.x, c.y - pt.y); if (d < bd) { bd = d; best = p; } }
+  return best;
+}
+
+// ---------------------------------------------------------------- Clipper glue
+const SC = 100000;
+const toI = pts => pts.map(p => new ClipperLib.IntPoint(Math.round(p.x * SC), Math.round(p.y * SC)));
+const fromI = path => path.map(q => ({ x: q.X / SC, y: q.Y / SC }));
+// outline minus the union of cut loops -> [{outer:[pts], holes:[[pts]]}] (outer CCW, holes CW)
+function regionMinus(outline, cutLoops) {
+  const c = new ClipperLib.Clipper();
+  c.AddPath(toI(outline), ClipperLib.PolyType.ptSubject, true);
+  for (const lp of cutLoops) c.AddPath(toI(lp), ClipperLib.PolyType.ptClip, true);
+  const tree = new ClipperLib.PolyTree();
+  c.Execute(ClipperLib.ClipType.ctDifference, tree, ClipperLib.PolyFillType.pftNonZero, ClipperLib.PolyFillType.pftNonZero);
+  return ClipperLib.JS.PolyTreeToExPolygons(tree).map(e => ({ outer: fromI(e.outer), holes: e.holes.map(fromI) }));
+}
+function regionDiff(a, b) {   // a, b: ExPolygon lists -> a minus b
+  const c = new ClipperLib.Clipper();
+  for (const e of a) { c.AddPath(toI(e.outer), ClipperLib.PolyType.ptSubject, true); for (const h of e.holes) c.AddPath(toI(h), ClipperLib.PolyType.ptSubject, true); }
+  for (const e of b) { c.AddPath(toI(e.outer), ClipperLib.PolyType.ptClip, true); for (const h of e.holes) c.AddPath(toI(h), ClipperLib.PolyType.ptClip, true); }
+  const tree = new ClipperLib.PolyTree();
+  c.Execute(ClipperLib.ClipType.ctDifference, tree, ClipperLib.PolyFillType.pftEvenOdd, ClipperLib.PolyFillType.pftEvenOdd);
+  return ClipperLib.JS.PolyTreeToExPolygons(tree).map(e => ({ outer: fromI(e.outer), holes: e.holes.map(fromI) }));
+}
+
+// ---------------------------------------------------------------- triangulation (ear clipping with hole bridges)
+// A compact earcut: flat [x0,y0,x1,y1,...] + hole start indices -> triangle vertex indices. Same algorithm family as
+// mapbox/earcut (bridge each hole to the outer ring, then clip ears, curing self-touching leftovers by splitting).
+function earcut(data, holeIndices) {
+  const hasHoles = holeIndices && holeIndices.length;
+  const outerLen = hasHoles ? holeIndices[0] * 2 : data.length;
+  let outer = linkedList(data, 0, outerLen, true);
+  const tris = [];
+  if (!outer || outer.next === outer.prev) return tris;
+  if (hasHoles) outer = eliminateHoles(data, holeIndices, outer);
+  earcutLinked(outer, tris, 0);
+  return tris;
+}
+function Node(i, x, y) { this.i = i; this.x = x; this.y = y; this.prev = null; this.next = null; this.steiner = false; }
+function insertNode(i, x, y, last) { const p = new Node(i, x, y);
+  if (!last) { p.prev = p; p.next = p; } else { p.next = last.next; p.prev = last; last.next.prev = p; last.next = p; }
+  return p; }
+function removeNode(p) { p.next.prev = p.prev; p.prev.next = p.next; }
+function signedAreaFlat(data, start, end) { let s = 0; for (let i = start, j = end - 2; i < end; i += 2) { s += (data[j] - data[i]) * (data[i + 1] + data[j + 1]); j = i; } return s; }
+function linkedList(data, start, end, clockwise) {
+  let last = null;
+  if (clockwise === (signedAreaFlat(data, start, end) > 0)) { for (let i = start; i < end; i += 2) last = insertNode(i / 2, data[i], data[i + 1], last); }
+  else { for (let i = end - 2; i >= start; i -= 2) last = insertNode(i / 2, data[i], data[i + 1], last); }
+  if (last && equals(last, last.next)) { removeNode(last); last = last.next; }
+  return last;
+}
+function equals(a, b) { return a.x === b.x && a.y === b.y; }
+function triArea(p, q, r) { return (q.y - p.y) * (r.x - q.x) - (q.x - p.x) * (r.y - q.y); }
+function pointInTriangle(ax, ay, bx, by, cx, cy, px, py) {
+  return (cx - px) * (ay - py) >= (ax - px) * (cy - py) && (ax - px) * (by - py) >= (bx - px) * (ay - py) && (bx - px) * (cy - py) >= (cx - px) * (by - py); }
+function filterPoints(start, end) {
+  if (!start) return start; if (!end) end = start;
+  let p = start, again;
+  do { again = false;
+    if (!p.steiner && (equals(p, p.next) || triArea(p.prev, p, p.next) === 0)) { removeNode(p); p = end = p.prev; if (p === p.next) break; again = true; }
+    else p = p.next;
+  } while (again || p !== end);
+  return end;
+}
+function isEar(ear) {
+  const a = ear.prev, b = ear, c = ear.next;
+  if (triArea(a, b, c) >= 0) return false;
+  let p = ear.next.next;
+  while (p !== ear.prev) {
+    if (!(p.x === a.x && p.y === a.y) && pointInTriangle(a.x, a.y, b.x, b.y, c.x, c.y, p.x, p.y) && triArea(p.prev, p, p.next) >= 0) return false;
+    p = p.next;
+  }
+  return true;
+}
+function earcutLinked(ear, tris, pass) {
+  if (!ear) return;
+  let stop = ear, prev, next;
+  while (ear.prev !== ear.next) {
+    prev = ear.prev; next = ear.next;
+    if (isEar(ear)) { tris.push(prev.i, ear.i, next.i); removeNode(ear); ear = next.next; stop = next.next; continue; }
+    ear = next;
+    if (ear === stop) {
+      if (!pass) earcutLinked(filterPoints(ear), tris, 1);
+      else if (pass === 1) { ear = cureLocalIntersections(filterPoints(ear), tris); earcutLinked(ear, tris, 2); }
+      else if (pass === 2) splitEarcut(ear, tris);
+      break;
+    }
+  }
+}
+function intersects(p1, q1, p2, q2) {
+  const o1 = Math.sign(triArea(p1, q1, p2)), o2 = Math.sign(triArea(p1, q1, q2)), o3 = Math.sign(triArea(p2, q2, p1)), o4 = Math.sign(triArea(p2, q2, q1));
+  if (o1 !== o2 && o3 !== o4) return true;
+  const onSeg = (p, q, r) => q.x <= Math.max(p.x, r.x) && q.x >= Math.min(p.x, r.x) && q.y <= Math.max(p.y, r.y) && q.y >= Math.min(p.y, r.y);
+  if (o1 === 0 && onSeg(p1, p2, q1)) return true; if (o2 === 0 && onSeg(p1, q2, q1)) return true;
+  if (o3 === 0 && onSeg(p2, p1, q2)) return true; if (o4 === 0 && onSeg(p2, q1, q2)) return true;
+  return false;
+}
+function locallyInside(a, b) { return triArea(a.prev, a, a.next) < 0 ? triArea(a, b, a.next) >= 0 && triArea(a, a.prev, b) >= 0 : triArea(a, b, a.prev) < 0 || triArea(a, a.next, b) < 0; }
+function cureLocalIntersections(start, tris) {
+  let p = start;
+  do { const a = p.prev, b = p.next.next;
+    if (!equals(a, b) && intersects(a, p, p.next, b) && locallyInside(a, b) && locallyInside(b, a)) {
+      tris.push(a.i, p.i, b.i); removeNode(p); removeNode(p.next); p = start = b; }
+    p = p.next;
+  } while (p !== start);
+  return filterPoints(p);
+}
+function intersectsPolygon(a, b) { let p = a;
+  do { if (p.i !== a.i && p.next.i !== a.i && p.i !== b.i && p.next.i !== b.i && intersects(p, p.next, a, b)) return true; p = p.next; } while (p !== a);
+  return false; }
+function middleInside(a, b) { let p = a, inside = false; const px = (a.x + b.x) / 2, py = (a.y + b.y) / 2;
+  do { if (((p.y > py) !== (p.next.y > py)) && p.next.y !== p.y && (px < (p.next.x - p.x) * (py - p.y) / (p.next.y - p.y) + p.x)) inside = !inside; p = p.next; } while (p !== a);
+  return inside; }
+function isValidDiagonal(a, b) {
+  return a.next.i !== b.i && a.prev.i !== b.i && !intersectsPolygon(a, b) &&
+    ((locallyInside(a, b) && locallyInside(b, a) && middleInside(a, b) && (triArea(a.prev, a, b.prev) || triArea(a, b.prev, b))) ||
+     (equals(a, b) && triArea(a.prev, a, a.next) > 0 && triArea(b.prev, b, b.next) > 0));
+}
+function splitPolygon(a, b) {
+  const a2 = new Node(a.i, a.x, a.y), b2 = new Node(b.i, b.x, b.y), an = a.next, bp = b.prev;
+  a.next = b; b.prev = a; a2.next = an; an.prev = a2; b2.next = a2; a2.prev = b2; bp.next = b2; b2.prev = bp;
+  return b2;
+}
+function splitEarcut(start, tris) {
+  let a = start;
+  do { let b = a.next.next;
+    while (b !== a.prev) {
+      if (a.i !== b.i && isValidDiagonal(a, b)) {
+        let c = splitPolygon(a, b);
+        a = filterPoints(a, a.next); c = filterPoints(c, c.next);
+        earcutLinked(a, tris, 0); earcutLinked(c, tris, 0); return;
+      }
+      b = b.next;
+    }
+    a = a.next;
+  } while (a !== start);
+}
+function eliminateHoles(data, holeIndices, outer) {
+  const queue = [];
+  for (let i = 0; i < holeIndices.length; i++) {
+    const start = holeIndices[i] * 2, end = i < holeIndices.length - 1 ? holeIndices[i + 1] * 2 : data.length;
+    const list = linkedList(data, start, end, false);
+    if (!list) continue;
+    if (list === list.next) list.steiner = true;
+    queue.push(getLeftmost(list));
+  }
+  queue.sort((a, b) => a.x - b.x || a.y - b.y);
+  for (const h of queue) outer = eliminateHole(h, outer);
+  return outer;
+}
+function getLeftmost(start) { let p = start, l = start; do { if (p.x < l.x || (p.x === l.x && p.y < l.y)) l = p; p = p.next; } while (p !== start); return l; }
+function eliminateHole(hole, outer) {
+  const bridge = findHoleBridge(hole, outer);
+  if (!bridge) return outer;
+  const b2 = splitPolygon(bridge, hole);
+  filterPoints(b2, b2.next);
+  return filterPoints(bridge, bridge.next);
+}
+function sectorContainsSector(m, p) { return triArea(m.prev, m, p.prev) < 0 && triArea(p.next, m, m.next) < 0; }
+function findHoleBridge(hole, outer) {
+  let p = outer, qx = -Infinity, m = null;
+  const hx = hole.x, hy = hole.y;
+  do {   // nearest edge crossing the ray from the hole's leftmost point going left
+    if (hy <= p.y && hy >= p.next.y && p.next.y !== p.y) {
+      const x = p.x + (hy - p.y) * (p.next.x - p.x) / (p.next.y - p.y);
+      if (x <= hx && x > qx) { qx = x; m = p.x < p.next.x ? p : p.next; if (x === hx) return m; }
+    }
+    p = p.next;
+  } while (p !== outer);
+  if (!m) return null;
+  const stop = m, mx = m.x, my = m.y;
+  let tanMin = Infinity;
+  p = m;
+  do {
+    if (hx >= p.x && p.x >= mx && hx !== p.x &&
+        pointInTriangle(hy < my ? hx : qx, hy, mx, my, hy < my ? qx : hx, hy, p.x, p.y)) {
+      const tan = Math.abs(hy - p.y) / (hx - p.x);
+      if (locallyInside(p, hole) && (tan < tanMin || (tan === tanMin && (p.x > m.x || (p.x === m.x && sectorContainsSector(m, p)))))) { m = p; tanMin = tan; }
+    }
+    p = p.next;
+  } while (p !== stop);
+  return m;
+}
+// ExPolygon {outer, holes} -> triangles as [[a,b,c] of {x,y}], CCW (facing +z)
+function triangulateEx(ex) {
+  const data = [], holes = [], pts = [];
+  const push = loop => { for (const p of loop) { data.push(p.x, p.y); pts.push(p); } };
+  push(ex.outer);
+  for (const h of ex.holes) { holes.push(pts.length); push(h); }
+  const idx = earcut(data, holes), out = [];
+  for (let i = 0; i < idx.length; i += 3) {
+    let a = pts[idx[i]], b = pts[idx[i + 1]], c = pts[idx[i + 2]];
+    const cr = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+    if (Math.abs(cr) < 1e-14) continue;
+    if (cr < 0) { const t = b; b = c; c = t; }
+    out.push([a, b, c]);
+  }
+  return out;
+}
+
+// split a CCW triangle by horizontal lines y = ys[k] (sorted) into convex pieces -> triangles. Keeps a bent
+// surface exact: each piece lies inside one straight segment of the bend.
+function splitTriByY(tri, ys) {
+  const lo = Math.min(tri[0].y, tri[1].y, tri[2].y), hi = Math.max(tri[0].y, tri[1].y, tri[2].y);
+  const cuts = [];
+  for (const y of ys) if (y > lo + 1e-9 && y < hi - 1e-9) cuts.push(y);
+  if (!cuts.length) return [tri];
+  const out = [];
+  let poly = tri.slice();
+  const clip = (pg, y, keepBelow) => { const r = [];
+    for (let i = 0; i < pg.length; i++) { const a = pg[i], b = pg[(i + 1) % pg.length];
+      const ina = keepBelow ? a.y <= y : a.y >= y, inb = keepBelow ? b.y <= y : b.y >= y;
+      if (ina) r.push(a);
+      if (ina !== inb) { const t = (y - a.y) / (b.y - a.y); r.push({ x: a.x + (b.x - a.x) * t, y }); } }
+    return r; };
+  for (const y of cuts) {
+    const below = clip(poly, y, true);
+    for (let i = 1; i + 1 < below.length; i++) out.push([below[0], below[i], below[i + 1]]);
+    poly = clip(poly, y, false);
+    if (poly.length < 3) break;
+  }
+  for (let i = 1; i + 1 < poly.length; i++) out.push([poly[0], poly[i], poly[i + 1]]);
+  return out;
+}
+
+// ---------------------------------------------------------------- bend (sheet bent along its length)
+// spec {type:'arch', footA, footB, chord}: a sheet of length L lies flat for footA, rises in a raised-cosine arch
+// (tangent-continuous with both feet), and lands flat for footB, the two foot ends `chord` apart. The sheet length
+// is fixed, so the arch height comes out of it: lengthen the slide in 2D and the arch rises.
+function archPath(spec, L) {
+  const fa = Math.max(0, +spec.footA || 0), fb = Math.max(0, +spec.footB || 0);
+  const chord = +spec.chord || L, span = Math.max(1e-6, chord - fa - fb), want = L - fa - fb;
+  const N = Math.max(16, spec.samples || 160);
+  const arcLen = R => { let s = 0, px = 0, py = 0; for (let k = 1; k <= 400; k++) { const t = k / 400, x = t * span, y = R * (1 - Math.cos(2 * Math.PI * t)) / 2; s += Math.hypot(x - px, y - py); px = x; py = y; } return s; };
+  let R = 0;
+  if (want > span + 1e-6) { let lo = 0, hi = want; for (let i = 0; i < 60; i++) { const mid = (lo + hi) / 2; if (arcLen(mid) < want) lo = mid; else hi = mid; } R = (lo + hi) / 2; }
+  const pts = [{ u: 0, h: 0 }];
+  if (fa > 0) pts.push({ u: fa, h: 0 });
+  for (let k = 1; k < N; k++) { const t = k / N; pts.push({ u: fa + t * span, h: R * (1 - Math.cos(2 * Math.PI * t)) / 2 }); }
+  pts.push({ u: fa + span, h: 0 });
+  if (fb > 0) pts.push({ u: fa + span + fb, h: 0 });
+  // arc-length parameter, rescaled so the path is exactly the sheet length (a chord polyline is a hair short)
+  const s = [0]; for (let i = 1; i < pts.length; i++) s.push(s[i - 1] + Math.hypot(pts[i].u - pts[i - 1].u, pts[i].h - pts[i - 1].h));
+  const k = L / s[s.length - 1];
+  const vertices = pts.map((p, i) => ({ s: s[i] * k, u: p.u, h: p.h }));
+  return { vertices, rise: R, span, chord, length: L };
+}
+// path vertices {s,u,h} -> a mapper (s, z) -> {u, h, tu, th, nu, nh}: point on the bent sheet at arc length s,
+// z above the path along the (mitred) normal, plus the unit tangent and normal there.
+function bendMapper(path) {
+  const V = path.vertices, n = V.length;
+  const segT = [], segN = [];
+  for (let i = 0; i < n - 1; i++) { const du = V[i + 1].u - V[i].u, dh = V[i + 1].h - V[i].h, m = Math.hypot(du, dh) || 1;
+    segT.push([du / m, dh / m]); segN.push([-dh / m, du / m]); }
+  const miter = [], unitN = [];
+  for (let i = 0; i < n; i++) {
+    const a = segN[Math.max(0, i - 1)], b = segN[Math.min(n - 2, i)];
+    let mu = a[0] + b[0], mh = a[1] + b[1]; const m = Math.hypot(mu, mh) || 1; mu /= m; mh /= m;
+    const c = Math.max(0.2, mu * b[0] + mh * b[1]);
+    unitN.push([mu, mh]); miter.push([mu / c, mh / c]);
+  }
+  const breaks = V.slice(1, -1).map(v => v.s);
+  function at(s, z) {
+    let i = 0, lo = 0, hi = n - 2;
+    if (s <= V[0].s) i = 0; else if (s >= V[n - 1].s) i = n - 2;
+    else { while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (V[mid].s <= s) lo = mid; else hi = mid - 1; } i = Math.min(lo, n - 2); }
+    const a = V[i], b = V[i + 1], L = (b.s - a.s) || 1, t = (s - a.s) / L;   // t outside [0,1] extrapolates the end segments
+    const nu = miter[i][0] + (miter[i + 1][0] - miter[i][0]) * Math.max(0, Math.min(1, t));
+    const nh = miter[i][1] + (miter[i + 1][1] - miter[i][1]) * Math.max(0, Math.min(1, t));
+    let un = unitN[i][0] + (unitN[i + 1][0] - unitN[i][0]) * Math.max(0, Math.min(1, t));
+    let uh = unitN[i][1] + (unitN[i + 1][1] - unitN[i][1]) * Math.max(0, Math.min(1, t));
+    const m = Math.hypot(un, uh) || 1; un /= m; uh /= m;
+    return { u: a.u + (b.u - a.u) * t + z * nu, h: a.h + (b.h - a.h) * t + z * nh, tu: uh, th: -un, nu: un, nh: uh };
+  }
+  return { at, breaks };
+}
+
+// ---------------------------------------------------------------- the solid
+// part: {outline, cuts:[{pts, z0, z1}], thickness}. Local frame: sheet x/y, z = 0 bottom .. T top (as cut).
+// map(x, y, z) -> {p:[x,y,z], frame(n) -> world normal}; optional ybreaks for bent parts.
+// Returns {positions, normals, tris} (non-indexed soup, flat walls, smooth bent faces) in local or mapped space.
+function partSolid(part, opts) {
+  const o = opts || {};
+  const T = part.thickness;
+  const outline = area(part.outline) > 0 ? part.outline : part.outline.slice().reverse();
+  const cuts = part.cuts.map(c => ({ pts: c.pts, z0: Math.max(0, Math.min(T, c.z0)), z1: Math.max(0, Math.min(T, c.z1)) })).filter(c => c.z1 - c.z0 > 1e-6);
+  const levels = [0, T];
+  for (const c of cuts) for (const z of [c.z0, c.z1]) if (!levels.some(l => Math.abs(l - z) < 1e-6)) levels.push(z);
+  levels.sort((a, b) => a - b);
+  const bands = [];   // bands[k] = solid section between levels[k] and levels[k+1]
+  for (let k = 0; k + 1 < levels.length; k++) {
+    const lo = levels[k], hi = levels[k + 1];
+    const cover = cuts.filter(c => c.z0 <= lo + 1e-6 && c.z1 >= hi - 1e-6).map(c => c.pts);
+    bands.push(regionMinus(outline, cover));
+  }
+  const pos = [], nrm = [];
+  const ybreaks = o.ybreaks || null;
+  const map = o.map || ((x, y, z) => ({ p: [x, y, z], n: v => v }));
+  const emitFace = (exs, z, up) => {
+    for (const ex of exs) for (const t0 of triangulateEx(ex)) {
+      const pieces = ybreaks ? splitTriByY(t0, ybreaks) : [t0];
+      for (const t of pieces) {
+        const tri = up ? t : [t[0], t[2], t[1]];
+        for (const q of tri) { const m = map(q.x, q.y, z); pos.push(m.p[0], m.p[1], m.p[2]); const nn = m.n([0, 0, up ? 1 : -1]); nrm.push(nn[0], nn[1], nn[2]); }
+      }
+    }
+  };
+  // horizontal faces: up-facing where the band below is solid and the band above is not, and vice versa
+  for (let k = 0; k < levels.length; k++) {
+    const below = k > 0 ? bands[k - 1] : [], above = k < bands.length ? bands[k] : [];
+    const up = k === 0 ? [] : (k === levels.length - 1 ? below : regionDiff(below, above));
+    const dn = k === levels.length - 1 ? [] : (k === 0 ? above : regionDiff(above, below));
+    if (up.length) emitFace(up, levels[k], true);
+    if (dn.length) emitFace(dn, levels[k], false);
+  }
+  // walls of each band, outward = right of the edge (outer CCW, holes CW)
+  for (let k = 0; k < bands.length; k++) {
+    const z0 = levels[k], z1 = levels[k + 1];
+    for (const ex of bands[k]) for (const ring of [ex.outer].concat(ex.holes)) {
+      for (let i = 0; i < ring.length; i++) {
+        const a = ring[i], b = ring[(i + 1) % ring.length];
+        const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy); if (len < 1e-9) continue;
+        const wn = [dy / len, -dx / len, 0];
+        const pts = [a];
+        if (ybreaks) { const ys = ybreaks.filter(y => (y > Math.min(a.y, b.y) + 1e-9) && (y < Math.max(a.y, b.y) - 1e-9));
+          if (dy < 0) ys.reverse();
+          for (const y of ys) { const t = (y - a.y) / dy; pts.push({ x: a.x + dx * t, y }); } }
+        pts.push(b);
+        for (let j = 0; j + 1 < pts.length; j++) {
+          const p = pts[j], q = pts[j + 1];
+          const A = map(p.x, p.y, z0), B = map(q.x, q.y, z0), C = map(q.x, q.y, z1), D = map(p.x, p.y, z1);
+          const nA = A.n(wn), nB = B.n(wn);
+          for (const [M, N] of [[A, nA], [B, nB], [C, nB], [A, nA], [C, nB], [D, nA]]) { pos.push(M.p[0], M.p[1], M.p[2]); nrm.push(N[0], N[1], N[2]); }
+        }
+      }
+    }
+  }
+  return { positions: new Float32Array(pos), normals: new Float32Array(nrm), vertexCount: pos.length / 3, levels };
+}
+
+// ---------------------------------------------------------------- placement
+function v3add(a, b) { return [a[0] + b[0], a[1] + b[1], a[2] + b[2]]; }
+function v3scale(a, s) { return [a[0] * s, a[1] * s, a[2] * s]; }
+function v3cross(a, b) { return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]; }
+function v3norm(a) { const m = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / m, a[1] / m, a[2] / m]; }
+
+// Local -> world mapper for one placed part. entry: {flip, bend, place:{at,rotate}, on:{...}, anchor, rotate, lift}
+// resolveOn(partId) -> that part's mapper (for "on"). Returns {map(x,y,z)->{p,n(v)}, ybreaks}.
+function partMapper(part, entry, resolveOn) {
+  const T = part.thickness, bb = bboxPts(part.outline);
+  const cx2 = bb.minX + bb.maxX;
+  const flip = !!entry.flip;
+  const pre = (x, y, z) => flip ? [cx2 - x, y, T - z] : [x, y, z];
+  const preN = v => flip ? [-v[0], v[1], -v[2]] : v;
+  let mid, ybreaks = null, info = {};
+  if (entry.bend && entry.bend.type === 'arch') {
+    const L = bb.maxY - bb.minY, path = archPath(entry.bend, L), bm = bendMapper(path);
+    ybreaks = bm.breaks.map(s => s + bb.minY);
+    info.rise = path.rise; info.span = path.span;
+    mid = (x, y, z) => { const f = bm.at(y - bb.minY, z); return { p: [x, f.u, f.h], f }; };
+    mid.n = (v, f) => [v[0], v[1] * f.tu + v[2] * f.nu, v[1] * f.th + v[2] * f.nh];
+  } else { mid = (x, y, z) => ({ p: [x, y, z], f: null }); mid.n = v => v; }
+  let post;
+  if (entry.on && resolveOn) {
+    const host = resolveOn(entry.on.part);
+    if (!host) return null;
+    const face = entry.on.face === 'bottom' ? 'bottom' : 'top';
+    const at = entry.on.at || [0, 0];
+    const hz = face === 'top' ? host.T : 0, e = 0.05;
+    const P = (x, y) => host.map(x, y, hz).p;
+    const p0 = P(at[0], at[1]);
+    const ex = v3norm([P(at[0] + e, at[1])[0] - P(at[0] - e, at[1])[0], P(at[0] + e, at[1])[1] - P(at[0] - e, at[1])[1], P(at[0] + e, at[1])[2] - P(at[0] - e, at[1])[2]]);
+    const eyr = [P(at[0], at[1] + e)[0] - P(at[0], at[1] - e)[0], P(at[0], at[1] + e)[1] - P(at[0], at[1] - e)[1], P(at[0], at[1] + e)[2] - P(at[0], at[1] - e)[2]];
+    let n = v3norm(v3cross(ex, eyr)); if (face === 'bottom') n = v3scale(n, -1);
+    const ey = v3cross(n, ex);
+    const anc = entry.anchor || [(bb.minX + bb.maxX) / 2, (bb.minY + bb.maxY) / 2];
+    const th = (+entry.rotate || 0) * Math.PI / 180, c = Math.cos(th), s = Math.sin(th), lift = +entry.lift || 0;
+    const ancF = flip ? [cx2 - anc[0], anc[1]] : anc;
+    post = (q) => { const dx = q[0] - ancF[0], dy = q[1] - ancF[1], rx = dx * c - dy * s, ry = dx * s + dy * c;
+      return v3add(v3add(v3add(p0, v3scale(ex, rx)), v3scale(ey, ry)), v3scale(n, q[2] + lift)); };
+    post.n = v => { const rx = v[0] * c - v[1] * s, ry = v[0] * s + v[1] * c; return v3add(v3add(v3scale(ex, rx), v3scale(ey, ry)), v3scale(n, v[2])); };
+  } else {
+    const pl = entry.place || {}, t = pl.at || [0, 0, 0], th = (+pl.rotate || 0) * Math.PI / 180, c = Math.cos(th), s = Math.sin(th);
+    post = q => [q[0] * c - q[1] * s + t[0], q[0] * s + q[1] * c + t[1], q[2] + t[2]];
+    post.n = v => [v[0] * c - v[1] * s, v[0] * s + v[1] * c, v[2]];
+  }
+  const map = (x, y, z) => { const a = pre(x, y, z), m = mid(a[0], a[1], a[2]);
+    return { p: post(m.p), n: v => v3norm(post.n(mid.n(preN(v), m.f))) }; };
+  return { map, ybreaks, T, info };   // flip mirrors x and z only, so the bend's y breaks still apply
+}
+
+// Merge the cuts of a second setup (e.g. "2B underside, flip in place") into its part: mirrored about the
+// part's centre line and measured from the bottom face.
+function setupCuts(part, setupItems, mirror) {
+  const bb = bboxPts(part.outline), cx2 = bb.minX + bb.maxX, cy2 = bb.minY + bb.maxY, T = part.thickness;
+  const out = [];
+  for (const it of setupItems) {
+    if (!it.closed || !it.pts || it.pts.length < 3) continue;
+    const r = layerRule(it.layer); if (r.kind !== 'pocket' && r.kind !== 'drill' && r.kind !== 'inside') continue;
+    const pts = closeLoop(it.pts).map(p => ({ x: mirror === 'x' ? cx2 - p.x : p.x, y: mirror === 'y' ? cy2 - p.y : p.y }));
+    if (!pointInPoly(centroidOf(pts), part.outline)) continue;
+    const d = r.kind === 'pocket' ? Math.min(r.depth, T) : T;
+    out.push({ id: it.id, layer: it.layer, kind: r.kind, pts, z0: 0, z1: d, setup: true });
+  }
+  return out;
+}
+
+// Flat layout when no assembly file is loaded: every sheet's parts at their sheet positions, sheets side by side.
+function defaultAssembly(sheetList) {
+  const parts = []; let x = 0;
+  for (const sh of sheetList) {
+    parts.push({ id: sh.id + ':*', sheet: sh.id, all: true, place: { at: [x, 0, 0] } });
+    x += (sh.w || 48) + 6;
+  }
+  return { format: 'aqcam-assembly', version: 1, name: 'Sheets (flat)', sheets: sheetList.map(s => ({ id: s.id })), parts };
+}
+
+// Resolve an assembly against the current sheets into placed meshes, reusing every mesh whose inputs did not change.
+//   asm    : the .assembly.json object
+//   sheets : {sheetId: {items:[{id,loop,layer,pts,closed}], thickness}}
+//   cache  : Map kept by the caller between calls (part bindings + built meshes)
+// A part's mesh key = its machined geometry + its placement + its host's placement (for "on"), so moving a hole
+// rebuilds that one part, and reshaping a host re-places the parts standing on it.
+function buildAssembly(asm, sheets, cache) {
+  cache = cache || new Map();
+  const extracted = {}, errors = [], rebuilt = [];
+  const sheetParts = id => { if (!extracted[id]) { const sh = sheets[id]; extracted[id] = sh ? extractParts(sh.items, sh.thickness) : { parts: [], loose: [] }; } return extracted[id]; };
+  const sheetDef = new Map((asm.sheets || []).map(s => [s.id, s]));
+  const entries = [], used = new Set();
+  for (const e of asm.parts || []) {
+    if (!sheets[e.sheet]) { errors.push('part ' + e.id + ': sheet "' + e.sheet + '" is not loaded'); continue; }
+    const ex = sheetParts(e.sheet);
+    if (e.all) { ex.parts.forEach((p, i) => { used.add(p); entries.push(Object.assign({}, e, { id: e.sheet + ':' + (i + 1), all: false, _part: p })); }); continue; }
+    const bound = cache.get('bind:' + e.id);
+    let p = (bound && ex.parts.find(q => q.outlineId === bound)) || partAt(ex.parts, { x: e.at[0], y: e.at[1] });
+    if (!p) { errors.push('part ' + e.id + ': no outline near ' + e.at.join(',') + ' on sheet ' + e.sheet); continue; }
+    cache.set('bind:' + e.id, p.outlineId); used.add(p);
+    entries.push(Object.assign({}, e, { _part: p }));
+  }
+  const byId = new Map(entries.map(e => [e.id, e]));
+  // second setups (flip-in-place underside jobs) add their cuts to the part they were run on
+  for (const s of asm.sheets || []) {
+    if (!s.setupOf || !sheets[s.id]) continue;
+    const host = byId.get(s.setupOf.part); if (!host) continue;
+    host._part = Object.assign({}, host._part, { cuts: host._part.cuts.concat(setupCuts(host._part, sheets[s.id].items, s.setupOf.mirror || 'x')),
+      ids: host._part.ids.slice() });
+    host._setupSheets = (host._setupSheets || []).concat([s.id]);
+  }
+  const mappers = new Map(), mkeys = new Map(), visiting = new Set();
+  const placementKey = e => JSON.stringify({ flip: e.flip, bend: e.bend, place: e.place, on: e.on, anchor: e.anchor, rotate: e.rotate, lift: e.lift });
+  function mapperFor(id) {
+    if (mappers.has(id)) return mappers.get(id);
+    const e = byId.get(id); if (!e || visiting.has(id)) return null;
+    visiting.add(id);
+    let hostKey = '';
+    const bb = bboxPts(e._part.outline);
+    const m = partMapper(e._part, e, hid => { const hm = mapperFor(hid); if (hm) hostKey += '<' + mkeys.get(hid); else errors.push('part ' + id + ': cannot stand on "' + hid + '"'); return hm; });
+    visiting.delete(id);
+    mappers.set(id, m);
+    mkeys.set(id, placementKey(e) + [bb.minX, bb.minY, bb.maxX, bb.maxY].map(v => v.toFixed(4)).join(',') + e._part.thickness + hostKey);
+    return m;
+  }
+  const out = [];
+  for (const e of entries) {
+    const m = mapperFor(e.id); if (!m) continue;
+    const key = partSignature(e._part) + '#' + mkeys.get(e.id);
+    const prev = cache.get('mesh:' + e.id);
+    let mesh;
+    if (prev && prev.key === key) mesh = prev.mesh;
+    else { mesh = partSolid(e._part, { map: m.map, ybreaks: m.ybreaks }); cache.set('mesh:' + e.id, { key, mesh }); rebuilt.push(e.id); }
+    const sd = sheetDef.get(e.sheet) || {};
+    out.push({ id: e.id, label: e.label || e.id, sheet: e.sheet, color: e.color || sd.color || '#8fa3bf', ids: e._part.ids, outlineId: e._part.outlineId,
+      setupSheets: e._setupSheets || [], mesh, info: m.info });
+  }
+  const unplaced = [];
+  for (const id in extracted) for (const p of extracted[id].parts) if (!used.has(p)) unplaced.push({ sheet: id, key: p.key, bbox: p.bbox });
+  return { parts: out, errors, rebuilt, unplaced };
+}
+
+function validateAssembly(a) {
+  const errs = [];
+  if (!a || typeof a !== 'object') return ['not an object'];
+  if (a.format !== 'aqcam-assembly') errs.push('format must be "aqcam-assembly"');
+  if (!Array.isArray(a.sheets) || !a.sheets.length) errs.push('sheets[] missing');
+  if (!Array.isArray(a.parts)) errs.push('parts[] missing');
+  const ids = new Set((a.sheets || []).map(s => s.id));
+  for (const p of a.parts || []) {
+    if (!p.id) errs.push('part without id');
+    if (!ids.has(p.sheet)) errs.push('part ' + p.id + ': unknown sheet ' + p.sheet);
+    if (!p.all && !(Array.isArray(p.at) && p.at.length === 2)) errs.push('part ' + p.id + ': at:[x,y] (a point inside its outline) required');
+  }
+  for (const s of a.sheets || []) if (s.setupOf && !(a.parts || []).some(p => p.id === s.setupOf.part)) errs.push('sheet ' + s.id + ': setupOf.part ' + (s.setupOf && s.setupOf.part) + ' is not a part');
+  return errs;
+}
+
+return { layerRule, isLayerJob, DAN_STYLE, jobFromLayers, selectByRule, opResult, postQueue,
+  extractParts, partSignature, partAt, setupCuts, partSolid, partMapper, archPath, bendMapper, buildAssembly,
+  earcut, triangulateEx, splitTriByY, regionMinus, defaultAssembly, validateAssembly,
+  pointInPoly, centroidOf, bboxPts, area };
+});
+
+</script>
+<script>
+// crvparse.js — native importer for Vectric VCarve / Aspire .crv and .crv3d files.
+//
+// Browser-flat script (concatenated by build.js): no module.exports, no IIFE.
+// Every global here is prefixed `crv…` so it cannot collide with dxfparse/pdfparse.
+//
+// Entry point:  parseCrv(u8 /*Uint8Array*/, opts) -> polys
+//   polys is the SAME array shape entityToPolys() in dxfparse.js produces —
+//   [{layer, type, pts:[{x,y},…], ent}] — so CADCORE.dxfPolysToShapes(polys)
+//   consumes it unchanged.  Extra properties on the array:
+//     polys.jobSize     {w,h,thickness}   material size, in INCHES
+//     polys.units       'inch'            units the returned coordinates are in
+//     polys.sourceUnits 'inch' | 'mm'     units the file itself was drawn in
+//     polys.unitsSource provenance of that decision (see below)
+//     polys.scale       factor applied to the file's raw coordinates
+//     polys.dialect     'crv-mfc' | 'crv3d-inline' | 'empty'
+//     polys.checks      decode self-checks (tabs, previews discarded, text blocks…)
+//     polys.warnings    non-fatal oddities worth telling the user about
+//     polys.app / polys.appVersion        writing application, when present
+//   opts: {units:'inch'|'mm'|'auto' (default 'auto'), tol: flattening tolerance
+//          in inches (default 0.002)}
+//
+// The .crv container is an OLE2/CFB compound file; the 2D geometry lives in the
+// stream "VectorData/2dDataV2" as an MFC CArchive object graph — little-endian
+// and BYTE-PACKED (doubles start at unaligned offsets).
+//
+// Ported from the validated Python reference parser (crvlib.py) against
+// FORMAT.md **specification v3**, which parses all 5,977 files of Dan's
+// production archive with zero failures.  What that costs in code is the
+// framing around the geometry: an MFC property bag hanging off every object
+// header, four object versions, machining tabs, toolpath previews, vector
+// text, embedded bitmaps and the MFC 32-bit tag escape.  Almost none of it is
+// drawing geometry — but there is NO length prefix anywhere in the stream, so
+// a record that cannot be decoded exactly cannot be skipped either, and one
+// wrong byte desynchronises everything after it.
+//
+// DESIGN RULE, inherited from the reference parser: this code RAISES rather
+// than guessing.  An unknown class, an unexpected structure version, an
+// unknown span type, or a contour whose spans do not chain to within 1e-6 all
+// throw.  Wrong CNC geometry destroys material; a hard failure is cheaper.
+// There is NO resynchronisation anywhere: nothing scans ahead for a tag.
+
+const CRV_CHAIN_TOL = 1e-6;      // max allowed gap between consecutive spans
+const CRV_DEFAULT_TOL = 0.002;   // default flattening tolerance, inches
+const CRV_MM_PER_IN = 25.4;
+
+function crvFail(msg) { throw new Error('CRV: ' + msg); }
+// A file that is not a compound document at all (the archive holds posted
+// G-code saved with a .crv3d extension) is a mis-named file, not a corrupt
+// one — flagged so the UI can say so instead of crying corruption.
+function crvFailNotCrv(msg) { const e = new Error('CRV: ' + msg); e.notCrvFile = true; throw e; }
+
+// ===========================================================================
+// 1.  Minimal read-only MS Compound File Binary (CFB / OLE2) reader
+// ===========================================================================
+const CRV_MAXREGSECT = 0xFFFFFFFA;
+const CRV_ENDOFCHAIN = 0xFFFFFFFE;
+const CRV_FREESECT = 0xFFFFFFFF;
+const CRV_NOSTREAM = 0xFFFFFFFF;
+
+function crvCfbOpen(u8) {
+  // Duck-typed rather than `instanceof`: a Uint8Array built in another realm
+  // (node's vm sandbox, an iframe) is still a byte view.
+  if (!u8 || !ArrayBuffer.isView(u8) || u8.BYTES_PER_ELEMENT !== 1)
+    crvFail('expected a Uint8Array of file bytes');
+  if (u8.length < 512) crvFail('too short to be a compound file (' + u8.length + ' bytes)');
+  const sig = [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
+  for (let i = 0; i < 8; i++) if (u8[i] !== sig[i]) {
+    const head = Array.from(u8.subarray(0, 16));
+    const ascii = head.every(b => (b >= 32 && b < 127) || b === 9 || b === 10 || b === 13);
+    crvFailNotCrv('not a Vectric compound file (' + (ascii ? 'looks like text — posted G-code saved as .crv3d?' : 'unknown binary') + ')');
+  }
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  const cf = { u8, dv };
+
+  const byteOrder = dv.getUint16(28, true);
+  const sectShift = dv.getUint16(30, true);
+  const miniShift = dv.getUint16(32, true);
+  cf.majorVer = dv.getUint16(26, true);
+  if (byteOrder !== 0xFFFE) crvFail('unsupported byte order 0x' + byteOrder.toString(16));
+  if (sectShift !== 9 && sectShift !== 12) crvFail('unsupported sector shift ' + sectShift);
+  if (miniShift !== 6) crvFail('unsupported mini sector shift ' + miniShift);
+  cf.sectorSize = 1 << sectShift;
+  cf.miniSectorSize = 1 << miniShift;
+  cf.nFatSectors = dv.getUint32(44, true);
+  cf.firstDirSector = dv.getUint32(48, true);
+  cf.miniCutoff = dv.getUint32(56, true);
+  cf.firstMinifatSector = dv.getUint32(60, true);
+  cf.firstDifatSector = dv.getUint32(68, true);
+  if (cf.miniCutoff !== 4096) crvFail('unexpected mini-stream cutoff ' + cf.miniCutoff);
+
+  cf.sector = function (sect) {
+    if (sect > CRV_MAXREGSECT) crvFail('special sector id 0x' + sect.toString(16) + ' used as data');
+    const off = (sect + 1) * cf.sectorSize;
+    if (off + cf.sectorSize > u8.length) crvFail('sector ' + sect + ' past end of file');
+    return u8.subarray(off, off + cf.sectorSize);
+  };
+
+  // --- FAT / DIFAT ---
+  const per = cf.sectorSize / 4;
+  const fatSectors = [];
+  for (let i = 0; i < 109; i++) {
+    const v = dv.getUint32(76 + 4 * i, true);
+    if (v === CRV_FREESECT || v === CRV_ENDOFCHAIN) break;
+    fatSectors.push(v);
+  }
+  let sect = cf.firstDifatSector;
+  const seenDifat = new Set();
+  while (sect !== CRV_ENDOFCHAIN && sect !== CRV_FREESECT && sect <= CRV_MAXREGSECT) {
+    if (seenDifat.has(sect)) crvFail('DIFAT chain loops at ' + sect);
+    seenDifat.add(sect);
+    const blk = cf.sector(sect);
+    const bdv = new DataView(blk.buffer, blk.byteOffset, blk.byteLength);
+    for (let i = 0; i < per - 1; i++) {
+      const v = bdv.getUint32(4 * i, true);
+      if (v === CRV_FREESECT || v === CRV_ENDOFCHAIN) continue;
+      fatSectors.push(v);
+    }
+    sect = bdv.getUint32(4 * (per - 1), true);
+  }
+  let fs = fatSectors;
+  if (cf.nFatSectors && fs.length > cf.nFatSectors) fs = fs.slice(0, cf.nFatSectors);
+  const fat = [];
+  for (const s of fs) {
+    const blk = cf.sector(s);
+    const bdv = new DataView(blk.buffer, blk.byteOffset, blk.byteLength);
+    for (let i = 0; i < per; i++) fat.push(bdv.getUint32(4 * i, true));
+  }
+  cf.fat = fat;
+
+  cf.chain = function (start) {
+    const out = [];
+    let s = start;
+    const seen = new Set();
+    while (s !== CRV_ENDOFCHAIN && s !== CRV_FREESECT) {
+      if (s > CRV_MAXREGSECT) crvFail('bad sector id 0x' + s.toString(16) + ' in chain');
+      if (seen.has(s)) crvFail('FAT chain loops at sector ' + s);
+      seen.add(s);
+      out.push(s);
+      if (s >= fat.length) crvFail('sector ' + s + ' outside FAT (' + fat.length + ' entries)');
+      s = fat[s];
+    }
+    return out;
+  };
+  cf.readChain = function (start, size) {
+    const out = new Uint8Array(size);
+    let got = 0;
+    for (const s of cf.chain(start)) {
+      const blk = cf.sector(s);
+      const n = Math.min(cf.sectorSize, size - got);
+      out.set(blk.subarray(0, n), got);
+      got += n;
+      if (got >= size) break;
+    }
+    return out;
+  };
+
+  // --- directory ---
+  const dirChain = cf.chain(cf.firstDirSector);
+  const rawDir = new Uint8Array(dirChain.length * cf.sectorSize);
+  dirChain.forEach((s, i) => rawDir.set(cf.sector(s), i * cf.sectorSize));
+  const rdv = new DataView(rawDir.buffer, rawDir.byteOffset, rawDir.byteLength);
+  const entries = [];
+  for (let i = 0; i < rawDir.length / 128; i++) {
+    const b = 128 * i;
+    const nlen = rdv.getUint16(b + 64, true);
+    let name = '';
+    if (nlen >= 2 && nlen <= 64) {
+      const cu = [];
+      for (let k = 0; k < (nlen - 2) / 2; k++) cu.push(rdv.getUint16(b + 2 * k, true));
+      name = String.fromCharCode.apply(null, cu);
+    }
+    const lo = rdv.getUint32(b + 120, true), hi = rdv.getUint32(b + 124, true);
+    entries.push({
+      name: name, type: rawDir[b + 66],
+      left: rdv.getUint32(b + 68, true), right: rdv.getUint32(b + 72, true),
+      child: rdv.getUint32(b + 76, true), start: rdv.getUint32(b + 116, true),
+      size: cf.majorVer < 4 ? lo : lo + hi * 4294967296
+    });
+  }
+  if (!entries.length || entries[0].type !== 5) crvFail('missing root directory entry');
+  const root = entries[0];
+  const paths = {};
+  (function walk(idx, prefix, depth) {
+    if (idx === CRV_NOSTREAM || idx >= entries.length) return;
+    if (depth > 128) crvFail('directory tree too deep');
+    const e = entries[idx];
+    if (e.type === 0) return;
+    const path = prefix + e.name;
+    if (e.type === 1 || e.type === 5 || e.type === 2) paths[path] = e;
+    if (e.type === 1 || e.type === 5) walk(e.child, path + '/', depth + 1);
+    walk(e.left, prefix, depth + 1);
+    walk(e.right, prefix, depth + 1);
+  })(root.child, '', 0);
+
+  let miniStream = null, minifat = null;
+  function loadMini() {
+    if (miniStream) return;
+    miniStream = cf.readChain(root.start, root.size);
+    minifat = [];
+    for (const s of cf.chain(cf.firstMinifatSector)) {
+      const blk = cf.sector(s);
+      const bdv = new DataView(blk.buffer, blk.byteOffset, blk.byteLength);
+      for (let i = 0; i < per; i++) minifat.push(bdv.getUint32(4 * i, true));
+    }
+  }
+
+  cf.names = function () { return Object.keys(paths).sort(); };
+  cf.exists = function (p) { return Object.prototype.hasOwnProperty.call(paths, p); };
+  cf.stream = function (p) {
+    const e = paths[p];
+    if (!e) crvFail('no stream "' + p + '" (have: ' + cf.names().slice(0, 12).join(', ') + ')');
+    if (e.type !== 2) crvFail('"' + p + '" is a storage, not a stream');
+    if (e.size === 0) return new Uint8Array(0);
+    if (e.size >= cf.miniCutoff) return cf.readChain(e.start, e.size);
+    loadMini();
+    const out = new Uint8Array(e.size);
+    let s = e.start, got = 0;
+    const seen = new Set();
+    while (s !== CRV_ENDOFCHAIN && got < e.size) {
+      if (s > CRV_MAXREGSECT || s >= minifat.length) crvFail('bad mini sector ' + s);
+      if (seen.has(s)) crvFail('mini-FAT chain loops');
+      seen.add(s);
+      const off = s * cf.miniSectorSize;
+      const n = Math.min(cf.miniSectorSize, e.size - got);
+      out.set(miniStream.subarray(off, off + n), got);
+      got += n;
+      s = minifat[s];
+    }
+    return out;
+  };
+  return cf;
+}
+
+// ===========================================================================
+// 2.  byte reader — everything little-endian and byte-packed
+// ===========================================================================
+function crvReader(u8, name) {
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  return {
+    d: u8, dv: dv, p: 0, name: name || '<stream>',
+    need(n) { if (this.p + n > u8.length) crvFail(this.name + ': read of ' + n + ' bytes past end of stream at ' + this.p + '/' + u8.length); },
+    u8() { this.need(1); return u8[this.p++]; },
+    u16() { this.need(2); const v = dv.getUint16(this.p, true); this.p += 2; return v; },
+    u32() { this.need(4); const v = dv.getUint32(this.p, true); this.p += 4; return v; },
+    i32() { this.need(4); const v = dv.getInt32(this.p, true); this.p += 4; return v; },
+    f64() { this.need(8); const v = dv.getFloat64(this.p, true); this.p += 8; return v; },
+    raw(n) { this.need(n); const v = u8.subarray(this.p, this.p + n); this.p += n; return v; },
+    // u32-length-prefixed ASCII — used ONLY by the v>=8 provenance stamp;
+    // every other string in this stream is an MFC wide string.
+    astr() {
+      const at = this.p;
+      const n = this.u32();
+      if (n > 256) crvFail(this.name + ': implausible ascii string length ' + n + ' at ' + at);
+      return String.fromCharCode.apply(null, Array.from(this.raw(n)));
+    },
+    hex(n) { let s = ''; for (const b of this.raw(n)) s += (b < 16 ? '0' : '') + b.toString(16); return s; },
+    guid() { return this.hex(16); },
+    // MFC CStringW: FF FE FF <u8 len> <len UTF-16LE code units>, no terminator.
+    wstr() {
+      this.need(3);
+      if (u8[this.p] !== 0xFF || u8[this.p + 1] !== 0xFE || u8[this.p + 2] !== 0xFF)
+        crvFail(this.name + ': bad wide-string marker at ' + this.p);
+      this.p += 3;
+      let n = this.u8();
+      if (n === 0xFF) { n = this.u16(); if (n === 0xFFFF) n = this.u32(); }
+      this.need(2 * n);
+      const cu = [];
+      for (let k = 0; k < n; k++) cu.push(dv.getUint16(this.p + 2 * k, true));
+      this.p += 2 * n;
+      return String.fromCharCode.apply(null, cu);
+    }
+  };
+}
+
+// ===========================================================================
+// 3.  geometry: spans, flattening, chaining
+// ===========================================================================
+// A span is {k:'span', type, x0,y0,z0, x1,y1,z1, bulge, c1x,c1y,c2x,c2y, tab}.
+// `type` is the geometric primitive; `code` is the raw two-axis type code.
+
+// Arc reconstruction from the DXF bulge convention: bulge = tan(sweep/4),
+// positive = counter-clockwise.  The SIGN of h is what makes sweeps > 180°
+// fall out correctly; getting it wrong bulges every corner outward.
+function crvArcGeom(s) {
+  if (s.type !== 'arc' || s.bulge === 0) return null;
+  const dx = s.x1 - s.x0, dy = s.y1 - s.y0;
+  const chord = Math.hypot(dx, dy);
+  if (chord === 0) return null;
+  const sweep = 4 * Math.atan(s.bulge);
+  const half = sweep / 2;
+  const sn = Math.sin(half);
+  if (sn === 0) return null;
+  const r = Math.abs(chord / (2 * sn));
+  const h = (chord / 2) / Math.tan(half);
+  const cx = (s.x0 + s.x1) / 2 + h * (-dy / chord);
+  const cy = (s.y0 + s.y1) / 2 + h * (dx / chord);
+  return { cx, cy, r, a0: Math.atan2(s.y0 - cy, s.x0 - cx), sweep };
+}
+
+// Point on a span at its own parameter t in [0,1] (line: lerp, arc: sweep fraction, bezier: B(t)) — this is
+// how a vcToolpathTab (spanIndex, t) is placed. Assumes t is the span's native parameter; CONFIRM on BT-02.
+function crvSpanAt(s, t) {
+  if (s.type === 'arc') { const a = crvArcGeom(s); if (a) { const ang = a.a0 + a.sweep * t; return [a.cx + a.r * Math.cos(ang), a.cy + a.r * Math.sin(ang)]; } }
+  if (s.type === 'bezier') { const u = 1 - t;
+    return [u*u*u*s.x0 + 3*u*u*t*s.c1x + 3*u*t*t*s.c2x + t*t*t*s.x1, u*u*u*s.y0 + 3*u*u*t*s.c1y + 3*u*t*t*s.c2y + t*t*t*s.y1]; }
+  return [s.x0 + (s.x1 - s.x0) * t, s.y0 + (s.y1 - s.y0) * t];
+}
+
+function crvSegDist(px, py, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay;
+  const L = Math.hypot(dx, dy);
+  if (L < 1e-15) return Math.hypot(px - ax, py - ay);
+  return Math.abs((px - ax) * dy - (py - ay) * dx) / L;
+}
+
+// Adaptive de Casteljau subdivision; appends the points AFTER p0.
+function crvFlattenBezier(p0, p1, p2, p3, tol, depth, out) {
+  if (depth <= 0 || (crvSegDist(p1[0], p1[1], p0[0], p0[1], p3[0], p3[1]) <= tol &&
+                     crvSegDist(p2[0], p2[1], p0[0], p0[1], p3[0], p3[1]) <= tol)) {
+    out.push(p3);
+    return;
+  }
+  const m = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  const p01 = m(p0, p1), p12 = m(p1, p2), p23 = m(p2, p3);
+  const p012 = m(p01, p12), p123 = m(p12, p23);
+  const mid = m(p012, p123);
+  crvFlattenBezier(p0, p01, p012, mid, tol, depth - 1, out);
+  crvFlattenBezier(mid, p123, p23, p3, tol, depth - 1, out);
+}
+
+// Flattened points for one span, EXCLUDING its start point (chain friendly).
+// `tol` is the chord deviation, in the file's own job units.
+function crvSpanPoints(s, tol) {
+  const end = [s.x1, s.y1];
+  // A tab line is a straight 3-D segment (its XY projection is an ordinary
+  // line: a lift or drop projects to zero length); a point span is degenerate.
+  if (s.type === 'line' || s.type === 'tabline' || s.type === 'point') return [end];
+  if (s.type === 'arc') {
+    const a = crvArcGeom(s);
+    if (!a || a.r <= 0) return [end];
+    let step;
+    if (tol <= 0 || tol >= a.r) step = Math.PI / 8;
+    else { step = 2 * Math.acos(1 - tol / a.r); if (step <= 1e-12) step = Math.PI / 8; }
+    let n = Math.ceil(Math.abs(a.sweep) / step);
+    if (n < 2) n = 2;
+    if (n > 100000) n = 100000;
+    const out = [];
+    for (let i = 1; i <= n; i++) {
+      const ang = a.a0 + a.sweep * i / n;
+      out.push([a.cx + a.r * Math.cos(ang), a.cy + a.r * Math.sin(ang)]);
+    }
+    out[out.length - 1] = end;
+    return out;
+  }
+  if (s.type === 'bezier') {
+    const out = [];
+    crvFlattenBezier([s.x0, s.y0], [s.c1x, s.c1y], [s.c2x, s.c2y], end, tol, 20, out);
+    out[out.length - 1] = end;
+    return out;
+  }
+  crvFail('cannot flatten span type "' + s.type + '"');
+}
+
+// Head-to-tail continuity is an invariant of the format (observed gap 0.0
+// over 31.5 M spans).  A gap means we mis-framed the stream, so refuse.
+function crvCheckChain(c) {
+  const sp = c.spans;
+  if (!sp.length) { c.closed = false; c.chainGap = 0; return; }
+  let worst = 0;
+  for (let i = 0; i + 1 < sp.length; i++) {
+    const a = sp[i], b = sp[i + 1];
+    let g = Math.hypot(a.x1 - b.x0, a.y1 - b.y0);
+    g = Math.max(g, Math.abs(a.z1 - b.z0));
+    if (g > worst) worst = g;
+  }
+  if (worst > CRV_CHAIN_TOL)
+    crvFail('contour spans do not chain: max gap ' + worst + ' > ' + CRV_CHAIN_TOL +
+            ' (refusing to emit unsafe geometry)');
+  c.chainGap = worst;
+  // There is no stored "closed" flag: closedness is geometric.
+  c.closeGap = Math.hypot(sp[sp.length - 1].x1 - sp[0].x0, sp[sp.length - 1].y1 - sp[0].y0);
+  c.closed = c.closeGap <= CRV_CHAIN_TOL;
+}
+
+function crvContourPolyline(c, tol) {
+  if (!c.spans.length) return [];
+  const pts = [[c.spans[0].x0, c.spans[0].y0]];
+  for (const s of c.spans) for (const p of crvSpanPoints(s, tol)) pts.push(p);
+  return pts;
+}
+
+function crvContourBBox(c, tol) {
+  const p = crvContourPolyline(c, tol);
+  if (!p.length) return null;
+  let b = [p[0][0], p[0][1], p[0][0], p[0][1]];
+  for (const q of p) {
+    if (q[0] < b[0]) b[0] = q[0];
+    if (q[1] < b[1]) b[1] = q[1];
+    if (q[0] > b[2]) b[2] = q[0];
+    if (q[1] > b[3]) b[3] = q[1];
+  }
+  return b;
+}
+
+function crvNewContour() {
+  return { k: 'contour', version: 0, spans: [], closed: false, chainGap: 0,
+           tolerance: 0, sourceGuid: null, linkGuids: [], origin: null };
+}
+
+// ===========================================================================
+// 4.  MFC CArchive object graph
+// ===========================================================================
+// CArchive keeps a 1-based load array whose counter increments for EVERY class
+// AND EVERY object, in the order they appear.  Counting only objects (or only
+// classes) desynchronises every back-reference later in the stream.
+const CRV_KNOWN_CLASSES = [
+  'vcCadLayer', 'vcCadPolyline', 'vcCadContour', 'vcCadObjectGroup',
+  'vcCadSheet', 'vdContour', 'vdLineSpan', 'vdArcSpan', 'vdBezierSpan',
+  'vdTabLineSpan', 'vdSpan',
+  'utParameterList', 'utParameter', 'vcToolpathTab', 'vdContourGroup',
+  'vcCadToolpathPreview', 'vcCadModelPreview', 'vcCadBitmap',
+  'txtBlock', 'txtLine', 'txtWord', 'txtChar', 'txtBaseCurve'
+];
+const CRV_LAYER_VERSIONS = [4];
+const CRV_CADOBJ_VERSIONS = [5, 7, 8, 10];
+const CRV_CONTOUR_VERSIONS = [3, 6, 7];
+const CRV_CONTOURGROUP_VERSIONS = [3];
+const CRV_STREAM_VERSIONS = [1, 2];
+const CRV_MATERIAL_VERSIONS = [5, 7, 8];
+const CRV_SPAN_VERSION = 2;
+const CRV_PARAMLIST_VERSION = 1;
+const CRV_PARAM_VERSION = 2;
+const CRV_TAB_VERSION = 1;
+const CRV_TXTLINE_VERSION = 1;
+const CRV_TXTWORD_VERSION = 1;
+const CRV_TXTCHAR_VERSION = 3;
+const CRV_TXTBASE_VERSION = 1;
+// _txtAL_text_justify values whose line-origin rule has been validated against
+// the files' own preview rasters. A census of every txtBlock in all 5,977
+// archive files finds only 0 and 2; anything else raises, because a wrong
+// origin silently moves real cutting geometry.
+const CRV_JUSTIFY_VALIDATED = [0, 2];
+// The span type code inside the body is TWO enums at once: a geometric
+// primitive family and the span's toolpath ROLE.  Every code is a line, an
+// arc, a cubic or a degenerate point — there is no new geometry — and codes
+// 5, 7, 8, 9, 11, 12 occur only inside a vcCadToolpathPreview, which is
+// consumed and discarded.  Codes 2, 3, 4, 10 and >= 13 have never been seen
+// anywhere and raise.
+const CRV_SPAN_TYPE_BY_CODE = { 0: 'arc', 1: 'line', 5: 'point', 6: 'bezier',
+                                7: 'tabline', 8: 'line', 9: 'line',
+                                11: 'arc', 12: 'arc' };
+const CRV_SPAN_ROLE_BY_CODE = { 0: 'cut', 1: 'cut', 5: 'plunge point', 6: 'cut',
+                                7: 'tab ramp', 8: 'lead-in', 9: 'lead-out',
+                                11: 'lead-in', 12: 'lead-out' };
+// The 1-byte inline discriminator (and, in the .crv dialect, the MFC class
+// name) names only the FAMILY, so it is coarser than the body code and must
+// be checked as SET MEMBERSHIP, never for equality.
+const CRV_INLINE_TYPE_BY_CODE = { 0: 'line', 1: 'arc', 2: 'bezier', 3: 'tabline' };
+const CRV_SPAN_FAMILY_KINDS = { line: ['line', 'point'], arc: ['arc'],
+                                bezier: ['bezier'], tabline: ['tabline'] };
+// vdTabLineSpan's leading u32: constant 2 in all 294,091 observed tab spans.
+// It is NOT a count (three doubles follow either way), so a different value
+// would make the record's width unknowable — refuse it.
+const CRV_TABLINE_MODE = 2;
+const CRV_DBL_MAX = 1.7976931348623157e308;
+const CRV_NULL_GUID = '00000000000000000000000000000000';
+// The cached anchor is compared against a bbox flattened FINELY: both sides
+// approximate a curve's extremum, and at the drawing tolerance a cubic's
+// bbox falls short of the true one by more than 1e-6.
+const CRV_ANCHOR_FLATTEN_TOL = 1e-7;
+const CRV_ANCHOR_TOL = 1e-5;
+
+// MFC tag constants. THE TRAP: `~wClassTag` masks off bit 15, so the ordinary
+// new-class tag 0xFFFF decodes to 0x80007FFF — the sentinel AFTER decoding is
+// 0x7FFF, not 0xFFFF, and it is the same constant as the 32-bit escape tag.
+const CRV_W_BIG_OBJECT = 0x7FFF;      // escape: a u32 tag follows
+const CRV_W_CLASS_TAG = 0x8000;
+const CRV_NEW_CLASS_IDX = 0x7FFF;     // decoded index meaning "new class descriptor"
+const CRV_DW_BIG_CLASS = 0x80000000;
+
+function crvArchive(u8) {
+  const ar = { r: crvReader(u8, '2dDataV2'), slots: [null], classesSeen: [], bigTags: 0 };
+  ar.add = function (kind, val) { ar.slots.push([kind, val]); return ar.slots.length - 1; };
+  ar.resolveClass = function (idx, where) {
+    if (idx < 1 || idx >= ar.slots.length)
+      crvFail('bad class back-reference ' + idx + ' at ' + where + ' (map has ' + (ar.slots.length - 1) + ')');
+    const e = ar.slots[idx];
+    if (e[0] !== 'class') crvFail('back-reference ' + idx + ' at ' + where + ' is an object, expected a class');
+    return e[1];
+  };
+  // CArchive::ReadObject / ReadClass, transcribed from MFC arccore.cpp.
+  ar.readTag = function () {
+    const r = ar.r;
+    const tag = r.u16();
+    if (tag === CRV_W_BIG_OBJECT) { ar.bigTags++; return r.u32(); }
+    return ((tag & CRV_W_CLASS_TAG) * 65536) + (tag & ~CRV_W_CLASS_TAG);
+  };
+  // Class name of the next object tag, without consuming anything.
+  ar.peekClassName = function () {
+    const save = ar.r.p, saveBig = ar.bigTags;
+    try {
+      const obtag = ar.readTag();
+      if (!(obtag & CRV_DW_BIG_CLASS)) return null;
+      const idx = obtag & ~CRV_DW_BIG_CLASS;
+      if (idx === CRV_NEW_CLASS_IDX) {
+        ar.r.u16();
+        const n = ar.r.u16();
+        return String.fromCharCode.apply(null, Array.from(ar.r.raw(n)));
+      }
+      return ar.resolveClass(idx, ar.r.p - 2)[0];
+    } catch (e) { return null; } finally { ar.r.p = save; ar.bigTags = saveBig; }
+  };
+  ar.readObject = function (expect) {
+    const r = ar.r;
+    const at = r.p;
+    const obtag = ar.readTag();
+    if (!(obtag & CRV_DW_BIG_CLASS)) {
+      if (obtag === 0) return null;                        // NULL pointer
+      if (obtag >= ar.slots.length) crvFail('bad object back-reference ' + obtag + ' at ' + at);
+      const e = ar.slots[obtag];
+      if (e[0] !== 'obj') crvFail('object back-reference ' + obtag + ' at ' + at + ' points at a class');
+      return e[1];
+    }
+    const idx = obtag & ~CRV_DW_BIG_CLASS;
+    let name;
+    if (idx === CRV_NEW_CLASS_IDX) {                        // new class descriptor
+      r.u16();                                              // schema, always 1
+      const nlen = r.u16();
+      if (nlen === 0 || nlen > 128) crvFail('implausible class-name length ' + nlen + ' at ' + (r.p - 2));
+      name = String.fromCharCode.apply(null, Array.from(r.raw(nlen)));
+      if (CRV_KNOWN_CLASSES.indexOf(name) < 0)
+        crvFail('unknown serialised class "' + name + '" at offset ' + at +
+                ' — refusing to guess its layout (there is no length prefix to skip it by)');
+      ar.add('class', [name, 1]);
+      ar.classesSeen.push(name);
+    } else {
+      name = ar.resolveClass(idx, at)[0];
+    }
+    const obj = crvClassReaders[name](ar);
+    if (expect && name !== expect) crvFail('expected a ' + expect + ' at ' + at + ', found ' + name);
+    return obj;
+  };
+  return ar;
+}
+
+// --- vcCadLayer ------------------------------------------------------------
+function crvReadLayer(ar) {
+  const r = ar.r;
+  const L = { k: 'layer', name: '', guid: null, version: 0, roots: [], objects: [], discarded: [] };
+  ar.add('obj', L);
+  L.version = r.u32();
+  if (CRV_LAYER_VERSIONS.indexOf(L.version) < 0)
+    crvFail('vcCadLayer version ' + L.version + ' at ' + (r.p - 4) + ' is not reverse-engineered');
+  L.guid = r.guid();
+  L.name = r.wstr();
+  r.raw(10);                                    // UNKNOWN, 00×9 01 in every sample
+  const n = r.u32();
+  if (n > 1000000) crvFail('implausible object count ' + n + ' at ' + (r.p - 4));
+  for (let i = 0; i < n; i++) {
+    const o = ar.readObject();
+    if (o === null) crvFail('NULL object inside layer "' + L.name + '"');
+    if (o.k !== 'cadobj') crvFail('layer "' + L.name + '" holds a ' + o.k + ', expected a drawing object');
+    L.roots.push(o);
+  }
+  r.raw(3);                                     // UNKNOWN visibility/lock trailer
+  (function flat(list) {
+    for (const o of list) {
+      // Machine-generated geometry (toolpath previews) was parsed byte-exactly
+      // — the only way the stream stays in sync — but is NOT drawing geometry.
+      if (o.discard) { L.discarded.push(o); continue; }
+      if (o.cls === 'vcCadObjectGroup' || o.cls === 'vcCadModelPreview' || o.cls === 'vcCadBitmap') {
+        flat(o.children);
+        continue;
+      }
+      L.objects.push(o);
+    }
+  })(L.roots);
+  return L;
+}
+
+// --- the "Vectric__Version" provenance block of object version >= 8 --------
+// 64 bytes: u32 len=16, "Vectric__Version", u32 = 1, u32 len=36, 36-char UUID.
+// The key is checked: a different property here would mean a different layout.
+function crvReadStamp(r) {
+  const at = r.p;
+  const key = r.astr();
+  if (key !== 'Vectric__Version')
+    crvFail('expected the Vectric__Version provenance block at ' + at + ', found "' + key +
+            '" — not reverse-engineered');
+  const mid = r.u32();
+  return [key, mid, r.astr()];
+}
+
+// --- common vcCad* object header -------------------------------------------
+// The field after the `i32 -1` is an MFC object POINTER to a utParameterList,
+// not a fixed u32 + u16. A NULL pointer is the two bytes 00 00, which is why
+// the wrong split summed to the right size in every file that never stored a
+// per-object parameter — and why it broke 470 real files that did.
+function crvReadCadObjHead(ar, cls) {
+  const r = ar.r;
+  const o = { k: 'cadobj', cls: cls, version: 0, guid: null, layerGuid: null,
+              ownerGuid: null, contours: [], children: [], anchor: null, ordinal: 0,
+              params: null, stamp: null, tabs: [], discard: false,
+              discardedContours: [], text: null, objKind: 0, unknown: {} };
+  ar.add('obj', o);
+  o.version = r.u32();
+  if (CRV_CADOBJ_VERSIONS.indexOf(o.version) < 0)
+    crvFail(cls + ' version ' + o.version + ' at ' + (r.p - 4) +
+            ' is not reverse-engineered (refusing to guess its layout)');
+  o.guid = r.guid();
+  o.layerGuid = r.guid();                 // the layer this object BELONGS to
+  o.unknown.a0 = r.u32();                 // 0 on drawing objects; 0x9696C8 on a
+                                          // toolpath preview (Vectric's preview pink)
+  r.u32();                                // UNKNOWN 0
+  r.u32(); r.u32();                       // UNKNOWN 0x82, 0x2A — colour/style?
+  o.ordinal = r.u32();                    // z-order or creation ordinal?
+  r.i32();                                // UNKNOWN -1
+  const at = r.p;
+  o.params = ar.readObject();             // utParameterList pointer, may be NULL
+  if (o.params !== null && o.params.k !== 'paramlist')
+    crvFail(cls + ': header pointer at ' + at + ' resolves to a ' + o.params.k +
+            ', expected a utParameterList');
+  if (o.version < 6) {
+    r.u32();                              // UNKNOWN 0
+  } else {
+    if (o.version < 10) r.u32();          // UNKNOWN 0 — versions 6..8 only
+    r.u32();                              // UNKNOWN 0 or 1
+    const ax = r.f64(), ay = r.f64();
+    o.anchor = (ax === CRV_DBL_MAX || ay === CRV_DBL_MAX) ? null : [ax, ay];
+    if (o.version >= 8) {
+      o.stamp = crvReadStamp(r);          // replaces the v6/v7 u32
+      if (o.version >= 10) {
+        r.u32();                          // UNKNOWN 1
+        for (let i = 0; i < 4; i++) r.f64();   // bounding box, ±DBL_MAX when unset
+        for (let i = 0; i < 9; i++) r.f64();   // 3×3 matrix, identity in both samples
+        crvReadStamp(r);                  // a second provenance block
+      }
+    } else {
+      r.u32();                            // UNKNOWN 0 — v6/v7 only
+    }
+  }
+  o.objKind = r.u32();  // 1 group, 2 curve, 4 text/toolpath preview, 5 model preview
+  return o;
+}
+
+// Trailer of vcCadContour / vcCadPolyline, ALL versions: the machining-tab
+// list. Contours nested in a vdContourGroup (glyph outlines, toolpath
+// previews) have no owning curve object and so carry no tab count at all.
+function crvReadCurveTail(ar, o) {
+  const r = ar.r;
+  const n = r.u32();
+  if (n > 10000) crvFail('implausible toolpath-tab count ' + n + ' at ' + (r.p - 4));
+  for (let i = 0; i < n; i++) o.tabs.push(ar.readObject('vcToolpathTab'));
+  if (o.cls === 'vcCadPolyline') r.u32();   // the sole structural difference
+}
+
+function crvReadCurveObj(ar, cls) {
+  const o = crvReadCadObjHead(ar, cls);
+  if (o.objKind !== 2) crvFail(cls + ' with kind ' + o.objKind + ' (expected 2)');
+  const c = ar.readObject('vdContour');   // exactly ONE contour per curve object
+  if (c) { c.origin = 'drawing'; o.contours.push(c); }
+  crvReadCurveTail(ar, o);
+  return o;
+}
+
+function crvReadGroup(ar) {
+  const r = ar.r;
+  const o = crvReadCadObjHead(ar, 'vcCadObjectGroup');
+  if (o.objKind !== 1) crvFail('vcCadObjectGroup with kind ' + o.objKind + ' (expected 1)');
+  const n = r.u32();
+  if (n > 1000000) crvFail('implausible group child count ' + n + ' at ' + (r.p - 4));
+  for (let i = 0; i < n; i++) {
+    const c = ar.readObject();
+    if (c === null) crvFail('NULL child in vcCadObjectGroup');
+    o.children.push(c);
+  }
+  return o;                                // groups have no trailer
+}
+
+// --- the span record -------------------------------------------------------
+// Identical body in both dialects; only the framing differs (an MFC tag in
+// .crv, a 1-byte discriminator in .crv3d).
+function crvSpanBody(ar, family) {
+  const r = ar.r;
+  const at = r.p;
+  const ver = r.u32();
+  if (ver !== CRV_SPAN_VERSION) crvFail('span version ' + ver + ' at ' + at + ' (expected ' + CRV_SPAN_VERSION + ')');
+  const code = r.u32();
+  const type = CRV_SPAN_TYPE_BY_CODE[code];
+  if (!type) crvFail('unknown span type code ' + code + ' at ' + (r.p - 4) + ' — refusing to guess its payload');
+  if (family && CRV_SPAN_FAMILY_KINDS[family].indexOf(type) < 0)
+    crvFail('span framing says ' + family + ' but body type code ' + code + ' says ' + type + ' at ' + at);
+  const s = { k: 'span', type: type, code: code, role: CRV_SPAN_ROLE_BY_CODE[code],
+              bulge: 0, c1x: 0, c1y: 0, c2x: 0, c2y: 0, tab: null };
+  s.x0 = r.f64(); s.y0 = r.f64(); s.z0 = r.f64();
+  s.x1 = r.f64(); s.y1 = r.f64(); s.z1 = r.f64();
+  // Code 5 is the ONLY span with no trailing u32 flag: its body is 48 bytes,
+  // pinned by the vdContour tail that starts immediately after it.
+  if (code !== 5) r.u32();
+  if (type === 'tabline') {
+    const mode = r.u32();
+    if (mode !== CRV_TABLINE_MODE)
+      crvFail('vdTabLineSpan leading u32 = ' + mode + ' (expected ' + CRV_TABLINE_MODE + ') at ' +
+              (r.p - 4) + ' — refusing to guess the record width');
+    s.tab = [mode, r.f64(), r.f64(), r.f64()];   // (2, tabZ, 1.0, 1.0)
+  } else if (type === 'arc') {
+    s.bulge = r.f64();                            // DXF bulge = tan(sweep/4)
+  } else if (type === 'bezier') {
+    s.c1x = r.f64(); s.c1y = r.f64(); s.c2x = r.f64(); s.c2y = r.f64();
+  }
+  return s;
+}
+
+// A span written as a full MFC object (.crv dialect). The class name names the
+// primitive FAMILY exactly as the inline discriminator does — vdLineSpan
+// carries body codes 1, 8 and 9 — so it is cross-checked the same way. The
+// span claims its index slot BEFORE its body is read.
+function crvReadSpanObject(ar, family) {
+  const slot = ar.add('obj', null);
+  const s = crvSpanBody(ar, family);
+  ar.slots[slot] = ['obj', s];
+  return s;
+}
+
+function crvReadVdContour(ar) {
+  const r = ar.r;
+  const c = crvNewContour();
+  ar.add('obj', c);
+  c.version = r.u32();
+  if (CRV_CONTOUR_VERSIONS.indexOf(c.version) < 0)
+    crvFail('vdContour version ' + c.version + ' at ' + (r.p - 4) + ' is not reverse-engineered');
+  r.u32();                 // UNKNOWN 0xFFFFFFFF, sometimes 0
+  c.tolerance = r.f64();
+  r.raw(10);               // UNKNOWN
+  const n = r.u32();
+  if (n > 5000000) crvFail('implausible span count ' + n + ' at ' + (r.p - 4));
+  if (c.version >= 6) {
+    for (let i = 0; i < n; i++) {
+      const disc = r.u8();
+      const family = CRV_INLINE_TYPE_BY_CODE[disc];
+      if (!family) crvFail('unknown inline span discriminator ' + disc + ' at ' + (r.p - 1));
+      c.spans.push(crvSpanBody(ar, family));
+    }
+  } else {
+    for (let i = 0; i < n; i++) {
+      const s = ar.readObject();
+      if (!s || s.k !== 'span') crvFail('vdContour holds a ' + (s && s.k) + ' where a span was expected');
+      c.spans.push(s);
+    }
+  }
+  c.sourceGuid = r.guid();
+  r.u32();                 // UNKNOWN 0xFFFFFFFF, or 0
+  if (c.version >= 6) {
+    // A count of link GUIDs, not a constant 0. The u32 an earlier reading took
+    // from here is the tab count and belongs to the owning curve object.
+    const nlk = r.u16();
+    if (nlk > 4096) crvFail('implausible vdContour link-guid count ' + nlk + ' at ' + (r.p - 2));
+    for (let i = 0; i < nlk; i++) c.linkGuids.push(r.guid());
+  }
+  crvCheckChain(c);
+  return c;
+}
+
+// vcCadSheet is the last record and carries no vector geometry; reaching its
+// tag is the end-of-stream check, so its body is deliberately not decoded.
+function crvReadSheet(ar) {
+  const o = { k: 'cadobj', cls: 'vcCadSheet', contours: [], children: [], version: 0,
+              tabs: [], discard: false, discardedContours: [], params: null, unknown: {} };
+  ar.add('obj', o);
+  return o;
+}
+
+// --- the per-object property bag -------------------------------------------
+function crvReadParamList(ar) {
+  const r = ar.r;
+  const pl = { k: 'paramlist', version: 0, params: [], map: {} };
+  ar.add('obj', pl);
+  pl.version = r.u32();
+  if (pl.version !== CRV_PARAMLIST_VERSION)
+    crvFail('utParameterList version ' + pl.version + ' at ' + (r.p - 4) + ' is not reverse-engineered');
+  const n = r.u32();
+  if (n > 100000) crvFail('implausible parameter count ' + n + ' at ' + (r.p - 4));
+  for (let i = 0; i < n; i++) {
+    const p = ar.readObject('utParameter');
+    pl.params.push(p);
+    pl.map[p.name] = p.value;
+  }
+  return pl;
+}
+
+function crvReadParam(ar) {
+  const r = ar.r;
+  const p = { k: 'param', version: 0, name: null, type: 0, value: null };
+  ar.add('obj', p);
+  p.version = r.u32();
+  if (p.version !== CRV_PARAM_VERSION)
+    crvFail('utParameter version ' + p.version + ' at ' + (r.p - 4) + ' is not reverse-engineered');
+  p.name = r.wstr();
+  const at = r.p;
+  p.type = r.u32();
+  if (p.type === 0) p.value = r.f64();
+  else if (p.type === 1) p.value = r.i32();
+  else if (p.type === 2) p.value = !!r.u8();
+  else if (p.type === 3) p.value = r.wstr();
+  else if (p.type === 4) p.value = r.guid();   // raw Windows GUID (_template_uuid)
+  else crvFail('utParameter "' + p.name + '" payload type ' + p.type + ' at ' + at +
+               ' — refusing to guess its width');
+  return p;
+}
+
+// --- machining tabs (bridges) ----------------------------------------------
+function crvReadTab(ar) {
+  const r = ar.r;
+  const t = { k: 'tab', version: 0, spanIndex: 0, t: 0 };
+  ar.add('obj', t);
+  t.version = r.u32();
+  if (t.version !== CRV_TAB_VERSION)
+    crvFail('vcToolpathTab version ' + t.version + ' at ' + (r.p - 4) + ' is not reverse-engineered');
+  t.spanIndex = r.u32();
+  t.t = r.f64();
+  r.u32();                 // UNKNOWN 1 in every observed tab
+  return t;
+}
+
+// --- vdContourGroup: a bare list of contours with no object identity -------
+function crvReadContourGroup(ar) {
+  const r = ar.r;
+  const g = { k: 'contourgroup', version: 0, contours: [] };
+  ar.add('obj', g);
+  g.version = r.u32();
+  if (CRV_CONTOURGROUP_VERSIONS.indexOf(g.version) < 0)
+    crvFail('vdContourGroup version ' + g.version + ' at ' + (r.p - 4) + ' is not reverse-engineered');
+  const n = r.u32();
+  if (n > 100000) crvFail('implausible contour count ' + n + ' at ' + (r.p - 4));
+  for (let i = 0; i < n; i++) g.contours.push(ar.readObject('vdContour'));
+  r.u8();                  // UNKNOWN 1
+  r.guid();                // UNKNOWN GUID, all zero in every sample
+  return g;
+}
+
+// --- vcCadToolpathPreview: consume exactly, then discard --------------------
+// Machine-generated preview geometry of a calculated toolpath, on the
+// auto-created "Toolpath Previews" layer — about 78% of files contain one. It
+// is never drawing content, but there is no length prefix, so parsing it
+// byte-exactly is the only way the stream stays in sync.
+function crvReadToolpathPreview(ar) {
+  const r = ar.r;
+  const o = crvReadCadObjHead(ar, 'vcCadToolpathPreview');
+  if (o.objKind !== 4) crvFail('vcCadToolpathPreview with kind ' + o.objKind + ' (expected 4)');
+  r.guid();                                    // UNKNOWN toolpath GUID
+  const g = ar.readObject('vdContourGroup');
+  r.raw(15);                                   // UNKNOWN trailer: f64 + 7 bytes
+  o.discard = true;
+  for (const c of g.contours) c.origin = 'toolpath-preview';
+  o.discardedContours = g.contours.slice();
+  return o;
+}
+
+// --- vcCadModelPreview / vcCadBitmap: LZMA1-compressed 8-bit BMP -----------
+// The two records are byte-for-byte identical except that vcCadBitmap ends 20
+// bytes earlier. The raster is skipped; the nested outline is decoded, kept
+// and tagged by role so a consumer can filter it.
+function crvReadModelPreview(ar, cls) {
+  const r = ar.r;
+  const o = crvReadCadObjHead(ar, cls);
+  if (o.objKind !== 5) crvFail(cls + ' with kind ' + o.objKind + ' (expected 5)');
+  r.u8();                                      // UNKNOWN 1 / 0
+  const at = r.p;
+  const child = ar.readObject();
+  if (child === null || child.k !== 'cadobj') crvFail(cls + ': expected a drawing object at ' + at);
+  o.children.push(child);
+  const role = cls === 'vcCadBitmap' ? 'bitmap-frame' : 'model-preview';
+  for (const c of child.contours) c.origin = role;
+  r.u8(); r.u32(); r.u32();                    // UNKNOWN 1, 1, 0
+  r.u32();                                     // uncompressed BMP size
+  let n = r.u32();
+  if (n > 64) crvFail('implausible LZMA property length ' + n + ' at ' + (r.p - 4));
+  r.raw(n);                                    // LZMA properties
+  n = r.u32();
+  if (n > r.d.length) crvFail('implausible LZMA payload length ' + n + ' at ' + (r.p - 4));
+  r.raw(n);                                    // LZMA1 stream (skipped)
+  r.raw(1024);                                 // 256-entry RGBA palette
+  r.u32(); r.u32(); r.wstr(); r.u32(); r.u8(); // UNKNOWN scalars
+  if (cls !== 'vcCadBitmap') { r.u32(); r.guid(); }   // 20 further bytes
+  return o;
+}
+
+// ===========================================================================
+// 4b.  vector text
+// ===========================================================================
+function crvReadTxtChar(ar) {
+  const r = ar.r;
+  const ch = { k: 'txtchar', version: 0, code: 0, advance: 0, group: null };
+  ar.add('obj', ch);
+  ch.version = r.u32();
+  if (ch.version !== CRV_TXTCHAR_VERSION)
+    crvFail('txtChar version ' + ch.version + ' at ' + (r.p - 4) + ' is not reverse-engineered');
+  ch.code = r.u32();
+  r.wstr();                                    // serialised LOGFONT + metrics
+  ch.advance = r.f64();
+  ch.group = ar.readObject('vdContourGroup');  // THE GLYPH OUTLINES
+  for (let i = 0; i < 7; i++) r.f64();         // UNKNOWN beyond [0]
+  for (const c of ch.group.contours) c.origin = 'text-glyph';
+  return ch;
+}
+
+// txtWord has NO trailer: the f64 + wstr + doubles belong to txtLine, and the
+// u32 = 0xFFFFFFFF belongs to the block. Both readings sum to the same total
+// when there is exactly one word on one line, which is why a single-word
+// corpus could not tell them apart.
+function crvReadTxtWord(ar) {
+  const r = ar.r;
+  const w = { k: 'txtword', version: 0, chars: [] };
+  ar.add('obj', w);
+  w.version = r.u32();
+  if (w.version !== CRV_TXTWORD_VERSION)
+    crvFail('txtWord version ' + w.version + ' at ' + (r.p - 4) + ' is not reverse-engineered');
+  const n = r.u32();
+  if (n > 100000) crvFail('implausible character count ' + n + ' at ' + (r.p - 4));
+  for (let i = 0; i < n; i++) w.chars.push(ar.readObject('txtChar'));
+  return w;
+}
+
+function crvReadTxtLine(ar) {
+  const r = ar.r;
+  const ln = { k: 'txtline', version: 0, words: [], pitch: 0 };
+  ar.add('obj', ln);
+  ln.version = r.u32();
+  if (ln.version !== CRV_TXTLINE_VERSION)
+    crvFail('txtLine version ' + ln.version + ' at ' + (r.p - 4) + ' is not reverse-engineered');
+  const n = r.u32();
+  if (n > 100000) crvFail('implausible word count ' + n + ' at ' + (r.p - 4));
+  for (let i = 0; i < n; i++) ln.words.push(ar.readObject('txtWord'));
+  // The line PITCH, measured from the PREVIOUS line's baseline (0.0 on the
+  // first line) — a running sum, not an absolute drop.
+  ln.pitch = r.f64();
+  r.wstr();                                    // font descriptor (duplicate)
+  for (let i = 0; i < 4; i++) r.f64();         // UNKNOWN, all four equal
+  return ln;
+}
+
+function crvReadTxtBaseCurve(ar) {
+  const r = ar.r;
+  const b = { k: 'txtbase', version: 0, contour: null, f: [] };
+  ar.add('obj', b);
+  b.version = r.u32();
+  if (b.version !== CRV_TXTBASE_VERSION)
+    crvFail('txtBaseCurve version ' + b.version + ' at ' + (r.p - 4) + ' is not reverse-engineered');
+  b.contour = ar.readObject('vdContour');
+  b.contour.origin = 'text-baseline';
+  r.u32(); r.u32(); r.u8();                    // UNKNOWN 2, 1, 1
+  for (let i = 0; i < 19; i++) b.f.push(r.f64());
+  return b;
+}
+
+function crvMatMul(A, B) {
+  const out = [];
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+    let s = 0;
+    for (let k = 0; k < 3; k++) s += A[3 * i + k] * B[3 * k + j];
+    out.push(s);
+  }
+  return out;
+}
+
+// (M, bx, by) mapping a glyph point into drawing coordinates:
+//   world = M · (glyphPoint + (glyphOffset, lineBaseline) + baselineMidPoint)
+// f[0:9] is the row-major matrix, f[9:18] its stored inverse; the product is
+// checked against the identity, a free consistency test on the whole reading.
+function crvTxtFrame(base) {
+  const M = base.f.slice(0, 9), INV = base.f.slice(9, 18);
+  const prod = crvMatMul(M, INV);
+  const ident = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+  let err = 0;
+  for (let i = 0; i < 9; i++) err = Math.max(err, Math.abs(prod[i] - ident[i]));
+  if (err > 1e-6)
+    crvFail('txtBaseCurve matrix and its stored inverse do not multiply to the identity ' +
+            '(max error ' + err + ') — refusing to place glyphs');
+  const sp = base.contour.spans;
+  if (!sp.length) crvFail('txtBaseCurve has an empty baseline contour');
+  return { M: M, bx: (sp[0].x0 + sp[sp.length - 1].x1) / 2, by: (sp[0].y0 + sp[sp.length - 1].y1) / 2 };
+}
+
+// Affine image of a glyph contour in drawing coordinates.
+function crvXfContour(c, M, dx, bx, by, dy) {
+  const a = M[0], b = M[1], cc = M[3], d = M[4];
+  const det = a * d - b * cc;
+  const sim = (Math.abs(a - d) <= 1e-9 * Math.max(1, Math.abs(a)) &&
+               Math.abs(b + cc) <= 1e-9 * Math.max(1, Math.abs(b))) ||
+              (Math.abs(a + d) <= 1e-9 * Math.max(1, Math.abs(a)) &&
+               Math.abs(b - cc) <= 1e-9 * Math.max(1, Math.abs(b)));
+  const pt = (x, y) => {
+    const X = x + dx + bx, Y = y + dy + by;
+    return [M[0] * X + M[1] * Y + M[2], M[3] * X + M[4] * Y + M[5]];
+  };
+  const out = crvNewContour();
+  out.version = c.version;
+  out.tolerance = c.tolerance;
+  out.origin = 'text-glyph';
+  for (const sp of c.spans) {
+    const p0 = pt(sp.x0, sp.y0), p1 = pt(sp.x1, sp.y1);
+    const ns = { k: 'span', type: sp.type, code: sp.code, role: sp.role,
+                 x0: p0[0], y0: p0[1], z0: sp.z0, x1: p1[0], y1: p1[1], z1: sp.z1,
+                 bulge: 0, c1x: 0, c1y: 0, c2x: 0, c2y: 0, tab: sp.tab };
+    if (sp.type === 'bezier') {
+      const q1 = pt(sp.c1x, sp.c1y), q2 = pt(sp.c2x, sp.c2y);
+      ns.c1x = q1[0]; ns.c1y = q1[1]; ns.c2x = q2[0]; ns.c2y = q2[1];
+    } else if (sp.type === 'arc') {
+      // A bulge only survives a similarity transform. Every glyph outline in
+      // the corpus is lines + cubics, so this path has never been exercised —
+      // refuse rather than emit an ellipse as a circle.
+      if (!sim) crvFail('text glyph carries an arc span under a non-similarity matrix — ' +
+                        'refusing to guess its image');
+      ns.bulge = det < 0 ? -sp.bulge : sp.bulge;
+    }
+    out.spans.push(ns);
+  }
+  crvCheckChain(out);
+  return out;
+}
+
+// Pen x of the first glyph cell of a line, in the block's local frame.
+function crvLineOrigin(total, just, leftX) {
+  if (just === 0) return leftX;                // left: the baseline's START point
+  if (just === 2) return -total / 2;           // centre: about the baseline midpoint
+  crvFail('text justification ' + JSON.stringify(just) + ' is not reverse-engineered ' +
+          '(only ' + CRV_JUSTIFY_VALIDATED.join(' and ') + ' occur in the whole archive) ' +
+          '— refusing to place glyphs');
+}
+
+// txtBlock — engraved/vector text. It carries the REAL glyph outlines, one
+// vdContour per closed loop, in a local frame: there is no sibling contour
+// object, so this is the only copy of the vector text and it is emitted.
+function crvReadTxtBlock(ar) {
+  const r = ar.r;
+  const o = crvReadCadObjHead(ar, 'txtBlock');
+  if (o.objKind !== 4) crvFail('txtBlock with kind ' + o.objKind + ' (expected 4)');
+  const n = r.u32();
+  if (n > 100000) crvFail('implausible line count ' + n + ' at ' + (r.p - 4));
+  const lines = [];
+  for (let i = 0; i < n; i++) lines.push(ar.readObject('txtLine'));
+  r.f64(); r.f64(); r.u32();                   // the BLOCK's trailer, not the last line's
+  const base = ar.readObject('txtBaseCurve');
+  const fr = crvTxtFrame(base);
+  const leftX = base.contour.spans[0].x0 - fr.bx;
+  const pm = o.params ? o.params.map : {};
+  const just = pm._txtAL_text_justify;
+  o.text = { text: pm._txtAL_Text, font: pm._txtAL_font_name, height: pm._txtAL_height,
+             justify: just, lines: lines.length, chars: 0 };
+  // A LINE is one pen run. A space is its own single-character txtWord with a
+  // real advance and an EMPTY outline, so the words simply concatenate and
+  // inter-word spacing needs no rule of its own. Each glyph is stored centred
+  // on its own origin, at the centre of its advance cell.
+  let baselineY = 0;
+  for (const ln of lines) {
+    const chars = [];
+    for (const w of ln.words) for (const ch of w.chars) chars.push(ch);
+    let total = 0;
+    for (const ch of chars) total += ch.advance;
+    baselineY -= ln.pitch;                     // pitch is cumulative
+    let pen = crvLineOrigin(total, just, leftX);
+    for (const ch of chars) {
+      const dx = pen + ch.advance / 2;
+      pen += ch.advance;
+      for (const c of ch.group.contours) o.contours.push(crvXfContour(c, fr.M, dx, fr.bx, fr.by, baselineY));
+      o.text.chars++;
+    }
+  }
+  return o;
+}
+
+const crvClassReaders = {
+  vcCadLayer: crvReadLayer,
+  vcCadContour: (ar) => crvReadCurveObj(ar, 'vcCadContour'),
+  vcCadPolyline: (ar) => crvReadCurveObj(ar, 'vcCadPolyline'),
+  vcCadObjectGroup: crvReadGroup,
+  vdContour: crvReadVdContour,
+  vdContourGroup: crvReadContourGroup,
+  vdLineSpan: (ar) => crvReadSpanObject(ar, 'line'),
+  vdArcSpan: (ar) => crvReadSpanObject(ar, 'arc'),
+  vdBezierSpan: (ar) => crvReadSpanObject(ar, 'bezier'),
+  vdTabLineSpan: (ar) => crvReadSpanObject(ar, 'tabline'),
+  vdSpan: (ar) => crvReadSpanObject(ar, 'line'),
+  vcCadSheet: crvReadSheet,
+  utParameterList: crvReadParamList,
+  utParameter: crvReadParam,
+  vcToolpathTab: crvReadTab,
+  vcCadToolpathPreview: crvReadToolpathPreview,
+  vcCadModelPreview: (ar) => crvReadModelPreview(ar, 'vcCadModelPreview'),
+  vcCadBitmap: (ar) => crvReadModelPreview(ar, 'vcCadBitmap'),
+  txtBlock: crvReadTxtBlock,
+  txtLine: crvReadTxtLine,
+  txtWord: crvReadTxtWord,
+  txtChar: crvReadTxtChar,
+  txtBaseCurve: crvReadTxtBaseCurve
+};
+
+// ===========================================================================
+// 5.  stream level
+// ===========================================================================
+function crvParse2dData(u8) {
+  const ar = crvArchive(u8);
+  const r = ar.r;
+  const streamVersion = r.u32();
+  r.u32();                                   // UNKNOWN 3, 4 or 5 — tracks the app
+  const nLayers = r.u32();
+  if (CRV_STREAM_VERSIONS.indexOf(streamVersion) < 0)
+    crvFail('2dDataV2 stream version ' + streamVersion + ' (expected one of ' + CRV_STREAM_VERSIONS.join(', ') + ')');
+  if (nLayers > 100000) crvFail('implausible layer count ' + nLayers);
+  const layers = [];
+  for (let i = 0; i < nLayers; i++) {
+    const L = ar.readObject('vcCadLayer');
+    if (L === null) crvFail('NULL layer in 2dDataV2');
+    layers.push(L);
+  }
+  let bbox = null;
+  if (streamVersion >= 2) {
+    // Stream version 2 uses a 24-byte document trailer, not the 120-byte one.
+    r.guid(); r.u32(); r.u32();
+  } else {
+    r.u32();                                 // UNKNOWN 1
+    bbox = [r.f64(), r.f64(), r.f64(), r.f64()];   // drawing extents
+    r.u32(); r.u32();                        // UNKNOWN
+    for (let i = 0; i < 9; i++) r.f64();     // 3×3 view matrix
+    r.u32();                                 // UNKNOWN 1
+  }
+  // End-to-end check: the next tag must be the vcCadSheet record. If the
+  // document trailer were mis-sized this would land on garbage.
+  const nm = ar.peekClassName();
+  if (nm !== 'vcCadSheet')
+    crvFail('stream did not land on vcCadSheet after the document tail (found ' +
+            JSON.stringify(nm) + ' at offset ' + r.p + ') — layout mismatch');
+  return { layers: layers, streamVersion: streamVersion, bbox: bbox, bigTags: ar.bigTags,
+           classes: ar.classesSeen };
+}
+
+// Version 5 is exactly 62 bytes; versions 7 and 8 append 298 / 372 bytes whose
+// layout is UNKNOWN and deliberately not decoded — nothing after the job size
+// is needed for geometry.
+function crvParseMaterial(u8) {
+  const r = crvReader(u8, 'MaterialSize');
+  const ver = r.u32();
+  if (CRV_MATERIAL_VERSIONS.indexOf(ver) < 0)
+    crvFail('MaterialSize version ' + ver + ' (expected one of ' + CRV_MATERIAL_VERSIONS.join(', ') + ')');
+  r.u8(); r.u8();
+  const d = [];
+  for (let i = 0; i < 7; i++) d.push(r.f64());
+  return { thickness: Math.abs(d[2]), width: d[3], height: d[4] };
+}
+
+function crvParseVersionStream(u8) {
+  try {
+    const r = crvReader(u8, 'Version');
+    r.u32();
+    return { app: r.wstr().trim(), version: r.wstr().trim() };
+  } catch (e) { return { app: null, version: null }; }
+}
+
+// ===========================================================================
+// 6.  public entry point
+// ===========================================================================
+// Contour roles that are decoded but must NOT reach the drawing. A
+// 'bitmap-frame' is an imported image's placement rectangle: VCarve draws the
+// raster inside it and never strokes the frame, so importing it would add a
+// rectangle the user never drew. ('model-preview' outlines ARE emitted, and
+// toolpath previews never reach here at all.)
+const CRV_SKIP_ORIGINS = ['bitmap-frame'];
+
+// parseCrv(u8, opts) -> [{layer, type, pts:[{x,y},…], ent}] with jobSize/units.
+function parseCrv(u8, opts) {
+  opts = opts || {};
+  const cfb = crvCfbOpen(u8);
+  if (!cfb.exists('VectorData/2dDataV2'))
+    crvFail('no VectorData/2dDataV2 stream — not a Vectric 2D drawing (streams: ' + cfb.names().join(', ') + ')');
+  const doc = crvParse2dData(cfb.stream('VectorData/2dDataV2'));
+  const layers = doc.layers;
+
+  let job = { w: null, h: null, thickness: null };
+  if (cfb.exists('VectorData/MaterialSize')) {
+    const m = crvParseMaterial(cfb.stream('VectorData/MaterialSize'));
+    job = { w: m.width, h: m.height, thickness: m.thickness };
+  }
+  const vinfo = cfb.exists('VersionData/Version')
+    ? crvParseVersionStream(cfb.stream('VersionData/Version')) : { app: null, version: null };
+
+  // ---- units. NO units flag exists anywhere in the container: verified by
+  // diffing an inch file and a millimetre file written by the SAME Aspire
+  // build (every stream but the geometry is byte identical). The downstream
+  // pipeline is inches, so normalise here and record the provenance so the
+  // caller can warn when the answer was a guess.
+  let sourceUnits, unitsSource;
+  const want = (opts.units || 'auto').toLowerCase();
+  if (want === 'inch' || want === 'in') { sourceUnits = 'inch'; unitsSource = 'caller'; }
+  else if (want === 'mm') { sourceUnits = 'mm'; unitsSource = 'caller'; }
+  else if (want !== 'auto') crvFail('opts.units must be "inch", "mm" or "auto" (got ' + JSON.stringify(opts.units) + ')');
+  else if (job.w && job.h && Math.max(job.w, job.h) > 300) { sourceUnits = 'mm'; unitsSource = 'heuristic:job>300'; }
+  else { sourceUnits = 'inch'; unitsSource = 'assumed:no-flag-in-format'; }
+  const k = sourceUnits === 'mm' ? 1 / CRV_MM_PER_IN : 1;
+
+  // The flattening tolerance is given in inches; convert it to the file's own
+  // job units so the chord deviation is the same physical distance either way.
+  const tolIn = (opts.tol != null) ? opts.tol : CRV_DEFAULT_TOL;
+  const tolJob = tolIn / k;
+
+  // ---- layer membership. An object's layer_guid says which layer it BELONGS
+  // to; the vcCadLayer record it is nested in says only where it is STORED. A
+  // group stored under one layer legitimately holds children owned by another
+  // — grouping in VCarve does not move a vector off its layer — so colouring
+  // or filtering must follow the owner, never the storage layer.
+  const layerByGuid = {};
+  for (const L of layers) layerByGuid[L.guid] = L;
+  let crossLayer = 0, staleRefs = 0, nullOwners = 0;
+  for (const L of layers) {
+    for (const o of L.objects) {
+      o.ownerGuid = o.layerGuid;
+      if (o.layerGuid === CRV_NULL_GUID) {
+        // "No layer of its own" (the outline inside a vcCadModelPreview
+        // carries one) — membership falls back to the storage layer.
+        o.ownerGuid = L.guid; nullOwners++;
+      } else if (o.layerGuid !== L.guid) {
+        if (!layerByGuid[o.layerGuid]) { o.ownerGuid = L.guid; staleRefs++; }  // layer since deleted
+        else crossLayer++;
+      }
+    }
+  }
+
+  const polys = [];
+  const warnings = [];
+  const contourVersions = {};
+  let anchorOk = 0, anchorN = 0, anchorWorst = 0;
+  let nTabs = 0, nText = 0, nPreviewObjs = 0, nPreviewContours = 0, nSkipped = 0;
+  for (const L of layers) {
+    nPreviewObjs += L.discarded.length;
+    for (const o of L.discarded) nPreviewContours += o.discardedContours.length;
+    for (const o of L.objects) {
+      nTabs += o.tabs.length;
+      if (o.cls === 'txtBlock') nText++;
+      // The cached anchor equals the object's bbox centre; checking it is a
+      // joint test of the header layout AND the span decode.
+      if (o.anchor && o.cls !== 'txtBlock') {
+        let b = null;
+        for (const c of o.contours) {
+          const cb = crvContourBBox(c, CRV_ANCHOR_FLATTEN_TOL);
+          if (!cb) continue;
+          b = b ? [Math.min(b[0], cb[0]), Math.min(b[1], cb[1]), Math.max(b[2], cb[2]), Math.max(b[3], cb[3])] : cb;
+        }
+        if (b) {
+          anchorN++;
+          const e = Math.max(Math.abs(o.anchor[0] - (b[0] + b[2]) / 2), Math.abs(o.anchor[1] - (b[1] + b[3]) / 2));
+          if (e < CRV_ANCHOR_TOL) anchorOk++;
+          else anchorWorst = Math.max(anchorWorst, e);
+        }
+      }
+      const layerName = (layerByGuid[o.ownerGuid] || L).name;
+      for (const c of o.contours) {
+        contourVersions[c.version] = 1;
+        if (CRV_SKIP_ORIGINS.indexOf(c.origin) >= 0) { nSkipped++; continue; }
+        const raw = crvContourPolyline(c, tolJob);
+        if (raw.length < 2) continue;
+        const pts = raw.map(p => ({ x: p[0] * k, y: p[1] * k }));
+        const ent = { type: 'LWPOLYLINE', layer: layerName, closed: c.closed,
+                      source: 'crv', cls: o.cls, guid: o.guid, origin: c.origin || 'drawing',
+                      contourVersion: c.version, spans: c.spans.length, chainGap: c.chainGap };
+        ent.tabs = (o.contours.length === 1 ? o.tabs : []).filter(tb => c.spans[tb.spanIndex]).map(tb => { const q = crvSpanAt(c.spans[tb.spanIndex], tb.t); return { x: q[0] * k, y: q[1] * k }; }); ent.spanEnds = c.spans.map(s => ({ x: s.x1 * k, y: s.y1 * k, type: s.type })); ent.start = c.spans.length ? { x: (c.spans[0].x0 != null ? c.spans[0].x0 : pts[0].x / k) * k, y: (c.spans[0].y0 != null ? c.spans[0].y0 : pts[0].y / k) * k } : null;
+        polys.push({ layer: layerName, type: 'LWPOLYLINE', pts: pts, ent: ent });
+      }
+    }
+  }
+  // A stale cached anchor is a known property of the files themselves (VCarve
+  // does not always refresh it), so a single mismatch is a warning. A
+  // SYSTEMATIC disagreement is a decode error — it misplaces a whole class of
+  // objects at once — and still fails.
+  if (anchorN >= 4 && anchorOk === 0)
+    crvFail('every one of the ' + anchorN + ' cached object anchors disagrees with the decoded ' +
+            'geometry (worst ' + anchorWorst + ') — the header layout or the span decode is wrong');
+  if (anchorN > anchorOk)
+    warnings.push((anchorN - anchorOk) + ' of ' + anchorN + ' objects carry a stale cached anchor ' +
+                  '(worst ' + anchorWorst.toFixed(4) + ') — geometry is unaffected');
+  if (staleRefs) warnings.push(staleRefs + ' object(s) name a layer that no longer exists; using the layer they are stored under');
+
+  polys.jobSize = { w: job.w == null ? null : job.w * k, h: job.h == null ? null : job.h * k,
+                    thickness: job.thickness == null ? null : job.thickness * k };
+  polys.units = 'inch';               // units the returned coordinates are in
+  polys.sourceUnits = sourceUnits;    // units the file itself was drawn in
+  polys.unitsSource = unitsSource;
+  polys.scale = k;
+  polys.dialect = contourVersions[6] || contourVersions[7] ? 'crv3d-inline'
+                : (contourVersions[3] ? 'crv-mfc' : 'empty');
+  polys.app = vinfo.app;
+  polys.appVersion = vinfo.version;
+  polys.layerNames = layers.map(L => L.name);
+  polys.warnings = warnings;
+  polys.checks = {
+    streamVersion: doc.streamVersion, mfcBigTags: doc.bigTags,
+    toolpathTabs: nTabs, textBlocks: nText,
+    discardedPreviews: nPreviewObjs + ' objects / ' + nPreviewContours + ' contours',
+    skippedFrames: nSkipped, crossLayerChildren: crossLayer, nullLayerObjects: nullOwners,
+    staleLayerRefs: staleRefs, anchorMatchesBBoxCentre: anchorOk + '/' + anchorN,
+    classes: doc.classes.filter((v, i, a) => a.indexOf(v) === i).sort()
+  };
+  return polys;
+}
+
+// Studio entry point (importCRV): parseCrv's flat poly list regrouped into layers of contours.
+const CRVPARSE = {
+  parse: parseCrv,
+  toShapes(u8, opts) {
+    const polys = parseCrv(u8, opts);
+    const byName = new Map();
+    for (const n of polys.layerNames) byName.set(n, { name: n, contours: [] });
+    for (const p of polys) {
+      if (!byName.has(p.layer)) byName.set(p.layer, { name: p.layer, contours: [] });
+      byName.get(p.layer).contours.push({ pts: p.pts, closed: !!p.ent.closed });
+    }
+    const js = polys.jobSize;
+    return { job: js && js.w > 0 && js.h > 0 ? { w: js.w, h: js.h, thickness: js.thickness } : null,
+             units: 'in', unitsSource: polys.unitsSource, empty: polys.length === 0,
+             layers: [...byName.values()].filter(L => L.contours.length), warnings: polys.warnings };
+  }
+};
 
 </script>
 <script>
@@ -12001,7 +14257,7 @@ const THEMES_DARK={
 };
 const THEMES={ '2d':THEMES_LIGHT['2d'], preview:THEMES_LIGHT.preview };
 let darkMode=(function(){ try{ return localStorage.getItem('aqcam.theme')==='dark'; }catch(e){ return false; } })();
-function setTheme(dark){ darkMode=!!dark; const T=darkMode?THEMES_DARK:THEMES_LIGHT; THEMES['2d']=T['2d']; THEMES.preview=T.preview;
+function setTheme(dark){ darkMode=!!dark; if(typeof asmApplyTheme==='function') setTimeout(()=>{ asmApplyTheme(); if(typeof ASM!=='undefined'&&ASM.r) ASM.r.draw(); },0); const T=darkMode?THEMES_DARK:THEMES_LIGHT; THEMES['2d']=T['2d']; THEMES.preview=T.preview;
   document.body.classList.toggle('dark', darkMode); try{ localStorage.setItem('aqcam.theme', darkMode?'dark':'light'); }catch(e){}
   const b=document.getElementById('btnTheme'); if(b){ b.textContent=darkMode?'☀ Light':'☾ Dark'; b.title=darkMode?'Switch to light mode':'Switch to dark mode'; }
   if(gl3d){ const th=THEMES.preview; gl3d.setColors({ clear:hex3(th.gradBot), top:[th.stockTop[0]/255,th.stockTop[1]/255,th.stockTop[2]/255], deep:[th.stockDeep[0]/255,th.stockDeep[1]/255,th.stockDeep[2]/255] }); gl3d.draw(); }
@@ -12075,7 +14331,7 @@ function snapWorld(scr){
 }
 
 // ---- rendering ----
-function resize(){ const r=cv.parentElement.getBoundingClientRect(); cv.width=r.width; cv.height=r.height;
+function resize(){ const r=cv.getBoundingClientRect(); cv.width=r.width; cv.height=r.height;   // own box: the 2D + 3D split gives it half the stage
   overlay.width=r.width; overlay.height=r.height;
   if(gl3d){ gl3d.resize(); gl3d.draw(); } if(!view._init){ view.oy=cv.height-60; view._init=true; } render(); drawRulerMarks(lastScr); }
 function render(){
@@ -12107,6 +14363,7 @@ function render(){
     if(rulers) drawRulers();
   }
   updateHud();
+  if(typeof asmOnRender==='function') asmOnRender();   // 2D + 3D Assembly: rebuild what this edit changed
 }
 function drawGrid(){
   const w0=S2W({x:0,y:cv.height}), w1=S2W({x:cv.width,y:0});
@@ -12771,6 +15028,7 @@ function newJob(){
   doc.shapes=[]; doc.layers=new Map([['0',{visible:true,color:'#1b2b3f'}]]); activeLayer='0';
   sel.clear(); opsQueue=[]; editingIdx=null; toolpaths=null; drillMarks=null; pendingRestore=null;
   projectFile.handle=null; setProjectName('design.aqcam');
+  if(typeof asmReset==='function') asmReset();   // a new job is a new single sheet
   buildQueueList(); syncPanels(); fitJob(); setView('2d'); showForm('job','drawing'); autosaveNow();
   setMsg('New job — design cleared (Undo restores it)');
 }
@@ -13133,7 +15391,9 @@ function opJoin(){ const sh=selectedShapes().filter(s=>s.type==='path'); if(sh.l
 
 // ---- import / export ----
 function importText(name, text){
-  if(/\.dxf$/i.test(name)){ const ents=parseDxf(text); const polys=[]; for(const e of ents){ for(const p of entityToPolys(e)) polys.push(p); } const shapes=CADCORE.dxfPolysToShapes(polys); pushHistory(); addShapes(shapes); fitAll(); }
+  if(/\.dxf$/i.test(name)){ const ents=parseDxf(text); const polys=[]; for(const e of ents){ for(const p of entityToPolys(e)) polys.push(p); } const shapes=CADCORE.dxfPolysToShapes(polys); pushHistory(); addShapes(shapes);
+    if(typeof asmApplyLayerDefaults==='function') asmApplyLayerDefaults(name, shapes);   // OUTSIDE_PROFILE / DRILL_.._THRU / POCKET_..DEEP -> toolpaths
+    fitAll(); }
   else if(/\.svg$/i.test(name)){ const shapes=CADCORE.svgToShapes(text); pushHistory(); addShapes(shapes); fitAll(); }
   else { setMsg('Unsupported file: '+name); }
   syncPanels(); render();
@@ -13294,8 +15554,10 @@ function gl3dPreset(which){ if(!gl3d) return; gl3d.frameAll();
   else { gl3d.cam.pitch=0.62; gl3d.cam.yaw=-Math.PI/2+0.55; }
   gl3d.draw(); }
 function setView(mode){
+  const split = mode==='asm';   // 2D + 3D Assembly: the 2D editor stays live on the left
   viewMode = (mode==='preview') ? 'preview' : '2d';
-  document.querySelectorAll('.vtab').forEach(b=>b.classList.toggle('active', b.dataset.view===viewMode));
+  document.querySelectorAll('.vtab').forEach(b=>b.classList.toggle('active', b.dataset.view===(split?'asm':viewMode)));
+  if(typeof asmSetSplit==='function' && (split || (typeof ASM!=='undefined' && ASM.on))) asmSetSplit(split);
   const stage=document.querySelector('.stage'); if(stage)stage.classList.toggle('preview', viewMode==='preview');
   if(viewMode==='preview'){ const solid=document.getElementById('simSolid');
     if(solid&&solid.checked) runSim(); else { gl3dShow(false); simField=null; recalcAll(); } }
@@ -13305,7 +15567,7 @@ function setView(mode){
 // Build the tool profile + cut segments for one toolpath, for the material sim.
 // One toolpath may post to multiple ops (vcarve flat-depth = endmill + V-bit) — build a sim cut per op.
 function simCutFor(q){
-  let res; try{ res=buildOpRes(q.p, contoursFromIds(q.ids)); }catch(e){ return []; }
+  let res; try{ res=buildOpRes(q.p, contoursForOp(q)); }catch(e){ return []; }
   const cuts=[];
   for(const op of res.ops){ if(!op.passes||!op.passes.length)continue;
     const post=Object.assign({},CAM.POSTS[document.getElementById('camPost').value]); post.arcs=(op.kind!=='drill')&&document.getElementById('camArcs').checked;
@@ -13392,6 +15654,7 @@ function applyProject(proj, srcName){
   doc.layers=new Map(proj.layers.map(l=>[l.name,{visible:l.visible,color:l.color}]));
   activeLayer=(proj.layers[0]&&proj.layers[0].name)||'0';
   job.w=proj.job.w; job.h=proj.job.h; job.thickness=proj.job.thickness; job.origin=proj.job.origin; job.show=proj.job.show;
+  if(typeof asmReset==='function') asmReset();
   opsQueue=(proj.opsQueue||[]).map(normalizeOp); editingIdx=null;
   applyJobInputs(); toolpaths=null; drillMarks=null; sel.clear();
   history=[]; future=[];
@@ -13417,17 +15680,12 @@ function fitAll(){ if(!doc.shapes.length)return; const b=CADCORE.bboxAll(doc.sha
 
 // ---- CAM ----
 function camContours(){ const sh=sel.size?selectedShapes():doc.shapes.filter(s=>layerVisible(s.layer)); const polys=CADCORE.shapesToContoursInput(sh); return CAM.assembleContours(polys); }
+function contoursForOp(q){ if(!q.sel) return contoursFromIds(q.ids);
+  const items=doc.shapes.filter(s=>layerVisible(s.layer)).map(s=>({id:s.id,layer:s.layer,bbox:CADCORE.bboxAll([s]),shape:s}));
+  return CAM.assembleContours(CADCORE.shapesToContoursInput(ASSEMBLY.selectByRule(items,q.sel).map(it=>it.shape))); }
 function contoursFromIds(ids){ const sh=(ids&&ids.length)?doc.shapes.filter(s=>ids.indexOf(s.id)>=0&&layerVisible(s.layer)):doc.shapes.filter(s=>layerVisible(s.layer)); return CAM.assembleContours(CADCORE.shapesToContoursInput(sh)); }
 // run one CAM op from params + contours -> {ops,warnings,points}. Shared by single-op build and the multi-op job.
-function buildOpRes(p, contours){
-  const res=(p.op==='pocket')?CAM.pocketOp(contours,p)
-    :(p.op==='drill')?CAM.drillOp(contours,p)
-    :(p.op==='vcarve')?CAM.vcarveOp(contours,Object.assign({},p,{maxDepth:p.cutDepth,step:p.vstep}))
-    :(p.op==='inlay')?CAM.inlayOp(contours,Object.assign({},p,{step:p.vstep}))
-    :CAM.profileOp(contours,p);
-  for(const op of res.ops) op.clearZ=p.clearZ;   // vcarve flat-depth returns 2 ops (endmill + V-bit)
-  return res;
-}
+function buildOpRes(p, contours){ return ASSEMBLY.opResult(CAM, p, contours); }   // shared with the asmtap.js CLI (vcarve flat-depth returns 2 ops)
 function camParams(){ const g=id=>document.getElementById(id); const tabsN=parseInt(g('camTabN').value,10)||0;
   return { op:(g('camOp')&&g('camOp').value)||'profile', toolNum:parseInt(g('camTool').value,10)||1, toolDia:parseFloat(g('camDia').value)||0.25, side:g('camSide').value, climb:g('camDir').value==='climb',
     cutDepth:Math.abs(parseFloat(g('camDepth').value)||0.25), passDepth:Math.abs(parseFloat(g('camPass').value)||0.125), feed:parseFloat(g('camFeed').value)||120,
@@ -13497,7 +15755,7 @@ function autoOpName(p){ p=p||{}; const op=p.op||'profile';
   if(op==='inlay') return 'Inlay '+(p.style==='vcarve'?'V':'straight')+' · '+String(p.part||'both');
   return op.charAt(0).toUpperCase()+op.slice(1); }
 function autoLabel(p,ids,match){ return autoOpName(p)+' · T'+p.toolNum+' Ø'+p.toolDia+'" · '+((ids&&ids.length)?ids.length+' sel':'all')+(match?' (lib)':''); }
-function normalizeOp(q){ q=q||{}; return { p:q.p||{}, ids:Array.isArray(q.ids)?q.ids:[], name:q.name||q.label||autoOpName(q.p), label:q.label||'', visible:q.visible!==false }; }
+function normalizeOp(q){ q=q||{}; const o={ p:q.p||{}, ids:Array.isArray(q.ids)?q.ids:[], name:q.name||q.label||autoOpName(q.p), label:q.label||'', visible:q.visible!==false }; if(q.sel&&Array.isArray(q.sel.layers)) o.sel=q.sel; return o; }
 function refreshAddBtn(){ const b=document.getElementById('btnAddOp'); if(b) b.textContent=(editingIdx!=null)?'✓ Update':'+ Toolpath'; }
 function moveOp(i,dir){ const j=i+dir; if(j<0||j>=opsQueue.length)return; pushHistory(); const t=opsQueue[i]; opsQueue[i]=opsQueue[j]; opsQueue[j]=t;
   if(editingIdx===i)editingIdx=j; else if(editingIdx===j)editingIdx=i; buildQueueList(); }
@@ -13519,11 +15777,11 @@ function addOp(){ const p=camParams(); const ids=[...sel];
   // auto-assign a consistent tool number from the saved library by diameter (prefer same op kind)
   const near=t=>Math.abs(t.dia-p.toolDia)<0.001; const match=tools.find(t=>t.op===p.op && near(t)) || tools.find(near); if(match) p.toolNum=match.toolNum;
   const label=autoLabel(p,ids,match); pushHistory();
-  if(editingIdx!=null && opsQueue[editingIdx]){ const q=opsQueue[editingIdx]; q.p=p; q.ids=ids; q.label=label; const idx=editingIdx; editingIdx=null; buildQueueList(); recalcAll(); setMsg('Updated toolpath '+(idx+1)+': '+(q.name||label)); return; }
+  if(editingIdx!=null && opsQueue[editingIdx]){ const q=opsQueue[editingIdx]; if(q.p&&q.p.clearZ!=null) p.clearZ=q.p.clearZ; q.p=p; q.ids=ids; q.label=label; const idx=editingIdx; editingIdx=null; buildQueueList(); recalcAll(); setMsg('Updated toolpath '+(idx+1)+': '+(q.name||label)); return; }
   const name=autoOpName(p); opsQueue.push({p,ids,name,label,visible:true}); buildQueueList(); recalcAll(); setMsg('Added toolpath '+opsQueue.length+': '+name); }
 // Recompute the backplot for every VISIBLE toolpath and combine into one preview overlay.
 function recalcAll(){ const allSegs=[], allMarks=[]; let total=0;
-  for(const q of opsQueue){ if(q.visible===false)continue; let res; try{ res=buildOpRes(q.p, contoursFromIds(q.ids)); }catch(e){ continue; }
+  for(const q of opsQueue){ if(q.visible===false)continue; let res; try{ res=buildOpRes(q.p, contoursForOp(q)); }catch(e){ continue; }
     if(!res.ops.some(op=>op.passes&&op.passes.length)){ q._time=0; continue; }
     const post=Object.assign({},CAM.POSTS[document.getElementById('camPost').value]); post.arcs=(q.p.op!=='drill')&&document.getElementById('camArcs').checked;
     const g=CAM.postProcess({name:'tp',units:'inch',ops:res.ops},post);   // all ops (vcarve flat-depth posts 2)
@@ -13588,17 +15846,14 @@ function postJob(){ if(!opsQueue.length){ setMsg('Job queue empty — "Add op" f
   const byTool={}; const addTool=(t,d)=>{ (byTool[t]=byTool[t]||[]); if(byTool[t].indexOf(d)<0) byTool[t].push(d); };
   for(const q of opsQueue){ addTool(q.p.toolNum, q.p.toolDia); if(q.p.op==='vcarve'&&q.p.clearDia>0) addTool(q.p.clearNum, q.p.clearDia); }
   for(const t in byTool){ if(byTool[t].length>1){ setMsg('T'+t+' used with Ø'+byTool[t].join(' and Ø')+' — fix tool numbers'); return; } }
-  const allOps=[], dpts=[]; let warns=[];
-  for(const q of opsQueue){ const res=buildOpRes(q.p, contoursFromIds(q.ids));
-    for(const op of res.ops){ if(op.passes.length) allOps.push(op); }   // vcarve flat-depth adds its endmill op too
-    if(res.points)dpts.push(...res.points);
-    if(res.warnings) warns=warns.concat(res.warnings); }
-  if(!allOps.length){ setMsg('Job produced no cuttable passes.'); return; }
+  // every toolpath (hidden ones included) -> ops, nearest-neighbour ordered, posted: same code as the asmtap.js CLI
   const post=Object.assign({},CAM.POSTS[document.getElementById('camPost').value]); post.arcs=document.getElementById('camArcs').checked;
-  const ordered=CAM.orderPasses({name:'job - '+allOps.length+' ops',units:'inch',ops:allOps});   // nearest-neighbor sort to cut rapids
-  const g=CAM.postProcess(ordered,post);
+  const pj=ASSEMBLY.postQueue(CAM, opsQueue.map(q=>Object.assign({},q,{visible:true})), contoursForOp, post);
+  const allOps=pj.ops, dpts=pj.points, warns=pj.warnings, g=pj.gcode;
+  if(!allOps.length){ setMsg('Job produced no cuttable passes.'); return; }
   lastGcode=g; toolpaths=toolpathSegs(g); drillMarks=dpts.length?dpts:null; if(dpts.length)drillDia=0.25;
-  render(); download('job.tap', g);
+  const sheetFile=(typeof ASM!=='undefined' && ASM.active && asmSheet(ASM.active)) ? asmSheet(ASM.active).file : '';
+  render(); download(sheetFile ? sheetFile.replace(/\.dxf$/i,'')+'.tap' : 'job.tap', g);
   const arcN=(g.match(/^G[23] /gm)||[]).length, tools=allOps.map(o=>'T'+o.toolNum).join('→');
   setMsg('Posted job: '+allOps.length+' ops ('+tools+'), '+arcN+' arc move(s) → job.tap'+(warns.length?' · WARN: '+warns[0]:'')); }
 
@@ -14148,5 +16403,300 @@ window.AQ_STUDIO = { doc, get sel(){return sel;}, get view(){return viewMode;}, 
   opCopy, opCut, opPaste, get clip(){return clip;}, createFromForm, openShapeModal, applyShapeModal, closeShapeModal, setModalAnchor, setRotAnchor, get anchor(){return modalAnchor;}, get rotAnchor(){return rotAnchor;},
   openRotateModal, applyRotateModal, addLayer, moveSelToLayer, get grid(){return grid;}, selectedShapes, get projectFile(){return projectFile;},
   get gl3d(){return gl3d;}, setTheme, setRulers, get darkMode(){return darkMode;}, get rulers(){return rulers;}, gl3dPreset, get simField(){return simField;}, openHelpSearch, helpSearchRun, showForm, runSim, recalcAll, get opsQueue(){return opsQueue;} };
+
+</script>
+<script>
+/* studio_asm.js — the 2D + 3D Assembly view of CAD/CAM Studio.
+ *
+ * Splits the stage: the 2D sheet editor stays on the left, a live 3D assembly of every sheet's parts is on the right.
+ * An assembly is a .assembly.json kept next to its DXFs (format in assembly.js); open it together with the DXFs
+ * (File > Open Assembly…, or drop them all at once). Each DXF becomes a sheet you can switch the editor to; its
+ * toolpaths come from its layer names in Dan's style. With no assembly file, the 3D side shows the open sheet's parts
+ * extruded flat where they sit.
+ *
+ * Live sync: every 2D render schedules a refresh; a cheap fingerprint of the active sheet decides whether anything
+ * changed, and assembly.js rebuilds only the parts whose geometry or placement changed. 2D selection highlights the
+ * parts it touches; clicking a part in 3D switches to its sheet and selects its outline + cuts in 2D.
+ *
+ * Loaded after studio_app.js; shares its globals (doc, sel, job, opsQueue, history, …).
+ */
+const ASM = {
+  on: false, data: null, name: '', sheets: [], active: null, cache: new Map(), r: null, failed: false,
+  lastFp: null, lastHi: '', raf: 0, stats: { ms: 0, rebuilt: [], parts: 0, at: 0 }, built: null, flat: true
+};
+const ASM_LAYER_COLORS = { profile: '#1b2b3f', inside: '#b8541c', drill: '#8a2f8f', pocket: '#1f7a3a', skip: '#b8860b', sheet: '#9aa5b1', unknown: '#3b4fb8' };
+function asmLayerColor(name) { const k = ASSEMBLY.layerRule(name).kind; return name === 'NOTES' ? '#9aa5b1' : (ASM_LAYER_COLORS[k] || '#1b2b3f'); }
+function asmThicknessFromName(name, dflt) {
+  const m = /(\d+(?:\.\d+)?|\.\d+)\s*(?:in\b|"|thick)/i.exec(String(name || '').replace(/\d+(?:\.\d+)?x\d+(?:\.\d+)?/g, ''));
+  const t = m ? parseFloat(m[1]) : NaN;
+  return (t > 0 && t <= 6) ? t : dflt;
+}
+// DXF text -> {shapes, layers Map, job patch, queue} — the studio's import path plus layer-name defaults
+function asmSheetFromDxf(name, text, thickness) {
+  const polys = []; for (const e of parseDxf(text)) for (const p of entityToPolys(e)) polys.push(p);
+  const shapes = CADCORE.dxfPolysToShapes(polys);
+  const names = []; for (const s of shapes) if (names.indexOf(s.layer) < 0) names.push(s.layer);
+  const layers = new Map(names.map(n => [n, { visible: true, color: asmLayerColor(n) }]));
+  const T = thickness || asmThicknessFromName(name, job.thickness || 0.75);
+  const sheetShape = shapes.find(s => s.layer === 'SHEET');
+  const jb = { thickness: T };
+  if (sheetShape) { const b = CADCORE.bboxAll([sheetShape]); jb.w = +(b.maxX - b.minX).toFixed(4); jb.h = +(b.maxY - b.minY).toFixed(4); jb.origin = 'bl'; }
+  const queue = ASSEMBLY.isLayerJob(names) ? ASSEMBLY.jobFromLayers(names, T).queue.map(normalizeOp) : [];
+  return { shapes, layers, job: jb, queue, layerNames: names };
+}
+// Hook for importText: a single layer-named DXF gets its sheet size, thickness and toolpaths from its layers.
+function asmApplyLayerDefaults(name, shapes) {
+  const names = []; for (const s of shapes) if (names.indexOf(s.layer) < 0) names.push(s.layer);
+  if (!ASSEMBLY.isLayerJob(names)) return false;
+  for (const n of names) if (!doc.layers.has(n)) doc.layers.set(n, { visible: true, color: asmLayerColor(n) });
+  const T = asmThicknessFromName(name, job.thickness);
+  job.thickness = T;
+  const sh = shapes.find(s => s.layer === 'SHEET');
+  if (sh) { const b = CADCORE.bboxAll([sh]); job.w = +(b.maxX - b.minX).toFixed(4); job.h = +(b.maxY - b.minY).toFixed(4); job.origin = 'bl'; }
+  applyJobInputs();
+  if (!opsQueue.length) { opsQueue = ASSEMBLY.jobFromLayers(names, T).queue.map(normalizeOp); buildQueueList(); }
+  setMsg('Layer defaults: ' + opsQueue.length + ' toolpath(s) from ' + names.length + ' layer(s), ' + T + '" thick — T8 drills first, pockets one pass, sheet profiles CCW');
+  return true;
+}
+
+// ---- sheets ------------------------------------------------------------------------------------------------
+function asmSheet(id) { return ASM.sheets.find(s => s.id === id); }
+function asmStoreActive() {
+  const sh = asmSheet(ASM.active); if (!sh) return;
+  sh.st = { shapes: doc.shapes, layers: doc.layers, opsQueue, job: Object.assign({}, job), history, future, activeLayer };
+  sh.items = null;   // recomputed from st.shapes when the sheet is not the one being edited
+}
+function asmLoadSheet(id, quiet) {
+  const sh = asmSheet(id); if (!sh || id === ASM.active) return;
+  asmStoreActive();
+  const st = sh.st;
+  doc.shapes = st.shapes; doc.layers = st.layers; opsQueue = st.opsQueue; Object.assign(job, st.job);
+  history = st.history || []; future = st.future || []; activeLayer = st.activeLayer || (st.layers.keys().next().value || '0');
+  ASM.active = id; sel.clear(); editingIdx = null; toolpaths = null; drillMarks = null;
+  applyJobInputs(); buildQueueList(); syncPanels(); fitJob();
+  const pick = document.getElementById('asmSheet'); if (pick) pick.value = id;
+  if (!quiet) setMsg('Editing ' + (sh.label || sh.file || id) + ' — ' + doc.shapes.length + ' shape(s), ' + opsQueue.length + ' toolpath(s)');
+  ASM.lastFp = null; render();
+}
+function asmItemsOf(shapes) {
+  const out = [];
+  for (const s of shapes) { if (s.annotation || s.type === 'dim' || !layerVisible(s.layer)) continue;
+    CADCORE.flatten(s).forEach((lp, i) => out.push({ id: s.id, loop: i, layer: s.layer, pts: lp.pts, closed: lp.closed })); }
+  return out;
+}
+// cheap change detector for the sheet being edited: geometry, layers, visibility, thickness
+function asmFingerprint() {
+  let h = 2166136261 >>> 0, n = 0;
+  const mix = v => { h = Math.imul(h ^ (Math.round(v * 4096) | 0), 16777619) >>> 0; };
+  for (const s of doc.shapes) {
+    if (!layerVisible(s.layer)) continue;
+    for (const c of String(s.layer)) mix(c.charCodeAt(0));
+    for (const lp of CADCORE.flatten(s)) { mix(lp.closed ? 7 : 3); for (const p of lp.pts) { mix(p.x); mix(p.y); n++; } }
+  }
+  return h + ':' + n + ':' + doc.shapes.length + ':' + job.thickness + ':' + ASM.active;
+}
+
+// ---- open --------------------------------------------------------------------------------------------------
+function asmReadText(f) { return new Promise((res, rej) => { const rd = new FileReader(); rd.onload = e => res(e.target.result); rd.onerror = rej; rd.readAsText(f); }); }
+const asmBase = n => String(n || '').split(/[\\/]/).pop().toLowerCase();
+// files: File objects (or {name, text}) — one optional *.assembly.json plus the sheets' DXFs
+async function asmOpenFiles(files) {
+  const list = [];
+  for (const f of files) list.push({ name: f.name, text: f.text != null && typeof f.text === 'string' ? f.text : await asmReadText(f) });
+  const jsonF = list.find(f => /\.json$/i.test(f.name) && /"aqcam-assembly"/.test(f.text));
+  const dxfs = list.filter(f => /\.dxf$/i.test(f.name));
+  let asm = null, missing = [];
+  if (jsonF) {
+    try { asm = JSON.parse(jsonF.text); } catch (e) { setMsg('Assembly file is not valid JSON: ' + e.message); return false; }
+    const errs = ASSEMBLY.validateAssembly(asm);
+    if (errs.length) { setMsg('Assembly file problem: ' + errs[0]); return false; }
+  }
+  const sheets = [];
+  if (asm) {
+    for (const s of asm.sheets) {
+      const f = dxfs.find(d => d.name === s.file) || dxfs.find(d => asmBase(d.name) === asmBase(s.file));
+      if (!f) { missing.push(s.file || s.id); continue; }
+      sheets.push(Object.assign({}, s, { file: f.name, text: f.text }));
+    }
+    if (!sheets.length) { setMsg('Assembly "' + (asm.name || jsonF.name) + '": none of its DXFs were opened with it (' + missing.join(', ') + ')'); return false; }
+  } else {
+    if (!dxfs.length) { setMsg('Nothing to assemble — open DXFs (and optionally their .assembly.json)'); return false; }
+    dxfs.forEach((d, i) => sheets.push({ id: 's' + (i + 1), file: d.name, text: d.text, label: d.name.replace(/\.dxf$/i, '') }));
+  }
+  ASM.sheets = sheets.map(s => {
+    const T = s.thickness || asmThicknessFromName(s.file, job.thickness || 0.75);
+    const r = asmSheetFromDxf(s.file, s.text, T);
+    const jb = Object.assign({ w: job.w, h: job.h, thickness: T, origin: 'bl', show: true }, r.job);
+    return { id: s.id, label: s.label || s.file, file: s.file, thickness: T, color: s.color, setupOf: s.setupOf,
+      st: { shapes: r.shapes, layers: r.layers, opsQueue: r.queue, job: jb, history: [], future: [], activeLayer: r.layerNames[0] || '0' } };
+  });
+  ASM.data = asm || ASSEMBLY.defaultAssembly(ASM.sheets.map(s => ({ id: s.id, w: s.st.job.w })));
+  ASM.flat = !asm;
+  ASM.name = asm ? (asm.name || jsonF.name) : (ASM.sheets.length + ' sheet(s), flat');
+  ASM.cache = new Map(); ASM.lastFp = null; ASM.active = null;
+  asmBuildSheetPicker();
+  const first = ASM.sheets.find(s => !s.setupOf) || ASM.sheets[0];
+  asmLoadSheet(first.id, true);
+  setView('asm');
+  if (ASM.r) { asmRefresh(true); ASM.r.frameAll(); ASM.r.draw(); }
+  setMsg('Opened ' + ASM.name + ' — ' + ASM.sheets.length + ' sheet(s)' + (missing.length ? ' · MISSING: ' + missing.join(', ') : '') + ' · editing ' + first.label);
+  return true;
+}
+async function asmOpenFolder() {
+  if (!window.showDirectoryPicker) { document.getElementById('asmInput').click(); return; }
+  let dir; try { dir = await window.showDirectoryPicker(); } catch (e) { return; }
+  const files = [];
+  for await (const [name, h] of dir.entries()) if (h.kind === 'file' && /\.(dxf|json)$/i.test(name)) files.push(await h.getFile());
+  asmOpenFiles(files);
+}
+function asmSaveJSON() {
+  const a = ASM.data && !ASM.flat ? ASM.data : null;
+  if (!a) { setMsg('No assembly file is open (flat sheets have nothing to save)'); return; }
+  download((ASM.name || 'product').replace(/[\\/:*?"<>|]+/g, '-') + '.assembly.json', JSON.stringify(a, null, 2) + '\n', 'application/json');
+}
+
+// ---- the 3D pane -------------------------------------------------------------------------------------------
+function asmBuildSheetPicker() {
+  const el = document.getElementById('asmSheet'); if (!el) return;
+  el.innerHTML = '';
+  for (const s of ASM.sheets) { const o = document.createElement('option'); o.value = s.id; o.textContent = s.label + (s.setupOf ? '  (2nd setup of ' + s.setupOf.part + ')' : ''); el.appendChild(o); }
+  el.value = ASM.active || '';
+  el.parentElement.style.display = ASM.sheets.length ? '' : 'none';
+}
+function asmInitRenderer() {
+  if (ASM.r || ASM.failed) return ASM.r;
+  const c = document.getElementById('asmGl'); if (!c) { ASM.failed = true; return null; }
+  ASM.r = GLVIEW.createAssemblyRenderer(c);
+  if (!ASM.r) { ASM.failed = true; setMsg('3D assembly: WebGL unavailable'); return null; }
+  asmApplyTheme();
+  asmBindMouse(c);
+  return ASM.r;
+}
+function asmApplyTheme() { if (ASM.r) ASM.r.setClear(darkMode ? [0.11, 0.13, 0.17] : [0.93, 0.95, 0.98]); }
+function asmBindMouse(c) {
+  let drag = null;
+  c.addEventListener('contextmenu', e => e.preventDefault());
+  c.addEventListener('mousedown', e => { e.preventDefault(); drag = { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, pan: e.button !== 0 || e.shiftKey, moved: false }; c.classList.add('drag'); });
+  window.addEventListener('mousemove', e => {
+    if (!drag || !ASM.r) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
+    if (Math.abs(e.clientX - drag.x0) + Math.abs(e.clientY - drag.y0) > 3) drag.moved = true;
+    if (!drag.moved) return;
+    if (drag.pan) { const k = ASM.r.cam.dist * 0.0012; ASM.r.pan(-dx * k, dy * k); } else ASM.r.orbit(dx * 0.008, dy * 0.008);
+    ASM.r.draw();
+  });
+  window.addEventListener('mouseup', e => {
+    if (!drag) return; const d = drag; drag = null; c.classList.remove('drag');
+    if (!d.moved && e.target === c) { const r = c.getBoundingClientRect(); asmPickAt(e.clientX - r.left, e.clientY - r.top, e.shiftKey); }
+  });
+  c.addEventListener('wheel', e => { e.preventDefault(); if (!ASM.r) return; ASM.r.zoom(Math.exp(e.deltaY * 0.0012)); ASM.r.draw(); }, { passive: false });
+  c.addEventListener('dblclick', e => { e.preventDefault(); if (!ASM.r) return; ASM.r.frameAll(); ASM.r.draw(); });
+}
+// 3D -> 2D: pick a part, switch the editor to its sheet, select its outline and cuts
+function asmPickAt(px, py, add) {
+  if (!ASM.r || !ASM.built) return null;
+  const hit = ASM.r.pick(px, py);
+  if (!hit) { if (!add) { sel.clear(); render(); syncPanels(); } return null; }
+  const part = ASM.built.parts.find(p => p.id === hit.id); if (!part) return null;
+  asmSelectPart(part, add);
+  return part.id;
+}
+function asmSelectPart(part, add) {
+  if (ASM.sheets.length) {
+    const want = (part.sheet === ASM.active || part.setupSheets.indexOf(ASM.active) >= 0) ? ASM.active : part.sheet;
+    if (want && want !== ASM.active && asmSheet(want)) asmLoadSheet(want, true);
+  }
+  const have = new Set(doc.shapes.map(s => s.id));
+  if (!add) sel.clear();
+  for (const id of part.ids) if (have.has(id)) sel.add(id);
+  render(); syncPanels();
+  setMsg('3D → 2D: ' + part.label + ' (' + [...sel].length + ' shape(s) on ' + ((asmSheet(ASM.active) || {}).label || 'this sheet') + ')');
+}
+function asmSetSplit(on) {
+  ASM.on = !!on;
+  const st = document.querySelector('.stage'); if (st) st.classList.toggle('split', ASM.on);
+  resize();
+  if (!ASM.on) return;
+  if (!asmInitRenderer()) return;
+  ASM.lastFp = null; asmRefresh(true);
+  ASM.r.frameAll(); ASM.r.draw();
+}
+// called from render(): coalesce to one refresh per frame
+function asmOnRender() { if (!ASM.on || ASM.raf) return; ASM.raf = requestAnimationFrame(() => { ASM.raf = 0; asmRefresh(false); }); }
+function asmSheetsInput() {
+  const out = {};
+  if (!ASM.sheets.length) { out.sheet = { items: asmItemsOf(doc.shapes), thickness: job.thickness }; return out; }
+  for (const s of ASM.sheets) {
+    if (s.id === ASM.active) out[s.id] = { items: asmItemsOf(doc.shapes), thickness: job.thickness };
+    else { if (!s.items) s.items = asmItemsOf(s.st.shapes); out[s.id] = { items: s.items, thickness: s.st.job.thickness }; }
+  }
+  return out;
+}
+function asmRefresh(force) {
+  if (!ASM.on || !asmInitRenderer()) return;
+  const t0 = performance.now();
+  const fp = asmFingerprint();
+  let didBuild = false;
+  if (force || fp !== ASM.lastFp) {
+    ASM.lastFp = fp;
+    const data = ASM.sheets.length ? ASM.data : ASSEMBLY.defaultAssembly([{ id: 'sheet', w: job.w }]);
+    let built;
+    try { built = ASSEMBLY.buildAssembly(data, asmSheetsInput(), ASM.cache); }
+    catch (err) { setMsg('3D assembly failed: ' + err.message); return; }
+    const keep = new Set();
+    for (const p of built.parts) {
+      keep.add(p.id);
+      if (built.rebuilt.indexOf(p.id) >= 0 || !ASM.r.parts.has(p.id)) ASM.r.setPart(p.id, p.mesh, hex3(p.color));
+    }
+    for (const id of [...ASM.r.parts.keys()]) if (!keep.has(id)) ASM.r.removePart(id);
+    if (!ASM.built) ASM.r.frameAll();
+    ASM.built = built; didBuild = true;
+  }
+  // 2D -> 3D: highlight every part the 2D selection touches
+  const hi = [];
+  if (ASM.built && sel.size) for (const p of ASM.built.parts) {
+    const here = !ASM.sheets.length || p.sheet === ASM.active || p.setupSheets.indexOf(ASM.active) >= 0;
+    if (here && p.ids.some(id => sel.has(id))) hi.push(p.id);
+  }
+  const hk = hi.join('|');
+  if (hk !== ASM.lastHi || didBuild) { ASM.lastHi = hk; ASM.r.setHighlight(hi); ASM.r.draw(); }
+  if (didBuild) {
+    ASM.stats = { ms: Math.round(performance.now() - t0), rebuilt: ASM.built.rebuilt.slice(), parts: ASM.built.parts.length, at: Date.now(), errors: ASM.built.errors };
+    asmStatus();
+  }
+  window.__asmStats = Object.assign({ highlight: hi }, ASM.stats);
+}
+function asmStatus() {
+  const el = document.getElementById('asmStat'); if (!el || !ASM.built) return;
+  const b = ASM.built, s = ASM.stats;
+  const bend = b.parts.find(p => p.info && p.info.rise);
+  el.textContent = (ASM.sheets.length ? ASM.name : 'This sheet, flat') + ' · ' + b.parts.length + ' part(s)'
+    + (bend ? ' · arch ' + bend.info.rise.toFixed(2) + '" rise' : '')
+    + (s.rebuilt.length ? ' · rebuilt ' + (s.rebuilt.length > 3 ? s.rebuilt.length + ' parts' : s.rebuilt.join(', ')) + ' in ' + s.ms + ' ms' : '')
+    + (b.unplaced.length ? ' · ' + b.unplaced.length + ' part(s) not in the assembly' : '')
+    + (b.errors.length ? ' · ⚠ ' + b.errors[0] : '');
+}
+function asmReset() {
+  ASM.sheets = []; ASM.data = null; ASM.active = null; ASM.flat = true; ASM.name = ''; ASM.cache = new Map(); ASM.built = null; ASM.lastFp = null;
+  if (ASM.r) for (const id of [...ASM.r.parts.keys()]) ASM.r.removePart(id);
+  asmBuildSheetPicker();
+}
+function asmInit() {
+  const g = id => document.getElementById(id);
+  const inp = g('asmInput'); if (inp) inp.onchange = e => { const fs = [...e.target.files]; inp.value = ''; if (fs.length) asmOpenFiles(fs); };
+  const pick = g('asmSheet'); if (pick) pick.onchange = e => asmLoadSheet(e.target.value);
+  const fit = g('asmFit'); if (fit) fit.onclick = () => { if (ASM.r) { ASM.r.frameAll(); ASM.r.draw(); } };
+  const iso = g('asmIso'); if (iso) iso.onclick = () => { if (ASM.r) { ASM.r.frameAll(); ASM.r.cam.yaw = -Math.PI / 2 + 0.6; ASM.r.cam.pitch = 0.5; ASM.r.draw(); } };
+  const side = g('asmSide'); if (side) side.onclick = () => { if (ASM.r) { ASM.r.frameAll(); ASM.r.cam.yaw = 0; ASM.r.cam.pitch = 0.05; ASM.r.draw(); } };
+  const top = g('asmTop'); if (top) top.onclick = () => { if (ASM.r) { ASM.r.frameAll(); ASM.r.cam.yaw = -Math.PI / 2; ASM.r.cam.pitch = GLVIEW.PITCH_LIMIT; ASM.r.draw(); } };
+  Object.assign(MENU_ACTIONS, { 'asmopen': () => g('asmInput').click(), 'asmfolder': () => asmOpenFolder(), 'asmsave': () => asmSaveJSON(), 'vasm': () => setView('asm') });
+  // dropping several files (or an assembly file) at once opens them as an assembly
+  document.body.addEventListener('drop', e => {
+    const fs = [...(e.dataTransfer && e.dataTransfer.files || [])];
+    if (fs.length > 1 || (fs[0] && /\.json$/i.test(fs[0].name))) { e.stopImmediatePropagation(); e.preventDefault(); asmOpenFiles(fs); }
+  }, true);
+  window.addEventListener('resize', () => { if (ASM.on && ASM.r) ASM.r.draw(); });
+}
+asmInit();
 
 </script></body></html>

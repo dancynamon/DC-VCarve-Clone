@@ -76,7 +76,7 @@ const THEMES_DARK={
 };
 const THEMES={ '2d':THEMES_LIGHT['2d'], preview:THEMES_LIGHT.preview };
 let darkMode=(function(){ try{ return localStorage.getItem('aqcam.theme')==='dark'; }catch(e){ return false; } })();
-function setTheme(dark){ darkMode=!!dark; const T=darkMode?THEMES_DARK:THEMES_LIGHT; THEMES['2d']=T['2d']; THEMES.preview=T.preview;
+function setTheme(dark){ darkMode=!!dark; if(typeof asmApplyTheme==='function') setTimeout(()=>{ asmApplyTheme(); if(typeof ASM!=='undefined'&&ASM.r) ASM.r.draw(); },0); const T=darkMode?THEMES_DARK:THEMES_LIGHT; THEMES['2d']=T['2d']; THEMES.preview=T.preview;
   document.body.classList.toggle('dark', darkMode); try{ localStorage.setItem('aqcam.theme', darkMode?'dark':'light'); }catch(e){}
   const b=document.getElementById('btnTheme'); if(b){ b.textContent=darkMode?'☀ Light':'☾ Dark'; b.title=darkMode?'Switch to light mode':'Switch to dark mode'; }
   if(gl3d){ const th=THEMES.preview; gl3d.setColors({ clear:hex3(th.gradBot), top:[th.stockTop[0]/255,th.stockTop[1]/255,th.stockTop[2]/255], deep:[th.stockDeep[0]/255,th.stockDeep[1]/255,th.stockDeep[2]/255] }); gl3d.draw(); }
@@ -150,7 +150,7 @@ function snapWorld(scr){
 }
 
 // ---- rendering ----
-function resize(){ const r=cv.parentElement.getBoundingClientRect(); cv.width=r.width; cv.height=r.height;
+function resize(){ const r=cv.getBoundingClientRect(); cv.width=r.width; cv.height=r.height;   // own box: the 2D + 3D split gives it half the stage
   overlay.width=r.width; overlay.height=r.height;
   if(gl3d){ gl3d.resize(); gl3d.draw(); } if(!view._init){ view.oy=cv.height-60; view._init=true; } render(); drawRulerMarks(lastScr); }
 function render(){
@@ -182,6 +182,7 @@ function render(){
     if(rulers) drawRulers();
   }
   updateHud();
+  if(typeof asmOnRender==='function') asmOnRender();   // 2D + 3D Assembly: rebuild what this edit changed
 }
 function drawGrid(){
   const w0=S2W({x:0,y:cv.height}), w1=S2W({x:cv.width,y:0});
@@ -846,6 +847,7 @@ function newJob(){
   doc.shapes=[]; doc.layers=new Map([['0',{visible:true,color:'#1b2b3f'}]]); activeLayer='0';
   sel.clear(); opsQueue=[]; editingIdx=null; toolpaths=null; drillMarks=null; pendingRestore=null;
   projectFile.handle=null; setProjectName('design.aqcam');
+  if(typeof asmReset==='function') asmReset();   // a new job is a new single sheet
   buildQueueList(); syncPanels(); fitJob(); setView('2d'); showForm('job','drawing'); autosaveNow();
   setMsg('New job — design cleared (Undo restores it)');
 }
@@ -1208,7 +1210,9 @@ function opJoin(){ const sh=selectedShapes().filter(s=>s.type==='path'); if(sh.l
 
 // ---- import / export ----
 function importText(name, text){
-  if(/\.dxf$/i.test(name)){ const ents=parseDxf(text); const polys=[]; for(const e of ents){ for(const p of entityToPolys(e)) polys.push(p); } const shapes=CADCORE.dxfPolysToShapes(polys); pushHistory(); addShapes(shapes); fitAll(); }
+  if(/\.dxf$/i.test(name)){ const ents=parseDxf(text); const polys=[]; for(const e of ents){ for(const p of entityToPolys(e)) polys.push(p); } const shapes=CADCORE.dxfPolysToShapes(polys); pushHistory(); addShapes(shapes);
+    if(typeof asmApplyLayerDefaults==='function') asmApplyLayerDefaults(name, shapes);   // OUTSIDE_PROFILE / DRILL_.._THRU / POCKET_..DEEP -> toolpaths
+    fitAll(); }
   else if(/\.svg$/i.test(name)){ const shapes=CADCORE.svgToShapes(text); pushHistory(); addShapes(shapes); fitAll(); }
   else { setMsg('Unsupported file: '+name); }
   syncPanels(); render();
@@ -1369,8 +1373,10 @@ function gl3dPreset(which){ if(!gl3d) return; gl3d.frameAll();
   else { gl3d.cam.pitch=0.62; gl3d.cam.yaw=-Math.PI/2+0.55; }
   gl3d.draw(); }
 function setView(mode){
+  const split = mode==='asm';   // 2D + 3D Assembly: the 2D editor stays live on the left
   viewMode = (mode==='preview') ? 'preview' : '2d';
-  document.querySelectorAll('.vtab').forEach(b=>b.classList.toggle('active', b.dataset.view===viewMode));
+  document.querySelectorAll('.vtab').forEach(b=>b.classList.toggle('active', b.dataset.view===(split?'asm':viewMode)));
+  if(typeof asmSetSplit==='function' && (split || (typeof ASM!=='undefined' && ASM.on))) asmSetSplit(split);
   const stage=document.querySelector('.stage'); if(stage)stage.classList.toggle('preview', viewMode==='preview');
   if(viewMode==='preview'){ const solid=document.getElementById('simSolid');
     if(solid&&solid.checked) runSim(); else { gl3dShow(false); simField=null; recalcAll(); } }
@@ -1380,7 +1386,7 @@ function setView(mode){
 // Build the tool profile + cut segments for one toolpath, for the material sim.
 // One toolpath may post to multiple ops (vcarve flat-depth = endmill + V-bit) — build a sim cut per op.
 function simCutFor(q){
-  let res; try{ res=buildOpRes(q.p, contoursFromIds(q.ids)); }catch(e){ return []; }
+  let res; try{ res=buildOpRes(q.p, contoursForOp(q)); }catch(e){ return []; }
   const cuts=[];
   for(const op of res.ops){ if(!op.passes||!op.passes.length)continue;
     const post=Object.assign({},CAM.POSTS[document.getElementById('camPost').value]); post.arcs=(op.kind!=='drill')&&document.getElementById('camArcs').checked;
@@ -1467,6 +1473,7 @@ function applyProject(proj, srcName){
   doc.layers=new Map(proj.layers.map(l=>[l.name,{visible:l.visible,color:l.color}]));
   activeLayer=(proj.layers[0]&&proj.layers[0].name)||'0';
   job.w=proj.job.w; job.h=proj.job.h; job.thickness=proj.job.thickness; job.origin=proj.job.origin; job.show=proj.job.show;
+  if(typeof asmReset==='function') asmReset();
   opsQueue=(proj.opsQueue||[]).map(normalizeOp); editingIdx=null;
   applyJobInputs(); toolpaths=null; drillMarks=null; sel.clear();
   history=[]; future=[];
@@ -1492,17 +1499,12 @@ function fitAll(){ if(!doc.shapes.length)return; const b=CADCORE.bboxAll(doc.sha
 
 // ---- CAM ----
 function camContours(){ const sh=sel.size?selectedShapes():doc.shapes.filter(s=>layerVisible(s.layer)); const polys=CADCORE.shapesToContoursInput(sh); return CAM.assembleContours(polys); }
+function contoursForOp(q){ if(!q.sel) return contoursFromIds(q.ids);
+  const items=doc.shapes.filter(s=>layerVisible(s.layer)).map(s=>({id:s.id,layer:s.layer,bbox:CADCORE.bboxAll([s]),shape:s}));
+  return CAM.assembleContours(CADCORE.shapesToContoursInput(ASSEMBLY.selectByRule(items,q.sel).map(it=>it.shape))); }
 function contoursFromIds(ids){ const sh=(ids&&ids.length)?doc.shapes.filter(s=>ids.indexOf(s.id)>=0&&layerVisible(s.layer)):doc.shapes.filter(s=>layerVisible(s.layer)); return CAM.assembleContours(CADCORE.shapesToContoursInput(sh)); }
 // run one CAM op from params + contours -> {ops,warnings,points}. Shared by single-op build and the multi-op job.
-function buildOpRes(p, contours){
-  const res=(p.op==='pocket')?CAM.pocketOp(contours,p)
-    :(p.op==='drill')?CAM.drillOp(contours,p)
-    :(p.op==='vcarve')?CAM.vcarveOp(contours,Object.assign({},p,{maxDepth:p.cutDepth,step:p.vstep}))
-    :(p.op==='inlay')?CAM.inlayOp(contours,Object.assign({},p,{step:p.vstep}))
-    :CAM.profileOp(contours,p);
-  for(const op of res.ops) op.clearZ=p.clearZ;   // vcarve flat-depth returns 2 ops (endmill + V-bit)
-  return res;
-}
+function buildOpRes(p, contours){ return ASSEMBLY.opResult(CAM, p, contours); }   // shared with the asmtap.js CLI (vcarve flat-depth returns 2 ops)
 function camParams(){ const g=id=>document.getElementById(id); const tabsN=parseInt(g('camTabN').value,10)||0;
   return { op:(g('camOp')&&g('camOp').value)||'profile', toolNum:parseInt(g('camTool').value,10)||1, toolDia:parseFloat(g('camDia').value)||0.25, side:g('camSide').value, climb:g('camDir').value==='climb',
     cutDepth:Math.abs(parseFloat(g('camDepth').value)||0.25), passDepth:Math.abs(parseFloat(g('camPass').value)||0.125), feed:parseFloat(g('camFeed').value)||120,
@@ -1572,7 +1574,7 @@ function autoOpName(p){ p=p||{}; const op=p.op||'profile';
   if(op==='inlay') return 'Inlay '+(p.style==='vcarve'?'V':'straight')+' · '+String(p.part||'both');
   return op.charAt(0).toUpperCase()+op.slice(1); }
 function autoLabel(p,ids,match){ return autoOpName(p)+' · T'+p.toolNum+' Ø'+p.toolDia+'" · '+((ids&&ids.length)?ids.length+' sel':'all')+(match?' (lib)':''); }
-function normalizeOp(q){ q=q||{}; return { p:q.p||{}, ids:Array.isArray(q.ids)?q.ids:[], name:q.name||q.label||autoOpName(q.p), label:q.label||'', visible:q.visible!==false }; }
+function normalizeOp(q){ q=q||{}; const o={ p:q.p||{}, ids:Array.isArray(q.ids)?q.ids:[], name:q.name||q.label||autoOpName(q.p), label:q.label||'', visible:q.visible!==false }; if(q.sel&&Array.isArray(q.sel.layers)) o.sel=q.sel; return o; }
 function refreshAddBtn(){ const b=document.getElementById('btnAddOp'); if(b) b.textContent=(editingIdx!=null)?'✓ Update':'+ Toolpath'; }
 function moveOp(i,dir){ const j=i+dir; if(j<0||j>=opsQueue.length)return; pushHistory(); const t=opsQueue[i]; opsQueue[i]=opsQueue[j]; opsQueue[j]=t;
   if(editingIdx===i)editingIdx=j; else if(editingIdx===j)editingIdx=i; buildQueueList(); }
@@ -1594,11 +1596,11 @@ function addOp(){ const p=camParams(); const ids=[...sel];
   // auto-assign a consistent tool number from the saved library by diameter (prefer same op kind)
   const near=t=>Math.abs(t.dia-p.toolDia)<0.001; const match=tools.find(t=>t.op===p.op && near(t)) || tools.find(near); if(match) p.toolNum=match.toolNum;
   const label=autoLabel(p,ids,match); pushHistory();
-  if(editingIdx!=null && opsQueue[editingIdx]){ const q=opsQueue[editingIdx]; q.p=p; q.ids=ids; q.label=label; const idx=editingIdx; editingIdx=null; buildQueueList(); recalcAll(); setMsg('Updated toolpath '+(idx+1)+': '+(q.name||label)); return; }
+  if(editingIdx!=null && opsQueue[editingIdx]){ const q=opsQueue[editingIdx]; if(q.p&&q.p.clearZ!=null) p.clearZ=q.p.clearZ; q.p=p; q.ids=ids; q.label=label; const idx=editingIdx; editingIdx=null; buildQueueList(); recalcAll(); setMsg('Updated toolpath '+(idx+1)+': '+(q.name||label)); return; }
   const name=autoOpName(p); opsQueue.push({p,ids,name,label,visible:true}); buildQueueList(); recalcAll(); setMsg('Added toolpath '+opsQueue.length+': '+name); }
 // Recompute the backplot for every VISIBLE toolpath and combine into one preview overlay.
 function recalcAll(){ const allSegs=[], allMarks=[]; let total=0;
-  for(const q of opsQueue){ if(q.visible===false)continue; let res; try{ res=buildOpRes(q.p, contoursFromIds(q.ids)); }catch(e){ continue; }
+  for(const q of opsQueue){ if(q.visible===false)continue; let res; try{ res=buildOpRes(q.p, contoursForOp(q)); }catch(e){ continue; }
     if(!res.ops.some(op=>op.passes&&op.passes.length)){ q._time=0; continue; }
     const post=Object.assign({},CAM.POSTS[document.getElementById('camPost').value]); post.arcs=(q.p.op!=='drill')&&document.getElementById('camArcs').checked;
     const g=CAM.postProcess({name:'tp',units:'inch',ops:res.ops},post);   // all ops (vcarve flat-depth posts 2)
@@ -1663,17 +1665,14 @@ function postJob(){ if(!opsQueue.length){ setMsg('Job queue empty — "Add op" f
   const byTool={}; const addTool=(t,d)=>{ (byTool[t]=byTool[t]||[]); if(byTool[t].indexOf(d)<0) byTool[t].push(d); };
   for(const q of opsQueue){ addTool(q.p.toolNum, q.p.toolDia); if(q.p.op==='vcarve'&&q.p.clearDia>0) addTool(q.p.clearNum, q.p.clearDia); }
   for(const t in byTool){ if(byTool[t].length>1){ setMsg('T'+t+' used with Ø'+byTool[t].join(' and Ø')+' — fix tool numbers'); return; } }
-  const allOps=[], dpts=[]; let warns=[];
-  for(const q of opsQueue){ const res=buildOpRes(q.p, contoursFromIds(q.ids));
-    for(const op of res.ops){ if(op.passes.length) allOps.push(op); }   // vcarve flat-depth adds its endmill op too
-    if(res.points)dpts.push(...res.points);
-    if(res.warnings) warns=warns.concat(res.warnings); }
-  if(!allOps.length){ setMsg('Job produced no cuttable passes.'); return; }
+  // every toolpath (hidden ones included) -> ops, nearest-neighbour ordered, posted: same code as the asmtap.js CLI
   const post=Object.assign({},CAM.POSTS[document.getElementById('camPost').value]); post.arcs=document.getElementById('camArcs').checked;
-  const ordered=CAM.orderPasses({name:'job - '+allOps.length+' ops',units:'inch',ops:allOps});   // nearest-neighbor sort to cut rapids
-  const g=CAM.postProcess(ordered,post);
+  const pj=ASSEMBLY.postQueue(CAM, opsQueue.map(q=>Object.assign({},q,{visible:true})), contoursForOp, post);
+  const allOps=pj.ops, dpts=pj.points, warns=pj.warnings, g=pj.gcode;
+  if(!allOps.length){ setMsg('Job produced no cuttable passes.'); return; }
   lastGcode=g; toolpaths=toolpathSegs(g); drillMarks=dpts.length?dpts:null; if(dpts.length)drillDia=0.25;
-  render(); download('job.tap', g);
+  const sheetFile=(typeof ASM!=='undefined' && ASM.active && asmSheet(ASM.active)) ? asmSheet(ASM.active).file : '';
+  render(); download(sheetFile ? sheetFile.replace(/\.dxf$/i,'')+'.tap' : 'job.tap', g);
   const arcN=(g.match(/^G[23] /gm)||[]).length, tools=allOps.map(o=>'T'+o.toolNum).join('→');
   setMsg('Posted job: '+allOps.length+' ops ('+tools+'), '+arcN+' arc move(s) → job.tap'+(warns.length?' · WARN: '+warns[0]:'')); }
 
