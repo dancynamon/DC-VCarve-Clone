@@ -304,9 +304,8 @@ function updateCursor(scr){ const w=S2W(scr); document.getElementById('coords').
 const ROTATE_CURSOR="url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 22 22'><path d='M11 3a8 8 0 1 1-7.4 4.9' fill='none' stroke='white' stroke-width='4'/><path d='M11 3a8 8 0 1 1-7.4 4.9' fill='none' stroke='%23222' stroke-width='2'/><path d='M2 3v6h6' fill='none' stroke='white' stroke-width='4'/><path d='M2 3v6h6' fill='none' stroke='%23222' stroke-width='2'/></svg>\") 11 11, alias";
 const SCALE_CURSORS={nw:'nwse-resize',se:'nwse-resize',ne:'nesw-resize',sw:'nesw-resize',n:'ns-resize',s:'ns-resize',e:'ew-resize',w:'ew-resize'};
 function hoverCursor(scr){ if(tool!=='select'||viewMode==='preview'){ cv.style.cursor=''; return; }
-  const h=hitHandle(scr); let c='';
-  if(h&&h.type==='rotate') c=ROTATE_CURSOR; else if(h&&h.type==='scale') c=SCALE_CURSORS[h.k]||'move';
-  else { const w=S2W(scr); if(pickShapeAt(w)) c='move'; }
+  const h=hitHandle(scr); let c='default';   // select tool = ordinary arrow pointer (over shapes too); handles keep their resize / rotate cursors
+  if(h&&h.type==='rotate') c=ROTATE_CURSOR; else if(h&&h.type==='scale') c=SCALE_CURSORS[h.k]||'default';
   cv.style.cursor=c; }
 
 // ---- tools / interaction ----
@@ -317,7 +316,7 @@ function setTool(t){ if(t!=='measure') measure=null; tool=t; sel=(t==='node')?se
   const form=TOOL_FORMS[t];
   if(form) showForm(form,'drawing');            // the tool's options take over the dock
   else if(formOpen() && t!=='clipart' && t!=='select') setCmdTab(cmdTab);
-  cv.style.cursor='';
+  cv.style.cursor=(t==='select')?'default':'';
   setMsg((TOOLMSG[t]||'')+(t in FORM_CREATE?'  ·  Enter = Create from the form (anchor + size)':'')); render(); }
 const FORM_CREATE={rect:1,rrect:1,circle:1,ellipse:1,polygon:1,star:1,text:1};
 const TOOLMSG={ select:'Click to select · drag to move · handles to scale/rotate · marquee to box-select',
@@ -686,7 +685,7 @@ window.addEventListener('mouseup', e=>{
   if(drag&&drag.kind==='draw'){ commitDraft(); }
   if(drag&&drag.kind==='marquee'){ marqueeSelect(drag.a,drag.b,e.shiftKey); }
   if(drag&&['move','scale','rotate','nodemove','bznode'].includes(drag.kind)){ /* already mutated; history pushed on down */ syncPanels(); }
-  drag=null; render();
+  drag=null; render(); hoverCursor(evScr(e));
 });
 cv.addEventListener('contextmenu', shapeContextMenu);
 window.addEventListener('mousedown', e=>{ if(ctxEl && !ctxEl.contains(e.target)) hideCtxMenu(); }, true);
@@ -919,7 +918,7 @@ function selectDown(scr,w,e){
   if(!hitId){ for(let i=doc.shapes.length-1;i>=0;i--){ const s=doc.shapes[i]; if(!layerVisible(s.layer)||!s.closed)continue; if(shapeInside(s,w)){ hitId=s.id; break; } } }
   if(hitId){ if(e.shiftKey){ sel.has(hitId)?sel.delete(hitId):sel.add(hitId); } else if(!sel.has(hitId)){ sel=new Set([hitId]); }
     pushHistory(); const base=JSON.parse(JSON.stringify(selectedShapes())); const raw=S2W(scr); const a0=CADCORE.bboxAnchor(CADCORE.bboxAll(base), modalAnchor);
-    drag={kind:'move',grab:raw,a0,base,ids:[...sel]}; }
+    drag={kind:'move',grab:raw,a0,base,ids:[...sel]}; cv.style.cursor='move'; }   // arrow while hovering, 4-way cross while pressed on a shape
   else { if(!e.shiftKey) sel.clear(); drag={kind:'marquee',a:scr,b:scr}; }
   syncPanels();
 }
