@@ -4,3 +4,6 @@ node_modules/
 *.log
 _verify_*
 CAD/batch-*/**/*.tap
+# library batch / pilot output: regenerated locally, not versioned
+CAD/batch-mats/
+CAD/pilot-mats/
