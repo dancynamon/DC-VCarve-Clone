@@ -345,7 +345,8 @@ const TOOLMSG={ select:'Click to select · drag to move · handles to scale/rota
 // Close (and Calculate / OK where it applies) at the bottom. Everything lives in one place.
 const TOOL_FORMS={rect:'rect',rrect:'rrect',circle:'circle',ellipse:'ellipse',polygon:'polygon',star:'star',text:'text',dim:'dim',fillet:'fillet'};
 const CAM_TITLES={profile:'Profile Toolpath',pocket:'Pocket Toolpath',drill:'Drilling Toolpath',
-  vcarve:'V-Carve / Engraving Toolpath',inlay:'Inlay Toolpath'};
+  vcarve:'V-Carve / Engraving Toolpath',inlay:'Inlay Toolpath',chamfer:'Chamfer Toolpath',engrave:'Quick Engrave Toolpath',
+  fluting:'Fluting Toolpath',prism:'Prism Carving Toolpath',moulding:'Moulding Toolpath'};
 const ORIGIN_LABEL={bl:'bottom-left',br:'bottom-right',tl:'top-left',tr:'top-right',center:'centre'};
 let cmdTab='drawing';
 // LEFT dock = Drawing / Clipart / Layers (tabs at the bottom, Aspire-style).
@@ -517,7 +518,7 @@ const ICON_COL={
   offset:'#b8501d',join:'#0f8a8a',weld:'#2f7d32',subtract:'#c0392b',intersect:'#1d6fb8',
   del:'#c0392b',validate:'#2f7d32',
   alignL:'#4a6a8a',alignHC:'#4a6a8a',alignR:'#4a6a8a',alignT:'#4a6a8a',alignVC:'#4a6a8a',alignB:'#4a6a8a',
-  profile:'#b8501d',pocket:'#1d6fb8',drill:'#2f7d32',vcarve:'#7b52c9',inlay:'#b8901d'
+  profile:'#b8501d',pocket:'#1d6fb8',drill:'#2f7d32',vcarve:'#7b52c9',inlay:'#b8901d',chamfer:'#7b52c9',engrave:'#7b52c9',fluting:'#1d6fb8',prism:'#7b52c9',moulding:'#b8501d'
 };
 // Accent hue per icon: elements marked stroke/fill="var(--a)" pick it up, so each glyph reads
 // as two tones instead of one flat colour.
@@ -532,7 +533,7 @@ const ICON_ACC={
   offset:'#1d6fb8',join:'#c9971d',weld:'#1d6fb8',subtract:'#c0392b',intersect:'#2f7d32',
   del:'#c0392b',validate:'#1d6fb8',
   alignL:'#1d6fb8',alignHC:'#1d6fb8',alignR:'#1d6fb8',alignT:'#1d6fb8',alignVC:'#1d6fb8',alignB:'#1d6fb8',
-  profile:'#1d6fb8',pocket:'#c9971d',drill:'#c0392b',vcarve:'#c9971d',inlay:'#2f7d32'
+  profile:'#1d6fb8',pocket:'#c9971d',drill:'#c0392b',vcarve:'#c9971d',inlay:'#2f7d32',chamfer:'#c9971d',engrave:'#c0392b',fluting:'#c9971d',prism:'#c9971d',moulding:'#2f7d32'
 };
 const ICON_SVG=(inner,name,size)=>'<svg viewBox="0 0 24 24" width="'+(size||28)+'" height="'+(size||28)+'" fill="none" '+
   'stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" '+
@@ -564,6 +565,11 @@ const ICONS={
   drill:   '<circle cx="12" cy="12" r="7.6" fill="currentColor" fill-opacity=".14"/><circle cx="12" cy="12" r="2.8" fill="var(--a)" stroke="none"/><path d="M12 1.8 V5 M12 19 V22.2 M1.8 12 H5 M19 12 H22.2" stroke="var(--a)"/>',
   vcarve:  '<path d="M2.6 7 V17 H21.4 V7 Z" fill="currentColor" fill-opacity=".16"/><path d="M7.4 7 L12 15.6 L16.6 7 Z" fill="var(--a)" fill-opacity=".55" stroke="var(--a)"/>',
   inlay:   '<path d="M2.8 18.4 V9 H8 L11 13.4 L14 9 H19.2 V18.4 Z" fill="currentColor" fill-opacity=".18"/><path d="M8 5.6 L11 1.6 L14 5.6 Z" fill="var(--a)" fill-opacity=".6" stroke="var(--a)"/>',
+  chamfer: '<path d="M2.6 20 V8.6 L6.2 5 H21.4 V20 Z" fill="currentColor" fill-opacity=".16"/><path d="M2.6 8.6 L6.2 5" stroke="var(--a)" stroke-width="2.4"/><path d="M8 2 L4.4 6.8 L9 7.2 Z" fill="var(--a)" fill-opacity=".6" stroke="var(--a)"/>',
+  engrave: '<path d="M3 17 L9 7 L15 17 L21 7" stroke="var(--a)" stroke-width="2.2"/><path d="M2.6 20.4 H21.4" stroke="currentColor"/>',
+  fluting: '<path d="M4 3 V21 M20 3 V21" stroke="currentColor"/><path d="M9 4.5 Q9 3 9.8 3 Q10.6 3 10.6 4.5 V19.5 Q10.6 21 9.8 21 Q9 21 9 19.5 Z M13.4 4.5 Q13.4 3 14.2 3 Q15 3 15 4.5 V19.5 Q15 21 14.2 21 Q13.4 21 13.4 19.5 Z" fill="var(--a)" fill-opacity=".5" stroke="var(--a)"/>',
+  prism:   '<path d="M2.6 19 H21.4" stroke="currentColor"/><path d="M4 19 L9 7 H15 L20 19 Z" fill="currentColor" fill-opacity=".14"/><path d="M4 19 L9 7 L12 13 L15 7 L20 19 M12 13 V19" stroke="var(--a)"/>',
+  moulding:'<path d="M2.6 19 V9 Q6 9 7 12 Q8.4 16 12 16 Q15.6 16 17 12 Q18 9 21.4 9 V19 Z" fill="currentColor" fill-opacity=".16"/><path d="M2.6 9 Q6 9 7 12 Q8.4 16 12 16 Q15.6 16 17 12 Q18 9 21.4 9" stroke="var(--a)" stroke-width="2"/>',
   // ---- command buttons (File Operations / View / Transform / Edit / Align / Layout) ----
   'new':     '<path d="M6 3.2 H14 L18.6 8 V20.8 H6 Z" fill="currentColor" fill-opacity=".12"/><path d="M14 3.2 V8 H18.6" stroke="var(--a)"/><path d="M9 13.4 H15.6 M12.3 10.1 V16.7" stroke="var(--a)"/>',
   'open':    '<path d="M2.8 18.6 V6.4 H9.4 L11.4 8.8 H17.6 V11"/><path d="M2.8 18.6 L6.2 11 H21.6 L18.2 18.6 Z" fill="var(--a)" fill-opacity=".28" stroke="var(--a)"/>',
@@ -1551,6 +1557,11 @@ function buildOpRes(p, contours){
     :(p.op==='drill')?CAM.drillOp(contours,p)
     :(p.op==='vcarve')?CAM.vcarveOp(contours,Object.assign({},p,{maxDepth:p.cutDepth,step:p.vstep}))
     :(p.op==='inlay')?CAM.inlayOp(contours,Object.assign({},p,{step:p.vstep}))
+    :(p.op==='chamfer')?CAM.chamferOp(contours,Object.assign({},p,{width:p.chWidth,offset:p.chOffset,cutDepth:0}))
+    :(p.op==='engrave')?CAM.quickEngraveOp(contours,Object.assign({},p,{sharpAngle:p.qeSharp}))
+    :(p.op==='fluting')?CAM.flutingOp(contours,Object.assign({},p,{ramp:p.flRamp,rampLen:p.flRampLen,smooth:p.flSmooth}))
+    :(p.op==='prism')?CAM.prismOp(contours,Object.assign({},p,{maxDepth:p.prMax,step:p.vstep}))
+    :(p.op==='moulding')?CAM.mouldingOp(contours,Object.assign({},p,{align:p.moAlign,stepover:p.moStep}))
     :CAM.profileOp(contours,p);
   for(const op of res.ops) op.clearZ=p.clearZ;   // vcarve flat-depth returns 2 ops (endmill + V-bit)
   return res;
@@ -1583,12 +1594,18 @@ function camParams(){ const g=id=>document.getElementById(id); const tabsN=parse
     startDepth:Math.abs(parseFloat(g('camInlayStartD')&&g('camInlayStartD').value)||0),
     maleMargin:Math.abs(parseFloat(g('camInlayMargin')&&g('camInlayMargin').value)||0.25),
     mirrorMale:!(g('camInlayMirror')&&!g('camInlayMirror').checked),
+    chWidth:Math.abs(parseFloat(g('camChWidth')&&g('camChWidth').value)||0.125), chOffset:Math.abs(parseFloat(g('camChOffset')&&g('camChOffset').value)||0),
+    qeSharp:parseFloat(g('camQeSharp')&&g('camQeSharp').value)||150,
+    fluteTool:(g('camFlTool')&&g('camFlTool').value)||'ball', flRamp:(g('camFlRamp')&&g('camFlRamp').value)||'both',
+    flRampLen:Math.abs(parseFloat(g('camFlRampLen')&&g('camFlRampLen').value)||0), flSmooth:!!(g('camFlSmooth')&&g('camFlSmooth').checked),
+    prMax:Math.abs(parseFloat(g('camPrMax')&&g('camPrMax').value)||0),
+    moAlign:(g('camMoAlign')&&g('camMoAlign').value)||'center', moStep:((parseFloat(g('camMoStep')&&g('camMoStep').value)||10)/100),
     tabs:{count:tabsN,length:parseFloat(g('camTabL').value)||0.4,height:parseFloat(g('camTabH').value)||0.1} }; }
 function camBuild(){ const contours=camContours(); const closedN=contours.filter(c=>c.closed).length; const p=camParams();
   const res=buildOpRes(p, contours);
   const post=Object.assign({},CAM.POSTS[document.getElementById('camPost').value]); post.arcs=(p.op!=='drill')&&document.getElementById('camArcs').checked;
   const label=p.op==='pocket'?'POCKET':p.op==='drill'?'DRILL':p.op==='vcarve'?'VCARVE'
-    :p.op==='inlay'?('INLAY '+p.style.toUpperCase()+' '+p.part.toUpperCase()):p.side.toUpperCase();
+    :p.op==='inlay'?('INLAY '+p.style.toUpperCase()+' '+p.part.toUpperCase()):p.op!=='profile'?p.op.toUpperCase():p.side.toUpperCase();
   const g=CAM.postProcess({name:'design - '+label,units:'inch',ops:res.ops},post); const arcN=(g.match(/^G[23] /gm)||[]).length;
   return {g,closedN,passes:res.ops.reduce((n,op)=>n+op.passes.length,0),warnings:res.warnings,arcN,op:p.op,points:res.points||null}; }
 function toolpathSegs(g){ // parse to segments for overlay (tracks Z so the backplot can shade by depth)
@@ -1622,6 +1639,9 @@ const _esc=s=>String(s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}
 function autoOpName(p){ p=p||{}; const op=p.op||'profile';
   if(op==='profile') return 'Profile '+String(p.side||'outside').replace(/^./,c=>c.toUpperCase());
   if(op==='inlay') return 'Inlay '+(p.style==='vcarve'?'V':'straight')+' · '+String(p.part||'both');
+  if(op==='engrave') return 'Quick Engrave';
+  if(op==='fluting') return 'Fluting'+(p.flRamp&&p.flRamp!=='none'?' · ramp '+p.flRamp:'');
+  if(op==='chamfer') return 'Chamfer '+(+(p.chWidth||0.125)).toFixed(3)+'"';
   return op.charAt(0).toUpperCase()+op.slice(1); }
 function autoLabel(p,ids,match){ return autoOpName(p)+' · T'+p.toolNum+' Ø'+p.toolDia+'" · '+((ids&&ids.length)?ids.length+' sel':'all')+(match?' (lib)':''); }
 function normalizeOp(q){ q=q||{}; return { p:q.p||{}, ids:Array.isArray(q.ids)?q.ids:[], name:q.name||q.label||autoOpName(q.p), label:q.label||'', visible:q.visible!==false }; }
@@ -1733,6 +1753,9 @@ function applyParamsToPanel(p){ if(!p)return; const g=id=>document.getElementByI
   set('camInlayStyle',p.style); set('camInlayPart',p.part); set('camInlayGap',p.clearance); set('camInlayGapOn',p.clearanceOn);
   set('camInlayPocketD',p.pocketDepth); set('camInlayMaleD',p.maleDepth); set('camInlayStartD',p.startDepth);
   set('camInlayMargin',p.maleMargin); if(p.op==='inlay')chk('camInlayMirror',p.mirrorMale);
+  set('camChWidth',p.chWidth); set('camChOffset',p.chOffset); set('camQeSharp',p.qeSharp); set('camFlTool',p.fluteTool); set('camFlRamp',p.flRamp);
+  set('camFlRampLen',p.flRampLen); if(p.flSmooth!=null)chk('camFlSmooth',p.flSmooth); set('camPrMax',p.prMax); set('camMoAlign',p.moAlign);
+  if(p.moStep!=null) set('camMoStep',Math.round(p.moStep*100));
   if(p.tabs){ set('camTabN',p.tabs.count); set('camTabL',p.tabs.length); set('camTabH',p.tabs.height); }
   const op=g('camOp'); if(op)op.dispatchEvent(new Event('change',{bubbles:true})); }
 function postJob(){ if(!opsQueue.length){ setMsg('Job queue empty — "Add op" first.'); return; }
@@ -2244,7 +2267,11 @@ function wire(){
     show('.vcarve-only', v==='vcarve');
     show('.inlay-only', v==='inlay');
     show('.profile-pocket', v==='profile'||v==='pocket');
-    show('.not-drill', v!=='drill'); };
+    show('.not-drill', v!=='drill');
+    // data-ops="a b c": shown for those ops ('fluting-v' = fluting with a V-bit)
+    const fv=v==='fluting'&&(document.getElementById('camFlTool')||{}).value==='v';
+    document.querySelectorAll('[data-ops]').forEach(el=>{ const ops=el.dataset.ops.split(/\s+/); el.style.display=(ops.indexOf(v)>=0||(fv&&ops.indexOf('fluting-v')>=0))?'':'none'; }); };
+  const flTool=document.getElementById('camFlTool'); if(flTool) flTool.addEventListener('change',()=>syncCamOp());
   if(camOp){ camOp.onchange=syncCamOp; syncCamOp(); }
   initCmdDock();
   // clipart library (D2)

@@ -307,7 +307,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
     <div class="menu" data-menu="toolpaths">Toolpaths<div class="mdrop">
       <button data-act="op:profile">Profile Toolpath…</button><button data-act="op:pocket">Pocket Toolpath…</button>
       <button data-act="op:drill">Drilling Toolpath…</button><button data-act="op:vcarve">V-Carve / Engraving…</button>
-      <button data-act="op:inlay">Inlay Toolpath…</button><div class="msep"></div>
+      <button data-act="op:inlay">Inlay Toolpath…</button><button data-act="op:chamfer">Chamfer Toolpath…</button><button data-act="op:engrave">Quick Engrave…</button><button data-act="op:fluting">Fluting Toolpath…</button><button data-act="op:prism">Prism Carving…</button><button data-act="op:moulding">Moulding Toolpath…</button><div class="msep"></div>
       <button data-act="recalc">Preview Visible Toolpaths</button><button data-act="post">Save Toolpaths…</button></div></div>
     <div class="menu" data-menu="view">View<div class="mdrop">
       <button data-act="v2d">2D View</button><button data-act="v3d">3D View</button><div class="msep"></div>
@@ -538,6 +538,13 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
             <button class="tool opbtn" data-op="inlay" data-tip="Inlay Toolpath" title="Inlay"><b>&#9707;</b></button>
           </div>
           <div class="iconrow" style="grid-template-columns:repeat(5,1fr)">
+            <button class="tool opbtn" data-op="chamfer" data-tip="Chamfer Toolpath &#8212; V-bit bevel along an edge" title="Chamfer"><b>&#9698;</b></button>
+            <button class="tool opbtn" data-op="engrave" data-tip="Quick Engrave &#8212; V-bit along vectors, sharp corners" title="Quick Engrave"><b>&#10002;</b></button>
+            <button class="tool opbtn" data-op="fluting" data-tip="Fluting Toolpath &#8212; ramped grooves" title="Fluting"><b>&#8741;</b></button>
+            <button class="tool opbtn" data-op="prism" data-tip="Prism Carving &#8212; raised bevelled shapes" title="Prism"><b>&#9650;</b></button>
+            <button class="tool opbtn" data-op="moulding" data-tip="Moulding Toolpath &#8212; sweep a profile along a rail" title="Moulding"><b>&#8766;</b></button>
+          </div>
+          <div class="iconrow" style="grid-template-columns:repeat(5,1fr)">
             <button class="tb" id="btnTplApply" data-tip="Apply the selected toolpath template">Tpl ▶</button>
             <button class="tb" id="btnTplSave" data-tip="Save the toolpath list as a template">Tpl +</button>
             <button class="tb" id="btnRecalcAll" data-tip="Recompute the backplot for every visible toolpath">Preview</button>
@@ -557,7 +564,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
       <div class="rpane" id="paneCamForm"><div class="tform" data-form="cam"><h4 id="camFormTitle">Profile Toolpath</h4><div class="tfbody">
           <div class="grp">Cutting depths</div>
           <label data-tip="Depth of the material surface (Z zero)">Start depth&quot;<input type="number" id="camTopZ" value="0" step="0.01" style="width:54px"></label>
-          <label>Cut depth&quot;<input type="number" id="camDepth" value="0.5" step="0.01" style="width:54px"></label>
+          <label data-ops="profile pocket drill vcarve inlay engrave fluting">Cut depth&quot;<input type="number" id="camDepth" value="0.5" step="0.01" style="width:54px"></label>
           <label data-tip="Maximum depth removed per pass">Pass depth&quot;<input type="number" id="camPass" value="0.25" step="0.01" style="width:54px"></label>
 
           <div class="grp">Tool</div>
@@ -569,20 +576,33 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
           <label>Feed<input type="number" id="camFeed" value="120" style="width:54px"></label>
           <label>Plunge<input type="number" id="camPlunge" value="40" style="width:50px"></label>
           <label>RPM<input type="number" id="camRpm" value="18000" style="width:62px"></label>
-          <label class="vcarve-only" data-tip="Included V-bit angle (deg)">V angle&#176;<input type="number" id="camVAngle" value="90" min="1" max="179" style="width:48px"></label>
+          <label data-ops="vcarve chamfer engrave prism fluting-v" data-tip="Included V-bit angle (deg)">V angle&#176;<input type="number" id="camVAngle" value="90" min="1" max="179" style="width:48px"></label>
 
           <div class="grp">Machine vectors</div>
-          <label class="profile-only">Side<select id="camSide"><option value="outside">Outside</option><option value="inside">Inside</option><option value="on">On line</option></select></label>
+          <label data-ops="profile chamfer">Side<select id="camSide"><option value="outside">Outside</option><option value="inside">Inside</option><option value="on">On line</option></select></label>
           <label>Direction<select id="camDir"><option value="climb">Climb</option><option value="conv">Conventional</option></select></label>
           <label class="pocket-only" data-tip="Pocket stepover as % of tool diameter">Stepover %<input type="number" id="camStep" value="40" min="5" max="90" style="width:48px"></label>
           <label class="pocket-only" data-tip="Concentric offset rings or horizontal raster zig-zag">Clear style<select id="camPocketStyle"><option value="offset">Offset</option><option value="raster">Raster</option></select></label>
           <label class="pocket-only" data-tip="Descend via a helical arc instead of a straight plunge"><input type="checkbox" id="camHelixEntry">Helical entry</label>
           <label class="pocket-only" data-tip="Smaller finish tool &#216; &#8212; rest-machines the corners the main tool couldn't reach (0 = single tool)">Finish &#216;&quot;<input type="number" id="camFinishDia" value="0" step="0.03125" min="0" style="width:54px"></label>
           <label class="drill-only" data-tip="Peck depth per plunge (0 = single plunge)">Peck depth&quot;<input type="number" id="camPeck" value="0.1" step="0.05" min="0" style="width:54px"></label>
-          <label class="vcarve-only" data-tip="V-carve offset step (in) &#8212; smaller = smoother, more passes">V step&quot;<input type="number" id="camVStep" value="0.02" step="0.005" min="0.002" style="width:54px"></label>
+          <label data-ops="vcarve prism" data-tip="V-carve offset step (in) &#8212; smaller = smoother, more passes">V step&quot;<input type="number" id="camVStep" value="0.02" step="0.005" min="0.002" style="width:54px"></label>
           <label class="vcarve-only" data-tip="Flatten the groove bottom at this depth (0 = full sharp V)">Flat depth&quot;<input type="number" id="camVFlat" value="0" step="0.05" min="0" style="width:54px"></label>
           <label class="vcarve-only" data-tip="Flat endmill &#216; to rough-clear the flat interior first (0 = V-bit only)">Clear &#216;&quot;<input type="number" id="camVClearDia" value="0" step="0.03125" min="0" style="width:54px"></label>
 
+          <div class="grp" data-ops="chamfer engrave fluting prism moulding">Shape</div>
+          <label data-ops="chamfer" data-tip="Width of the bevel on the top face (sets the depth from the bit angle)">Chamfer width&quot;<input type="number" id="camChWidth" value="0.125" step="0.0625" min="0.001" style="width:54px"></label>
+          <label data-ops="chamfer" data-tip="Move the bit tip off the vector by this much, toward the Side (0 = tip on the edge)">Offset&quot;<input type="number" id="camChOffset" value="0" step="0.01" min="0" style="width:54px"></label>
+          <label data-ops="engrave" data-tip="Corners sharper than this get a tail that rises out of the corner to keep it crisp">Sharp &lt;&#176;<input type="number" id="camQeSharp" value="150" step="5" min="10" max="179" style="width:48px"></label>
+          <label data-ops="fluting" data-tip="Cutter shape for the flute">Tool type<select id="camFlTool"><option value="ball">Ball nose</option><option value="v">V-bit</option><option value="flat">Flat</option></select></label>
+          <label data-ops="fluting" data-tip="Which ends of the vector ramp from the surface to full depth">Ramp<select id="camFlRamp"><option value="both">Both ends</option><option value="start">Start</option><option value="end">End</option><option value="none">None</option></select></label>
+          <label data-ops="fluting" data-tip="Length of each ramp">Ramp length&quot;<input type="number" id="camFlRampLen" value="1" step="0.25" min="0" style="width:54px"></label>
+          <label data-ops="fluting" data-tip="Cosine ramp (eases in) instead of a straight taper"><input type="checkbox" id="camFlSmooth">Smooth</label>
+          <label data-ops="prism" data-tip="Cap the edge depth (0 = no cap; wide shapes cut deep)">Max depth&quot;<input type="number" id="camPrMax" value="0" step="0.05" min="0" style="width:54px"></label>
+          <label data-ops="moulding" data-tip="Where the rail sits on the profile">Rail at<select id="camMoAlign"><option value="center">Profile centre</option><option value="left">Profile left edge</option><option value="right">Profile right edge</option></select></label>
+          <label data-ops="moulding" data-tip="Ball-nose stepover across the profile, % of the diameter (smaller = smoother)">Stepover %<input type="number" id="camMoStep" value="10" min="1" max="90" style="width:48px"></label>
+          <div class="formhint" data-ops="moulding">Select the profile (drawn X = across, Y = height; highest point = surface) and the rail(s). The smallest selected vector is the profile.</div>
+          <div class="formhint" data-ops="prism">Closed shapes carve as raised roofs: a ridge along the centre at the surface, flanks at the bit angle.</div>
           <div class="grp inlay-only">Inlay fit</div>
           <label class="inlay-only" data-tip="Straight = pocket cavity + profiled plug. V-carve = tapered walls that wedge together.">Fit<select id="camInlayStyle"><option value="pocket">Straight</option><option value="vcarve">V-carve</option></select></label>
           <label class="inlay-only" data-tip="Which half to cut now">Part<select id="camInlayPart"><option value="both">Both</option><option value="female">Female (cavity)</option><option value="male">Male (plug)</option></select></label>
@@ -608,7 +628,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
           <label>Post processor<select id="camPost"><option value="shopsabre">ShopSabre</option><option value="generic">Generic</option></select></label>
           <label class="not-drill" data-tip="Fit G2/G3 arcs instead of polyline G1 moves"><input type="checkbox" id="camArcs" checked>Arcs G2/G3</label>
           <div class="cam-hint" id="camHint">Runs on the selected shapes, or all visible ones if nothing is selected.</div>
-          <select id="camOp" style="display:none"><option value="profile">Profile</option><option value="pocket">Pocket</option><option value="drill">Drill</option><option value="vcarve">V-Carve</option><option value="inlay">Inlay</option></select>
+          <select id="camOp" style="display:none"><option value="profile">Profile</option><option value="pocket">Pocket</option><option value="drill">Drill</option><option value="vcarve">V-Carve</option><option value="inlay">Inlay</option><option value="chamfer">Chamfer</option><option value="engrave">Quick Engrave</option><option value="fluting">Fluting</option><option value="prism">Prism</option><option value="moulding">Moulding</option></select>
         </div><div class="formfoot">
           <button class="tb" id="btnCamClear" data-tip="Hide the toolpath overlay">Clear</button>
           <button class="tb" id="btnCamExport" data-tip="Calculate and save this toolpath as .tap">&#10515; .tap</button>
@@ -632,7 +652,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
     <span><span class="v" id="zoomlbl"></span></span>
     <span id="msg" class="v"></span>
     <button class="tb" id="btnTheme" title="Switch to dark mode" style="margin-left:auto;font-size:10px;padding:1px 7px">☾ Dark</button>
-    <span class="ver" id="appVer" title="Build version">v0.3.0 · build 261025.0559</span>
+    <span class="ver" id="appVer" title="Build version">v0.3.0 · build 261025.0605</span>
   </div>
 </div>
 <div id="tip"></div>
@@ -8945,6 +8965,162 @@ function vcarveOp(contours, opts){
   return {ops,warnings};
 }
 
+// ======== decorative / edge toolpaths (VCarve: Chamfer, Quick Engrave, Fluting, Prism, Moulding) ========
+// Passes are constant-Z like every other op, except Quick Engrave and Fluting, whose paths change depth
+// along their length: those carry `z3d:true` and a z on every point, and the post emits 3D G1 moves.
+function _vHalf(angle){ return (Math.max(1,Math.min(179,angle||90))/2)*Math.PI/180; }
+function _vOp(kind,o,passes,tp,extra){ return Object.assign({kind,toolNum:o.toolNum,rpm:o.rpm,feed:o.feed,plunge:o.plunge,safeZ:o.safeZ,topZ:o.topZ,passes,toolProfile:tp},extra||{}); }
+// Depth levels for a total depth, at most passDepth apart (passDepth 0 = one pass at full depth).
+function _levels(depth, passDepth){ const out=[]; if(!(depth>0)) return out;
+  if(passDepth>0 && passDepth<depth-1e-9){ let d=passDepth; while(d<depth-1e-9){ out.push(d); d+=passDepth; } }
+  out.push(depth); return out; }
+// Clip a 3D path to a depth level: z never below -level (relative to topZ), so deep 3D cuts rough down in steps.
+function _clipZ(path, topZ, level){ return path.map(p=>({x:p.x,y:p.y,z:Math.max(p.z,topZ-level),tab:false})); }
+
+// Chamfer: a V-bit's tip runs on the vector (or offset off it) deep enough that the bit's flank cuts a
+// bevel `width` wide into the edge. depth = width / tan(half angle). Closed vectors bevel all round.
+function chamferOp(contours, opts){
+  const o=Object.assign({toolNum:3,toolDia:0.5,bitAngle:90,topZ:0,width:0.125,cutDepth:0,offset:0,side:'outside',passDepth:0,climb:false,safeZ:0.25,feed:80,plunge:25,rpm:18000},opts||{});
+  const half=_vHalf(o.bitAngle), t=Math.tan(half), warnings=[];
+  const depth=o.cutDepth>0?o.cutDepth:o.width/t;
+  if(depth*t>o.toolDia/2+1e-9) warnings.push('Chamfer wider than the bit ('+(2*depth*t).toFixed(3)+'" > Ø'+o.toolDia+'") — the bit shank will rub');
+  const paths=[];
+  for(const c of contours){ if(!c.pts||c.pts.length<2) continue;
+    const off=o.offset||0;
+    if(c.closed){ const loops=off? offsetLoop(c.pts, o.side==='inside'?-off:off) : [c.pts];
+      for(const lp of loops) if(lp.length>=3) paths.push({closed:true,pts:o.climb?ensureCW(lp):ensureCCW(lp)}); }
+    else { const run=off? offsetOpenPath(c.pts, o.side==='right'?-off:off) : c.pts; if(run.length>=2) paths.push({closed:false,pts:run}); } }
+  if(!paths.length) warnings.push('Chamfer needs vectors');
+  const passes=[];
+  for(const d of _levels(depth,o.passDepth)) for(const p of paths) passes.push({z:o.topZ-d,tabHeight:0,closed:p.closed,path:p.pts.map(q=>({x:q.x,y:q.y,tab:false}))});
+  return {ops:[_vOp('chamfer',o,passes,{type:'v',radius:Math.max(o.toolDia/2,depth*t),angle:o.bitAngle})],warnings,depth};
+}
+
+// Quick Engrave: a V-bit follows the vector at a set depth, and at every sharp corner runs out along the
+// outside bisector, rising to the surface, and back — so the outside of the turn comes out sharp instead
+// of rounded to the groove's half-width. The tail reaches D = (w/2)/sin(θ/2) from the corner (w = groove width).
+function quickEngraveOp(contours, opts){
+  const o=Object.assign({toolNum:3,toolDia:0.5,bitAngle:60,topZ:0,cutDepth:0.0625,passDepth:0,sharpAngle:150,safeZ:0.25,feed:80,plunge:25,rpm:18000},opts||{});
+  const half=_vHalf(o.bitAngle), t=Math.tan(half), d=o.cutDepth, hw=d*t, lim=o.sharpAngle*Math.PI/180, warnings=[];
+  const paths=[];
+  for(const c of contours){ const P=c.pts; if(!P||P.length<2) continue; const n=P.length, closed=!!c.closed&&n>=3;
+    const out=[];
+    for(let i=0;i<n;i++){ const p=P[i]; out.push({x:p.x,y:p.y,z:o.topZ-d});
+      if(!closed&&(i===0||i===n-1)) continue;
+      const a=P[(i-1+n)%n], b=P[(i+1)%n];
+      let ux=a.x-p.x, uy=a.y-p.y, vx=b.x-p.x, vy=b.y-p.y; const lu=Math.hypot(ux,uy), lv=Math.hypot(vx,vy); if(lu<1e-9||lv<1e-9) continue;
+      ux/=lu; uy/=lu; vx/=lv; vy/=lv;
+      const th=Math.acos(Math.max(-1,Math.min(1,ux*vx+uy*vy))); if(th>lim||th<1e-3) continue;
+      let bx=-(ux+vx), by=-(uy+vy); const lb=Math.hypot(bx,by); if(lb<1e-9) continue; bx/=lb; by/=lb;
+      const D=hw/Math.sin(th/2);
+      out.push({x:p.x+bx*D,y:p.y+by*D,z:o.topZ}); out.push({x:p.x,y:p.y,z:o.topZ-d}); }
+    if(closed) out.push({x:P[0].x,y:P[0].y,z:o.topZ-d});
+    paths.push(out); }
+  if(!paths.length) warnings.push('Quick Engrave needs vectors');
+  const passes=[];
+  for(const L of _levels(d,o.passDepth)) for(const p of paths) passes.push({z:o.topZ-L,z3d:true,tabHeight:0,closed:false,path:_clipZ(p,o.topZ,L)});
+  return {ops:[_vOp('engrave',o,passes,{type:'v',radius:Math.max(o.toolDia/2,hw),angle:o.bitAngle})],warnings};
+}
+
+// Fluting: a ball-nose (or V / flat) runs along each vector, ramping in from the surface and/or back out
+// over `rampLen` so the flute tapers to a point like a carved column flute. ramp: 'start' | 'end' | 'both' |
+// 'none'; smooth: cosine ramp instead of linear. A ramp longer than the vector allows is shortened to fit.
+function flutingOp(contours, opts){
+  const o=Object.assign({toolNum:1,toolDia:0.25,fluteTool:'ball',bitAngle:90,topZ:0,cutDepth:0.125,passDepth:0,ramp:'both',rampLen:1,smooth:false,safeZ:0.25,feed:100,plunge:30,rpm:18000},opts||{});
+  const warnings=[], paths=[];
+  for(const c of contours){ let P=c.pts; if(!P||P.length<2) continue; P=c.closed?P.concat([P[0]]):P;
+    // resample to <= 0.05" so the ramp is smooth, keeping every original vertex
+    const pts=[{x:P[0].x,y:P[0].y,s:0}]; let s=0;
+    for(let i=1;i<P.length;i++){ const a=P[i-1], b=P[i], L=Math.hypot(b.x-a.x,b.y-a.y), k=Math.max(1,Math.ceil(L/0.05));
+      for(let j=1;j<=k;j++){ pts.push({x:a.x+(b.x-a.x)*j/k,y:a.y+(b.y-a.y)*j/k,s:s+L*j/k}); } s+=L; }
+    const total=s; if(total<1e-6) continue;
+    const rs=(o.ramp==='start'||o.ramp==='both'), re=(o.ramp==='end'||o.ramp==='both');
+    let R=Math.max(0,o.rampLen); if(rs&&re&&2*R>total){ R=total/2; } else if((rs||re)&&R>total){ R=total; }
+    const f=x=>{ x=Math.max(0,Math.min(1,x)); return o.smooth?(1-Math.cos(Math.PI*x))/2:x; };
+    paths.push(pts.map(q=>{ let k=1; if(rs&&R>0) k=Math.min(k,f(q.s/R)); if(re&&R>0) k=Math.min(k,f((total-q.s)/R)); return {x:q.x,y:q.y,z:o.topZ-o.cutDepth*k}; })); }
+  if(!paths.length) warnings.push('Fluting needs vectors');
+  const passes=[];
+  for(const L of _levels(o.cutDepth,o.passDepth)) for(const p of paths) passes.push({z:o.topZ-L,z3d:true,tabHeight:0,closed:false,path:_clipZ(p,o.topZ,L)});
+  const tp=o.fluteTool==='v'?{type:'v',radius:o.toolDia/2,angle:o.bitAngle}:{type:o.fluteTool==='flat'?'flat':'ball',radius:o.toolDia/2};
+  return {ops:[_vOp('fluting',o,passes,tp)],warnings};
+}
+
+// Split a region into connected pieces (each outer loop with its own holes; islands inside holes are pieces too).
+function regionComponents(loops){
+  const c=new ClipperLib.Clipper();
+  for(const lp of loops) if(lp&&lp.length>=3) c.AddPath(toIntPath(lp), ClipperLib.PolyType.ptSubject, true);
+  const tree=new ClipperLib.PolyTree();
+  c.Execute(ClipperLib.ClipType.ctUnion, tree, ClipperLib.PolyFillType.pftEvenOdd, ClipperLib.PolyFillType.pftEvenOdd);
+  const out=[];
+  const walk=node=>{ for(const ch of node.Childs()){ if(ch.IsHole()) { walk(ch); continue; }
+      const comp=[ch.Contour()]; for(const h of ch.Childs()) { comp.push(h.Contour()); walk(h); } out.push(comp); } };
+  walk(tree); return out;
+}
+// Prism: the inverse of a V-carve. Each closed shape is carved as a raised roof — flanks at the V-bit's
+// angle rising to a ridge along the shape's centre line at the material surface, with the edges cut
+// deepest where the shape is widest. Rings inset d from the edge cut at (R - d)/tan(half), R = the piece's
+// largest inscribed radius; cut ridge-first (shallow to deep). maxDepth caps it (a flat band at the edge).
+function prismOp(contours, opts){
+  const o=Object.assign({toolNum:3,toolDia:0.5,bitAngle:90,topZ:0,maxDepth:0,step:0.02,climb:true,safeZ:0.25,feed:80,plunge:25,rpm:18000},opts||{});
+  const half=_vHalf(o.bitAngle), t=Math.tan(half), step=Math.max(0.002,o.step), warnings=[];
+  const loops=contours.filter(c=>c.closed&&c.pts&&c.pts.length>=3).map(c=>c.pts);
+  if(!loops.length){ warnings.push('Prism needs closed vectors'); return {ops:[_vOp('prism',o,[],{type:'v',radius:o.toolDia/2,angle:o.bitAngle},{keepOrder:true})],warnings}; }
+  const rings=[]; let deepest=0;
+  for(const comp of regionComponents(loops)){
+    const inset=d=>offsetRegion(comp,-d).filter(lp=>lp.length>=3);
+    let lo=0, hi=step; while(inset(hi).length) { lo=hi; hi*=2; if(hi>1e4) break; }
+    for(let i=0;i<30;i++){ const mid=(lo+hi)/2; if(inset(mid).length) lo=mid; else hi=mid; }
+    const R=lo; if(R<=0) continue;
+    for(let d=0; d<R; d+=step){ let depth=(R-d)/t; if(o.maxDepth>0) depth=Math.min(depth,o.maxDepth); if(depth<1e-4) continue;
+      for(const lp of (d===0?comp.map(fromIntPath):inset(d))) rings.push({depth,lp}); deepest=Math.max(deepest,depth); }
+  }
+  rings.sort((a,b)=>a.depth-b.depth);
+  const passes=rings.map(r=>({z:o.topZ-r.depth,tabHeight:0,closed:true,path:(o.climb?ensureCW(r.lp):ensureCCW(r.lp)).map(p=>({x:p.x,y:p.y,tab:false}))}));
+  if(deepest*t>o.toolDia/2+1e-9) warnings.push('Prism needs a cut '+deepest.toFixed(3)+'" deep — wider than the Ø'+o.toolDia+'" bit; set a Max depth or use a bigger bit');
+  return {ops:[_vOp('prism',o,passes,{type:'v',radius:Math.max(o.toolDia/2,deepest*t),angle:o.bitAngle},{keepOrder:true})],warnings,depth:deepest};
+}
+
+// Moulding: sweep a cross-section along one or more rails. The PROFILE is the selected vector with the
+// smallest extent (drawn in X = across the moulding, Y = height; its highest point is the material
+// surface); every other selected vector is a RAIL. A ball-nose steps across the profile; at each
+// position the rail is offset sideways and cut at the depth that keeps the ball from gouging the profile
+// anywhere it touches. align: 'center' | 'left' | 'right' — where the rail sits on the profile.
+function profileDepthFn(pts, closed){
+  const P=closed?pts.concat([pts[0]]):pts; let x0=Infinity,x1=-Infinity,yMax=-Infinity;
+  for(const p of P){ if(p.x<x0)x0=p.x; if(p.x>x1)x1=p.x; if(p.y>yMax)yMax=p.y; }
+  const at=x=>{ let best=-Infinity; for(let i=1;i<P.length;i++){ const a=P[i-1], b=P[i];
+      if((x<Math.min(a.x,b.x)-1e-12)||(x>Math.max(a.x,b.x)+1e-12)) continue;
+      const y=Math.abs(b.x-a.x)<1e-12?Math.max(a.y,b.y):a.y+(b.y-a.y)*(x-a.x)/(b.x-a.x); if(y>best) best=y; }
+    return best===-Infinity?0:best-yMax; };   // <= 0; 0 = the surface
+  return {x0,x1,at};
+}
+function mouldingOp(contours, opts){
+  const o=Object.assign({toolNum:1,toolDia:0.25,topZ:0,stepover:0.1,passDepth:0,align:'center',climb:false,safeZ:0.25,feed:120,plunge:30,rpm:18000},opts||{});
+  const warnings=[], cs=contours.filter(c=>c.pts&&c.pts.length>=2);
+  if(cs.length<2){ warnings.push('Moulding needs two or more vectors: the profile (smallest) and the rail(s)'); return {ops:[_vOp('moulding',o,[],{type:'ball',radius:o.toolDia/2})],warnings}; }
+  const ext=c=>{ const b=boundsOf([c.pts]); return Math.max(b.maxX-b.minX,b.maxY-b.minY); };
+  let pi=0; cs.forEach((c,i)=>{ if(ext(c)<ext(cs[pi])) pi=i; });
+  const prof=profileDepthFn(cs[pi].pts, cs[pi].closed), rails=cs.filter((c,i)=>i!==pi);
+  const r=o.toolDia/2, W=prof.x1-prof.x0, so=Math.max(0.001,(o.stepover>0&&o.stepover<1?o.stepover*o.toolDia:o.stepover||0.025));
+  const surf=x=>(x<prof.x0||x>prof.x1)?0:prof.at(x);
+  // ball-tip depth at x: the lowest the ball can sit without its sphere crossing the profile anywhere within r
+  const tipZ=x=>{ let z=-Infinity; const k=24; for(let j=-k;j<=k;j++){ const dx=r*j/k; z=Math.max(z, surf(x+dx)-r+Math.sqrt(Math.max(0,r*r-dx*dx))); } return Math.min(0,z); };
+  const ref=o.align==='left'?prof.x0:o.align==='right'?prof.x1:(prof.x0+prof.x1)/2;
+  const cols=[]; for(let x=prof.x0; x<=prof.x1+1e-9; x+=so) cols.push(x); if(cols[cols.length-1]<prof.x1-1e-6) cols.push(prof.x1);
+  const across=cols.map(x=>({off:x-ref, z:tipZ(x)})).filter(c=>c.z<-1e-4);
+  const depth=-Math.min(0,...across.map(c=>c.z));
+  const passes=[]; const lv=_levels(depth,o.passDepth);
+  lv.forEach((L,li)=>{ const prev=li?lv[li-1]:0;
+    for(const c of across){ if(-c.z<=prev+1e-9) continue; const z=o.topZ+Math.max(c.z,-L);
+      for(const rail of rails){
+        const runs = rail.closed ? offsetLoop(rail.pts, c.off).filter(lp=>lp.length>=3).map(lp=>({closed:true,pts:o.climb?ensureCW(lp):ensureCCW(lp)}))
+                                 : [offsetOpenPath(rail.pts, c.off)].filter(r=>r.length>=2).map(r=>({closed:false,pts:r}));
+        for(const run of runs) passes.push({z,tabHeight:0,closed:run.closed,path:run.pts.map(p=>({x:p.x,y:p.y,tab:false}))}); } } });
+  if(!passes.length) warnings.push('Profile has no depth — draw it with its top as the highest point');
+  if(so>o.toolDia) warnings.push('Stepover wider than the tool — ridges will be left');
+  return {ops:[_vOp('moulding',o,passes,{type:'ball',radius:r},{keepOrder:true})],warnings,depth,profileIndex:pi,width:W};
+}
+
 // ---- inlay: a matched pair of toolpaths — the female cavity and the male plug that drops into it ----
 // One design, two parts. FEMALE is the cavity machined into the base board; MALE is the plug machined
 // from the contrasting board, flipped over and glued in. The fit gap (`clearance`, per side) is machined
@@ -9047,13 +9223,15 @@ const TEMPLATE_FORMAT='aqtpl', TEMPLATE_VERSION=1;
 const TEMPLATE_PARAM_KEYS=['op','toolNum','toolDia','side','climb','cutDepth','passDepth','feed','plunge','rpm','topZ',
   'stepover','pocketStyle','rampEntry','finishDia','finishNum','peck','bitAngle','vstep','flatDepth','clearDia','clearNum',
   'leadType','leadLen','rampLen','tabs',
-  'style','part','clearance','clearanceOn','pocketDepth','maleDepth','startDepth','maleMargin','mirrorMale'];
+  'style','part','clearance','clearanceOn','pocketDepth','maleDepth','startDepth','maleMargin','mirrorMale',
+  'chWidth','chOffset','qeSharp','fluteTool','flRamp','flRampLen','flSmooth','prMax','moAlign','moStep'];
 const TEMPLATE_DEFAULT_PARAMS={op:'profile',toolNum:1,toolDia:0.25,side:'outside',climb:true,cutDepth:0.25,passDepth:0.125,
   feed:120,plunge:40,rpm:18000,topZ:0,stepover:0.4,pocketStyle:'offset',rampEntry:false,finishDia:0,finishNum:2,peck:0,
   bitAngle:90,vstep:0.02,flatDepth:0,clearDia:0,clearNum:2,leadType:'none',leadLen:0.25,rampLen:0,
   tabs:{count:0,length:0.4,height:0.1},
   style:'pocket',part:'both',clearance:0.005,clearanceOn:'female',pocketDepth:0.125,maleDepth:0.125,startDepth:0.02,
-  maleMargin:0.25,mirrorMale:true};
+  maleMargin:0.25,mirrorMale:true,
+  chWidth:0.125,chOffset:0,qeSharp:150,fluteTool:'ball',flRamp:'both',flRampLen:1,flSmooth:false,prMax:0,moAlign:'center',moStep:0.1};
 // Keep only known CAM params, filled out from the defaults, so every template entry is self-contained.
 function sanitizeTemplateParams(p){
   const src=p&&typeof p==='object'?p:{}, out={};
@@ -9218,11 +9396,11 @@ function fmtF(n,dp){return (Math.abs(n)<1e-9?0:n).toFixed(dp==null?4:dp);}
 function orderPasses(job, start){
   start = start || {x:0,y:0};
   const items=[];
-  (job.ops||[]).forEach((op,oi)=>(op.passes||[]).forEach((pass)=>{
+  (job.ops||[]).forEach((op,oi)=>{ if(op.keepOrder) return; (op.passes||[]).forEach((pass)=>{
     const src=(pass.path&&pass.path.length)?pass.path:((pass.pts&&pass.pts.length)?pass.pts:null);
     const sp=src?src[0]:{x:0,y:0};
     items.push({opIdx:oi, startPt:{x:sp.x||0,y:sp.y||0}, pass});
-  }));
+  }); });
   const n=items.length, visited=new Array(n).fill(false), tour=[];
   let cx=start.x, cy=start.y;
   for(let k=0;k<n;k++){
@@ -9234,7 +9412,7 @@ function orderPasses(job, start){
     visited[best]=true; tour.push(items[best]); cx=items[best].startPt.x; cy=items[best].startPt.y;
   }
   const newJob=Object.assign({},job);
-  newJob.ops=(job.ops||[]).map((op,oi)=>Object.assign({},op,{passes:tour.filter(it=>it.opIdx===oi).map(it=>it.pass)}));
+  newJob.ops=(job.ops||[]).map((op,oi)=>op.keepOrder?op:Object.assign({},op,{passes:tour.filter(it=>it.opIdx===oi).map(it=>it.pass)}));   // keepOrder: depth order matters (prism, moulding)
   return newJob;
 }
 
@@ -9277,7 +9455,12 @@ function postProcess(job, post){
           firstFeed=false; cur={x:m.x,y:m.y};
         }
       }
-      if(ramped){
+      if(pass.z3d){
+        // a path that changes depth along its length (quick engrave, fluting): 3D G1 moves, no arc fitting
+        L.push(`G1 ${Z(fmtNum(start.z!=null?start.z:cutZ,dp))} F${fmtF(op.plunge,P.feedDecimals)}`);
+        let ff=true; for(let i=1;i<pts.length;i++){ const p=pts[i], z=p.z!=null?p.z:cutZ;
+          L.push(`G1 ${X(p.x)} ${Y(p.y)} ${Z(fmtNum(z,dp))}${ff?` F${fmtF(op.feed,P.feedDecimals)}`:''}`); ff=false; }
+      } else if(ramped){
         const cs=pts[re+1];   // contour start (end of the lead-in)
         const ij=v=>(Math.abs(v)<1e-9?0:v).toFixed(dp);
         // if the lead-in points lie on one arc and the post supports helical, emit a helical G2/G3 with a Z word
@@ -9444,7 +9627,7 @@ function stockHeightAt(field, x, y) {
 
 return {SCALE,TOL,dist,signedArea,isCCW,ensureCCW,ensureCW,boundsOf,assembleContours,offsetLoop,offsetOpenPath,withTabs,linkRings,fitArcs,profileOp,pocketOp,drillOp,vcarveOp,inlayOp,centroid,defaultTools,upsertTool,removeTool,slugId,orderPasses,
   sanitizeTemplateParams,normalizeTemplate,templateFromQueue,applyTemplate,templateToJSON,templateFromJSON,
-  upsertTemplate,removeTemplate,defaultTemplates,TEMPLATE_VERSION,TEMPLATE_FORMAT,TEMPLATE_PARAM_KEYS,postProcess,POSTS,simulateStock,stockField,simKernel,carveSegment,stockHeightAt,estimateTime};
+  upsertTemplate,removeTemplate,defaultTemplates,TEMPLATE_VERSION,TEMPLATE_FORMAT,TEMPLATE_PARAM_KEYS,chamferOp,quickEngraveOp,flutingOp,prismOp,mouldingOp,regionComponents,profileDepthFn,postProcess,POSTS,simulateStock,stockField,simKernel,carveSegment,stockHeightAt,estimateTime};
 });
 
 </script>
@@ -16330,7 +16513,8 @@ const TOOLMSG={ select:'Click to select · drag to move · handles to scale/rota
 // Close (and Calculate / OK where it applies) at the bottom. Everything lives in one place.
 const TOOL_FORMS={rect:'rect',rrect:'rrect',circle:'circle',ellipse:'ellipse',polygon:'polygon',star:'star',text:'text',dim:'dim',fillet:'fillet'};
 const CAM_TITLES={profile:'Profile Toolpath',pocket:'Pocket Toolpath',drill:'Drilling Toolpath',
-  vcarve:'V-Carve / Engraving Toolpath',inlay:'Inlay Toolpath'};
+  vcarve:'V-Carve / Engraving Toolpath',inlay:'Inlay Toolpath',chamfer:'Chamfer Toolpath',engrave:'Quick Engrave Toolpath',
+  fluting:'Fluting Toolpath',prism:'Prism Carving Toolpath',moulding:'Moulding Toolpath'};
 const ORIGIN_LABEL={bl:'bottom-left',br:'bottom-right',tl:'top-left',tr:'top-right',center:'centre'};
 let cmdTab='drawing';
 // LEFT dock = Drawing / Clipart / Layers (tabs at the bottom, Aspire-style).
@@ -16502,7 +16686,7 @@ const ICON_COL={
   offset:'#b8501d',join:'#0f8a8a',weld:'#2f7d32',subtract:'#c0392b',intersect:'#1d6fb8',
   del:'#c0392b',validate:'#2f7d32',
   alignL:'#4a6a8a',alignHC:'#4a6a8a',alignR:'#4a6a8a',alignT:'#4a6a8a',alignVC:'#4a6a8a',alignB:'#4a6a8a',
-  profile:'#b8501d',pocket:'#1d6fb8',drill:'#2f7d32',vcarve:'#7b52c9',inlay:'#b8901d'
+  profile:'#b8501d',pocket:'#1d6fb8',drill:'#2f7d32',vcarve:'#7b52c9',inlay:'#b8901d',chamfer:'#7b52c9',engrave:'#7b52c9',fluting:'#1d6fb8',prism:'#7b52c9',moulding:'#b8501d'
 };
 // Accent hue per icon: elements marked stroke/fill="var(--a)" pick it up, so each glyph reads
 // as two tones instead of one flat colour.
@@ -16517,7 +16701,7 @@ const ICON_ACC={
   offset:'#1d6fb8',join:'#c9971d',weld:'#1d6fb8',subtract:'#c0392b',intersect:'#2f7d32',
   del:'#c0392b',validate:'#1d6fb8',
   alignL:'#1d6fb8',alignHC:'#1d6fb8',alignR:'#1d6fb8',alignT:'#1d6fb8',alignVC:'#1d6fb8',alignB:'#1d6fb8',
-  profile:'#1d6fb8',pocket:'#c9971d',drill:'#c0392b',vcarve:'#c9971d',inlay:'#2f7d32'
+  profile:'#1d6fb8',pocket:'#c9971d',drill:'#c0392b',vcarve:'#c9971d',inlay:'#2f7d32',chamfer:'#c9971d',engrave:'#c0392b',fluting:'#c9971d',prism:'#c9971d',moulding:'#2f7d32'
 };
 const ICON_SVG=(inner,name,size)=>'<svg viewBox="0 0 24 24" width="'+(size||28)+'" height="'+(size||28)+'" fill="none" '+
   'stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" '+
@@ -16549,6 +16733,11 @@ const ICONS={
   drill:   '<circle cx="12" cy="12" r="7.6" fill="currentColor" fill-opacity=".14"/><circle cx="12" cy="12" r="2.8" fill="var(--a)" stroke="none"/><path d="M12 1.8 V5 M12 19 V22.2 M1.8 12 H5 M19 12 H22.2" stroke="var(--a)"/>',
   vcarve:  '<path d="M2.6 7 V17 H21.4 V7 Z" fill="currentColor" fill-opacity=".16"/><path d="M7.4 7 L12 15.6 L16.6 7 Z" fill="var(--a)" fill-opacity=".55" stroke="var(--a)"/>',
   inlay:   '<path d="M2.8 18.4 V9 H8 L11 13.4 L14 9 H19.2 V18.4 Z" fill="currentColor" fill-opacity=".18"/><path d="M8 5.6 L11 1.6 L14 5.6 Z" fill="var(--a)" fill-opacity=".6" stroke="var(--a)"/>',
+  chamfer: '<path d="M2.6 20 V8.6 L6.2 5 H21.4 V20 Z" fill="currentColor" fill-opacity=".16"/><path d="M2.6 8.6 L6.2 5" stroke="var(--a)" stroke-width="2.4"/><path d="M8 2 L4.4 6.8 L9 7.2 Z" fill="var(--a)" fill-opacity=".6" stroke="var(--a)"/>',
+  engrave: '<path d="M3 17 L9 7 L15 17 L21 7" stroke="var(--a)" stroke-width="2.2"/><path d="M2.6 20.4 H21.4" stroke="currentColor"/>',
+  fluting: '<path d="M4 3 V21 M20 3 V21" stroke="currentColor"/><path d="M9 4.5 Q9 3 9.8 3 Q10.6 3 10.6 4.5 V19.5 Q10.6 21 9.8 21 Q9 21 9 19.5 Z M13.4 4.5 Q13.4 3 14.2 3 Q15 3 15 4.5 V19.5 Q15 21 14.2 21 Q13.4 21 13.4 19.5 Z" fill="var(--a)" fill-opacity=".5" stroke="var(--a)"/>',
+  prism:   '<path d="M2.6 19 H21.4" stroke="currentColor"/><path d="M4 19 L9 7 H15 L20 19 Z" fill="currentColor" fill-opacity=".14"/><path d="M4 19 L9 7 L12 13 L15 7 L20 19 M12 13 V19" stroke="var(--a)"/>',
+  moulding:'<path d="M2.6 19 V9 Q6 9 7 12 Q8.4 16 12 16 Q15.6 16 17 12 Q18 9 21.4 9 V19 Z" fill="currentColor" fill-opacity=".16"/><path d="M2.6 9 Q6 9 7 12 Q8.4 16 12 16 Q15.6 16 17 12 Q18 9 21.4 9" stroke="var(--a)" stroke-width="2"/>',
   // ---- command buttons (File Operations / View / Transform / Edit / Align / Layout) ----
   'new':     '<path d="M6 3.2 H14 L18.6 8 V20.8 H6 Z" fill="currentColor" fill-opacity=".12"/><path d="M14 3.2 V8 H18.6" stroke="var(--a)"/><path d="M9 13.4 H15.6 M12.3 10.1 V16.7" stroke="var(--a)"/>',
   'open':    '<path d="M2.8 18.6 V6.4 H9.4 L11.4 8.8 H17.6 V11"/><path d="M2.8 18.6 L6.2 11 H21.6 L18.2 18.6 Z" fill="var(--a)" fill-opacity=".28" stroke="var(--a)"/>',
@@ -17536,6 +17725,11 @@ function buildOpRes(p, contours){
     :(p.op==='drill')?CAM.drillOp(contours,p)
     :(p.op==='vcarve')?CAM.vcarveOp(contours,Object.assign({},p,{maxDepth:p.cutDepth,step:p.vstep}))
     :(p.op==='inlay')?CAM.inlayOp(contours,Object.assign({},p,{step:p.vstep}))
+    :(p.op==='chamfer')?CAM.chamferOp(contours,Object.assign({},p,{width:p.chWidth,offset:p.chOffset,cutDepth:0}))
+    :(p.op==='engrave')?CAM.quickEngraveOp(contours,Object.assign({},p,{sharpAngle:p.qeSharp}))
+    :(p.op==='fluting')?CAM.flutingOp(contours,Object.assign({},p,{ramp:p.flRamp,rampLen:p.flRampLen,smooth:p.flSmooth}))
+    :(p.op==='prism')?CAM.prismOp(contours,Object.assign({},p,{maxDepth:p.prMax,step:p.vstep}))
+    :(p.op==='moulding')?CAM.mouldingOp(contours,Object.assign({},p,{align:p.moAlign,stepover:p.moStep}))
     :CAM.profileOp(contours,p);
   for(const op of res.ops) op.clearZ=p.clearZ;   // vcarve flat-depth returns 2 ops (endmill + V-bit)
   return res;
@@ -17568,12 +17762,18 @@ function camParams(){ const g=id=>document.getElementById(id); const tabsN=parse
     startDepth:Math.abs(parseFloat(g('camInlayStartD')&&g('camInlayStartD').value)||0),
     maleMargin:Math.abs(parseFloat(g('camInlayMargin')&&g('camInlayMargin').value)||0.25),
     mirrorMale:!(g('camInlayMirror')&&!g('camInlayMirror').checked),
+    chWidth:Math.abs(parseFloat(g('camChWidth')&&g('camChWidth').value)||0.125), chOffset:Math.abs(parseFloat(g('camChOffset')&&g('camChOffset').value)||0),
+    qeSharp:parseFloat(g('camQeSharp')&&g('camQeSharp').value)||150,
+    fluteTool:(g('camFlTool')&&g('camFlTool').value)||'ball', flRamp:(g('camFlRamp')&&g('camFlRamp').value)||'both',
+    flRampLen:Math.abs(parseFloat(g('camFlRampLen')&&g('camFlRampLen').value)||0), flSmooth:!!(g('camFlSmooth')&&g('camFlSmooth').checked),
+    prMax:Math.abs(parseFloat(g('camPrMax')&&g('camPrMax').value)||0),
+    moAlign:(g('camMoAlign')&&g('camMoAlign').value)||'center', moStep:((parseFloat(g('camMoStep')&&g('camMoStep').value)||10)/100),
     tabs:{count:tabsN,length:parseFloat(g('camTabL').value)||0.4,height:parseFloat(g('camTabH').value)||0.1} }; }
 function camBuild(){ const contours=camContours(); const closedN=contours.filter(c=>c.closed).length; const p=camParams();
   const res=buildOpRes(p, contours);
   const post=Object.assign({},CAM.POSTS[document.getElementById('camPost').value]); post.arcs=(p.op!=='drill')&&document.getElementById('camArcs').checked;
   const label=p.op==='pocket'?'POCKET':p.op==='drill'?'DRILL':p.op==='vcarve'?'VCARVE'
-    :p.op==='inlay'?('INLAY '+p.style.toUpperCase()+' '+p.part.toUpperCase()):p.side.toUpperCase();
+    :p.op==='inlay'?('INLAY '+p.style.toUpperCase()+' '+p.part.toUpperCase()):p.op!=='profile'?p.op.toUpperCase():p.side.toUpperCase();
   const g=CAM.postProcess({name:'design - '+label,units:'inch',ops:res.ops},post); const arcN=(g.match(/^G[23] /gm)||[]).length;
   return {g,closedN,passes:res.ops.reduce((n,op)=>n+op.passes.length,0),warnings:res.warnings,arcN,op:p.op,points:res.points||null}; }
 function toolpathSegs(g){ // parse to segments for overlay (tracks Z so the backplot can shade by depth)
@@ -17607,6 +17807,9 @@ const _esc=s=>String(s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}
 function autoOpName(p){ p=p||{}; const op=p.op||'profile';
   if(op==='profile') return 'Profile '+String(p.side||'outside').replace(/^./,c=>c.toUpperCase());
   if(op==='inlay') return 'Inlay '+(p.style==='vcarve'?'V':'straight')+' · '+String(p.part||'both');
+  if(op==='engrave') return 'Quick Engrave';
+  if(op==='fluting') return 'Fluting'+(p.flRamp&&p.flRamp!=='none'?' · ramp '+p.flRamp:'');
+  if(op==='chamfer') return 'Chamfer '+(+(p.chWidth||0.125)).toFixed(3)+'"';
   return op.charAt(0).toUpperCase()+op.slice(1); }
 function autoLabel(p,ids,match){ return autoOpName(p)+' · T'+p.toolNum+' Ø'+p.toolDia+'" · '+((ids&&ids.length)?ids.length+' sel':'all')+(match?' (lib)':''); }
 function normalizeOp(q){ q=q||{}; return { p:q.p||{}, ids:Array.isArray(q.ids)?q.ids:[], name:q.name||q.label||autoOpName(q.p), label:q.label||'', visible:q.visible!==false }; }
@@ -17718,6 +17921,9 @@ function applyParamsToPanel(p){ if(!p)return; const g=id=>document.getElementByI
   set('camInlayStyle',p.style); set('camInlayPart',p.part); set('camInlayGap',p.clearance); set('camInlayGapOn',p.clearanceOn);
   set('camInlayPocketD',p.pocketDepth); set('camInlayMaleD',p.maleDepth); set('camInlayStartD',p.startDepth);
   set('camInlayMargin',p.maleMargin); if(p.op==='inlay')chk('camInlayMirror',p.mirrorMale);
+  set('camChWidth',p.chWidth); set('camChOffset',p.chOffset); set('camQeSharp',p.qeSharp); set('camFlTool',p.fluteTool); set('camFlRamp',p.flRamp);
+  set('camFlRampLen',p.flRampLen); if(p.flSmooth!=null)chk('camFlSmooth',p.flSmooth); set('camPrMax',p.prMax); set('camMoAlign',p.moAlign);
+  if(p.moStep!=null) set('camMoStep',Math.round(p.moStep*100));
   if(p.tabs){ set('camTabN',p.tabs.count); set('camTabL',p.tabs.length); set('camTabH',p.tabs.height); }
   const op=g('camOp'); if(op)op.dispatchEvent(new Event('change',{bubbles:true})); }
 function postJob(){ if(!opsQueue.length){ setMsg('Job queue empty — "Add op" first.'); return; }
@@ -18229,7 +18435,11 @@ function wire(){
     show('.vcarve-only', v==='vcarve');
     show('.inlay-only', v==='inlay');
     show('.profile-pocket', v==='profile'||v==='pocket');
-    show('.not-drill', v!=='drill'); };
+    show('.not-drill', v!=='drill');
+    // data-ops="a b c": shown for those ops ('fluting-v' = fluting with a V-bit)
+    const fv=v==='fluting'&&(document.getElementById('camFlTool')||{}).value==='v';
+    document.querySelectorAll('[data-ops]').forEach(el=>{ const ops=el.dataset.ops.split(/\s+/); el.style.display=(ops.indexOf(v)>=0||(fv&&ops.indexOf('fluting-v')>=0))?'':'none'; }); };
+  const flTool=document.getElementById('camFlTool'); if(flTool) flTool.addEventListener('change',()=>syncCamOp());
   if(camOp){ camOp.onchange=syncCamOp; syncCamOp(); }
   initCmdDock();
   // clipart library (D2)

@@ -307,7 +307,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
     <div class="menu" data-menu="toolpaths">Toolpaths<div class="mdrop">
       <button data-act="op:profile">Profile Toolpath…</button><button data-act="op:pocket">Pocket Toolpath…</button>
       <button data-act="op:drill">Drilling Toolpath…</button><button data-act="op:vcarve">V-Carve / Engraving…</button>
-      <button data-act="op:inlay">Inlay Toolpath…</button><div class="msep"></div>
+      <button data-act="op:inlay">Inlay Toolpath…</button><button data-act="op:chamfer">Chamfer Toolpath…</button><button data-act="op:engrave">Quick Engrave…</button><button data-act="op:fluting">Fluting Toolpath…</button><button data-act="op:prism">Prism Carving…</button><button data-act="op:moulding">Moulding Toolpath…</button><div class="msep"></div>
       <button data-act="recalc">Preview Visible Toolpaths</button><button data-act="post">Save Toolpaths…</button></div></div>
     <div class="menu" data-menu="view">View<div class="mdrop">
       <button data-act="v2d">2D View</button><button data-act="v3d">3D View</button><div class="msep"></div>
@@ -538,6 +538,13 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
             <button class="tool opbtn" data-op="inlay" data-tip="Inlay Toolpath" title="Inlay"><b>&#9707;</b></button>
           </div>
           <div class="iconrow" style="grid-template-columns:repeat(5,1fr)">
+            <button class="tool opbtn" data-op="chamfer" data-tip="Chamfer Toolpath &#8212; V-bit bevel along an edge" title="Chamfer"><b>&#9698;</b></button>
+            <button class="tool opbtn" data-op="engrave" data-tip="Quick Engrave &#8212; V-bit along vectors, sharp corners" title="Quick Engrave"><b>&#10002;</b></button>
+            <button class="tool opbtn" data-op="fluting" data-tip="Fluting Toolpath &#8212; ramped grooves" title="Fluting"><b>&#8741;</b></button>
+            <button class="tool opbtn" data-op="prism" data-tip="Prism Carving &#8212; raised bevelled shapes" title="Prism"><b>&#9650;</b></button>
+            <button class="tool opbtn" data-op="moulding" data-tip="Moulding Toolpath &#8212; sweep a profile along a rail" title="Moulding"><b>&#8766;</b></button>
+          </div>
+          <div class="iconrow" style="grid-template-columns:repeat(5,1fr)">
             <button class="tb" id="btnTplApply" data-tip="Apply the selected toolpath template">Tpl ▶</button>
             <button class="tb" id="btnTplSave" data-tip="Save the toolpath list as a template">Tpl +</button>
             <button class="tb" id="btnRecalcAll" data-tip="Recompute the backplot for every visible toolpath">Preview</button>
@@ -557,7 +564,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
       <div class="rpane" id="paneCamForm"><div class="tform" data-form="cam"><h4 id="camFormTitle">Profile Toolpath</h4><div class="tfbody">
           <div class="grp">Cutting depths</div>
           <label data-tip="Depth of the material surface (Z zero)">Start depth&quot;<input type="number" id="camTopZ" value="0" step="0.01" style="width:54px"></label>
-          <label>Cut depth&quot;<input type="number" id="camDepth" value="0.5" step="0.01" style="width:54px"></label>
+          <label data-ops="profile pocket drill vcarve inlay engrave fluting">Cut depth&quot;<input type="number" id="camDepth" value="0.5" step="0.01" style="width:54px"></label>
           <label data-tip="Maximum depth removed per pass">Pass depth&quot;<input type="number" id="camPass" value="0.25" step="0.01" style="width:54px"></label>
 
           <div class="grp">Tool</div>
@@ -569,20 +576,33 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
           <label>Feed<input type="number" id="camFeed" value="120" style="width:54px"></label>
           <label>Plunge<input type="number" id="camPlunge" value="40" style="width:50px"></label>
           <label>RPM<input type="number" id="camRpm" value="18000" style="width:62px"></label>
-          <label class="vcarve-only" data-tip="Included V-bit angle (deg)">V angle&#176;<input type="number" id="camVAngle" value="90" min="1" max="179" style="width:48px"></label>
+          <label data-ops="vcarve chamfer engrave prism fluting-v" data-tip="Included V-bit angle (deg)">V angle&#176;<input type="number" id="camVAngle" value="90" min="1" max="179" style="width:48px"></label>
 
           <div class="grp">Machine vectors</div>
-          <label class="profile-only">Side<select id="camSide"><option value="outside">Outside</option><option value="inside">Inside</option><option value="on">On line</option></select></label>
+          <label data-ops="profile chamfer">Side<select id="camSide"><option value="outside">Outside</option><option value="inside">Inside</option><option value="on">On line</option></select></label>
           <label>Direction<select id="camDir"><option value="climb">Climb</option><option value="conv">Conventional</option></select></label>
           <label class="pocket-only" data-tip="Pocket stepover as % of tool diameter">Stepover %<input type="number" id="camStep" value="40" min="5" max="90" style="width:48px"></label>
           <label class="pocket-only" data-tip="Concentric offset rings or horizontal raster zig-zag">Clear style<select id="camPocketStyle"><option value="offset">Offset</option><option value="raster">Raster</option></select></label>
           <label class="pocket-only" data-tip="Descend via a helical arc instead of a straight plunge"><input type="checkbox" id="camHelixEntry">Helical entry</label>
           <label class="pocket-only" data-tip="Smaller finish tool &#216; &#8212; rest-machines the corners the main tool couldn't reach (0 = single tool)">Finish &#216;&quot;<input type="number" id="camFinishDia" value="0" step="0.03125" min="0" style="width:54px"></label>
           <label class="drill-only" data-tip="Peck depth per plunge (0 = single plunge)">Peck depth&quot;<input type="number" id="camPeck" value="0.1" step="0.05" min="0" style="width:54px"></label>
-          <label class="vcarve-only" data-tip="V-carve offset step (in) &#8212; smaller = smoother, more passes">V step&quot;<input type="number" id="camVStep" value="0.02" step="0.005" min="0.002" style="width:54px"></label>
+          <label data-ops="vcarve prism" data-tip="V-carve offset step (in) &#8212; smaller = smoother, more passes">V step&quot;<input type="number" id="camVStep" value="0.02" step="0.005" min="0.002" style="width:54px"></label>
           <label class="vcarve-only" data-tip="Flatten the groove bottom at this depth (0 = full sharp V)">Flat depth&quot;<input type="number" id="camVFlat" value="0" step="0.05" min="0" style="width:54px"></label>
           <label class="vcarve-only" data-tip="Flat endmill &#216; to rough-clear the flat interior first (0 = V-bit only)">Clear &#216;&quot;<input type="number" id="camVClearDia" value="0" step="0.03125" min="0" style="width:54px"></label>
 
+          <div class="grp" data-ops="chamfer engrave fluting prism moulding">Shape</div>
+          <label data-ops="chamfer" data-tip="Width of the bevel on the top face (sets the depth from the bit angle)">Chamfer width&quot;<input type="number" id="camChWidth" value="0.125" step="0.0625" min="0.001" style="width:54px"></label>
+          <label data-ops="chamfer" data-tip="Move the bit tip off the vector by this much, toward the Side (0 = tip on the edge)">Offset&quot;<input type="number" id="camChOffset" value="0" step="0.01" min="0" style="width:54px"></label>
+          <label data-ops="engrave" data-tip="Corners sharper than this get a tail that rises out of the corner to keep it crisp">Sharp &lt;&#176;<input type="number" id="camQeSharp" value="150" step="5" min="10" max="179" style="width:48px"></label>
+          <label data-ops="fluting" data-tip="Cutter shape for the flute">Tool type<select id="camFlTool"><option value="ball">Ball nose</option><option value="v">V-bit</option><option value="flat">Flat</option></select></label>
+          <label data-ops="fluting" data-tip="Which ends of the vector ramp from the surface to full depth">Ramp<select id="camFlRamp"><option value="both">Both ends</option><option value="start">Start</option><option value="end">End</option><option value="none">None</option></select></label>
+          <label data-ops="fluting" data-tip="Length of each ramp">Ramp length&quot;<input type="number" id="camFlRampLen" value="1" step="0.25" min="0" style="width:54px"></label>
+          <label data-ops="fluting" data-tip="Cosine ramp (eases in) instead of a straight taper"><input type="checkbox" id="camFlSmooth">Smooth</label>
+          <label data-ops="prism" data-tip="Cap the edge depth (0 = no cap; wide shapes cut deep)">Max depth&quot;<input type="number" id="camPrMax" value="0" step="0.05" min="0" style="width:54px"></label>
+          <label data-ops="moulding" data-tip="Where the rail sits on the profile">Rail at<select id="camMoAlign"><option value="center">Profile centre</option><option value="left">Profile left edge</option><option value="right">Profile right edge</option></select></label>
+          <label data-ops="moulding" data-tip="Ball-nose stepover across the profile, % of the diameter (smaller = smoother)">Stepover %<input type="number" id="camMoStep" value="10" min="1" max="90" style="width:48px"></label>
+          <div class="formhint" data-ops="moulding">Select the profile (drawn X = across, Y = height; highest point = surface) and the rail(s). The smallest selected vector is the profile.</div>
+          <div class="formhint" data-ops="prism">Closed shapes carve as raised roofs: a ridge along the centre at the surface, flanks at the bit angle.</div>
           <div class="grp inlay-only">Inlay fit</div>
           <label class="inlay-only" data-tip="Straight = pocket cavity + profiled plug. V-carve = tapered walls that wedge together.">Fit<select id="camInlayStyle"><option value="pocket">Straight</option><option value="vcarve">V-carve</option></select></label>
           <label class="inlay-only" data-tip="Which half to cut now">Part<select id="camInlayPart"><option value="both">Both</option><option value="female">Female (cavity)</option><option value="male">Male (plug)</option></select></label>
@@ -608,7 +628,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
           <label>Post processor<select id="camPost"><option value="shopsabre">ShopSabre</option><option value="generic">Generic</option></select></label>
           <label class="not-drill" data-tip="Fit G2/G3 arcs instead of polyline G1 moves"><input type="checkbox" id="camArcs" checked>Arcs G2/G3</label>
           <div class="cam-hint" id="camHint">Runs on the selected shapes, or all visible ones if nothing is selected.</div>
-          <select id="camOp" style="display:none"><option value="profile">Profile</option><option value="pocket">Pocket</option><option value="drill">Drill</option><option value="vcarve">V-Carve</option><option value="inlay">Inlay</option></select>
+          <select id="camOp" style="display:none"><option value="profile">Profile</option><option value="pocket">Pocket</option><option value="drill">Drill</option><option value="vcarve">V-Carve</option><option value="inlay">Inlay</option><option value="chamfer">Chamfer</option><option value="engrave">Quick Engrave</option><option value="fluting">Fluting</option><option value="prism">Prism</option><option value="moulding">Moulding</option></select>
         </div><div class="formfoot">
           <button class="tb" id="btnCamClear" data-tip="Hide the toolpath overlay">Clear</button>
           <button class="tb" id="btnCamExport" data-tip="Calculate and save this toolpath as .tap">&#10515; .tap</button>
