@@ -116,9 +116,19 @@ The older `gcode-cadcam-260614.html` remains as the import-a-file → CAM/backpl
 | C6 | Toolpath templates | ✅ done |
 | D1 | Bitmap import + trace | ✅ done |
 | D2 | Clipart / shape library | ✅ done |
+| E1 | 3D view on the Product Viewer engine (three.js) + program playback with live carving, open .tap | ✅ done |
+| E2 | Group / Ungroup | ✅ done |
+| E3 | Dog-bone / T-bone corner relief | ✅ done |
+| E4 | Chamfer, Quick Engrave, Fluting, Prism, Moulding toolpaths | ✅ done |
+| E5 | Inches / millimetres (metric G21 posts) | ✅ done |
+| E6 | Merge toolpaths | ✅ done |
+| E7 | Fit Curves to Vectors | ✅ done |
+| E8 | Two-sided jobs | ✅ done |
+| E9 | Rotary (wrapped, A axis) jobs | ✅ done |
 
-All five remaining 2D parity tasks are complete. Next up is the 3D/Aspire work, which builds on the
-existing `simulateStock` heightfield.
+VCarve Pro parity is complete, apart from the Aspire 3D tier (STL import, 3D roughing / finishing,
+reliefs, textures). `gcodesim.js` (parser, timeline, carver; `gcsimtest.js`) and `view3d.js` (three.js
+view) are the playback pair. `glview.js` keeps the heightfield-mesh math and its tests.
 
 ---
 

@@ -677,7 +677,7 @@ body.dark .qrow.picked{background:#3a2a1c}
     <span><span class="v" id="zoomlbl"></span></span>
     <span id="msg" class="v"></span>
     <button class="tb" id="btnUnits" title="Units: inches / millimetres (the drawing is unchanged)" style="margin-left:auto;font-size:10px;padding:1px 7px">in</button><button class="tb" id="btnTheme" title="Switch to dark mode" style="font-size:10px;padding:1px 7px">☾ Dark</button>
-    <span class="ver" id="appVer" title="Build version">v0.3.0 · build 261025.0619</span>
+    <span class="ver" id="appVer" title="Build version">v0.4.0 · build 261025.0620</span>
   </div>
 </div>
 <div id="tip"></div>
@@ -16779,7 +16779,7 @@ const MENU_ACTIONS={
   'rulers':()=>{ setRulers(!rulers); syncViewMenu(); }, 'dark':()=>{ setTheme(!darkMode); syncViewMenu(); },
   'fit':()=>fitAll(), 'fitjob':()=>fitJob(),
   'keys':()=>{document.getElementById('keysModal').style.display='block';},
-  'selftest':()=>selfTest()
+  'selftest':()=>runSelfTest()
 };
 function syncViewMenu(){ const set=(act,on)=>{ const b=document.querySelector('.mdrop button[data-act="'+act+'"] .chk'); if(b) b.textContent=on?'✓':''; }; set('rulers',rulers); set('dark',darkMode); }
 function closeMenus(){ document.querySelectorAll('.menu.open').forEach(m=>m.classList.remove('open')); }

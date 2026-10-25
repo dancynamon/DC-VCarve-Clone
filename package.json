@@ -1,6 +1,6 @@
 {
   "name": "aquamentor-cadcam",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "Aquamentor 2D CAD/CAM \u2014 browser CAD editor + CAM (ShopSabre/WinCNC post).",
   "scripts": {

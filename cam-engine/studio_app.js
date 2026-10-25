@@ -428,7 +428,7 @@ const MENU_ACTIONS={
   'rulers':()=>{ setRulers(!rulers); syncViewMenu(); }, 'dark':()=>{ setTheme(!darkMode); syncViewMenu(); },
   'fit':()=>fitAll(), 'fitjob':()=>fitJob(),
   'keys':()=>{document.getElementById('keysModal').style.display='block';},
-  'selftest':()=>selfTest()
+  'selftest':()=>runSelfTest()
 };
 function syncViewMenu(){ const set=(act,on)=>{ const b=document.querySelector('.mdrop button[data-act="'+act+'"] .chk'); if(b) b.textContent=on?'✓':''; }; set('rulers',rulers); set('dark',darkMode); }
 function closeMenus(){ document.querySelectorAll('.menu.open').forEach(m=>m.classList.remove('open')); }
