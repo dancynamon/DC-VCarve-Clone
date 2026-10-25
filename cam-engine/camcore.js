@@ -1022,31 +1022,42 @@ function _simKernel(tool, R, res) {
   }
   return { rad: rad, size: size, off: off, mask: mask };
 }
-function simulateStock(o) {
-  const res = o.res || 0.05, x0 = o.x0 || 0, y0 = o.y0 || 0, w = o.w || 1, h = o.h || 1;
-  const thickness = o.thickness || 0.5, floor = -Math.abs(thickness);
-  const nx = Math.max(1, Math.ceil(w / res)), ny = Math.max(1, Math.ceil(h / res));
-  const z = new Float32Array(nx * ny);   // 0 = uncut top
-  for (const cut of (o.cuts || [])) {
-    const tool = cut.tool || { type: 'flat', radius: 0.125 };
-    const R = Math.max(res, tool.radius || 0.125);
-    const k = _simKernel(tool, R, res), rad = k.rad, size = k.size, off = k.off, mask = k.mask;
-    for (const s of (cut.segs || [])) {
-      if (s.z0 >= 0 && s.z1 >= 0) continue;                         // pure rapid above stock — no cut
-      const dx = s.x1 - s.x0, dy = s.y1 - s.y0, len = Math.hypot(dx, dy);
-      const n = Math.max(1, Math.ceil(len / (res * 0.8)));
-      for (let step = 0; step <= n; step++) {
-        const t = n ? step / n : 0, px = s.x0 + dx * t, py = s.y0 + dy * t, pz = s.z0 + (s.z1 - s.z0) * t;
-        if (pz >= 0) continue;
-        const ci = Math.floor((px - x0) / res), cj = Math.floor((py - y0) / res);
-        for (let dj = -rad; dj <= rad; dj++) { const jj = cj + dj; if (jj < 0 || jj >= ny) continue; const kr = (dj + rad) * size;
-          for (let di = -rad; di <= rad; di++) { const ii = ci + di; if (ii < 0 || ii >= nx) continue; const ki = kr + (di + rad); if (!mask[ki]) continue;
-            let surf = pz + off[ki]; if (surf < floor) surf = floor;
-            const zi = jj * nx + ii; if (surf < z[zi]) z[zi] = surf; } }
-      }
-    }
+// Stamp one straight move (x0,y0,z0)->(x1,y1,z1) of a tool kernel into a stock field (z = 0 uncut top, lower = cut).
+// Returns false when the move stays at or above the top. Shared by simulateStock and the 3D View's live carving.
+function carveSegment(f, k, x0, y0, z0, x1, y1, z1) {
+  if (z0 >= 0 && z1 >= 0) return false;                           // pure rapid above stock — no cut
+  const res = f.res, nx = f.nx, ny = f.ny, z = f.z, floor = f.floor;
+  const rad = k.rad, size = k.size, off = k.off, mask = k.mask;
+  const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy);
+  const n = Math.max(1, Math.ceil(len / (res * 0.8)));
+  for (let step = 0; step <= n; step++) {
+    const t = step / n, px = x0 + dx * t, py = y0 + dy * t, pz = z0 + (z1 - z0) * t;
+    if (pz >= 0) continue;
+    const ci = Math.floor((px - f.x0) / res), cj = Math.floor((py - f.y0) / res);
+    for (let dj = -rad; dj <= rad; dj++) { const jj = cj + dj; if (jj < 0 || jj >= ny) continue; const kr = (dj + rad) * size;
+      for (let di = -rad; di <= rad; di++) { const ii = ci + di; if (ii < 0 || ii >= nx) continue; const ki = kr + (di + rad); if (!mask[ki]) continue;
+        let surf = pz + off[ki]; if (surf < floor) surf = floor;
+        const zi = jj * nx + ii; if (surf < z[zi]) z[zi] = surf; } }
   }
-  return { nx: nx, ny: ny, res: res, x0: x0, y0: y0, w: w, h: h, thickness: thickness, floor: floor, z: z };
+  return true;
+}
+function stockField(o) {
+  const res = o.res || 0.05, x0 = o.x0 || 0, y0 = o.y0 || 0, w = o.w || 1, h = o.h || 1;
+  const thickness = o.thickness || 0.5;
+  const nx = Math.max(1, Math.ceil(w / res)), ny = Math.max(1, Math.ceil(h / res));
+  return { nx: nx, ny: ny, res: res, x0: x0, y0: y0, w: w, h: h, thickness: thickness, floor: -Math.abs(thickness), z: new Float32Array(nx * ny) };
+}
+function simKernel(tool, res) {
+  tool = tool || { type: 'flat', radius: 0.125 };
+  return _simKernel(tool, Math.max(res, tool.radius || 0.125), res);
+}
+function simulateStock(o) {
+  const f = stockField(o);
+  for (const cut of (o.cuts || [])) {
+    const k = simKernel(cut.tool, f.res);
+    for (const s of (cut.segs || [])) carveSegment(f, k, s.x0, s.y0, s.z0, s.x1, s.y1, s.z1);
+  }
+  return f;
 }
 // Estimate machining time (seconds) from backplot segments {x0,y0,z0,x1,y1,z1,rapid} and rates (in/min).
 // G0 rapids at `rapid`; pure Z-down moves at `plunge`; all other cutting moves at `feed`. 3D lengths.
@@ -1070,5 +1081,5 @@ function stockHeightAt(field, x, y) {
 
 return {SCALE,TOL,dist,signedArea,isCCW,ensureCCW,ensureCW,boundsOf,assembleContours,offsetLoop,offsetOpenPath,withTabs,linkRings,fitArcs,profileOp,pocketOp,drillOp,vcarveOp,inlayOp,centroid,defaultTools,upsertTool,removeTool,slugId,orderPasses,
   sanitizeTemplateParams,normalizeTemplate,templateFromQueue,applyTemplate,templateToJSON,templateFromJSON,
-  upsertTemplate,removeTemplate,defaultTemplates,TEMPLATE_VERSION,TEMPLATE_FORMAT,TEMPLATE_PARAM_KEYS,postProcess,POSTS,simulateStock,stockHeightAt,estimateTime};
+  upsertTemplate,removeTemplate,defaultTemplates,TEMPLATE_VERSION,TEMPLATE_FORMAT,TEMPLATE_PARAM_KEYS,postProcess,POSTS,simulateStock,stockField,simKernel,carveSegment,stockHeightAt,estimateTime};
 });

@@ -4,8 +4,26 @@
     {
       "name": "cadcam-studio",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8765", "--directory", "/Users/dancynamon/code/aquamentor-cadcam"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8765",
+        "--directory",
+        "/Users/dancynamon/code/aquamentor-cadcam"
+      ],
       "port": 8765
+    },
+    {
+      "name": "cadcam-worktree",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8766",
+        "--directory",
+        "/Users/dancynamon/code/aquamentor-cadcam/.claude/worktrees/vcarve-parity-check-7dfc9d"
+      ],
+      "port": 8766
     }
   ]
 }

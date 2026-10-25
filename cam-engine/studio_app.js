@@ -86,7 +86,7 @@ let darkMode=(function(){ try{ return localStorage.getItem('aqcam.theme')==='dar
 function setTheme(dark){ darkMode=!!dark; const T=darkMode?THEMES_DARK:THEMES_LIGHT; THEMES['2d']=T['2d']; THEMES.preview=T.preview;
   document.body.classList.toggle('dark', darkMode); try{ localStorage.setItem('aqcam.theme', darkMode?'dark':'light'); }catch(e){}
   const b=document.getElementById('btnTheme'); if(b){ b.textContent=darkMode?'☀ Light':'☾ Dark'; b.title=darkMode?'Switch to light mode':'Switch to dark mode'; }
-  if(gl3d){ const th=THEMES.preview; gl3d.setColors({ clear:hex3(th.gradBot), top:[th.stockTop[0]/255,th.stockTop[1]/255,th.stockTop[2]/255], deep:[th.stockDeep[0]/255,th.stockDeep[1]/255,th.stockDeep[2]/255] }); gl3d.draw(); }
+  v3Colors();
   render(); }
 function TH(){ return viewMode==='preview' ? THEMES.preview : THEMES['2d']; }
 // Layer colours were picked for a white ground; on the dark ground lift any colour too dark to read (keeps the hue).
@@ -158,7 +158,7 @@ function snapWorld(scr){
 // ---- rendering ----
 function resize(){ const r=cv.parentElement.getBoundingClientRect(); cv.width=r.width; cv.height=r.height;
   overlay.width=r.width; overlay.height=r.height;
-  if(gl3d){ gl3d.resize(); gl3d.draw(); } if(!view._init){ view.oy=cv.height-60; view._init=true; } render(); drawRulerMarks(lastScr); }
+  if(v3) v3.resize(); if(!view._init){ view.oy=cv.height-60; view._init=true; } render(); drawRulerMarks(lastScr); }
 function render(){
   const pv = viewMode==='preview';
   ctx.clearRect(0,0,cv.width,cv.height);
@@ -1272,114 +1272,183 @@ const AUTOSAVE_KEY='aqcam_autosave';
 let autosaveTimer=null;
 function projectJSON(metaName){ return CADCORE.projectToJSON(doc, job, opsQueue, {name:metaName||'aqcam job', savedAt:Date.now(), app:'Aquamentor CAD/CAM', view:viewMode}); }
 // ---- 2D Design / Preview view tabs ----
-// ---- 3D view (orbit / pan / zoom) ---------------------------------------------
-// The heightfield becomes a real solid in WebGL: drag to orbit, shift- or right-drag to pan,
-// wheel to zoom, double-click to reframe. Falls back to the flat top-down shading when the
-// browser has no usable WebGL, so the 3D tab always shows something.
-let gl3d = null, gl3dMesh = null, gl3dFail = false, gl3dSegs = [];
+// ---- 3D view: the Product Viewer engine (view3d.js, three.js) + program playback (gcodesim.js) ------------
+// What plays is a posted program: the visible toolpaths posted exactly as Save Toolpaths would, or a .tap opened
+// from disk. The stock is carved live as it plays, forwards or backwards (scrub), with the cutter riding the
+// current move and the running G-code line shown beside it. Left-drag pans, Option/Alt-drag (or middle / right
+// button) orbits, wheel zooms to the cursor, double-click reframes. Falls back to the flat top-down shading
+// when the browser has no WebGL2.
+let v3 = null, v3Fail = false;
+const PB = { prog:null, tl:null, carver:null, T:0, playing:false, last:0, raf:0, tools:{}, file:null, name:'', stockKey:'' };
+const PB_TOOLS_KEY='aqcam_tapTools';   // per-T tool shape for imported programs (shop tool numbers are stable)
+const TOOL_COLS=[[1,0.75,0.2],[0.2,0.85,0.55],[1,0.45,0.55],[0.45,0.75,1],[0.85,0.6,1],[1,0.95,0.4]];
 function hex3(h){ return [parseInt(h.slice(1,3),16)/255, parseInt(h.slice(3,5),16)/255, parseInt(h.slice(5,7),16)/255]; }
-function gl3dInit(){
-  if(gl3d || gl3dFail) return gl3d;
-  const c=document.getElementById('gl'); if(!c){ gl3dFail=true; return null; }
-  gl3d = (typeof GLVIEW!=='undefined') ? GLVIEW.createRenderer(c) : null;
-  if(!gl3d){ gl3dFail=true; setMsg('3D view: WebGL unavailable — falling back to the flat preview'); return null; }
-  const th=THEMES.preview;
-  gl3d.setColors({ clear:hex3(th.gradBot), top:[th.stockTop[0]/255,th.stockTop[1]/255,th.stockTop[2]/255],
-    deep:[th.stockDeep[0]/255,th.stockDeep[1]/255,th.stockDeep[2]/255] });
-  bindGL3D(c);
-  return gl3d;
+function v3Init(){
+  if(v3 || v3Fail) return v3;
+  const c=document.getElementById('gl'); if(!c){ v3Fail=true; return null; }
+  v3 = (typeof VIEW3D!=='undefined') ? VIEW3D.create(c) : null;
+  if(!v3){ v3Fail=true; setMsg('3D view: WebGL2 unavailable — falling back to the flat preview'); return null; }
+  v3Colors();
+  c.addEventListener('dblclick', e=>{ e.preventDefault(); v3.frame(); });
+  c.addEventListener('contextmenu', e=>e.preventDefault());
+  window.addEventListener('pointerup', ()=>c.classList.remove('orbit'));
+  return v3;
 }
-function gl3dShow(on){
+function v3Colors(){ if(!v3) return; const th=THEMES.preview;
+  v3.setColors({ top:th.stockTop, deep:th.stockDeep, side:th.stockTop.map(v=>v*0.78), floor:darkMode?[120,104,82]:[196,170,128],
+    background:'linear-gradient('+th.gradTop+','+th.gradBot+')' }); }
+function v3Show(on){
   const c=document.getElementById('gl'), h=document.getElementById('glHint');
   if(c) c.classList.toggle('on', !!on);
   if(h) h.classList.toggle('on', !!on);
+  document.querySelector('.stage').classList.toggle('playing3d', !!on);
+  if(v3) v3.setActive(!!on);
+  if(!on) pbPause();
 }
-function gl3dSetLines(segs){
-  if(!gl3d) return;
-  const show=document.getElementById('glLines');
-  if(show && !show.checked){ gl3d.setLines(null); return; }
-  const rapids=!!(document.getElementById('glRapids')||{}).checked;
-  const lift=Math.max(0.003,(job.thickness||0.5)*0.008);
-  gl3d.setLines(GLVIEW.buildToolpathLines(segs,{lift:lift,rapids:rapids,
-    cutColor:[1,0.82,0.29], rapidColor:[0.66,0.70,0.80]}));
-}
-function gl3dSetField(field){
-  if(!gl3dInit()) return false;
-  // keep the mesh under ~1.2M verts; decimate rather than choke on a fine sim
-  const step=Math.max(1, Math.ceil(Math.sqrt((field.nx*field.ny)/1200000)));
-  gl3dMesh=GLVIEW.buildHeightMesh(field,{step});
-  gl3d.setMesh(gl3dMesh, field.thickness);
-  gl3d.frameAll(); gl3d.resize(); gl3d.draw();
-  requestAnimationFrame(()=>{ if(gl3d){ gl3d.resize(); gl3d.draw(); } });   // after layout settles
-  return true;
-}
-function bindGL3D(c){
-  let drag=null;
-  const stop=e=>{ e.preventDefault(); e.stopPropagation(); };
-  c.addEventListener('contextmenu', e=>e.preventDefault());
-  c.addEventListener('mousedown', e=>{
-    stop(e); c.classList.add('drag');
-    // left-drag = pan (like the 2D view); Option/Alt-drag, middle or right button = orbit
-    drag={ x:e.clientX, y:e.clientY, pan:!(e.altKey||e.button===2||e.button===1) };
-    c.classList.toggle('orbit', !drag.pan);
-  });
-  c.addEventListener('mousemove', e=>{ if(!drag) c.classList.toggle('alt', !!e.altKey); });
-  window.addEventListener('mousemove', e=>{
-    if(!drag||!gl3d) return;
-    const dx=e.clientX-drag.x, dy=e.clientY-drag.y; drag.x=e.clientX; drag.y=e.clientY;
-    if(drag.pan){ const k=gl3d.cam.dist*0.00075; gl3d.pan(-dx*k, dy*k); }   // model follows the cursor
-    else gl3d.orbit(dx*0.008, dy*0.008);
-    gl3d.draw();
-  });
-  window.addEventListener('mouseup', ()=>{ drag=null; c.classList.remove('drag'); c.classList.remove('orbit'); });
-  c.addEventListener('wheel', e=>{ stop(e); if(!gl3d)return; gl3d.zoom(Math.exp(e.deltaY*0.0012)); gl3d.draw(); }, {passive:false});
-  c.addEventListener('dblclick', e=>{ stop(e); if(!gl3d)return; gl3d.frameAll(); gl3d.draw(); });
-}
-// Camera presets: Top = straight down (matches the 2D view), Iso = 3/4, Front = low front view.
-function gl3dPreset(which){ if(!gl3d) return; gl3d.frameAll();
-  if(which==='top'){ gl3d.cam.pitch=GLVIEW.PITCH_LIMIT; gl3d.cam.yaw=-Math.PI/2; }
-  else if(which==='front'){ gl3d.cam.pitch=0.22; gl3d.cam.yaw=-Math.PI/2; }
-  else { gl3d.cam.pitch=0.62; gl3d.cam.yaw=-Math.PI/2+0.55; }
-  gl3d.draw(); }
+function v3Preset(which){ if(v3) v3.preset(which); }
 function setView(mode){
   viewMode = (mode==='preview') ? 'preview' : '2d';
   document.querySelectorAll('.vtab').forEach(b=>b.classList.toggle('active', b.dataset.view===viewMode));
   const stage=document.querySelector('.stage'); if(stage)stage.classList.toggle('preview', viewMode==='preview');
   if(viewMode==='preview'){ const solid=document.getElementById('simSolid');
-    if(solid&&solid.checked) runSim(); else { gl3dShow(false); simField=null; recalcAll(); } }
-  else { gl3dShow(false); simField=null; render(); }
+    if(solid&&solid.checked) runSim(); else { v3Show(false); simField=null; recalcAll(); } }
+  else { v3Show(false); simField=null; render(); }
   drawRulerMarks(viewMode==='preview'?null:lastScr);
 }
-// Build the tool profile + cut segments for one toolpath, for the material sim.
-// One toolpath may post to multiple ops (vcarve flat-depth = endmill + V-bit) — build a sim cut per op.
-function simCutFor(q){
-  let res; try{ res=buildOpRes(q.p, contoursFromIds(q.ids)); }catch(e){ return []; }
-  const cuts=[];
-  for(const op of res.ops){ if(!op.passes||!op.passes.length)continue;
-    const post=Object.assign({},CAM.POSTS[document.getElementById('camPost').value]); post.arcs=(op.kind!=='drill')&&document.getElementById('camArcs').checked;
-    const g=CAM.postProcess({name:'tp',units:'inch',ops:[op]},post);
-    const tool = op.toolProfile || (q.p.op==='vcarve'?{type:'v',radius:(q.p.toolDia||0.25)/2,angle:q.p.bitAngle||90}:{type:'flat',radius:(q.p.toolDia||0.25)/2});
-    cuts.push({ tool, segs:toolpathSegs(g) }); }
-  return cuts;
+// Post every visible toolpath (or all of them) as one program, in the order Save Toolpaths uses.
+// tools: T number -> cutter {type, radius, angle} for the sim and the 3D cutter model.
+function buildJobProgram(visibleOnly){
+  const allOps=[], dpts=[], tools={}; let warns=[];
+  for(const q of opsQueue){ if(visibleOnly && q.visible===false) continue;
+    let res; try{ res=buildOpRes(q.p, contoursFromIds(q.ids)); }catch(e){ warns.push(String(e.message||e)); continue; }
+    for(const op of res.ops){ if(!op.passes||!op.passes.length) continue; allOps.push(op);
+      if(!tools[op.toolNum]) tools[op.toolNum] = op.toolProfile || (q.p.op==='vcarve'?{type:'v',radius:(q.p.toolDia||0.25)/2,angle:q.p.bitAngle||90}:{type:'flat',radius:(q.p.toolDia||0.25)/2}); }
+    if(res.points)dpts.push(...res.points);
+    if(res.warnings) warns=warns.concat(res.warnings); }
+  if(!allOps.length) return { g:'', allOps, dpts, tools, warns };
+  const post=Object.assign({},CAM.POSTS[document.getElementById('camPost').value]); post.arcs=document.getElementById('camArcs').checked;
+  const ordered=CAM.orderPasses({name:'job - '+allOps.length+' ops',units:'inch',ops:allOps});   // nearest-neighbor sort to cut rapids
+  return { g:CAM.postProcess(ordered,post), allOps, dpts, tools, warns };
 }
-// Run the material-removal sim over every visible toolpath and shade the result.
+function pbToolOverrides(){ try{ return JSON.parse(localStorage.getItem(PB_TOOLS_KEY)||'{}')||{}; }catch(e){ return {}; } }
+function pbToolFor(t){ return PB.tools[t] || GCSIM.toolForNumber(tools, t, pbToolOverrides()); }
+// Run the material-removal sim for the 3D view and show it at the end of the program.
 let simBusy=false;
 function runSim(){ simBusy=true; try{ runSimInner(); } finally{ simBusy=false; } }
 function runSimInner(){
-  const r=jobRect(); const w=r.x1-r.x0, h=r.y1-r.y0;
+  pbPause();
+  let g, name, note='';
+  if(PB.file){ g=PB.file.text; name=PB.file.name; PB.tools={}; }
+  else { const jp=buildJobProgram(true); g=jp.g; name='visible toolpaths'; PB.tools=jp.tools; if(jp.warns.length) note=' · WARN: '+jp.warns[0]; }
+  const prog=GCSIM.parseGcode(g||''); PB.prog=prog; PB.name=name;
+  PB.tl=GCSIM.timeline(prog, parseFloat((document.getElementById('pbRapid')||{}).value)||300);
+  // stock: the job's material; an imported program that cuts outside it gets a block grown to fit
+  const r=jobRect(); let x0=r.x0, y0=r.y0, x1=r.x1, y1=r.y1, th=job.thickness||0.5; const b=prog.bounds;
+  if(PB.file && b.cutX0<=b.cutX1){
+    if(b.cutX0<x0||b.cutY0<y0||b.cutX1>x1||b.cutY1>y1){ x0=Math.min(x0,Math.floor(b.cutX0-0.5)); y0=Math.min(y0,Math.floor(b.cutY0-0.5)); x1=Math.max(x1,Math.ceil(b.cutX1+0.5)); y1=Math.max(y1,Math.ceil(b.cutY1+0.5)); note+=' · cuts run outside the job — stock grown to fit'; }
+    if(-b.z0>th+1e-6){ th=-b.z0; note+=' · cuts '+(-b.z0).toFixed(3)+'" deep — stock thickened to match'; }
+  }
   const res=parseFloat((document.getElementById('simRes')||{}).value)||0.05;
-  const cuts=[]; for(const q of opsQueue){ if(q.visible===false)continue; for(const c of simCutFor(q)) cuts.push(c); }
-  const field=CAM.simulateStock({ x0:r.x0, y0:r.y0, w, h, thickness:job.thickness||0.5, res, cuts });
-  const has3d=!!gl3dInit();
-  gl3dShow(has3d);                      // must be visible before we size the viewport
-  const solid3d=has3d && gl3dSetField(field);
-  if(solid3d){ gl3dSegs=cuts.reduce((a,c)=>a.concat(c.segs||[]),[]); gl3dSetLines(gl3dSegs); gl3d.draw(); }
-  if(!solid3d) gl3dShow(false);
-  simField = solid3d ? null : shadeHeightfield(field, r);
+  PB.carver=new GCSIM.Carver(CAM, prog, { x0, y0, w:x1-x0, h:y1-y0, thickness:th, res }, pbToolFor);
+  PB.carver.seek(prog.n, 0); PB.carver.takeDirty(); PB.T=PB.tl.total;
+  const has3d=!!v3Init();
+  v3Show(has3d);                      // must be visible before we size the viewport
+  if(has3d){
+    const stockKey=[x0,y0,x1,y1,th,res].join();
+    const info=v3.setStock(PB.carver.field); v3.resize();
+    if(stockKey!==PB.stockKey){ v3.frame(); PB.stockKey=stockKey; }
+    const toolIdx={}; prog.tools.forEach((t,i)=>toolIdx[t]=i);
+    v3.setPaths(prog,{ lift:Math.max(0.003,th*0.004), colorOf:t=>TOOL_COLS[(toolIdx[t]||0)%TOOL_COLS.length],
+      cuts:document.getElementById('glLines').checked, rapids:document.getElementById('glRapids').checked });
+    v3.setGhost(document.getElementById('pbGhost').checked); v3.setToolVisible(document.getElementById('pbTool').checked);
+    simField=null; pbUI(); pbSet(PB.T, true);
+    setMsg('3D: '+name+' · '+prog.n.toLocaleString()+' moves · '+PB.carver.field.nx+'×'+PB.carver.field.ny+' cells @ '+res+'"'
+      +' · '+info.vertices.toLocaleString()+' verts · '+pbFmt(PB.tl.total)+' run time'+note);
+  } else {
+    simField=shadeHeightfield(PB.carver.field, { x0, y0, x1, y1 });
+    setMsg('3D sim: '+name+' · '+PB.carver.field.nx+'×'+PB.carver.field.ny+' cells @ '+res+'"'+note);
+  }
   render();
-  setMsg('3D sim: '+cuts.length+' toolpath(s) · '+field.nx+'×'+field.ny+' cells @ '+res+'"'
-    + (solid3d ? ' · '+gl3dMesh.vertexCount.toLocaleString()+' verts — drag = pan · Option/Alt-drag = orbit · wheel = zoom' : ''));
 }
+// ---- playback ----
+const pbFmt=m=>{ const s=Math.round(m*60); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
+function pbSet(T, quiet){
+  const p=PB.prog, tl=PB.tl; if(!p||!PB.carver) return;
+  PB.T=Math.max(0,Math.min(tl.total,T));
+  const at=GCSIM.locate(tl, p.n, PB.T);
+  PB.carver.seek(at.i, at.u);
+  if(PB.carver.takeDirty() && v3) v3.stockChanged();
+  const i=Math.min(at.i, p.n-1), pt=GCSIM.pointAt(p, at.i, at.u);
+  if(v3) v3.setProgress(at.i, pt, i>=0?pbToolFor(p.tool[i]):null);
+  const prog=document.getElementById('pbProg'); if(prog && document.activeElement!==prog) prog.value=tl.total>0?Math.round(1000*PB.T/tl.total):1000;
+  document.getElementById('pbTime').textContent=pbFmt(PB.T)+' / '+pbFmt(tl.total);
+  pbReadout(i, pt);
+}
+function pbReadout(i, pt){
+  const p=PB.prog, el=document.getElementById('pbNow'); if(!el) return;
+  if(!p||!p.n||i<0){ el.innerHTML='<b>No moves</b> — add a toolpath, or open a .tap'; pbSource(0); return; }
+  const k=p.kind[i], t=p.tool[i], tl=pbToolFor(t), z=pt[2];
+  const kind=k===GCSIM.RAPID?'Rapid G0':k===GCSIM.PLUNGE?'Plunge G1':'Cut';
+  const shape=tl.type==='v'?(tl.angle||90)+'° V':tl.type==='ball'?'ball':'flat';
+  el.innerHTML='<b>'+kind+'</b> · line '+p.line[i]+'<br>T'+t+' · Ø'+(+(2*tl.radius).toFixed(4))+'" '+shape
+    +'<br>S '+(p.rpm[i]?p.rpm[i].toLocaleString()+' rpm':'off')+' · F '+(k===GCSIM.RAPID?'rapid':p.feed[i]+' ipm')
+    +'<br>X '+pt[0].toFixed(4)+' Y '+pt[1].toFixed(4)+' Z '+z.toFixed(4)
+    +'<br><span class="muted">'+(z<0?(-z).toFixed(3)+'" deep':z.toFixed(3)+'" above top')+'</span>';
+  pbSource(p.line[i]);
+}
+function pbSource(line){
+  const pre=document.getElementById('pbSrc'); if(!pre||!pre.classList.contains('on')) return;
+  const src=(PB.prog&&PB.prog.src)||[]; const a=Math.max(0,line-6), b=Math.min(src.length,line+6); let h='';
+  for(let k=a;k<b;k++){ const t=_esc(String(k+1).padStart(6)+'  '+src[k]); h+=(k+1===line)?'<b>'+t+'</b>':t+'\n'; }
+  pre.innerHTML=h;
+}
+function pbTick(ts){
+  PB.raf=0; if(!PB.playing) return;
+  const dt=PB.last?(ts-PB.last)/1000:0; PB.last=ts;
+  const T=PB.T+dt*pbSpeed()/60;
+  if(T>=PB.tl.total){ pbSet(PB.tl.total); pbPause(); return; }
+  pbSet(T); PB.raf=requestAnimationFrame(pbTick);
+}
+function pbSpeed(){ const v=(document.getElementById('pbSpeed')||{}).value; return v==='auto' ? Math.max(1, PB.tl.total*60/30) : (parseFloat(v)||1); }
+function pbPlay(){ if(!PB.prog||!PB.prog.n) return;
+  if(PB.T>=PB.tl.total-1e-9) pbSet(0);
+  PB.playing=true; PB.last=0; document.getElementById('pbPlay').textContent='❚❚ Pause'; if(!PB.raf) PB.raf=requestAnimationFrame(pbTick); }
+function pbPause(){ PB.playing=false; const b=document.getElementById('pbPlay'); if(b) b.textContent='▶ Play'; }
+// Jump to the previous / next move that starts a cut after a rapid (a new contour), or a tool change.
+function pbStep(dir){ const p=PB.prog; if(!p||!p.n) return; pbPause();
+  let i=GCSIM.locate(PB.tl,p.n,PB.T).i; if(i>=p.n) i=p.n-1;
+  const isStart=k=>k>0 && p.kind[k]!==GCSIM.RAPID && (p.kind[k-1]===GCSIM.RAPID || p.tool[k]!==p.tool[k-1]);
+  let k=i+dir; while(k>0 && k<p.n && !isStart(k)) k+=dir;
+  k=Math.max(0,Math.min(p.n-1,k)); pbSet(PB.tl.t0[k]+1e-9); }
+// Tool table: for an imported program each T number's cutter can be set (remembered per T); a studio job shows its own.
+function pbUI(){
+  const nm=document.getElementById('pbName'); if(nm) nm.textContent=PB.file?PB.file.name:'Visible toolpaths';
+  const cx=document.getElementById('pbClose'); if(cx) cx.style.display=PB.file?'':'none';
+  const tb=document.getElementById('pbTools'); if(!tb) return; const p=PB.prog; tb.innerHTML='';
+  if(!p||!p.tools.length){ tb.innerHTML='<div class="muted">No tools</div>'; return; }
+  const ov=pbToolOverrides(), toolIdx={}; p.tools.forEach((t,i)=>toolIdx[t]=i);
+  for(const t of p.tools){ const tl=pbToolFor(t), c=TOOL_COLS[toolIdx[t]%TOOL_COLS.length].map(v=>Math.round(v*255));
+    const row=document.createElement('div'); row.className='pbtool';
+    row.innerHTML='<span class="sw" style="background:rgb('+c.join(',')+')"></span><b>T'+t+'</b>';
+    if(PB.file){
+      row.innerHTML+='<select data-t="'+t+'" data-k="type"><option value="flat">Flat</option><option value="ball">Ball</option><option value="v">V-bit</option></select>'
+        +'<label>Ø<input type="number" data-t="'+t+'" data-k="dia" step="0.0625" min="0.01" value="'+(+(2*tl.radius).toFixed(4))+'" style="width:58px"></label>'
+        +'<label class="pbang">∠<input type="number" data-t="'+t+'" data-k="angle" step="15" min="10" max="170" value="'+(tl.angle||90)+'" style="width:44px"></label>';
+      row.querySelector('select').value=tl.type||'flat';
+    } else row.innerHTML+='<span class="muted">Ø'+(+(2*tl.radius).toFixed(4))+'" '+(tl.type==='v'?(tl.angle||90)+'° V-bit':tl.type==='ball'?'ball':'flat')+'</span>';
+    tb.appendChild(row); }
+  tb.querySelectorAll('[data-t]').forEach(el=>el.onchange=()=>{ const t=el.dataset.t, o=pbToolOverrides(), cur=pbToolFor(+t);
+    o[t]=Object.assign({type:cur.type,dia:2*cur.radius,angle:cur.angle||90},o[t]||{});
+    o[t][el.dataset.k]=el.dataset.k==='type'?el.value:(parseFloat(el.value)||o[t][el.dataset.k]);
+    try{ localStorage.setItem(PB_TOOLS_KEY, JSON.stringify(o)); }catch(e){}
+    const T=PB.T; runSim(); pbSet(T); });
+}
+// Open a posted program (.tap / .nc / .gcode): it plays in the 3D view and backplots in the 2D view.
+function openProgram(name, text){
+  PB.file={ name, text }; lastGcode=text; toolpaths=toolpathSegs(text); drillMarks=null;
+  setView('preview'); if(PB.prog&&PB.prog.warnings.length) setMsg('Opened '+name+' · WARN: '+PB.prog.warnings[0]);
+}
+function closeProgram(){ PB.file=null; toolpaths=null; if(viewMode==='preview') runSim(); else render(); setMsg('Closed the program — the 3D view shows the visible toolpaths'); }
 // Shade the heightfield into an offscreen canvas: wood-tone depth ramp + directional hillshade for a carved look.
 function shadeHeightfield(field, r){
   const {nx,ny,z,res}=field; let maxD=1e-4; for(let i=0;i<z.length;i++){ const d=-z[i]; if(d>maxD)maxD=d; }
@@ -1428,10 +1497,11 @@ function handleOpenedFile(f, handle){ const rd=new FileReader();
   else if(/\.aqtpl$/i.test(f.name)){ rd.onload=ev=>importTplText(ev.target.result); rd.readAsText(f); }
   else if(/\.aqclip$/i.test(f.name)){ rd.onload=ev=>importClipText(ev.target.result); rd.readAsText(f); }
   else if(/\.pdf$/i.test(f.name)){ rd.onload=ev=>importPDF(f.name,ev.target.result); rd.readAsArrayBuffer(f); }
+  else if(/\.(tap|nc|ngc|gcode|cnc)$/i.test(f.name)){ rd.onload=ev=>openProgram(f.name,ev.target.result); rd.readAsText(f); }
   else { rd.onload=ev=>importText(f.name,ev.target.result); rd.readAsText(f); } }
 // Open: native picker when available (keeps the handle so Save writes back); falls back to the <input type=file>.
 async function openProjectDialog(){ const fi=document.getElementById('fileInput'); if(!window.showOpenFilePicker){ fi.click(); return; }
-  let hs; try{ hs=await window.showOpenFilePicker({ multiple:false, types:[{ description:'Job, template, clipart, vector or bitmap', accept:{ 'application/json':['.aqcam','.aqtpl','.aqclip'], 'image/vnd.dxf':['.dxf'], 'image/svg+xml':['.svg'], 'application/pdf':['.pdf'], 'image/*':['.png','.jpg','.jpeg','.gif','.bmp','.webp'] } }] }); }
+  let hs; try{ hs=await window.showOpenFilePicker({ multiple:false, types:[{ description:'Job, template, clipart, vector or bitmap', accept:{ 'application/json':['.aqcam','.aqtpl','.aqclip'], 'image/vnd.dxf':['.dxf'], 'image/svg+xml':['.svg'], 'application/pdf':['.pdf'], 'text/plain':['.tap','.nc','.ngc','.gcode','.cnc'], 'image/*':['.png','.jpg','.jpeg','.gif','.bmp','.webp'] } }] }); }
   catch(err){ if(!(err&&err.name==='AbortError')) fi.click(); return; }
   const h=hs[0]; handleOpenedFile(await h.getFile(), /\.aqcam$/i.test(h.name)?h:null); }
 function applyProject(proj, srcName){
@@ -1635,15 +1705,8 @@ function postJob(){ if(!opsQueue.length){ setMsg('Job queue empty — "Add op" f
   const byTool={}; const addTool=(t,d)=>{ (byTool[t]=byTool[t]||[]); if(byTool[t].indexOf(d)<0) byTool[t].push(d); };
   for(const q of opsQueue){ addTool(q.p.toolNum, q.p.toolDia); if(q.p.op==='vcarve'&&q.p.clearDia>0) addTool(q.p.clearNum, q.p.clearDia); }
   for(const t in byTool){ if(byTool[t].length>1){ setMsg('T'+t+' used with Ø'+byTool[t].join(' and Ø')+' — fix tool numbers'); return; } }
-  const allOps=[], dpts=[]; let warns=[];
-  for(const q of opsQueue){ const res=buildOpRes(q.p, contoursFromIds(q.ids));
-    for(const op of res.ops){ if(op.passes.length) allOps.push(op); }   // vcarve flat-depth adds its endmill op too
-    if(res.points)dpts.push(...res.points);
-    if(res.warnings) warns=warns.concat(res.warnings); }
+  const jp=buildJobProgram(false), allOps=jp.allOps, dpts=jp.dpts, warns=jp.warns, g=jp.g;
   if(!allOps.length){ setMsg('Job produced no cuttable passes.'); return; }
-  const post=Object.assign({},CAM.POSTS[document.getElementById('camPost').value]); post.arcs=document.getElementById('camArcs').checked;
-  const ordered=CAM.orderPasses({name:'job - '+allOps.length+' ops',units:'inch',ops:allOps});   // nearest-neighbor sort to cut rapids
-  const g=CAM.postProcess(ordered,post);
   lastGcode=g; toolpaths=toolpathSegs(g); drillMarks=dpts.length?dpts:null; if(dpts.length)drillDia=0.25;
   render(); download('job.tap', g);
   const arcN=(g.match(/^G[23] /gm)||[]).length, tools=allOps.map(o=>'T'+o.toolNum).join('→');
@@ -2109,7 +2172,7 @@ function wire(){
   const simSolid=document.getElementById('simSolid'), simRes=document.getElementById('simRes');
   if(simSolid)simSolid.onchange=()=>{ if(viewMode==='preview') setView('preview'); };
   ['glLines','glRapids'].forEach(id=>{ const el=document.getElementById(id);
-    if(el) el.onchange=()=>{ if(gl3d){ gl3dSetLines(gl3dSegs); gl3d.draw(); } }; });
+    if(el) el.onchange=()=>{ if(v3) v3.setPathVisibility(document.getElementById('glLines').checked, document.getElementById('glRapids').checked); }; });
   if(simRes)simRes.onchange=()=>{ if(viewMode==='preview'&&simSolid&&simSolid.checked) runSim(); };
   initCollapsibles();
   const on=(id,fn)=>{const el=document.getElementById(id); if(el)el.onclick=fn;};
@@ -2193,7 +2256,16 @@ function wire(){
   const ra=document.getElementById('rotAngle'); if(ra) ra.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); applyRotateModal(); } else if(e.key==='Escape'){ e.preventDefault(); closeRotateModal(); } });
   document.querySelectorAll('#rotModal .rq').forEach(b=>{ b.onclick=()=>{ document.getElementById('rotAngle').value=b.dataset.deg; previewRotateModal(); }; });
   // 3D view presets + help search
-  on('simTop',()=>gl3dPreset('top')); on('simIso',()=>gl3dPreset('iso')); on('simFront',()=>gl3dPreset('front'));
+  on('simTop',()=>v3Preset('top')); on('simIso',()=>v3Preset('iso')); on('simFront',()=>v3Preset('front'));
+  // playback bar
+  on('pbPlay',()=>{ PB.playing?pbPause():pbPlay(); }); on('pbStart',()=>{ pbPause(); pbSet(0); }); on('pbEnd',()=>{ pbPause(); if(PB.tl) pbSet(PB.tl.total); });
+  on('pbPrev',()=>pbStep(-1)); on('pbNext',()=>pbStep(1)); on('pbClose',closeProgram);
+  on('pbSrcBtn',()=>{ const pre=document.getElementById('pbSrc'); pre.classList.toggle('on'); document.getElementById('pbSrcBtn').classList.toggle('active',pre.classList.contains('on')); if(PB.prog) pbSet(PB.T); });
+  on('pbToolsBtn',()=>{ const t=document.getElementById('pbToolsBox'); t.classList.toggle('on'); document.getElementById('pbToolsBtn').classList.toggle('active',t.classList.contains('on')); });
+  const pbProg=document.getElementById('pbProg'); if(pbProg) pbProg.oninput=()=>{ pbPause(); if(PB.tl) pbSet(PB.tl.total*(+pbProg.value)/1000); };
+  const pbChk=(id,fn)=>{ const el=document.getElementById(id); if(el) el.onchange=()=>fn(el.checked); };
+  pbChk('pbGhost',v=>{ if(v3) v3.setGhost(v); }); pbChk('pbTool',v=>{ if(v3) v3.setToolVisible(v); });
+  const pbRapid=document.getElementById('pbRapid'); if(pbRapid) pbRapid.onchange=()=>{ if(PB.prog){ const f=PB.tl.total?PB.T/PB.tl.total:1; PB.tl=GCSIM.timeline(PB.prog,parseFloat(pbRapid.value)||300); pbSet(f*PB.tl.total); } };
   initHelpSearch();
   on('btnTheme',()=>{ setTheme(!darkMode); syncViewMenu(); });
   setTheme(darkMode); document.body.classList.toggle('rulers', rulers); syncViewMenu();
@@ -2250,4 +2322,4 @@ wire(); initCalcFields(); initTips(); resize(); setTool('select'); syncPanels();
 window.AQ_STUDIO = { doc, get sel(){return sel;}, get view(){return viewMode;}, CADCORE, CAM, importText, importPDF, openProject, saveProject, saveProjectAs, projectJSON, setView, camBuild, setTool, addShapes, render,
   opCopy, opCut, opPaste, get clip(){return clip;}, createFromForm, openShapeModal, applyShapeModal, closeShapeModal, setModalAnchor, setRotAnchor, get anchor(){return modalAnchor;}, get rotAnchor(){return rotAnchor;},
   openRotateModal, applyRotateModal, addLayer, moveSelToLayer, get grid(){return grid;}, selectedShapes, get projectFile(){return projectFile;},
-  get gl3d(){return gl3d;}, setTheme, setRulers, get darkMode(){return darkMode;}, get rulers(){return rulers;}, gl3dPreset, get simField(){return simField;}, openHelpSearch, helpSearchRun, showForm, runSim, recalcAll, get opsQueue(){return opsQueue;} };
+  get v3(){return v3;}, get playback(){return PB;}, pbSet, pbPlay, pbPause, openProgram, closeProgram, buildJobProgram, setTheme, setRulers, get darkMode(){return darkMode;}, get rulers(){return rulers;}, v3Preset, get simField(){return simField;}, openHelpSearch, helpSearchRun, showForm, runSim, recalcAll, get opsQueue(){return opsQueue;} };

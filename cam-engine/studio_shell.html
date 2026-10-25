@@ -91,6 +91,31 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 #gl{position:absolute;inset:0;width:100%;height:100%;display:none;cursor:grab}
 #gl.on{display:block}
 #gl.drag{cursor:grabbing}
+#gl.orbit{cursor:alias}
+.playbar,.pbnow,.pbsrc,.pbtoolsbox{display:none}
+.stage.playing3d .playbar{display:flex}.stage.playing3d .pbnow{display:block}
+.stage.playing3d .pbsrc.on{display:block}.stage.playing3d .pbtoolsbox.on{display:block}
+.playbar{position:absolute;left:10px;right:10px;bottom:10px;z-index:24;align-items:center;gap:6px;flex-wrap:wrap;background:var(--bg-card);border:1px solid var(--bd);border-radius:8px;padding:5px 8px;box-shadow:0 2px 10px rgba(20,40,70,.22);font-size:10px;color:var(--ink-dim)}
+.playbar .tb{font-size:10px;padding:3px 7px}
+.playbar .tb.primary{background:linear-gradient(var(--accent-bright),#178a54);border-color:var(--accent-bd);color:#fff;min-width:66px}
+.playbar .tb.active{background:var(--accent-soft);border-color:var(--accent-bd);color:var(--accent)}
+.playbar input[type=range]{flex:1;min-width:120px;accent-color:var(--accent)}
+.playbar label{display:flex;align-items:center;gap:3px;text-transform:uppercase;letter-spacing:.3px}
+.playbar select{background:var(--bg-input);border:1px solid var(--btn-bd);color:var(--ink);border-radius:3px;font-family:inherit;font-size:10px}
+.pbtime{font-variant-numeric:tabular-nums;color:var(--ink);min-width:82px;text-align:center}
+.pbname{color:var(--ink);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pbnow{position:absolute;left:10px;top:40px;z-index:22;background:var(--bg-card);border:1px solid var(--bd);border-radius:6px;padding:6px 9px;font-size:10.5px;line-height:1.5;color:var(--ink);box-shadow:0 2px 8px rgba(20,40,70,.18);font-variant-numeric:tabular-nums;pointer-events:none}
+.pbnow b{color:var(--accent)}
+.pbsrc{position:absolute;right:10px;bottom:56px;z-index:22;max-width:46%;margin:0;background:var(--bg-card);border:1px solid var(--bd);border-radius:6px;padding:6px 8px;font-size:10px;line-height:1.45;color:var(--ink-dim);white-space:pre;overflow:hidden;box-shadow:0 2px 8px rgba(20,40,70,.18)}
+.pbsrc b{display:block;background:var(--accent-soft);color:var(--ink)}
+.pbtoolsbox{position:absolute;left:10px;bottom:56px;z-index:23;background:var(--bg-card);border:1px solid var(--bd);border-radius:6px;padding:7px 9px;font-size:10px;color:var(--ink);box-shadow:0 2px 8px rgba(20,40,70,.18);max-height:50%;overflow:auto}
+.pbtoolsbox .pbh{font-weight:700;margin-bottom:5px}
+.pbtoolsbox label{display:flex;align-items:center;gap:3px;color:var(--ink-dim);margin-top:5px}
+.pbtool{display:flex;align-items:center;gap:6px;margin:3px 0}
+.pbtool .sw{width:10px;height:10px;border-radius:2px;display:inline-block}
+.pbtool label{margin:0}
+.pbtoolsbox input,.pbtoolsbox select{background:var(--bg-input);border:1px solid var(--btn-bd);color:var(--ink);border-radius:3px;font-family:inherit;font-size:10px;padding:2px 3px}
+.stage.playing3d .glhint.on{display:none}
 .glhint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:22;display:none;background:rgba(22,36,60,.82);color:#dce8f7;border-radius:5px;padding:4px 10px;font-size:10px;letter-spacing:.2px;pointer-events:none}
 .stage.preview .glhint.on{display:block}
 .viewtabs{position:absolute;top:0;left:0;z-index:20;display:flex;gap:2px;background:var(--bg-card);border:1px solid var(--bd);border-radius:0 0 6px 0;padding:2px;box-shadow:0 2px 8px rgba(20,40,70,.18)}
@@ -293,7 +318,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
       <div class="msep"></div>
       <button data-act="keys">Keyboard Shortcuts</button><button data-act="selftest">Run Self-test</button>
       <div class="hver" id="helpVer"></div></div></div>
-    <input type="file" id="fileInput" accept=".aqcam,.aqtpl,.aqclip,.dxf,.svg,.pdf,.png,.jpg,.jpeg,.gif,.bmp,.webp" style="display:none">
+    <input type="file" id="fileInput" accept=".aqcam,.aqtpl,.aqclip,.dxf,.svg,.pdf,.png,.jpg,.jpeg,.gif,.bmp,.webp,.tap,.nc,.ngc,.gcode,.cnc" style="display:none">
     
     
     
@@ -467,9 +492,25 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
   </div>
 
 <div class="stage"><div class="viewtabs"><button class="vtab active" data-view="2d" data-tip="Edit vectors">2D View</button><button class="vtab" data-view="preview" data-tip="Machining preview of all visible toolpaths">3D View</button></div>
-    <div class="simctrl" id="simCtrl"><button class="tb" id="simTop" data-tip="Straight-down view (matches 2D)">Top</button><button class="tb" id="simIso" data-tip="3/4 view">Iso</button><button class="tb" id="simFront" data-tip="Low front view">Front</button><span class="sep"></span><label data-tip="Left-drag = pan &#183; Option/Alt-drag (or middle / right button) = orbit &#183; wheel = zoom &#183; double-click = reframe">Alt-drag = orbit</label></div>
+    <div class="simctrl" id="simCtrl"><button class="tb" id="simTop" data-tip="Straight-down view (matches 2D)">Top</button><button class="tb" id="simIso" data-tip="3/4 view">Iso</button><button class="tb" id="simFront" data-tip="Low front view">Front</button><span class="sep"></span><label data-tip="Left-drag = pan &#183; Option/Alt-drag (or middle / right button) = orbit &#183; wheel = zoom to cursor &#183; double-click = reframe">Drag = pan · Alt-drag = orbit · Wheel = zoom</label></div>
     <div class="restorebar" id="restoreBar"><span id="restoreMsg">Restore last session?</span><button class="tb" id="restoreYes">Restore</button><button class="tb" id="restoreNo">Dismiss</button></div>
-    <canvas id="cv"></canvas><canvas id="gl"></canvas><canvas id="hud"></canvas><div class="glhint" id="glHint">drag to pan · Option/Alt-drag (or middle / right button) to orbit · wheel to zoom · double-click to reset</div></div>
+    <canvas id="cv"></canvas><canvas id="gl"></canvas><canvas id="hud"></canvas><div class="glhint" id="glHint">drag to pan · Option/Alt-drag (or middle / right button) to orbit · wheel to zoom · double-click to reset</div>
+    <div class="pbnow" id="pbNow"></div>
+    <pre class="pbsrc" id="pbSrc"></pre>
+    <div class="pbtoolsbox" id="pbToolsBox"><div class="pbh">Tools <span class="muted">— cutter shape for the sim</span></div><div id="pbTools"></div>
+      <label data-tip="Rapid (G0) traverse rate used for the run-time estimate">Rapid ipm<input type="number" id="pbRapid" value="300" step="50" min="10" style="width:58px"></label></div>
+    <div class="playbar" id="playBar">
+      <button class="tb" id="pbStart" data-tip="Back to the start (empty block)">&#9198;</button><button class="tb" id="pbPrev" data-tip="Previous contour / tool change">&#9664;&#9664;</button>
+      <button class="tb primary" id="pbPlay" data-tip="Play the program — the block is carved as the cutter moves">&#9654; Play</button>
+      <button class="tb" id="pbNext" data-tip="Next contour / tool change">&#9654;&#9654;</button><button class="tb" id="pbEnd" data-tip="Jump to the end (finished part)">&#9197;</button>
+      <input type="range" id="pbProg" min="0" max="1000" value="1000" data-tip="Scrub through the program">
+      <span class="pbtime" id="pbTime">0:00 / 0:00</span>
+      <label data-tip="Playback speed, times real machine time (Auto plays the whole program in about 30 s)">Speed<select id="pbSpeed"><option value="auto" selected>Auto</option><option value="1">1&#215;</option><option value="5">5&#215;</option><option value="10">10&#215;</option><option value="25">25&#215;</option><option value="50">50&#215;</option><option value="100">100&#215;</option><option value="250">250&#215;</option><option value="1000">1000&#215;</option></select></label>
+      <label data-tip="Show the cutter"><input type="checkbox" id="pbTool" checked>Cutter</label>
+      <label data-tip="See-through stock, to watch toolpaths inside the material"><input type="checkbox" id="pbGhost">Ghost</label>
+      <button class="tb" id="pbSrcBtn" data-tip="Show the G-code around the running line">G-code</button><button class="tb" id="pbToolsBtn" data-tip="Tools in this program (set the cutter for an imported .tap)">Tools</button>
+      <span class="pbname" id="pbName"></span><button class="tb" id="pbClose" data-tip="Close the opened program and show the visible toolpaths again">&#10005;</button>
+    </div></div>
 
   <div class="rdock">
     <div class="dockhead"><span id="rdockTitle">Toolpaths</span><span class="pin">▣</span></div>
