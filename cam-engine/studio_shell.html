@@ -160,6 +160,7 @@ input.calc.bad{border-color:#d33 !important;background:#fff0f0 !important;color:
 .clipcell.armed{background:var(--accent-soft);border-color:var(--accent-bd)}
 .clipcell span{font-size:8.5px;color:var(--ink-dim);line-height:1.1;text-align:center;word-break:break-word}
 .clipcell svg{display:block}
+.fil-bone,.fil-tb{display:none}
 .pocket-only,.drill-only,.vcarve-only,.inlay-only,.profile-pocket{display:none}
 /* shape properties modal */
 .modal-bg{position:fixed;inset:0;background:rgba(20,30,45,0.35);display:none;z-index:200}
@@ -300,7 +301,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
       <button data-act="cut">Cut<span class="k">⌘/Ctrl+X</span></button><button data-act="copy">Copy<span class="k">⌘/Ctrl+C</span></button><button data-act="paste">Paste<span class="k">⌘/Ctrl+V</span></button><div class="msep"></div>
       <button data-act="selall">Select All<span class="k">Ctrl+A</span></button><button data-act="editdims">Edit Dimensions…<span class="k">dbl-click</span></button>
       <button data-act="rotate">Rotate…<span class="k">angle · pivot</span></button>
-      <button data-act="dup">Duplicate</button><button data-act="del">Delete<span class="k">Del</span></button><div class="msep"></div>
+      <button data-act="group">Group<span class="k">⌘/Ctrl+G</span></button><button data-act="ungroup">Ungroup<span class="k">⌘/Ctrl+Shift+G</span></button><button data-act="dup">Duplicate</button><button data-act="del">Delete<span class="k">Del</span></button><div class="msep"></div>
       <button data-act="createnum">Create Shape by Numbers<span class="k">Enter</span></button>
       <div class="msep"></div><button data-act="check">Vector Validator</button></div></div>
     <div class="menu" data-menu="toolpaths">Toolpaths<div class="mdrop">
@@ -351,6 +352,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
           
         </div><div class="secgrp"><h3>Edit Objects</h3><div class="iconrow"><button class="tool" data-tool="node" data-tip="Node edit &#8212; drag points, dbl-click add/remove (N)" title="Node edit (N)"><b>&#11049;</b><span class="tlabel">Nodes</span></button><button class="tool" data-tool="fillet" data-tip="Fillet &#8212; click a corner to round it" title="Fillet"><b>&#9693;</b><span class="tlabel">Fillet</span></button><button class="tool" data-tool="trim" data-tip="Trim &#8212; click the dangling part of an open vector" title="Trim"><b>&#9986;</b><span class="tlabel">Trim</span></button><button class="tool" data-tool="extend" data-tip="Extend &#8212; stretch an open vector to the next one ahead" title="Extend"><b>&#8866;</b><span class="tlabel">Extend</span></button></div>
           
+          <button class="tb" id="btnGroup" data-tip="Group the selection (Cmd/Ctrl+G) &#8212; picks, moves and copies as one">Group</button><button class="tb" id="btnUngroup" data-tip="Ungroup (Cmd/Ctrl+Shift+G)">Ungroup</button>
           <button class="tb" id="btnJoin" data-tip="Join touching vectors into contours">Join</button>
           <button class="tb" id="btnUnion" data-tip="Weld &#8212; merge into one (union)">Weld &#8746;</button>
           <button class="tb" id="btnDiff" data-tip="Subtract later shapes from first">Subtract</button>
@@ -464,9 +466,15 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
           <div class="formhint">Click the two measured points, then click to place the dimension line. Radius / diameter: centre then edge. Angle: vertex, ray, ray, radius. Dimensions are annotations and are never machined.</div>
         </div><div class="formfoot"><button class="tb" data-formclose="1">Close</button></div></div>
 
-        <div class="tform" data-form="fillet"><h4>Fillet Corner</h4><div class="tfbody">
-          <label data-tip="Radius applied to the clicked corner">Radius&quot;<input type="number" id="filletR" value="0.25" step="0.05" min="0" style="width:56px"></label>
-          <div class="formhint">Click a vector corner to round it. The radius is clamped to the shorter of the two edges.</div>
+        <div class="tform" data-form="fillet"><h4>Fillet / Dog-bone</h4><div class="tfbody">
+          <label data-tip="Fillet rounds the corner; Dog-bone and T-bone cut a relief notch so a square part seats in a corner a round tool cannot reach">Type<select id="filletMode"><option value="fillet">Fillet (round)</option><option value="dogbone">Dog-bone</option><option value="tbone">T-bone</option></select></label>
+          <label class="fil-r" data-tip="Radius applied to the clicked corner">Radius&quot;<input type="number" id="filletR" value="0.25" step="0.05" min="0" style="width:56px"></label>
+          <label class="fil-bone" data-tip="Diameter of the tool that will cut the corner &#8212; the notch is sized to it">Tool &#216;&quot;<input type="number" id="filletTool" value="0.25" step="0.0625" min="0.01" style="width:56px"></label>
+          <label class="fil-tb" data-tip="T-bone: which edge the tool runs straight along into the corner (the notch goes into the other edge)">Run along<select id="filletTEdge"><option value="long">Longer edge</option><option value="short">Shorter edge</option></select></label>
+          <div class="grp">All corners of the selection</div>
+          <label data-tip="Convex = corners of holes, slots and mortises (inside cuts). Concave = inside corners of parts (outside cuts)">Corners<select id="filletWhich"><option value="convex">Convex (holes, slots)</option><option value="concave">Concave (parts)</option><option value="all">All</option></select></label>
+          <button class="tb" id="btnFilletAll" data-tip="Apply to every sharp corner of the selected vectors (curves are skipped)">Apply to selection</button>
+          <div class="formhint" id="filletHint">Click a vector corner to treat it, or pick corners of the whole selection.</div>
         </div><div class="formfoot"><button class="tb" data-formclose="1">Close</button></div></div>
 
         <div class="tform" data-form="nest"><h4>Nesting</h4><div class="tfbody">
@@ -705,6 +713,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
         <tr><td>Hold Ctrl</td><td>No object snap either (fully free)</td></tr>
         <tr><td>Arrow keys</td><td>Nudge selection 0.001" &#183; Shift 0.1" &#183; Alt/Option 0.0001"</td></tr>
         <tr><td>Cmd/Ctrl+C · X · V</td><td>Copy · Cut · Paste shapes (paste in place; repeated pastes step 0.5")</td></tr>
+        <tr><td>Cmd/Ctrl+G · Shift+G</td><td>Group · Ungroup the selection</td></tr>
         <tr><td>Ctrl+A</td><td>Select all</td></tr>
         <tr><td>Ctrl+S / Ctrl+Shift+S</td><td>Save / Save As… (Chrome/Edge: real save dialog, Save writes back to the file)</td></tr>
         <tr><td>Ctrl+O</td><td>Open / Import…</td></tr>

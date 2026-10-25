@@ -417,5 +417,43 @@ ok('grid: base step at mid zoom', C.gridStepFor(0.5,25,10)===0.5);
 ok('grid: reaches 0.0001 at deep zoom', close(C.gridStepFor(0.5,100000,10),0.0001,1e-12) && close(C.gridStepFor(0.5,1e7,10),0.0001,1e-12));
 ok('q4: 0.0001 lattice', C.q4(1.23456)===1.2346 && C.q4(-0.00001)===0 && C.q4(17.75)===17.75);
 
+// dog-bone / T-bone relief
+{ const sq=[{x:0,y:0},{x:4,y:0},{x:4,y:2},{x:0,y:2}];   // a 4x2 mortise, CCW
+  const r=0.125, d=C.bonePolyCorner(sq,true,0,r,'dogbone');
+  ok('dogbone: replaces the corner with an arc', d && d.length>sq.length+3, d&&d.length);
+  ok('dogbone: notch bulges out past both edges', Math.min(...d.map(q=>q.x))<-0.25*r && Math.min(...d.map(q=>q.y))<-0.25*r);
+  ok('dogbone: notch circle passes through the corner point', d.some(q=>Math.hypot(q.x,q.y)<2e-3) || close(Math.min(...d.map(q=>Math.hypot(q.x-r/Math.SQRT2,q.y-r/Math.SQRT2))),r,1e-6));
+  const C0={x:r/Math.SQRT2,y:r/Math.SQRT2}; const onC=d.slice(1,d.length-3).filter(q=>!(q.x>=4-1e-9||q.y>=2-1e-9));
+  ok('dogbone: notch points sit on the tool circle', onC.every(q=>Math.abs(Math.hypot(q.x-C0.x,q.y-C0.y)-r)<1e-9 || (q.x>0.5||q.y>0.5)));
+  ok('dogbone: edges meet the notch 2r·cos45 from the corner', d.some(q=>close(q.x,2*r*Math.SQRT1_2)&&close(q.y,0)) && d.some(q=>close(q.y,2*r*Math.SQRT1_2)&&close(q.x,0)));
+  const tb=C.bonePolyCorner(sq,true,0,r,'tbone','prev');   // prev edge of vertex 0 runs along x=0 (from (0,2))
+  ok('tbone: overcut only along the other edge', tb && close(Math.min(...tb.map(q=>q.y)),-r,1e-3) && Math.min(...tb.map(q=>q.x))>-1e-9, tb&&[Math.min(...tb.map(q=>q.x)),Math.min(...tb.map(q=>q.y))]);
+  const tb2=C.bonePolyCorner(sq,true,0,r,'tbone','next');
+  ok('tbone next: overcut along x instead', tb2 && close(Math.min(...tb2.map(q=>q.x)),-r,1e-3) && Math.min(...tb2.map(q=>q.y))>-1e-9);
+  ok('bone: edge too short -> null', C.bonePolyCorner([{x:0,y:0},{x:0.1,y:0},{x:0.1,y:0.1},{x:0,y:0.1}],true,0,0.25,'dogbone')===null);
+  ok('bone: collinear -> null', C.bonePolyCorner([{x:0,y:0},{x:1,y:0},{x:2,y:0}],false,1,0.1,'dogbone')===null);
+  // L-shaped part (outside cut): one concave corner at (2,1)
+  const L=[{x:0,y:0},{x:4,y:0},{x:4,y:1},{x:2,y:1},{x:2,y:3},{x:0,y:3}];
+  ok('corners: convex of the L = 5', C.cornerIndices(L,true,'convex').length===5);
+  ok('corners: concave of the L = the inside corner', JSON.stringify(C.cornerIndices(L,true,'concave'))==='[3]');
+  ok('corners: orientation-independent', JSON.stringify(C.cornerIndices(L.slice().reverse(),true,'concave'))==='[2]');
+  ok('corners: curve vertices skipped', C.cornerIndices(C.mkCircle({x:0,y:0},2).pts,true,'all').length===0);
+  const inL=C.treatCorners(L,true,C.cornerIndices(L,true,'concave'),0.125,'dogbone');
+  ok('treat: dogbone notch cut into the part at its inside corner', inL.done===1 && Math.min(...inL.pts.map(q=>q.x>1.5&&q.y>0.5&&q.y<2?q.x:9))<1.97 && Math.min(...inL.pts.map(q=>q.x>1.5&&q.x<3?q.y:9))<0.97);
+  const all=C.treatCorners(sq,true,C.cornerIndices(sq,true,'convex'),0.125,'dogbone');
+  ok('treat: all four mortise corners', all.done===4 && Math.min(...all.pts.map(q=>q.x))<0 && Math.max(...all.pts.map(q=>q.x))>4);
+  const fl=C.treatCorners(sq,true,[0,1,2,3],0.25,'fillet'); ok('treat: fillet mode rounds every corner', fl.done===4);
+}
+// groups
+{ const a=C.mkRect(0,0,1,1), b=C.mkCircle({x:3,y:3},1), c=C.mkRect(5,5,1,1), sh=[a,b,c];
+  const g=C.groupShapes(sh,[a.id,b.id]);
+  ok('group: members tagged', g && a.group===g && b.group===g && !c.group);
+  ok('group: one shape is not a group', C.groupShapes(sh,[c.id])===null && !c.group);
+  ok('group: picking a member picks the group', [...C.expandToGroups(sh,[b.id])].sort().join()===[a.id,b.id].sort().join());
+  const cp=C.regroup([C.clone(a),C.clone(b)]);
+  ok('regroup: copies share a new group', cp[0].group===cp[1].group && cp[0].group!==g);
+  ok('ungroup', C.ungroupShapes(sh,[a.id])===2 && !a.group && !b.group);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

@@ -160,6 +160,7 @@ input.calc.bad{border-color:#d33 !important;background:#fff0f0 !important;color:
 .clipcell.armed{background:var(--accent-soft);border-color:var(--accent-bd)}
 .clipcell span{font-size:8.5px;color:var(--ink-dim);line-height:1.1;text-align:center;word-break:break-word}
 .clipcell svg{display:block}
+.fil-bone,.fil-tb{display:none}
 .pocket-only,.drill-only,.vcarve-only,.inlay-only,.profile-pocket{display:none}
 /* shape properties modal */
 .modal-bg{position:fixed;inset:0;background:rgba(20,30,45,0.35);display:none;z-index:200}
@@ -300,7 +301,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
       <button data-act="cut">Cut<span class="k">⌘/Ctrl+X</span></button><button data-act="copy">Copy<span class="k">⌘/Ctrl+C</span></button><button data-act="paste">Paste<span class="k">⌘/Ctrl+V</span></button><div class="msep"></div>
       <button data-act="selall">Select All<span class="k">Ctrl+A</span></button><button data-act="editdims">Edit Dimensions…<span class="k">dbl-click</span></button>
       <button data-act="rotate">Rotate…<span class="k">angle · pivot</span></button>
-      <button data-act="dup">Duplicate</button><button data-act="del">Delete<span class="k">Del</span></button><div class="msep"></div>
+      <button data-act="group">Group<span class="k">⌘/Ctrl+G</span></button><button data-act="ungroup">Ungroup<span class="k">⌘/Ctrl+Shift+G</span></button><button data-act="dup">Duplicate</button><button data-act="del">Delete<span class="k">Del</span></button><div class="msep"></div>
       <button data-act="createnum">Create Shape by Numbers<span class="k">Enter</span></button>
       <div class="msep"></div><button data-act="check">Vector Validator</button></div></div>
     <div class="menu" data-menu="toolpaths">Toolpaths<div class="mdrop">
@@ -351,6 +352,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
           
         </div><div class="secgrp"><h3>Edit Objects</h3><div class="iconrow"><button class="tool" data-tool="node" data-tip="Node edit &#8212; drag points, dbl-click add/remove (N)" title="Node edit (N)"><b>&#11049;</b><span class="tlabel">Nodes</span></button><button class="tool" data-tool="fillet" data-tip="Fillet &#8212; click a corner to round it" title="Fillet"><b>&#9693;</b><span class="tlabel">Fillet</span></button><button class="tool" data-tool="trim" data-tip="Trim &#8212; click the dangling part of an open vector" title="Trim"><b>&#9986;</b><span class="tlabel">Trim</span></button><button class="tool" data-tool="extend" data-tip="Extend &#8212; stretch an open vector to the next one ahead" title="Extend"><b>&#8866;</b><span class="tlabel">Extend</span></button></div>
           
+          <button class="tb" id="btnGroup" data-tip="Group the selection (Cmd/Ctrl+G) &#8212; picks, moves and copies as one">Group</button><button class="tb" id="btnUngroup" data-tip="Ungroup (Cmd/Ctrl+Shift+G)">Ungroup</button>
           <button class="tb" id="btnJoin" data-tip="Join touching vectors into contours">Join</button>
           <button class="tb" id="btnUnion" data-tip="Weld &#8212; merge into one (union)">Weld &#8746;</button>
           <button class="tb" id="btnDiff" data-tip="Subtract later shapes from first">Subtract</button>
@@ -464,9 +466,15 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
           <div class="formhint">Click the two measured points, then click to place the dimension line. Radius / diameter: centre then edge. Angle: vertex, ray, ray, radius. Dimensions are annotations and are never machined.</div>
         </div><div class="formfoot"><button class="tb" data-formclose="1">Close</button></div></div>
 
-        <div class="tform" data-form="fillet"><h4>Fillet Corner</h4><div class="tfbody">
-          <label data-tip="Radius applied to the clicked corner">Radius&quot;<input type="number" id="filletR" value="0.25" step="0.05" min="0" style="width:56px"></label>
-          <div class="formhint">Click a vector corner to round it. The radius is clamped to the shorter of the two edges.</div>
+        <div class="tform" data-form="fillet"><h4>Fillet / Dog-bone</h4><div class="tfbody">
+          <label data-tip="Fillet rounds the corner; Dog-bone and T-bone cut a relief notch so a square part seats in a corner a round tool cannot reach">Type<select id="filletMode"><option value="fillet">Fillet (round)</option><option value="dogbone">Dog-bone</option><option value="tbone">T-bone</option></select></label>
+          <label class="fil-r" data-tip="Radius applied to the clicked corner">Radius&quot;<input type="number" id="filletR" value="0.25" step="0.05" min="0" style="width:56px"></label>
+          <label class="fil-bone" data-tip="Diameter of the tool that will cut the corner &#8212; the notch is sized to it">Tool &#216;&quot;<input type="number" id="filletTool" value="0.25" step="0.0625" min="0.01" style="width:56px"></label>
+          <label class="fil-tb" data-tip="T-bone: which edge the tool runs straight along into the corner (the notch goes into the other edge)">Run along<select id="filletTEdge"><option value="long">Longer edge</option><option value="short">Shorter edge</option></select></label>
+          <div class="grp">All corners of the selection</div>
+          <label data-tip="Convex = corners of holes, slots and mortises (inside cuts). Concave = inside corners of parts (outside cuts)">Corners<select id="filletWhich"><option value="convex">Convex (holes, slots)</option><option value="concave">Concave (parts)</option><option value="all">All</option></select></label>
+          <button class="tb" id="btnFilletAll" data-tip="Apply to every sharp corner of the selected vectors (curves are skipped)">Apply to selection</button>
+          <div class="formhint" id="filletHint">Click a vector corner to treat it, or pick corners of the whole selection.</div>
         </div><div class="formfoot"><button class="tb" data-formclose="1">Close</button></div></div>
 
         <div class="tform" data-form="nest"><h4>Nesting</h4><div class="tfbody">
@@ -624,7 +632,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
     <span><span class="v" id="zoomlbl"></span></span>
     <span id="msg" class="v"></span>
     <button class="tb" id="btnTheme" title="Switch to dark mode" style="margin-left:auto;font-size:10px;padding:1px 7px">☾ Dark</button>
-    <span class="ver" id="appVer" title="Build version">v0.3.0 · build 261025.0555</span>
+    <span class="ver" id="appVer" title="Build version">v0.3.0 · build 261025.0559</span>
   </div>
 </div>
 <div id="tip"></div>
@@ -705,6 +713,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
         <tr><td>Hold Ctrl</td><td>No object snap either (fully free)</td></tr>
         <tr><td>Arrow keys</td><td>Nudge selection 0.001" &#183; Shift 0.1" &#183; Alt/Option 0.0001"</td></tr>
         <tr><td>Cmd/Ctrl+C · X · V</td><td>Copy · Cut · Paste shapes (paste in place; repeated pastes step 0.5")</td></tr>
+        <tr><td>Cmd/Ctrl+G · Shift+G</td><td>Group · Ungroup the selection</td></tr>
         <tr><td>Ctrl+A</td><td>Select all</td></tr>
         <tr><td>Ctrl+S / Ctrl+Shift+S</td><td>Save / Save As… (Chrome/Edge: real save dialog, Save writes back to the file)</td></tr>
         <tr><td>Ctrl+O</td><td>Open / Import…</td></tr>
@@ -10282,6 +10291,110 @@ function filletPolyCorner(pts, closed, i, radius, segs) {
   for (let k = 0; k < n; k++) { if (k === i) { for (const q of arc) out.push({ x: q.x, y: q.y }); } else out.push({ x: pts[k].x, y: pts[k].y }); }
   return out;
 }
+// Dog-bone / T-bone relief at vertex `i` for a cutter of radius `r` (VCarve's Fillet tool, Dog-Bone and T-Bone modes).
+// A round tool cannot reach into a sharp inside corner, so a square part will not seat; the relief is a notch the
+// tool can cut. It always opens away from the side the tool is on (the smaller angle between the two edges), so
+// the same call works for a mortise corner (convex corner of a hole) and an inside corner of a part.
+//   dogbone: the notch sits on the corner's bisector; its circle passes through the corner point.
+//   tbone:   the tool runs straight on along one edge (`edge` 'prev' or 'next') into the corner; the circle is
+//            tangent to that edge at the corner and the overcut goes into the other edge only (less visible).
+// Returns the new pts array, or null (collinear / open endpoint / an edge too short for the notch).
+function bonePolyCorner(pts, closed, i, r, mode, edge) {
+  const n = pts.length; if (n < 3 || !(r > 0)) return null;
+  const pi = closed ? (i - 1 + n) % n : i - 1, ni = closed ? (i + 1) % n : i + 1;
+  if (pi < 0 || ni >= n) return null;
+  const p = pts[i], a = pts[pi], b = pts[ni];
+  let u = { x: a.x - p.x, y: a.y - p.y }, v = { x: b.x - p.x, y: b.y - p.y };
+  const lu = Math.hypot(u.x, u.y), lv = Math.hypot(v.x, v.y);
+  if (lu < 1e-9 || lv < 1e-9) return null;
+  u = { x: u.x / lu, y: u.y / lu }; v = { x: v.x / lv, y: v.y / lv };
+  const cosT = Math.max(-1, Math.min(1, u.x * v.x + u.y * v.y)), theta = Math.acos(cosT);
+  if (theta < 1e-3 || Math.PI - theta < 1e-3) return null;
+  let C, t1, t2;
+  if (mode === 'tbone') {
+    const along = edge === 'next' ? v : u, other = edge === 'next' ? u : v;
+    let w = { x: other.x - (other.x * along.x + other.y * along.y) * along.x, y: other.y - (other.x * along.x + other.y * along.y) * along.y };
+    const lw = Math.hypot(w.x, w.y); w = { x: w.x / lw, y: w.y / lw };
+    C = { x: p.x + w.x * r, y: p.y + w.y * r };
+    const tOther = 2 * r * (other.x * w.x + other.y * w.y);
+    if (edge === 'next') { t1 = tOther; t2 = 0; } else { t1 = 0; t2 = tOther; }
+  } else {
+    let bis = { x: u.x + v.x, y: u.y + v.y }; const lb = Math.hypot(bis.x, bis.y); bis = { x: bis.x / lb, y: bis.y / lb };
+    C = { x: p.x + bis.x * r, y: p.y + bis.y * r };
+    t1 = t2 = 2 * r * Math.cos(theta / 2);
+  }
+  if (t1 > lu * 0.999 || t2 > lv * 0.999) return null;
+  const T1 = { x: p.x + u.x * t1, y: p.y + u.y * t1 }, T2 = { x: p.x + v.x * t2, y: p.y + v.y * t2 };
+  const a1 = Math.atan2(T1.y - C.y, T1.x - C.x), a2 = Math.atan2(T2.y - C.y, T2.x - C.x), ap = Math.atan2(p.y - C.y, p.x - C.x);
+  const ccwSpan = x => { let d = x - a1; while (d < 0) d += TAU; while (d >= TAU) d -= TAU; return d; };
+  const ccw = ccwSpan(ap) <= ccwSpan(a2) + 1e-9;          // run the way that passes through the corner point
+  const arc = arcPolyline(C.x, C.y, r, a1, a2, ccw);
+  arc[0] = { x: T1.x, y: T1.y }; arc[arc.length - 1] = { x: T2.x, y: T2.y };
+  const out = [];
+  for (let k = 0; k < n; k++) { if (k === i) { for (const q of arc) out.push({ x: q.x, y: q.y }); } else out.push({ x: pts[k].x, y: pts[k].y }); }
+  return out;
+}
+// Corners of a path that a corner tool should treat: sharper than `maxAngle` degrees, and (for a closed path)
+// 'convex' corners — those of a hole or slot the tool cuts inside — or 'concave' ones — inside corners of a part
+// the tool cuts round the outside — or 'all'. Curves come in as many near-straight vertices; the angle limit skips them.
+function cornerIndices(pts, closed, which, maxAngle) {
+  const n = pts.length, lim = (maxAngle || 150) * Math.PI / 180, out = [];
+  let area = 0; for (let k = 0; k < n; k++) { const a = pts[k], b = pts[(k + 1) % n]; area += a.x * b.y - b.x * a.y; }
+  const orient = area >= 0 ? 1 : -1;
+  for (let i = 0; i < n; i++) {
+    if (!closed && (i === 0 || i === n - 1)) continue;
+    const a = pts[(i - 1 + n) % n], p = pts[i], b = pts[(i + 1) % n];
+    const ux = a.x - p.x, uy = a.y - p.y, vx = b.x - p.x, vy = b.y - p.y, lu = Math.hypot(ux, uy), lv = Math.hypot(vx, vy);
+    if (lu < 1e-9 || lv < 1e-9) continue;
+    const th = Math.acos(Math.max(-1, Math.min(1, (ux * vx + uy * vy) / (lu * lv))));
+    if (th > lim) continue;
+    if (closed && which && which !== 'all') {
+      const turn = ((p.x - a.x) * (b.y - p.y) - (p.y - a.y) * (b.x - p.x)) * orient;   // > 0: convex
+      if ((which === 'convex') !== (turn > 0)) continue;
+    }
+    out.push(i);
+  }
+  return out;
+}
+// Apply a corner treatment to many corners of one path: mode 'fillet' (radius r) | 'dogbone' | 'tbone' (tool radius r).
+// Works from the last corner back so earlier indices stay valid. Returns {pts, done} (pts unchanged when done = 0).
+function treatCorners(pts, closed, indices, r, mode, edge) {
+  let cur = pts.map(q => ({ x: q.x, y: q.y })), done = 0;
+  for (const i of indices.slice().sort((x, y) => y - x)) {
+    const np = mode === 'fillet' ? filletPolyCorner(cur, closed, i, r, 16) : bonePolyCorner(cur, closed, i, r, mode, edge);
+    if (np) { cur = np; done++; }
+  }
+  return { pts: cur, done: done };
+}
+
+// ---------- groups ----------
+// A group is a shared `group` id on its member shapes: picking any member picks them all, and they move,
+// scale, rotate and copy as one. One level — grouping shapes that are already grouped merges them.
+function groupShapes(shapes, ids) {
+  const set = new Set(ids), g = 'g' + uid();
+  let n = 0; for (const s of shapes) if (set.has(s.id)) { s.group = g; n++; }
+  return n >= 2 ? g : (shapes.forEach(s => { if (set.has(s.id) && s.group === g) delete s.group; }), null);
+}
+function ungroupShapes(shapes, ids) {
+  const set = new Set(ids), gs = new Set();
+  for (const s of shapes) if (set.has(s.id) && s.group) gs.add(s.group);
+  let n = 0; for (const s of shapes) if (s.group && gs.has(s.group)) { delete s.group; n++; }
+  return n;
+}
+// Grow a set of shape ids to whole groups.
+function expandToGroups(shapes, ids) {
+  const out = new Set(ids), gs = new Set();
+  for (const s of shapes) if (out.has(s.id) && s.group) gs.add(s.group);
+  if (gs.size) for (const s of shapes) if (s.group && gs.has(s.group)) out.add(s.id);
+  return out;
+}
+// Copies (paste, duplicate, mirror, array) keep their grouping but must not join the original's group.
+function regroup(copies) {
+  const map = {};
+  for (const s of copies) if (s.group) { if (!map[s.group]) map[s.group] = 'g' + uid(); s.group = map[s.group]; }
+  return copies;
+}
+
 function _nearestParam(pts, closed, p) {
   const n = pts.length; let best = 0, bd = Infinity, seg = closed ? n : n - 1;
   for (let i = 0; i < seg; i++) { const a = pts[i], b = pts[(i + 1) % n], dx = b.x - a.x, dy = b.y - a.y, L2 = dx * dx + dy * dy;
@@ -10426,6 +10539,7 @@ return {
   mkLine, mkPoly, mkRect, mkRoundRect, mkCircle, mkEllipse, mkArc, mkPolygon, mkStar, mkText,
   mkBezier, flattenBezier, reflowBezier, mirrorSmoothHandle,
   segInt, pathIntersections, filletPolyCorner, trimPolyline, extendPolyline,
+  bonePolyCorner, cornerIndices, treatCorners, groupShapes, ungroupShapes, expandToGroups, regroup,
   flatten, bbox, bboxAll, bboxPts, hitTest, distToSeg, pointInPoly, snapPoints, rectSnapPoints,
   translate, rotate, scale, mirror,
   offsetShapes, booleanOp,
@@ -16275,7 +16389,7 @@ const MENU_ACTIONS={
   'helpsearch':()=>openHelpSearch(),
   'expdxf':()=>exportDXF(), 'expsvg':()=>exportSVG(),
   'trace':()=>openTraceModal(),
-  'undo':()=>undo(), 'redo':()=>redo(), 'dup':()=>opDuplicate(), 'del':()=>deleteSelected(),
+  'undo':()=>undo(), 'redo':()=>redo(), 'dup':()=>opDuplicate(), 'del':()=>deleteSelected(), 'group':()=>opGroup(), 'ungroup':()=>opUngroup(),
   'cut':()=>opCut(), 'copy':()=>opCopy(), 'paste':()=>opPaste(),
   'check':()=>document.getElementById('btnCheckVec').click(),
   'recalc':()=>recalcAll(), 'post':()=>postJob(),
@@ -16738,7 +16852,7 @@ function shapeContextMenu(e){
   e.preventDefault();
   const w=snapWorld(evScr(e)); const s=pickShapeAt({x:w.x,y:w.y});
   if(!s){ hideCtxMenu(); return; }
-  if(!sel.has(s.id)){ sel=new Set([s.id]); syncPanels(); render(); }   // keep an existing multi-selection
+  if(!sel.has(s.id)){ sel=CADCORE.expandToGroups(doc.shapes,[s.id]); syncPanels(); render(); }   // keep an existing multi-selection
   const single=sel.size===1, multi=sel.size>=2;
   const items=[
     { title: multi ? sel.size+' shapes' : (s.prim?s.prim.kind:s.type) },
@@ -16755,7 +16869,10 @@ function shapeContextMenu(e){
     { label:'Rotate…', fn:openRotateModal },
     { label:'Rotate 90°', fn:opRotate90 },
     { label:'Offset…', fn:opOffset },
-    { label:'Array…', fn:opArray }
+    { label:'Array…', fn:opArray },
+    { sep:true },
+    { label:'Group', key:'Cmd/Ctrl+G', fn:opGroup, disabled:!multi },
+    { label:'Ungroup', key:'Cmd/Ctrl+Shift+G', fn:opUngroup, disabled:!selectedShapes().some(x=>x.group) }
   ];
   if(multi) items.push({ sep:true }, { label:'Weld (union)', fn:()=>opBool('union') }, { label:'Subtract', fn:()=>opBool('diff') }, { label:'Intersect', fn:()=>opBool('intersect') });
   items.push({ sep:true }, { label:'Bring to front', fn:bringToFront }, { label:'Send to back', fn:sendToBack });
@@ -16776,7 +16893,8 @@ function selectDown(scr,w,e){
   let hitId=null; const tol=pxTol(6);
   for(let i=doc.shapes.length-1;i>=0;i--){ const s=doc.shapes[i]; if(!layerVisible(s.layer))continue; if(CADCORE.hitTest(s,w,tol)){ hitId=s.id; break; } }
   if(!hitId){ for(let i=doc.shapes.length-1;i>=0;i--){ const s=doc.shapes[i]; if(!layerVisible(s.layer)||!s.closed)continue; if(shapeInside(s,w)){ hitId=s.id; break; } } }
-  if(hitId){ if(e.shiftKey){ sel.has(hitId)?sel.delete(hitId):sel.add(hitId); } else if(!sel.has(hitId)){ sel=new Set([hitId]); }
+  if(hitId){ const hit=[...CADCORE.expandToGroups(doc.shapes,[hitId])];   // a grouped shape picks its whole group
+    if(e.shiftKey){ const on=sel.has(hitId); hit.forEach(id=>on?sel.delete(id):sel.add(id)); } else if(!sel.has(hitId)){ sel=new Set(hit); }
     pushHistory(); const base=JSON.parse(JSON.stringify(selectedShapes())); const raw=S2W(scr); const a0=CADCORE.bboxAnchor(CADCORE.bboxAll(base), modalAnchor);
     drag={kind:'move',grab:raw,a0,base,ids:[...sel]}; }
   else { if(!e.shiftKey) sel.clear(); drag={kind:'marquee',a:scr,b:scr}; }
@@ -16832,6 +16950,7 @@ function drawMarquee(a,b){ ctx.strokeStyle=TH().marquee; ctx.setLineDash([4,3]);
 function marqueeSelect(a,b,add){ const w0=S2W({x:Math.min(a.x,b.x),y:Math.max(a.y,b.y)}), w1=S2W({x:Math.max(a.x,b.x),y:Math.min(a.y,b.y)});
   if(!add) sel.clear();
   for(const s of doc.shapes){ if(!layerVisible(s.layer))continue; const bb=CADCORE.bbox(s); if(bb.minX>=w0.x&&bb.maxX<=w1.x&&bb.minY>=w0.y&&bb.maxY<=w1.y) sel.add(s.id); }
+  sel=CADCORE.expandToGroups(doc.shapes,sel);
   syncPanels();
 }
 // ---- node edit ----
@@ -17032,7 +17151,7 @@ function opBool(op){ const sh=selectedShapes(); if(sh.length<2)return setMsg('Se
   let res; if(op==='union') res=CADCORE.booleanOp(sh,[],'union'); else { res=CADCORE.booleanOp([sh[0]],sh.slice(1),op==='diff'?'diff':'intersect'); }
   doc.shapes=doc.shapes.filter(s=>!sel.has(s.id)); res.forEach(r=>r.layer=activeLayer); addShapes(res); sel=new Set(res.map(r=>r.id)); render(); syncPanels(); }
 function opMirror(axis){ const sh=selectedShapes(); if(!sh.length)return; pushHistory(); const b=CADCORE.bboxAll(sh); const at=axis==='x'?(b.minX+b.maxX)/2:(b.minY+b.maxY)/2;
-  const res=sh.map(s=>{const m=CADCORE.mirror(s,axis,at);m.id=CADCORE.uid();return m;}); addShapes(res); sel=new Set(res.map(r=>r.id)); render(); syncPanels(); }
+  const res=CADCORE.regroup(sh.map(s=>{const m=CADCORE.mirror(s,axis,at);m.id=CADCORE.uid();return m;})); addShapes(res); sel=new Set(res.map(r=>r.id)); render(); syncPanels(); }
 // ---- clipboard (copy / cut / paste) ----
 // Internal clipboard holds a JSON clone of the shapes; the same JSON is also written to the system clipboard
 // (tagged) so a copy survives a reload and can be pasted into another tab of the app.
@@ -17045,7 +17164,7 @@ function opCopy(){ const sh=selectedShapes(); if(!sh.length){ setMsg('Nothing se
 function opCut(){ if(!opCopy()) return; pushHistory(); doc.shapes=doc.shapes.filter(s=>!sel.has(s.id)); sel.clear(); render(); syncPanels(); setMsg('Cut '+clip.shapes.length+' shape'+(clip.shapes.length>1?'s':'')+' — Cmd/Ctrl+V to paste'); }
 function pasteShapes(src){ if(!src||!src.length){ setMsg('Clipboard is empty'); return; }
   // paste in place the first time; each further paste of the same clipboard steps +0.5" so copies never stack invisibly
-  const step=0.5*clip.pastes; const news=src.map(o=>{ const c=CADCORE.translate(CADCORE.clone(o), step, -step); c.id=CADCORE.uid(); c.layer=doc.layers.has(o.layer)?o.layer:activeLayer; return c; });
+  const step=0.5*clip.pastes; const news=CADCORE.regroup(src.map(o=>{ const c=CADCORE.translate(CADCORE.clone(o), step, -step); c.id=CADCORE.uid(); c.layer=doc.layers.has(o.layer)?o.layer:activeLayer; return c; }));
   pushHistory(); addShapes(news); sel=new Set(news.map(n=>n.id)); clip.pastes++; render(); syncPanels();
   setMsg('Pasted '+news.length+' shape'+(news.length>1?'s':'')+(step?' (offset '+step.toFixed(2)+'")':' in place')); }
 async function opPaste(){
@@ -17054,9 +17173,14 @@ async function opPaste(){
       if(t&&t.indexOf(CLIP_TAG)===0){ const shapes=JSON.parse(t.slice(CLIP_TAG.length)); const same=clip.shapes&&JSON.stringify(clip.shapes)===JSON.stringify(shapes);
         if(!same) clip={ shapes, pastes:0 }; pasteShapes(clip.shapes); return; } } }catch(e){}
   pasteShapes(clip.shapes); }
-function opDuplicate(){ const sh=selectedShapes(); if(!sh.length)return; pushHistory(); const res=sh.map(s=>{const c=CADCORE.translate(s,0.25,-0.25);c.id=CADCORE.uid();return c;}); addShapes(res); sel=new Set(res.map(r=>r.id)); render(); syncPanels(); }
+// Group / Ungroup (Cmd/Ctrl+G, Cmd/Ctrl+Shift+G): grouped vectors select, move, scale, rotate and copy as one.
+function opGroup(){ const ids=[...sel]; if(ids.length<2){ setMsg('Select 2 or more vectors to group'); return; }
+  pushHistory(); CADCORE.groupShapes(doc.shapes, ids); render(); syncPanels(); setMsg('Grouped '+ids.length+' vectors — Cmd/Ctrl+Shift+G to ungroup'); }
+function opUngroup(){ if(!selectedShapes().some(s=>s.group)){ setMsg('Nothing grouped in the selection'); return; }
+  pushHistory(); const n=CADCORE.ungroupShapes(doc.shapes, [...sel]); render(); syncPanels(); setMsg('Ungrouped '+n+' vectors'); }
+function opDuplicate(){ const sh=selectedShapes(); if(!sh.length)return; pushHistory(); const res=CADCORE.regroup(sh.map(s=>{const c=CADCORE.translate(s,0.25,-0.25);c.id=CADCORE.uid();return c;})); addShapes(res); sel=new Set(res.map(r=>r.id)); render(); syncPanels(); }
 function opArray(){ const sh=selectedShapes(); if(!sh.length)return; const cols=parseInt(prompt('Columns:','3'))||1, rows=parseInt(prompt('Rows:','1'))||1; const dx=parseFloat(prompt('X spacing (in):','2'))||0, dy=parseFloat(prompt('Y spacing (in):','2'))||0;
-  pushHistory(); const news=[]; for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){ if(!r&&!c)continue; sh.forEach(s=>{const n=CADCORE.translate(s,c*dx,r*dy);n.id=CADCORE.uid();news.push(n);}); } addShapes(news); render(); syncPanels(); }
+  pushHistory(); const news=[]; for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){ if(!r&&!c)continue; news.push(...CADCORE.regroup(sh.map(s=>{const n=CADCORE.translate(s,c*dx,r*dy);n.id=CADCORE.uid();return n;}))); } addShapes(news); render(); syncPanels(); }
 function opRotate90(){ const sh=selectedShapes(); if(!sh.length)return; pushHistory(); const b=CADCORE.bboxAll(sh); const cx=(b.minX+b.maxX)/2,cy=(b.minY+b.maxY)/2;
   const map=new Map(sh.map(s=>[s.id,s])); doc.shapes=doc.shapes.map(s=>sel.has(s.id)?CADCORE.rotate(s,cx,cy,Math.PI/2):s); render(); syncPanels(); }
 function opAlign(how){ const sh=selectedShapes(); if(sh.length<2)return; pushHistory(); const b=CADCORE.bboxAll(sh);
@@ -17526,14 +17650,39 @@ function recalcAll(){ const allSegs=[], allMarks=[]; let total=0;
   render();
   const n=opsQueue.filter(q=>q.visible!==false).length; setMsg('Preview: '+n+'/'+opsQueue.length+' toolpath(s) · '+allSegs.length+' move(s) · est '+fmtTime(total)+' cut time'); }
 // ---- fillet / trim / extend click tools ----
+// Fillet tool: Fillet rounds the clicked corner; Dog-bone / T-bone cut a relief notch sized to the tool, so a
+// square part seats in an inside corner (VCarve's Fillet tool modes). "Apply to selection" does every sharp corner.
+function filletOpts(){ const g=id=>document.getElementById(id);
+  const mode=(g('filletMode')||{}).value||'fillet';
+  const r=mode==='fillet' ? Math.abs(parseFloat(g('filletR').value)||0.25) : Math.abs(parseFloat(g('filletTool').value)||0.25)/2;
+  return { mode, r, tEdge:(g('filletTEdge')||{}).value||'long', which:(g('filletWhich')||{}).value||'convex' }; }
+function filletForm(){ const m=filletOpts().mode;
+  document.querySelectorAll('.fil-r').forEach(e=>e.style.display=m==='fillet'?'':'none');
+  document.querySelectorAll('.fil-bone').forEach(e=>e.style.display=m==='fillet'?'none':'');
+  document.querySelectorAll('.fil-tb').forEach(e=>e.style.display=m==='tbone'?'':'none'); }
+// T-bone runs along the longer (or shorter) of the corner's two edges.
+function tboneEdge(pts, closed, i, pref){ const n=pts.length, a=pts[(i-1+n)%n], b=pts[(i+1)%n], p=pts[i];
+  const la=Math.hypot(a.x-p.x,a.y-p.y), lb=Math.hypot(b.x-p.x,b.y-p.y); return ((la>=lb)===(pref!=='short'))?'prev':'next'; }
+function cornerFix(s, i, o){ return o.mode==='fillet' ? CADCORE.filletPolyCorner(s.pts, s.closed, i, o.r, 16)
+  : CADCORE.bonePolyCorner(s.pts, s.closed, i, o.r, o.mode, tboneEdge(s.pts, s.closed, i, o.tEdge)); }
+const CORNER_NOUN={fillet:'Filleted',dogbone:'Dog-boned',tbone:'T-boned'};
 function filletAt(w){ const tol=pxTol(14); let best=null,bd=tol,bi=-1;
-  for(const s of doc.shapes){ if(s.type!=='path'||!layerVisible(s.layer))continue;
+  for(const s of doc.shapes){ if(s.type!=='path'||s.annotation||!layerVisible(s.layer))continue;
     for(let i=0;i<s.pts.length;i++){ const dd=Math.hypot(s.pts[i].x-w.x,s.pts[i].y-w.y); if(dd<bd){bd=dd;best=s;bi=i;} } }
   if(!best){ setMsg('Fillet: click nearer a vector corner'); return; }
-  const R=Math.abs(parseFloat((document.getElementById('filletR')||{}).value)||0.25);
-  const np=CADCORE.filletPolyCorner(best.pts, best.closed, bi, R, 16);
-  if(!np){ setMsg('Fillet: corner not fillettable (collinear, or an open endpoint)'); return; }
-  pushHistory(); best.pts=np; best.prim={kind:'poly'}; sel=new Set([best.id]); render(); syncPanels(); setMsg('Filleted corner · r='+R+'"'); }
+  const o=filletOpts(), np=cornerFix(best, bi, o);
+  if(!np){ setMsg(o.mode==='fillet'?'Fillet: corner not fillettable (collinear, or an open endpoint)':'Corner too small for a Ø'+(2*o.r)+'" tool notch (or collinear / an open endpoint)'); return; }
+  pushHistory(); best.pts=np; best.prim={kind:'poly'}; sel=new Set([best.id]); render(); syncPanels();
+  setMsg(CORNER_NOUN[o.mode]+' corner · '+(o.mode==='fillet'?'r='+o.r+'"':'tool Ø'+(2*o.r)+'"')); }
+function filletSelection(){ const o=filletOpts(), sh=selectedShapes().filter(s=>s.type==='path'&&!s.annotation&&s.pts.length>=3);
+  if(!sh.length){ setMsg('Select the vectors whose corners to treat first'); return; }
+  pushHistory(); let n=0, skipped=0;
+  for(const s of sh){ const idx=CADCORE.cornerIndices(s.pts, s.closed, o.which, 150);
+    let pts=s.pts.map(q=>({x:q.x,y:q.y})), done=0;
+    for(const i of idx.sort((x,y)=>y-x)){ const np=cornerFix({pts, closed:s.closed}, i, o); if(np){ pts=np; done++; } else skipped++; }
+    if(done){ s.pts=pts; s.prim={kind:'poly'}; n+=done; } }
+  if(!n){ history.pop(); setMsg('No '+(o.which==='all'?'':o.which+' ')+'corners to treat in the selection'+(skipped?' ('+skipped+' too small for the tool)':'')); return; }
+  render(); syncPanels(); setMsg(CORNER_NOUN[o.mode]+' '+n+' corner'+(n>1?'s':'')+' on '+sh.length+' vector'+(sh.length>1?'s':'')+(skipped?' · '+skipped+' too small, skipped':'')); }
 function trimAt(w){ const s=pickShapeAt(w);
   if(!s||s.type!=='path'||s.closed){ setMsg('Trim: click the dangling part of an OPEN vector to remove'); return; }
   const cutters=doc.shapes.filter(o=>o.id!==s.id && o.type==='path' && layerVisible(o.layer)).map(o=>({pts:o.pts,closed:o.closed}));
@@ -17991,6 +18140,7 @@ window.addEventListener('keydown', e=>{
   if((e.ctrlKey||e.metaKey)&&(e.key==='c'||e.key==='C')&&!e.shiftKey){ e.preventDefault(); opCopy(); return; }
   if((e.ctrlKey||e.metaKey)&&(e.key==='x'||e.key==='X')){ e.preventDefault(); opCut(); return; }
   if((e.ctrlKey||e.metaKey)&&(e.key==='v'||e.key==='V')){ e.preventDefault(); opPaste(); return; }
+  if((e.ctrlKey||e.metaKey)&&(e.key==='g'||e.key==='G')){ e.preventDefault(); if(e.shiftKey) opUngroup(); else opGroup(); return; }
   if((e.ctrlKey||e.metaKey)&&e.key==='a'){ e.preventDefault(); sel=new Set(doc.shapes.filter(s=>layerVisible(s.layer)).map(s=>s.id)); render(); syncPanels(); return; }
   if((e.ctrlKey||e.metaKey)&&e.key==='z'){ e.preventDefault(); undo(); return; }
   if((e.ctrlKey||e.metaKey)&&(e.key==='y'||(e.shiftKey&&e.key==='z'))){ e.preventDefault(); redo(); return; }
@@ -18127,6 +18277,8 @@ function wire(){
   const ra=document.getElementById('rotAngle'); if(ra) ra.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); applyRotateModal(); } else if(e.key==='Escape'){ e.preventDefault(); closeRotateModal(); } });
   document.querySelectorAll('#rotModal .rq').forEach(b=>{ b.onclick=()=>{ document.getElementById('rotAngle').value=b.dataset.deg; previewRotateModal(); }; });
   // 3D view presets + help search
+  const fm=document.getElementById('filletMode'); if(fm){ fm.onchange=filletForm; filletForm(); } on('btnFilletAll',filletSelection);
+  on('btnGroup',opGroup); on('btnUngroup',opUngroup);
   on('simTop',()=>v3Preset('top')); on('simIso',()=>v3Preset('iso')); on('simFront',()=>v3Preset('front'));
   // playback bar
   on('pbPlay',()=>{ PB.playing?pbPause():pbPlay(); }); on('pbStart',()=>{ pbPause(); pbSet(0); }); on('pbEnd',()=>{ pbPause(); if(PB.tl) pbSet(PB.tl.total); });
