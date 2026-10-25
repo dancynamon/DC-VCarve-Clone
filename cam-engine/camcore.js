@@ -1036,16 +1036,19 @@ function orderPasses(job, start){
 // job = { name, units, ops:[{toolNum,rpm,feed,plunge,clearZ,passes:[{z,tabHeight,closed,path}]}] }
 function postProcess(job, post){
   const P=Object.assign({},POSTS.shopsabre,post||{});
+  if(P.metric){ job=scaleJob(job,25.4); if(P.arcTol!=null) P.arcTol*=25.4; else P.arcTol=0.0015*25.4; }
   const dp=P.decimals;
   const X=v=>P.axisFmt('X',v,dp), Y=v=>P.axisFmt('Y',v,dp), Z=v=>P.axisFmt('Z',v,dp);
   const arcTol = P.arcTol!=null?P.arcTol:0.0015;
   const useArcs = !!P.arcs;
   const L=[];
   P.header(L,job,P);
-  job.ops.forEach((op,oi)=>{
-    const clear = op.clearZ!=null?op.clearZ:0.25;
-    P.opStart(L, op, P, oi===0);
-    op.passes.forEach(pass=>{
+  job.ops.forEach((opAll,oi)=>{
+    const clear = opAll.clearZ!=null?opAll.clearZ:0.25;
+    P.opStart(L, opAll, P, oi===0);
+    opAll.passes.forEach(pass=>{
+      // a merged toolpath keeps each part's own feeds: a pass may carry feed / plunge of its own
+      const op=(pass.feed!=null||pass.plunge!=null)?Object.assign({},opAll,{feed:pass.feed!=null?pass.feed:opAll.feed,plunge:pass.plunge!=null?pass.plunge:opAll.plunge}):opAll;
       const path=pass.path; if(!path.length)return;
       const cutZ=pass.z, tabZ=pass.z+(pass.tabHeight||0);
       // build full traversal: vertices in order, plus closing point if closed
@@ -1165,6 +1168,35 @@ const POSTS={
     footer(L){L.push('');L.push('M5');L.push('M30');L.push('%');}
   }
 };
+// Metric twins: the same programs in millimetres (G21). postProcess scales the job by 25.4 (coordinates,
+// depths, feeds, arc tolerance), so the inch posts stay byte-for-byte what they were.
+POSTS.shopsabre_mm=Object.assign({},POSTS.shopsabre,{ name:'ShopSabre DC ATC Speed Arc (mm)', metric:true, decimals:3,
+  safeZ:50.8, parkX:0, parkY:2921,
+  header(L){ L.push('G90'); L.push('G21'); L.push(''); },
+  opStart(L,op,P,isFirst){ const t=[]; POSTS.shopsabre.opStart(t,op,P,isFirst); for(const l of t) L.push(l==='Z2'?'Z50.800':l); } });
+POSTS.generic_mm=Object.assign({},POSTS.generic,{ name:'Generic ISO (mm)', metric:true, decimals:3, safeZ:12.7,
+  header(L,job){ const t=[]; POSTS.generic.header(t,job); for(const l of t) L.push(l==='G20'?'G21':l); },
+  opStart(L,op){L.push('');L.push(`T${op.toolNum} M6`);L.push(`S${Math.round(op.rpm)} M3`);L.push('G0 Z12.700');} });
+// Merge toolpaths (VCarve "Merge toolpaths"): the ops of several toolpaths become one op per tool, so the job
+// cuts them together — ordered as one set, with no tool change between them. Each pass keeps the feed and
+// plunge of the toolpath it came from. Ops that must keep their depth order (prism, moulding) keep it.
+function mergeOps(ops){
+  const byTool=new Map();
+  for(const op of ops){ if(!op||!op.passes||!op.passes.length) continue;
+    let m=byTool.get(op.toolNum);
+    if(!m){ m=Object.assign({},op,{kind:'merged',passes:[],parts:[]}); byTool.set(op.toolNum,m); }
+    m.parts.push(op.kind); if(op.keepOrder) m.keepOrder=true; if(op.rpm>m.rpm) m.rpm=op.rpm;
+    for(const ps of op.passes) m.passes.push(Object.assign({},ps,{feed:op.feed,plunge:op.plunge})); }
+  return [...byTool.values()];
+}
+// Scale a job's geometry and feeds (inch -> mm for the metric posts).
+function scaleJob(job, k){
+  const sp=p=>{ const q=Object.assign({},p,{x:p.x*k,y:p.y*k}); if(p.z!=null) q.z=p.z*k; return q; };
+  return Object.assign({},job,{ ops:(job.ops||[]).map(op=>Object.assign({},op,{
+    feed:op.feed*k, plunge:op.plunge*k, clearZ:op.clearZ!=null?op.clearZ*k:0.25*k, safeZ:op.safeZ!=null?op.safeZ*k:op.safeZ, topZ:(op.topZ||0)*k,
+    passes:(op.passes||[]).map(ps=>Object.assign({},ps,{ z:ps.z*k, tabHeight:(ps.tabHeight||0)*k, path:(ps.path||[]).map(sp) },
+      ps.feed!=null?{feed:ps.feed*k}:{}, ps.plunge!=null?{plunge:ps.plunge*k}:{})) })) });
+}
 
 // ---------- material-removal simulation (z-buffer heightfield) ----------
 // Flat stock (top surface Z=0, bottom Z=-thickness) as a grid of surface heights; each cutting
@@ -1244,5 +1276,5 @@ function stockHeightAt(field, x, y) {
 
 return {SCALE,TOL,dist,signedArea,isCCW,ensureCCW,ensureCW,boundsOf,assembleContours,offsetLoop,offsetOpenPath,withTabs,linkRings,fitArcs,profileOp,pocketOp,drillOp,vcarveOp,inlayOp,centroid,defaultTools,upsertTool,removeTool,slugId,orderPasses,
   sanitizeTemplateParams,normalizeTemplate,templateFromQueue,applyTemplate,templateToJSON,templateFromJSON,
-  upsertTemplate,removeTemplate,defaultTemplates,TEMPLATE_VERSION,TEMPLATE_FORMAT,TEMPLATE_PARAM_KEYS,chamferOp,quickEngraveOp,flutingOp,prismOp,mouldingOp,regionComponents,profileDepthFn,postProcess,POSTS,simulateStock,stockField,simKernel,carveSegment,stockHeightAt,estimateTime};
+  upsertTemplate,removeTemplate,defaultTemplates,TEMPLATE_VERSION,TEMPLATE_FORMAT,TEMPLATE_PARAM_KEYS,chamferOp,quickEngraveOp,flutingOp,prismOp,mouldingOp,regionComponents,profileDepthFn,postProcess,scaleJob,mergeOps,POSTS,simulateStock,stockField,simKernel,carveSegment,stockHeightAt,estimateTime};
 });

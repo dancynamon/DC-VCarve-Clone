@@ -26,7 +26,7 @@ let drillMarks = null;    // drill hole centers overlay [{x,y}]
 let drillDia = 0.25;      // tool dia for drill marker size
 let lastGcode = '';
 let msg = '';
-let job = { w:48.5, h:97, thickness:1.5, origin:'bl', show:true };   // Dan's standard sheet
+let job = { w:48.5, h:97, thickness:1.5, origin:'bl', show:true, units:'in' };   // Dan's standard sheet; units = how it is shown (always stored in inches)
 let measure = null;   // persisted measurement {a,b}
 let viewMode = '2d';  // '2d' design canvas | 'preview' machining backplot (VCarve-style view tabs)
 let simField = null;  // {canvas, x0,y0,x1,y1} — shaded material-removal heightfield for Preview
@@ -99,13 +99,14 @@ const RULER_W=20;
 let rulers=(function(){ try{ return localStorage.getItem('aqcam.rulers')!=='0'; }catch(e){ return true; } })();
 function setRulers(on){ rulers=!!on; try{ localStorage.setItem('aqcam.rulers', rulers?'1':'0'); }catch(e){} document.body.classList.toggle('rulers', rulers); render(); drawRulerMarks(lastScr); }
 function rulerStep(){ const want=64/view.ppi;   // inches per major label so labels sit >= 64px apart
+  if(uk()!==1){ const mm=[0.1,0.2,0.5,1,2,5,10,20,50,100,200,500,1000,2000]; for(const st of mm){ if(st/MM>=want) return st/MM; } return 2000/MM; }
   const steps=[0.0625,0.125,0.25,0.5,1,2,4,5,10,20,50,100]; for(const st of steps){ if(st>=want) return st; } return 100; }
 function drawRulers(){ const th=TH(); const W=cv.width, H=cv.height, R=RULER_W;
-  const major=rulerStep(), minor=major/4;
+  const major=rulerStep(), minor=major/(uk()===1?4:5);
   ctx.save(); ctx.fillStyle=th.rulerBg; ctx.fillRect(0,0,W,R); ctx.fillRect(0,0,R,H);
   ctx.strokeStyle=th.rulerBd; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(0,R+0.5); ctx.lineTo(W,R+0.5); ctx.moveTo(R+0.5,0); ctx.lineTo(R+0.5,H); ctx.stroke();
   ctx.strokeStyle=th.rulerTick; ctx.fillStyle=th.rulerInk; ctx.font='9px monospace';
-  const fmt=v=>{ const r=Math.round(v*10000)/10000; return (Math.abs(r)<1e-9?0:r).toString(); };
+  const fmt=v=>{ const r=Math.round(v*uk()*10000)/10000; return (Math.abs(r)<1e-9?0:r).toString(); };
   const w0=S2W({x:R,y:H}), w1=S2W({x:W,y:R});
   ctx.beginPath(); ctx.textAlign='left'; ctx.textBaseline='top';
   for(let x=Math.floor(w0.x/minor)*minor; x<=w1.x; x+=minor){ const sx=Math.round(W2S({x,y:0}).x)+0.5; if(sx<R)continue;
@@ -116,7 +117,7 @@ function drawRulers(){ const th=TH(); const W=cv.width, H=cv.height, R=RULER_W;
     ctx.moveTo(R-len,sy); ctx.lineTo(R,sy);
     if(isMajor){ ctx.save(); ctx.translate(1,sy-2); ctx.rotate(-Math.PI/2); ctx.textAlign='left'; ctx.textBaseline='top'; ctx.fillText(fmt(y),0,0); ctx.restore(); } }
   ctx.stroke();
-  ctx.fillStyle=th.rulerBg; ctx.fillRect(0,0,R,R); ctx.fillStyle=th.rulerInk; ctx.font='8px monospace'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('in', R/2, R/2);
+  ctx.fillStyle=th.rulerBg; ctx.fillRect(0,0,R,R); ctx.fillStyle=th.rulerInk; ctx.font='8px monospace'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(unitName(), R/2, R/2);
   ctx.restore(); }
 // cursor marker on the overlay canvas (cheap: no scene re-render on every mouse move)
 let lastScr=null; const hctx=overlay.getContext('2d');
@@ -306,7 +307,7 @@ let snapMark=null;
 // ---- HUD / status ----
 function updateHud(){ document.getElementById('zoomlbl').textContent = Math.round(view.ppi)+' px/in · '+doc.shapes.length+' obj · '+sel.size+' sel'; }
 function setMsg(m){ msg=m; document.getElementById('msg').textContent=m; }
-function updateCursor(scr){ const w=S2W(scr); document.getElementById('coords').textContent = w.x.toFixed(4)+', '+w.y.toFixed(4)+' in'; lastScr=scr; drawRulerMarks(scr); }
+function updateCursor(scr){ const w=S2W(scr); document.getElementById('coords').textContent = fmtLen(w.x)+', '+fmtLen(w.y)+' '+unitName(); lastScr=scr; drawRulerMarks(scr); }
 // hover feedback for the Select tool: rotate icon over a corner grip, resize arrows over a scale handle, move over a shape
 const ROTATE_CURSOR="url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 22 22'><path d='M11 3a8 8 0 1 1-7.4 4.9' fill='none' stroke='white' stroke-width='4'/><path d='M11 3a8 8 0 1 1-7.4 4.9' fill='none' stroke='%23222' stroke-width='2'/><path d='M2 3v6h6' fill='none' stroke='white' stroke-width='4'/><path d='M2 3v6h6' fill='none' stroke='%23222' stroke-width='2'/></svg>\") 11 11, alias";
 const SCALE_CURSORS={nw:'nwse-resize',se:'nwse-resize',ne:'nesw-resize',sw:'nesw-resize',n:'ns-resize',s:'ns-resize',e:'ew-resize',w:'ew-resize'};
@@ -391,7 +392,8 @@ function updateMatSummary(){
   const set=(id,txt)=>{const el=document.getElementById(id); if(el) el.textContent=txt;};
   set('matSummary', job.w.toFixed(2)+'" \u00d7 '+job.h.toFixed(2)+'"  \u00b7  Z0 top, '+job.thickness.toFixed(3)+'" thick');
   set('matDatum', 'XY Datum: '+(ORIGIN_LABEL[job.origin]||job.origin));
-  set('jobDims', 'Job Dimensions\n  Width  (X): '+job.w.toFixed(3)+' inches\n  Height (Y): '+job.h.toFixed(3)+' inches\n  Depth  (Z): '+job.thickness.toFixed(3)+' inches');
+  const un=uk()===1?' inches':' mm';
+  set('jobDims', 'Job Dimensions\n  Width  (X): '+fmtLen(job.w,3)+un+'\n  Height (Y): '+fmtLen(job.h,3)+un+'\n  Depth  (Z): '+fmtLen(job.thickness,3)+un);
 }
 // ---- menu bar ----
 const MENU_ACTIONS={
@@ -405,7 +407,7 @@ const MENU_ACTIONS={
   'helpsearch':()=>openHelpSearch(),
   'expdxf':()=>exportDXF(), 'expsvg':()=>exportSVG(),
   'trace':()=>openTraceModal(),
-  'undo':()=>undo(), 'redo':()=>redo(), 'dup':()=>opDuplicate(), 'del':()=>deleteSelected(), 'group':()=>opGroup(), 'ungroup':()=>opUngroup(),
+  'undo':()=>undo(), 'redo':()=>redo(), 'dup':()=>opDuplicate(), 'del':()=>deleteSelected(), 'group':()=>opGroup(), 'ungroup':()=>opUngroup(), 'fitcurves':()=>showForm('fitcurve','drawing'),
   'cut':()=>opCut(), 'copy':()=>opCopy(), 'paste':()=>opPaste(),
   'check':()=>document.getElementById('btnCheckVec').click(),
   'recalc':()=>recalcAll(), 'post':()=>postJob(),
@@ -1167,7 +1169,7 @@ function opNest(){
   if(result.unplaced.length)m+=' · WARN: '+result.unplaced.length+' part(s) too large for sheet — excluded';
   setMsg(m);
 }
-function opOffset(){ const sh=selectedShapes(); if(!sh.length)return setMsg('Select shapes to offset'); const d=parseFloat(prompt('Offset distance (in, + outward, - inward):','0.25')); if(!d&&d!==0)return; pushHistory(); const res=CADCORE.offsetShapes(sh,d); res.forEach(r=>r.layer=activeLayer); addShapes(res); sel=new Set(res.map(r=>r.id)); render(); syncPanels(); }
+function opOffset(){ const sh=selectedShapes(); if(!sh.length)return setMsg('Select shapes to offset'); let d=unitExpr(prompt('Offset distance ('+unitName()+', + outward, - inward):', uk()===1?'0.25':'6')); if(d==null)return; d/=uk(); pushHistory(); const res=CADCORE.offsetShapes(sh,d); res.forEach(r=>r.layer=activeLayer); addShapes(res); sel=new Set(res.map(r=>r.id)); render(); syncPanels(); }
 function opBool(op){ const sh=selectedShapes(); if(sh.length<2)return setMsg('Select 2+ shapes'); pushHistory();
   let res; if(op==='union') res=CADCORE.booleanOp(sh,[],'union'); else { res=CADCORE.booleanOp([sh[0]],sh.slice(1),op==='diff'?'diff':'intersect'); }
   doc.shapes=doc.shapes.filter(s=>!sel.has(s.id)); res.forEach(r=>r.layer=activeLayer); addShapes(res); sel=new Set(res.map(r=>r.id)); render(); syncPanels(); }
@@ -1200,7 +1202,7 @@ function opGroup(){ const ids=[...sel]; if(ids.length<2){ setMsg('Select 2 or mo
 function opUngroup(){ if(!selectedShapes().some(s=>s.group)){ setMsg('Nothing grouped in the selection'); return; }
   pushHistory(); const n=CADCORE.ungroupShapes(doc.shapes, [...sel]); render(); syncPanels(); setMsg('Ungrouped '+n+' vectors'); }
 function opDuplicate(){ const sh=selectedShapes(); if(!sh.length)return; pushHistory(); const res=CADCORE.regroup(sh.map(s=>{const c=CADCORE.translate(s,0.25,-0.25);c.id=CADCORE.uid();return c;})); addShapes(res); sel=new Set(res.map(r=>r.id)); render(); syncPanels(); }
-function opArray(){ const sh=selectedShapes(); if(!sh.length)return; const cols=parseInt(prompt('Columns:','3'))||1, rows=parseInt(prompt('Rows:','1'))||1; const dx=parseFloat(prompt('X spacing (in):','2'))||0, dy=parseFloat(prompt('Y spacing (in):','2'))||0;
+function opArray(){ const sh=selectedShapes(); if(!sh.length)return; const cols=parseInt(prompt('Columns:','3'))||1, rows=parseInt(prompt('Rows:','1'))||1; const dx=(unitExpr(prompt('X spacing ('+unitName()+'):', uk()===1?'2':'50'))||0)/uk(), dy=(unitExpr(prompt('Y spacing ('+unitName()+'):', uk()===1?'2':'50'))||0)/uk();
   pushHistory(); const news=[]; for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){ if(!r&&!c)continue; news.push(...CADCORE.regroup(sh.map(s=>{const n=CADCORE.translate(s,c*dx,r*dy);n.id=CADCORE.uid();return n;}))); } addShapes(news); render(); syncPanels(); }
 function opRotate90(){ const sh=selectedShapes(); if(!sh.length)return; pushHistory(); const b=CADCORE.bboxAll(sh); const cx=(b.minX+b.maxX)/2,cy=(b.minY+b.maxY)/2;
   const map=new Map(sh.map(s=>[s.id,s])); doc.shapes=doc.shapes.map(s=>sel.has(s.id)?CADCORE.rotate(s,cx,cy,Math.PI/2):s); render(); syncPanels(); }
@@ -1336,7 +1338,7 @@ function setView(mode){
 function buildJobProgram(visibleOnly){
   const allOps=[], dpts=[], tools={}; let warns=[];
   for(const q of opsQueue){ if(visibleOnly && q.visible===false) continue;
-    let res; try{ res=buildOpRes(q.p, contoursFromIds(q.ids)); }catch(e){ warns.push(String(e.message||e)); continue; }
+    let res; try{ res=opRes(q); }catch(e){ warns.push(String(e.message||e)); continue; }
     for(const op of res.ops){ if(!op.passes||!op.passes.length) continue; allOps.push(op);
       if(!tools[op.toolNum]) tools[op.toolNum] = op.toolProfile || (q.p.op==='vcarve'?{type:'v',radius:(q.p.toolDia||0.25)/2,angle:q.p.bitAngle||90}:{type:'flat',radius:(q.p.toolDia||0.25)/2}); }
     if(res.points)dpts.push(...res.points);
@@ -1408,7 +1410,7 @@ function pbReadout(i, pt){
   const shape=tl.type==='v'?(tl.angle||90)+'° V':tl.type==='ball'?'ball':'flat';
   el.innerHTML='<b>'+kind+'</b> · line '+p.line[i]+'<br>T'+t+' · Ø'+(+(2*tl.radius).toFixed(4))+'" '+shape
     +'<br>S '+(p.rpm[i]?p.rpm[i].toLocaleString()+' rpm':'off')+' · F '+(k===GCSIM.RAPID?'rapid':p.feed[i]+' ipm')
-    +'<br>X '+pt[0].toFixed(4)+' Y '+pt[1].toFixed(4)+' Z '+z.toFixed(4)
+    +'<br>X '+fmtLen(pt[0])+' Y '+fmtLen(pt[1])+' Z '+fmtLen(z)+(uk()===1?'':' mm')
     +'<br><span class="muted">'+(z<0?(-z).toFixed(3)+'" deep':z.toFixed(3)+'" above top')+'</span>';
   pbSource(p.line[i]);
 }
@@ -1448,7 +1450,7 @@ function pbUI(){
     row.innerHTML='<span class="sw" style="background:rgb('+c.join(',')+')"></span><b>T'+t+'</b>';
     if(PB.file){
       row.innerHTML+='<select data-t="'+t+'" data-k="type"><option value="flat">Flat</option><option value="ball">Ball</option><option value="v">V-bit</option></select>'
-        +'<label>Ø<input type="number" data-t="'+t+'" data-k="dia" step="0.0625" min="0.01" value="'+(+(2*tl.radius).toFixed(4))+'" style="width:58px"></label>'
+        +'<label>Ø<input type="number" data-len data-t="'+t+'" data-k="dia" step="0.0625" min="0.01" value="'+(+(2*tl.radius).toFixed(4))+'" style="width:58px"></label>'
         +'<label class="pbang">∠<input type="number" data-t="'+t+'" data-k="angle" step="15" min="10" max="170" value="'+(tl.angle||90)+'" style="width:44px"></label>';
       row.querySelector('select').value=tl.type||'flat';
     } else row.innerHTML+='<span class="muted">Ø'+(+(2*tl.radius).toFixed(4))+'" '+(tl.type==='v'?(tl.angle||90)+'° V-bit':tl.type==='ball'?'ball':'flat')+'</span>';
@@ -1525,6 +1527,7 @@ function applyProject(proj, srcName){
   doc.layers=new Map(proj.layers.map(l=>[l.name,{visible:l.visible,color:l.color}]));
   activeLayer=(proj.layers[0]&&proj.layers[0].name)||'0';
   job.w=proj.job.w; job.h=proj.job.h; job.thickness=proj.job.thickness; job.origin=proj.job.origin; job.show=proj.job.show;
+  setUnits(proj.job.units||'in', true);
   opsQueue=(proj.opsQueue||[]).map(normalizeOp); editingIdx=null;
   applyJobInputs(); toolpaths=null; drillMarks=null; sel.clear();
   history=[]; future=[];
@@ -1609,6 +1612,7 @@ function camBuild(){ const contours=camContours(); const closedN=contours.filter
   const g=CAM.postProcess({name:'design - '+label,units:'inch',ops:res.ops},post); const arcN=(g.match(/^G[23] /gm)||[]).length;
   return {g,closedN,passes:res.ops.reduce((n,op)=>n+op.passes.length,0),warnings:res.warnings,arcN,op:p.op,points:res.points||null}; }
 function toolpathSegs(g){ // parse to segments for overlay (tracks Z so the backplot can shade by depth)
+  if(/^G21\b/m.test(g)){ const k=1/25.4; return toolpathSegs(g.replace(/G21/,'G20')).map(s=>({x0:s.x0*k,y0:s.y0*k,x1:s.x1*k,y1:s.y1*k,z0:s.z0*k,z1:s.z1*k,rapid:s.rapid})); }   // metric post: back to inches
   const segs=[]; let x=0,y=0,z=0,mode=null;
   for(const raw of g.split(/\r?\n/)){ const ln=raw.trim().toUpperCase(); if(!ln||ln[0]==='('||ln[0]==='%')continue; const m=ln.match(/^(G[0-3])/); if(m)mode=m[1];
     const pv=c=>{const r=ln.match(new RegExp(c+'(-?[\\d.]+)'));return r?+r[1]:null;}; const nx=pv('X'),ny=pv('Y'),ni=pv('I'),nj=pv('J'),nz=pv('Z'); const x0=x,y0=y,z0=z;
@@ -1644,15 +1648,38 @@ function autoOpName(p){ p=p||{}; const op=p.op||'profile';
   if(op==='chamfer') return 'Chamfer '+(+(p.chWidth||0.125)).toFixed(3)+'"';
   return op.charAt(0).toUpperCase()+op.slice(1); }
 function autoLabel(p,ids,match){ return autoOpName(p)+' · T'+p.toolNum+' Ø'+p.toolDia+'" · '+((ids&&ids.length)?ids.length+' sel':'all')+(match?' (lib)':''); }
-function normalizeOp(q){ q=q||{}; return { p:q.p||{}, ids:Array.isArray(q.ids)?q.ids:[], name:q.name||q.label||autoOpName(q.p), label:q.label||'', visible:q.visible!==false }; }
+function normalizeOp(q){ q=q||{}; const o={ p:q.p||{}, ids:Array.isArray(q.ids)?q.ids:[], name:q.name||q.label||autoOpName(q.p), label:q.label||'', visible:q.visible!==false };
+  if(Array.isArray(q.parts)&&q.parts.length) o.parts=q.parts.map(normalizeOp); return o; }
+// A toolpath's result: its own op, or for a merged toolpath its parts' ops merged per tool.
+function opRes(q){ if(!q.parts) return buildOpRes(q.p, contoursFromIds(q.ids));
+  const ops=[], warnings=[], points=[];
+  for(const pt of q.parts){ const r=buildOpRes(pt.p, contoursFromIds(pt.ids)); ops.push(...r.ops); if(r.warnings) warnings.push(...r.warnings); if(r.points) points.push(...r.points); }
+  return { ops:CAM.mergeOps(ops), warnings, points:points.length?points:null }; }
+// Pick toolpaths in the list (Shift- or Cmd/Ctrl-click a row) to merge them.
+const qPick=new Set();
+function mergePicked(){ const idx=opsQueue.map((q,i)=>i).filter(i=>qPick.has(opsQueue[i]));
+  if(idx.length<2){ setMsg('Shift- or Cmd/Ctrl-click two or more toolpaths in the list to merge them'); return; }
+  const qs=idx.map(i=>opsQueue[i]), tn=new Set(qs.map(q=>q.p.toolNum));
+  if(tn.size>1){ setMsg('Merge needs one tool — these use '+[...tn].map(t=>'T'+t).join(', ')); return; }
+  pushHistory(); const parts=qs.flatMap(q=>q.parts||[q]);
+  const m={ p:{op:'merged',toolNum:qs[0].p.toolNum,toolDia:qs[0].p.toolDia,feed:qs[0].p.feed,plunge:qs[0].p.plunge}, ids:[], parts:parts.map(normalizeOp),
+    name:'Merged: '+parts.map(q=>q.name||autoOpName(q.p)).join(' + '), label:'', visible:true };
+  opsQueue=opsQueue.filter(q=>!qPick.has(q)); opsQueue.splice(idx[0],0,m); qPick.clear(); editingIdx=null; buildQueueList(); recalcAll();
+  setMsg('Merged '+parts.length+' toolpaths on T'+m.p.toolNum+' — they cut together with no tool change'); }
+function unmergePicked(){ const ms=opsQueue.filter(q=>q.parts&&(qPick.has(q)||qPick.size===0));
+  if(!ms.length){ setMsg('Pick a merged toolpath (Shift- or Cmd/Ctrl-click it) to unmerge'); return; }
+  pushHistory(); for(const m of ms){ const i=opsQueue.indexOf(m); opsQueue.splice(i,1,...m.parts.map(normalizeOp)); } qPick.clear(); buildQueueList(); recalcAll();
+  setMsg('Unmerged '+ms.length+' toolpath'+(ms.length>1?'s':'')); }
 function refreshAddBtn(){ const b=document.getElementById('btnAddOp'); if(b) b.textContent=(editingIdx!=null)?'✓ Update':'+ Toolpath'; }
 function moveOp(i,dir){ const j=i+dir; if(j<0||j>=opsQueue.length)return; pushHistory(); const t=opsQueue[i]; opsQueue[i]=opsQueue[j]; opsQueue[j]=t;
   if(editingIdx===i)editingIdx=j; else if(editingIdx===j)editingIdx=i; buildQueueList(); }
 function renameOp(i){ const q=opsQueue[i]; if(!q)return; const n=prompt('Toolpath name:', q.name||q.label||'Toolpath'); if(n==null)return; pushHistory(); q.name=n.trim()||q.name; buildQueueList(); }
-function editOp(i){ const q=opsQueue[i]; if(!q)return; applyParamsToPanel(q.p); openCamForm(q.p&&q.p.op); sel=new Set(q.ids); editingIdx=i; buildQueueList(); render(); setMsg('Editing "'+(q.name||q.label)+'" — adjust settings, then click ✓ Update'); }
+function editOp(i){ const q=opsQueue[i]; if(!q)return; if(q.parts){ setMsg('"'+q.name+'" is merged — Unmerge it to edit its parts'); return; } applyParamsToPanel(q.p); openCamForm(q.p&&q.p.op); sel=new Set(q.ids); editingIdx=i; buildQueueList(); render(); setMsg('Editing "'+(q.name||q.label)+'" — adjust settings, then click ✓ Update'); }
 function buildQueueList(){ const el=document.getElementById('opsQueue'); if(!el)return; el.innerHTML=''; refreshAddBtn();
   if(!opsQueue.length){ el.innerHTML='<div class="muted" style="font-size:10px">No toolpaths yet — set an Op + selection, then "+ Toolpath".</div>'; return; }
-  opsQueue.forEach((q,i)=>{ const row=document.createElement('div'); row.className='qrow'+(i===editingIdx?' editing':'');
+  for(const q of [...qPick]) if(opsQueue.indexOf(q)<0) qPick.delete(q);
+  opsQueue.forEach((q,i)=>{ const row=document.createElement('div'); row.className='qrow'+(i===editingIdx?' editing':'')+(qPick.has(q)?' picked':'')+(q.parts?' merged':'');
+    row.addEventListener('click',e=>{ if(!(e.shiftKey||e.metaKey||e.ctrlKey)) return; e.preventDefault(); e.stopPropagation(); qPick.has(q)?qPick.delete(q):qPick.add(q); buildQueueList(); }, true);
     row.innerHTML='<input type="checkbox" class="qv" '+(q.visible!==false?'checked':'')+' title="Show in preview">'+
       '<span class="ql" title="Click to rename">'+(i+1)+'. '+_esc(q.name||q.label||'Toolpath')+'</span>'+
       '<span class="qt" title="Estimated cut time">'+(q._time?fmtTime(q._time):'')+'</span>'+
@@ -1670,7 +1697,7 @@ function addOp(){ const p=camParams(); const ids=[...sel];
   const name=autoOpName(p); opsQueue.push({p,ids,name,label,visible:true}); buildQueueList(); recalcAll(); setMsg('Added toolpath '+opsQueue.length+': '+name); }
 // Recompute the backplot for every VISIBLE toolpath and combine into one preview overlay.
 function recalcAll(){ const allSegs=[], allMarks=[]; let total=0;
-  for(const q of opsQueue){ if(q.visible===false)continue; let res; try{ res=buildOpRes(q.p, contoursFromIds(q.ids)); }catch(e){ continue; }
+  for(const q of opsQueue){ if(q.visible===false)continue; let res; try{ res=opRes(q); }catch(e){ continue; }
     if(!res.ops.some(op=>op.passes&&op.passes.length)){ q._time=0; continue; }
     const post=Object.assign({},CAM.POSTS[document.getElementById('camPost').value]); post.arcs=(q.p.op!=='drill')&&document.getElementById('camArcs').checked;
     const g=CAM.postProcess({name:'tp',units:'inch',ops:res.ops},post);   // all ops (vcarve flat-depth posts 2)
@@ -1709,6 +1736,16 @@ function filletAt(w){ const tol=pxTol(14); let best=null,bd=tol,bi=-1;
   if(!np){ setMsg(o.mode==='fillet'?'Fillet: corner not fillettable (collinear, or an open endpoint)':'Corner too small for a Ø'+(2*o.r)+'" tool notch (or collinear / an open endpoint)'); return; }
   pushHistory(); best.pts=np; best.prim={kind:'poly'}; sel=new Set([best.id]); render(); syncPanels();
   setMsg(CORNER_NOUN[o.mode]+' corner · '+(o.mode==='fillet'?'r='+o.r+'"':'tool Ø'+(2*o.r)+'"')); }
+// Fit Curves: rebuild the selected vectors from lines and true arcs within a tolerance.
+function fitSelection(){ const sh=selectedShapes().filter(s=>s.type==='path'&&!s.annotation&&s.pts&&s.pts.length>=3);
+  if(!sh.length){ setMsg('Select the vectors to fit first'); return; }
+  const tol=Math.abs(parseFloat(document.getElementById('fitTol').value)||0.005), mode=document.getElementById('fitMode').value;
+  pushHistory(); let before=0, after=0, arcs=0, lines=0;
+  for(const s of sh){ const r=CADCORE.fitCurves(s.pts, s.closed, tol, mode); if(r.pts.length<2) continue;
+    before+=s.pts.length; after+=r.lines+r.arcs; arcs+=r.arcs; lines+=r.lines; s.pts=r.pts; s.prim={kind:'poly'}; }
+  render(); syncPanels();
+  const msg='Fitted '+sh.length+' vector'+(sh.length>1?'s':'')+': '+before+' nodes → '+lines+' line'+(lines!==1?'s':'')+(mode==='lines'?'':' + '+arcs+' arc'+(arcs!==1?'s':''))+' (tol '+fmtLen(tol,uk()===1?4:3)+' '+unitName()+')';
+  setMsg(msg); const h=document.getElementById('fitHint'); if(h) h.textContent=msg; }
 function filletSelection(){ const o=filletOpts(), sh=selectedShapes().filter(s=>s.type==='path'&&!s.annotation&&s.pts.length>=3);
   if(!sh.length){ setMsg('Select the vectors whose corners to treat first'); return; }
   pushHistory(); let n=0, skipped=0;
@@ -1985,7 +2022,7 @@ function applyTpl(){ const t=currentTpl(); if(!t)return setMsg('No template sele
   setMsg('Applied "'+t.name+'" — '+entries.length+' toolpath(s) on '+(ids.length?ids.length+' selected':'all visible')+' vector(s)'); }
 function saveTpl(){ if(!opsQueue.length)return setMsg('Add toolpaths first, then save them as a template');
   const n=prompt('Template name:', currentTpl()?currentTpl().name:'My recipe'); if(n==null)return;
-  const t=CAM.templateFromQueue(n.trim()||'My recipe', opsQueue);
+  const t=CAM.templateFromQueue(n.trim()||'My recipe', opsQueue.flatMap(q=>q.parts||[q]));
   templates=CAM.upsertTemplate(templates,t); persistTemplates(); buildTplLib(t.id);
   setMsg('Saved template "'+t.name+'" — '+t.entries.length+' toolpath(s), no geometry'); }
 function delTpl(){ const t=currentTpl(); if(!t)return;
@@ -2138,16 +2175,74 @@ function buildProps(){ const el=document.getElementById('props'); if(!el)return;
   el.querySelectorAll('.posf input').forEach(inp=>inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); inp.dispatchEvent(new Event('change')); inp.select(); } }));
   const eb=document.getElementById('btnEditShape'); if(eb)eb.onclick=()=>openShapeModal(sh[0]); }
 
+// ---- units (in / mm) ----
+// The drawing, toolpaths and every calculation stay in inches; millimetres are a view onto them, set per job.
+// Length fields show and take mm, readouts and rulers read in mm, the grid steps in mm, and the metric posts
+// write G21 programs. Each length field gets its own `value` property that converts on the way in and out, so
+// all the code that reads and writes those fields keeps working in inches. Any length field also takes a unit
+// suffix in an expression — "25mm", "1.5in", '3/4"' — whichever units the job is in.
+const MM=25.4;
+const NATIVE_VALUE=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value');
+const rawGet=el=>NATIVE_VALUE.get.call(el), rawSet=(el,v)=>NATIVE_VALUE.set.call(el,v);
+const LEN_IDS=['fitTol','jobW','jobH','jobT','gridStep','fRectW','fRectH','fRectX','fRectY','fRrectW','fRrectH','rrectR','fRrectX','fRrectY',
+  'fPolygonD','fPolygonX','fPolygonY','fStarD','fStarX','fStarY','fCircleD','fCircleX','fCircleY','fEllipseW','fEllipseH','fEllipseX','fEllipseY',
+  'txtH','fTextX','fTextY','dimTextH','filletR','filletTool','nestW','nestH','nestMargin','nestSpacing',
+  'camTopZ','camDepth','camPass','camDia','camFeed','camPlunge','camFinishDia','camPeck','camVStep','camVFlat','camVClearDia',
+  'camInlayGap','camInlayPocketD','camInlayMaleD','camInlayStartD','camInlayMargin','camLeadLen','camRampLen','camTabL','camTabH',
+  'camChWidth','camChOffset','camFlRampLen','camPrMax','pbRapid','pX','pY','pW','pH'];
+const MODAL_NONLEN=new Set(['n','rotDeg','a0Deg','a1Deg','prec']);
+const isLenField=el=>el && el.tagName==='INPUT' && (LEN_IDS.indexOf(el.id)>=0 || (el.dataset.k && el.closest('#modalFields') && !MODAL_NONLEN.has(el.dataset.k)) || el.dataset.len!=null);
+function uk(){ return job.units==='mm'?MM:1; }
+// "25mm + 1in" -> a plain number in the job's units; null when it is not a number
+function unitExpr(raw){ const k=uk();
+  const src=String(raw==null?'':raw).replace(/(\d*\.?\d+)\s*(mm|in|")/gi,(m,n,u)=>'('+(u.toLowerCase()==='mm'?(+n)/MM*k:(+n)*k)+')');
+  return CADCORE.evalExpr(src); }
+function markLen(el){ if(!el || el._len) return; el._len=true;
+  Object.defineProperty(el,'value',{ configurable:true,
+    get(){ const raw=rawGet(this); if(uk()===1 && !/[a-z"]/i.test(raw)) return raw; const v=unitExpr(raw); return v==null?raw:String(Math.round(v/uk()*1e9)/1e9); },
+    set(v){ const n=typeof v==='number'?v:parseFloat(v); rawSet(this, (!isFinite(n)||String(v).trim()==='')?v:CADCORE.fmtNum(Math.round(n*uk()*10000)/10000)); } });
+  if(uk()!==1){ const n=parseFloat(rawGet(el)); if(isFinite(n)) rawSet(el, CADCORE.fmtNum(Math.round(n*uk()*10000)/10000)); }
+  unitLabel(el); }
+// Swap the inch mark in a length field's label for "mm" (and back); feeds read ipm or mm/min.
+function unitLabel(el){ const lab=el.closest('label'); if(!lab) return;
+  const tn=[...lab.childNodes].find(n=>n.nodeType===3 && n.textContent.trim()); if(!tn) return;
+  if(tn._base==null) tn._base=tn.textContent;
+  const feed=el.id==='camFeed'||el.id==='camPlunge'||el.id==='pbRapid';
+  if(feed) tn.textContent=tn._base.replace(/\s*(ipm|mm\/min)?\s*$/i,'')+(uk()===1?'':' mm/min');
+  else tn.textContent=uk()===1?tn._base:tn._base.replace(/"\s*$/,' mm').replace(/"/,' mm'); }
+function lenFields(){ const out=new Set(); LEN_IDS.forEach(id=>{ const e=document.getElementById(id); if(e) out.add(e); });
+  document.querySelectorAll('#modalFields input,input[data-len]').forEach(e=>{ if(isLenField(e)) out.add(e); }); return [...out]; }
+function setUnits(u, quiet){ u=u==='mm'?'mm':'in'; if(job.units===u && !quiet) return;
+  const fields=lenFields(); fields.forEach(markLen);
+  const vals=fields.map(e=>e.value);                 // inches, read in the old units
+  const wasGrid=grid.step;
+  job.units=u; try{ localStorage.setItem('aqcam.units',u); }catch(e){}
+  fields.forEach((e,i)=>{ e.value=vals[i]; unitLabel(e); });
+  // a grid that was the default in the old units becomes the default in the new ones (0.5" <-> 10 mm)
+  if(Math.abs(wasGrid-0.5)<1e-9 && u==='mm') grid.step=10/MM; else if(Math.abs(wasGrid-10/MM)<1e-9 && u==='in') grid.step=0.5;
+  const gs=document.getElementById('gridStep'); if(gs) gs.value=grid.step;
+  // the matching post (inch <-> metric twin)
+  const pp=document.getElementById('camPost'); if(pp){ const base=pp.value.replace(/_mm$/,''); const want=u==='mm'?base+'_mm':base; if(CAM.POSTS[want]) pp.value=want; }
+  const du=document.getElementById('dimUnit'); if(du) du.value=u;
+  const us=document.getElementById('jobUnits'); if(us) us.value=u;
+  const ub=document.getElementById('btnUnits'); if(ub) ub.textContent=u;
+  updateMatSummary(); syncPanels(); render(); drawRulerMarks(lastScr);
+  if(!quiet) setMsg('Units: '+(u==='mm'?'millimetres':'inches')+' — the drawing is unchanged, only how it is shown and typed'); }
+// Format a length (inches) in the job's units.
+function fmtLen(v, dp){ const k=uk(); return (v*k).toFixed(dp==null?(k===1?4:3):dp); }
+function unitName(){ return uk()===1?'in':'mm'; }
 // ---- arithmetic in numeric fields ----
 // Every numeric field accepts an expression ("35.5/2", "12+3*0.25", "(48.5-2)/3"); it resolves in place on
 // Enter, Tab or leaving the field, before the field's own handlers see it. Arrow Up/Down step by the field's step.
 // Number inputs become text inputs (a type=number field rejects '/' and '*'); new ones are converted as they appear.
 function calcify(root){ (root||document).querySelectorAll('input[type=number]').forEach(inp=>{
   inp.dataset.step=inp.getAttribute('step')||''; inp.type='text'; inp.inputMode='decimal'; inp.classList.add('calc'); inp.spellcheck=false;
-  if(!inp.title) inp.title='Type a number or arithmetic, e.g. 35.5/2'; }); }
-function calcResolve(inp){ const raw=inp.value; if(raw.trim()==='' || /^-?\d*\.?\d+$/.test(raw.trim())) { inp.classList.remove('bad'); return true; }
-  const v=CADCORE.evalExpr(raw); if(v==null){ inp.classList.add('bad'); setMsg('Not a number: "'+raw+'"'); return false; }
-  inp.classList.remove('bad'); inp.value=CADCORE.fmtNum(v); return true; }
+  if(!inp.title) inp.title='Type a number or arithmetic, e.g. 35.5/2'+(isLenField(inp)?' — or with units: 25mm, 1.5in':'');
+  if(isLenField(inp)) markLen(inp); }); }
+// Works on the field's own text (rawGet/rawSet), in whatever units it shows.
+function calcResolve(inp){ const raw=rawGet(inp); if(raw.trim()==='' || /^-?\d*\.?\d+$/.test(raw.trim())) { inp.classList.remove('bad'); return true; }
+  const v=isLenField(inp)?unitExpr(raw):CADCORE.evalExpr(raw); if(v==null){ inp.classList.add('bad'); setMsg('Not a number: "'+raw+'"'); return false; }
+  inp.classList.remove('bad'); rawSet(inp, CADCORE.fmtNum(v)); return true; }
 function initCalcFields(){
   calcify(document);
   new MutationObserver(ms=>{ for(const m of ms) for(const n of m.addedNodes){ if(n.nodeType!==1)continue;
@@ -2155,9 +2250,10 @@ function initCalcFields(){
     .observe(document.body,{childList:true,subtree:true});
   const isCalc=t=>t&&t.classList&&t.classList.contains('calc');
   document.addEventListener('keydown',e=>{ const t=e.target; if(!isCalc(t))return;
-    if(e.key==='Enter'||e.key==='Tab'){ const before=t.value; calcResolve(t); if(t.value!==before){ t.dispatchEvent(new Event('input',{bubbles:true})); if(e.key==='Enter') t.dispatchEvent(new Event('change',{bubbles:true})); } }
+    if(e.key==='Enter'||e.key==='Tab'){ const before=rawGet(t); calcResolve(t); if(rawGet(t)!==before){ t.dispatchEvent(new Event('input',{bubbles:true})); if(e.key==='Enter') t.dispatchEvent(new Event('change',{bubbles:true})); } }
     else if(e.key==='ArrowUp'||e.key==='ArrowDown'){ e.preventDefault(); calcResolve(t);
-      const st=parseFloat(t.dataset.step)||1, v=parseFloat(t.value)||0; t.value=CADCORE.fmtNum(v+(e.key==='ArrowUp'?st:-st));
+      let st=parseFloat(t.dataset.step)||1; if(t._len&&uk()!==1) st=Math.max(0.01,+(st*MM).toPrecision(1)); const v=parseFloat(rawGet(t))||0;
+      rawSet(t, CADCORE.fmtNum(Math.round((v+(e.key==='ArrowUp'?st:-st))*10000)/10000));   // steps in the units shown
       t.dispatchEvent(new Event('input',{bubbles:true})); t.dispatchEvent(new Event('change',{bubbles:true})); } }, true);
   document.addEventListener('change',e=>{ if(isCalc(e.target)) calcResolve(e.target); }, true);
   document.addEventListener('focusout',e=>{ if(isCalc(e.target)) calcResolve(e.target); }, true); }
@@ -2251,11 +2347,13 @@ function wire(){
   on('btnAlignL',()=>opAlign('left')); on('btnAlignR',()=>opAlign('right')); on('btnAlignT',()=>opAlign('top')); on('btnAlignB',()=>opAlign('bottom')); on('btnAlignHC',()=>opAlign('hcenter')); on('btnAlignVC',()=>opAlign('vcenter'));
   on('btnSaveProj',saveProject); on('btnExpDXF',exportDXF); on('btnExpSVG',exportSVG);
   on('btnJobSet',setJob); on('btnFitJob',fitJob);
+  on('btnUnits',()=>setUnits(uk()===1?'mm':'in')); const ju=document.getElementById('jobUnits'); if(ju) ju.onchange=()=>setUnits(ju.value);
   const js=document.getElementById('jobShow'); if(js)js.onchange=e=>{job.show=e.target.checked; render();};
   // live job dimension updates (no view refit — use "Set job"/"Fit job" to re-zoom)
   const jobLive=()=>{ const g=id=>document.getElementById(id); job.w=Math.abs(parseFloat(g('jobW').value)||24); job.h=Math.abs(parseFloat(g('jobH').value)||18); job.thickness=Math.abs(parseFloat(g('jobT').value)||0.5); job.origin=g('jobOrigin').value; updateMatSummary(); render(); };
   ['jobW','jobH','jobT','jobOrigin'].forEach(id=>{ const el=document.getElementById(id); if(el)el.addEventListener('input',jobLive); });
   on('btnCamGen',camGenerate); on('btnCamExport',camExport); on('btnCamClear',camClear);
+  on('btnMergeTp',mergePicked); on('btnUnmergeTp',unmergePicked);
   on('btnAddOp',addOp); on('btnRecalcAll',recalcAll); on('btnPostJob',postJob); buildQueueList();
   // CAM op selector toggles profile-only / pocket-only controls
   const camOp=document.getElementById('camOp');
@@ -2320,7 +2418,7 @@ function wire(){
   document.querySelectorAll('#rotModal .rq').forEach(b=>{ b.onclick=()=>{ document.getElementById('rotAngle').value=b.dataset.deg; previewRotateModal(); }; });
   // 3D view presets + help search
   const fm=document.getElementById('filletMode'); if(fm){ fm.onchange=filletForm; filletForm(); } on('btnFilletAll',filletSelection);
-  on('btnGroup',opGroup); on('btnUngroup',opUngroup);
+  on('btnGroup',opGroup); on('btnUngroup',opUngroup); on('btnFitCurves',()=>showForm('fitcurve','drawing')); on('btnFitApply',fitSelection);
   on('simTop',()=>v3Preset('top')); on('simIso',()=>v3Preset('iso')); on('simFront',()=>v3Preset('front'));
   // playback bar
   on('pbPlay',()=>{ PB.playing?pbPause():pbPlay(); }); on('pbStart',()=>{ pbPause(); pbSet(0); }); on('pbEnd',()=>{ pbPause(); if(PB.tl) pbSet(PB.tl.total); });
@@ -2383,7 +2481,7 @@ function initTips(){ const tip=document.getElementById('tip'); if(!tip) return; 
     cur=el; timer=setTimeout(()=>{ if(cur===el) place(el); }, 350); });
   document.addEventListener('mouseout', e=>{ const el=e.target.closest&&e.target.closest('[data-tip]'); if(el&&el===cur&&!(e.relatedTarget&&el.contains(e.relatedTarget))) hide(); });
   document.addEventListener('mousedown', hide, true); window.addEventListener('scroll', hide, true); window.addEventListener('blur', hide); }
-wire(); initCalcFields(); initTips(); resize(); setTool('select'); syncPanels(); render();
+wire(); initCalcFields(); setUnits((function(){ try{ return localStorage.getItem('aqcam.units'); }catch(e){ return null; } })()||'in', true); initTips(); resize(); setTool('select'); syncPanels(); render();
 window.AQ_STUDIO = { doc, get sel(){return sel;}, get view(){return viewMode;}, CADCORE, CAM, importText, importPDF, openProject, saveProject, saveProjectAs, projectJSON, setView, camBuild, setTool, addShapes, render,
   opCopy, opCut, opPaste, get clip(){return clip;}, createFromForm, openShapeModal, applyShapeModal, closeShapeModal, setModalAnchor, setRotAnchor, get anchor(){return modalAnchor;}, get rotAnchor(){return rotAnchor;},
   openRotateModal, applyRotateModal, addLayer, moveSelToLayer, get grid(){return grid;}, selectedShapes, get projectFile(){return projectFile;},

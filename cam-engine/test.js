@@ -818,5 +818,28 @@ console.log('\n(post-pp assertions added)');
   ok('fluting G-code: plunge ramps are cuts, depth reaches -0.2', pp.bounds.z0<=-0.2+1e-6 && pp.n>50);
 })();
 
+// ---- merge toolpaths + metric posts ----
+(function(){
+  const sq={closed:true,pts:[{x:0,y:0},{x:4,y:0},{x:4,y:2},{x:0,y:2}]}, sq2={closed:true,pts:[{x:6,y:0},{x:8,y:0},{x:8,y:2},{x:6,y:2}]};
+  const a=CAM.profileOp([sq],{toolNum:1,toolDia:0.25,cutDepth:0.25,passDepth:0.25,feed:100,plunge:20}).ops[0];
+  const b=CAM.profileOp([sq2],{toolNum:1,toolDia:0.25,cutDepth:0.25,passDepth:0.25,feed:60,plunge:10}).ops[0];
+  const c=CAM.drillOp([sq],{toolNum:5,cutDepth:0.3}).ops[0];
+  const m=CAM.mergeOps([a,b,c]);
+  ok('merge: one op per tool', m.length===2 && m[0].toolNum===1 && m[0].passes.length===2 && m[1].toolNum===5);
+  const g=CAM.postProcess({name:'m',units:'inch',ops:[m[0]]},CAM.POSTS.shopsabre);
+  ok('merge: one tool block for the merged pair', (g.match(/^T1$/gm)||[]).length===1);
+  ok('merge: each part keeps its own feeds', /F100\.0/.test(g) && /F60\.0/.test(g) && /F20\.0/.test(g) && /F10\.0/.test(g));
+  // metric twin: same geometry ×25.4, G21, metric feeds; parses back to the inch program
+  const gi=CAM.postProcess({name:'i',units:'inch',ops:[a]},CAM.POSTS.shopsabre), gm=CAM.postProcess({name:'m',units:'inch',ops:[a]},CAM.POSTS.shopsabre_mm);
+  ok('metric post: G21 + scaled moves + safe Z in mm', /^G21$/m.test(gm) && /^Z50\.800$/m.test(gm) && /X104\.775/.test(gm) && /F2540\.0/.test(gm), gm.split('\r\n').slice(0,16).join('|'));
+  ok('inch post unchanged by the metric twin', !/G21/.test(gi) && /^Z2$/m.test(gi));
+  const S=require('./gcodesim.js'), pi=S.parseGcode(gi), pm=S.parseGcode(gm);
+  let d=0; for(let i=0;i<Math.min(pi.n,pm.n);i++) d=Math.max(d,Math.abs(pi.x1[i]-pm.x1[i]),Math.abs(pi.y1[i]-pm.y1[i]),Math.abs(pi.z1[i]-pm.z1[i]));
+  ok('metric program plays back as the same inch moves', pm.metric && pi.n===pm.n && d<0.0005, pi.n+'/'+pm.n+' d='+d);
+  ok('metric feeds read back in in/min', Math.abs(pm.feed[pm.n-1]-pi.feed[pi.n-1])<0.01);
+  const gg=CAM.postProcess({name:'g',units:'inch',ops:[a]},CAM.POSTS.generic_mm);
+  ok('generic metric post: G21 not G20', /^G21$/m.test(gg) && !/^G20$/m.test(gg));
+})();
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

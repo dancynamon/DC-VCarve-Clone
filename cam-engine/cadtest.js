@@ -1,6 +1,6 @@
 const C=require('./cadcore.js');
 let pass=0,fail=0; const ok=(n,c,x)=>{c?pass++:(fail++,console.log('  FAIL',n,x===undefined?'':JSON.stringify(x)));};
-const bb=s=>C.bbox(s); const close=(a,b,t)=>Math.abs(a-b)<=(t||1e-6);
+const bb=s=>C.bbox(s); const close=(a,b,t)=>Math.abs(a-b)<=(t||1e-6); const TAU_=Math.PI*2;
 
 // primitives
 const r=C.mkRect(0,0,4,3); ok('rect bbox',close(bb(r).maxX,4)&&close(bb(r).maxY,3));
@@ -444,6 +444,26 @@ ok('q4: 0.0001 lattice', C.q4(1.23456)===1.2346 && C.q4(-0.00001)===0 && C.q4(17
   ok('treat: all four mortise corners', all.done===4 && Math.min(...all.pts.map(q=>q.x))<0 && Math.max(...all.pts.map(q=>q.x))>4);
   const fl=C.treatCorners(sq,true,[0,1,2,3],0.25,'fillet'); ok('treat: fillet mode rounds every corner', fl.done===4);
 }
+// curve fitting
+{ let seed=7; const rnd=()=>{ seed=(seed*16807)%2147483647; return seed/2147483647-0.5; };
+  const noisy=Array.from({length:400},(_,i)=>{ const a=TAU_*i/400, r=2+rnd()*0.004; return {x:5+r*Math.cos(a),y:5+r*Math.sin(a)}; });
+  const f=C.fitCurves(noisy,true,0.005);
+  ok('fit: noisy circle becomes arcs', f.arcs>=1 && f.lines<=2, f);
+  ok('fit: every output point on the true circle within tol', f.pts.every(p=>Math.abs(Math.hypot(p.x-5,p.y-5)-2)<0.0075));
+  const jag=[]; for(let i=0;i<=200;i++) jag.push({x:i*0.02,y:(i%2?0.002:-0.002)});
+  for(let i=1;i<=100;i++) jag.push({x:4+(i%2?0.002:-0.002),y:i*0.02});
+  const fl=C.fitCurves(jag,false,0.005,'lines');
+  ok('fit: zig-zag noise on an L becomes 2 lines', fl.lines===2 && fl.pts.length===3, fl.pts.length);
+  ok('fit: the corner survives', fl.pts.some(p=>Math.abs(p.x-4)<0.01&&Math.abs(p.y)<0.01));
+  const sq=[]; for(let i=0;i<40;i++) sq.push({x:i*0.1,y:0}); for(let i=0;i<20;i++) sq.push({x:4,y:i*0.1}); for(let i=0;i<40;i++) sq.push({x:4-i*0.1,y:2}); for(let i=0;i<20;i++) sq.push({x:0,y:2-i*0.1});
+  const fs=C.fitCurves(sq,true,0.005);
+  ok('fit: densely sampled rectangle -> 4 lines', fs.lines===4 && fs.arcs===0 && fs.pts.length===4, fs);
+  const slot=[]; for(let i=0;i<=30;i++) slot.push({x:i*0.1,y:0}); for(let i=1;i<30;i++){ const a=-Math.PI/2+Math.PI*i/30; slot.push({x:3+Math.cos(a),y:1+Math.sin(a)}); }
+  for(let i=0;i<=30;i++) slot.push({x:3-i*0.1,y:2}); for(let i=1;i<30;i++){ const a=Math.PI/2+Math.PI*i/30; slot.push({x:Math.cos(a),y:1+Math.sin(a)}); }
+  const fo=C.fitCurves(slot,true,0.002);
+  ok('fit: an obround = 2 lines + 2 arcs', fo.lines===2 && fo.arcs===2, fo.lines+'/'+fo.arcs);
+}
+
 // groups
 { const a=C.mkRect(0,0,1,1), b=C.mkCircle({x:3,y:3},1), c=C.mkRect(5,5,1,1), sh=[a,b,c];
   const g=C.groupShapes(sh,[a.id,b.id]);

@@ -24,7 +24,7 @@ const ARC_CHORD = 0.02;       // in — arc chord length when splitting G2/G3 fo
 function parseGcode(text) {
   const src = String(text || '').split(/\r?\n/);
   const out = { x0: [], y0: [], z0: [], x1: [], y1: [], z1: [], kind: [], tool: [], feed: [], rpm: [], line: [], pause: [] };
-  let x = 0, y = 0, z = null, mode = 0, f = 0, s = 0, t = 0, spin = false, abs = true, dwell = 0, pending = 0, firstZ = null;
+  let x = 0, y = 0, z = null, mode = 0, f = 0, s = 0, t = 0, spin = false, abs = true, dwell = 0, pending = 0, firstZ = null, unit = 1, metric = false;
   const tools = [], warnings = [];
   const push = (ax, ay, az, bx, by, bz, k, ln) => {
     out.x0.push(ax); out.y0.push(ay); out.z0.push(az); out.x1.push(bx); out.y1.push(by); out.z1.push(bz);
@@ -37,6 +37,9 @@ function parseGcode(text) {
     const re = /([A-Z])\s*([-+]?\d*\.?\d+)/g; let m;
     while ((m = re.exec(c))) { const v = +m[2]; if (m[1] === 'G') G.push(v); else if (m[1] === 'M') M.push(v); else w[m[1]] = v; }
     if (G.indexOf(4) >= 0) { const d = (w.X != null ? w.X : (w.P != null ? w.P : 0)); dwell += d; pending += d; continue; }   // WinCNC 'G4 X<sec>'
+    if (G.indexOf(21) >= 0) { unit = 1 / 25.4; metric = true; }   // millimetres: everything here runs in inches
+    if (G.indexOf(20) >= 0) unit = 1;
+    for (const c of 'XYZIJF') if (w[c] != null) w[c] *= unit;
     if (G.indexOf(90) >= 0) abs = true;
     if (G.indexOf(91) >= 0) { abs = false; warnings.push('G91 incremental moves at line ' + (n + 1)); }
     if (w.T != null) { t = Math.round(w.T); if (tools.indexOf(t) < 0) tools.push(t); }
@@ -71,7 +74,7 @@ function parseGcode(text) {
   const N = out.kind.length, F = a => Float64Array.from(a);
   const prog = { n: N, x0: F(out.x0), y0: F(out.y0), z0: F(out.z0), x1: F(out.x1), y1: F(out.y1), z1: F(out.z1),
     kind: Uint8Array.from(out.kind), tool: Int32Array.from(out.tool), feed: Float32Array.from(out.feed), rpm: Float32Array.from(out.rpm),
-    line: Int32Array.from(out.line), pause: Float32Array.from(out.pause), tools: tools, dwell: dwell, src: src, warnings: warnings, firstZ: firstZ };
+    line: Int32Array.from(out.line), pause: Float32Array.from(out.pause), tools: tools, dwell: dwell, metric: metric, src: src, warnings: warnings, firstZ: firstZ };
   prog.bounds = boundsOf(prog);
   return prog;
 }

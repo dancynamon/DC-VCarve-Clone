@@ -272,6 +272,9 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
 .qrow .qx{background:none;border:none;color:var(--ink-dim);cursor:pointer;font-size:13px;line-height:1;padding:0 2px}
 .qrow .qx:hover{color:#e0524f}
 .qrow.editing{border-color:var(--accent-bd);background:var(--accent-soft)}
+.qrow.picked{box-shadow:inset 3px 0 0 #e8590c;background:#fff1e6}
+body.dark .qrow.picked{background:#3a2a1c}
+.qrow.merged .ql{font-style:italic}
 .qrow .qv{flex:none;margin:0 1px 0 0;cursor:pointer}
 .qrow .ql{cursor:pointer}
 .qrow .qedit{color:var(--accent)}
@@ -303,7 +306,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
       <button data-act="rotate">Rotate…<span class="k">angle · pivot</span></button>
       <button data-act="group">Group<span class="k">⌘/Ctrl+G</span></button><button data-act="ungroup">Ungroup<span class="k">⌘/Ctrl+Shift+G</span></button><button data-act="dup">Duplicate</button><button data-act="del">Delete<span class="k">Del</span></button><div class="msep"></div>
       <button data-act="createnum">Create Shape by Numbers<span class="k">Enter</span></button>
-      <div class="msep"></div><button data-act="check">Vector Validator</button></div></div>
+      <div class="msep"></div><button data-act="fitcurves">Fit Curves to Vectors…</button><button data-act="check">Vector Validator</button></div></div>
     <div class="menu" data-menu="toolpaths">Toolpaths<div class="mdrop">
       <button data-act="op:profile">Profile Toolpath…</button><button data-act="op:pocket">Pocket Toolpath…</button>
       <button data-act="op:drill">Drilling Toolpath…</button><button data-act="op:vcarve">V-Carve / Engraving…</button>
@@ -358,6 +361,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
           <button class="tb" id="btnDiff" data-tip="Subtract later shapes from first">Subtract</button>
           <button class="tb" id="btnInt" data-tip="Keep only overlap (intersect)">Intersect</button>
           <button class="tb" id="btnDelete" data-tip="Delete selected (Del)">Delete</button>
+          <button class="tb" id="btnFitCurves" data-tip="Fit Curves &#8212; rebuild jagged vectors from lines and true arcs">Fit Curves&#8230;</button>
           <button class="tb" id="btnCheckVec" data-tip="Find open, duplicate or self-intersecting vectors and select them">Vector Validator</button>
         </div><div class="secgrp"><h3>Align Objects</h3><button class="tb" id="btnAlignL">Left</button><button class="tb" id="btnAlignHC">H-Ctr</button><button class="tb" id="btnAlignR">Right</button><button class="tb" id="btnAlignT">Top</button><button class="tb" id="btnAlignVC">V-Ctr</button><button class="tb" id="btnAlignB">Bottom</button></div><div class="secgrp"><h3>Offset and Layout</h3><button class="tb" id="btnOffset" data-tip="Offset selected by a distance">Offset</button><button class="tb" id="btnArray" data-tip="Grid array (rows x cols)">Array Copy</button><button class="tb" id="btnNestForm" data-tip="Pack shapes onto sheets to minimise waste">Nesting…</button></div><div class="sectn"><h3>Selection</h3><div class="body" id="props"><div class="muted">No selection</div></div></div>
       </div>
@@ -375,6 +379,8 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
       <div class="dpane" id="paneForm" >
 
         <div class="tform" data-form="job"><h4>Job Setup</h4><div class="tfbody">
+          <div class="grp">Units</div>
+          <label data-tip="Show and type lengths in inches or millimetres. The drawing is not rescaled; metric posts write G21 programs.">Units<select id="jobUnits"><option value="in">Inches</option><option value="mm">Millimetres</option></select></label>
           <div class="grp">Job size</div>
           <label data-tip="Material width (X)">W&quot;<input type="number" id="jobW" value="48.5" step="0.5" style="width:60px"></label>
           <label data-tip="Material height (Y)">H&quot;<input type="number" id="jobH" value="97" step="0.5" style="width:60px"></label>
@@ -476,6 +482,12 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
           <button class="tb" id="btnFilletAll" data-tip="Apply to every sharp corner of the selected vectors (curves are skipped)">Apply to selection</button>
           <div class="formhint" id="filletHint">Click a vector corner to treat it, or pick corners of the whole selection.</div>
         </div><div class="formfoot"><button class="tb" data-formclose="1">Close</button></div></div>
+
+        <div class="tform" data-form="fitcurve"><h4>Fit Curves to Vectors</h4><div class="tfbody">
+          <label data-tip="Arcs + lines rebuilds round parts as true arcs (posted as G2/G3); Lines only straightens">Fit with<select id="fitMode"><option value="arcs">Arcs + lines</option><option value="lines">Lines only</option></select></label>
+          <label data-tip="How far the new vector may stray from the original points">Tolerance&quot;<input type="number" id="fitTol" value="0.005" step="0.001" min="0.0001" style="width:60px"></label>
+          <div class="formhint" id="fitHint">Cleans up traced or scanned vectors: jagged runs become straight lines and smooth arcs, corners stay sharp.</div>
+        </div><div class="formfoot"><button class="tb" data-formclose="1">Close</button><button class="tb primary" id="btnFitApply">Fit selection</button></div></div>
 
         <div class="tform" data-form="nest"><h4>Nesting</h4><div class="tfbody">
           <div class="grp">Sheet</div>
@@ -625,7 +637,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
           <label class="profile-only">Height&quot;<input type="number" id="camTabH" value="0.1" step="0.01" style="width:52px"></label>
 
           <div class="grp">Output</div>
-          <label>Post processor<select id="camPost"><option value="shopsabre">ShopSabre</option><option value="generic">Generic</option></select></label>
+          <label>Post processor<select id="camPost"><option value="shopsabre">ShopSabre</option><option value="shopsabre_mm">ShopSabre (mm)</option><option value="generic">Generic</option><option value="generic_mm">Generic (mm)</option></select></label>
           <label class="not-drill" data-tip="Fit G2/G3 arcs instead of polyline G1 moves"><input type="checkbox" id="camArcs" checked>Arcs G2/G3</label>
           <div class="cam-hint" id="camHint">Runs on the selected shapes, or all visible ones if nothing is selected.</div>
           <select id="camOp" style="display:none"><option value="profile">Profile</option><option value="pocket">Pocket</option><option value="drill">Drill</option><option value="vcarve">V-Carve</option><option value="inlay">Inlay</option><option value="chamfer">Chamfer</option><option value="engrave">Quick Engrave</option><option value="fluting">Fluting</option><option value="prism">Prism</option><option value="moulding">Moulding</option></select>
@@ -639,7 +651,8 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
     <input type="file" id="tplInput" accept=".aqtpl,.json" style="display:none">
     </div>
     <div class="tplist">
-      <div class="secgrp"><h3>Toolpath List</h3><div id="opsQueue" style="width:100%"></div></div>
+      <div class="secgrp"><h3>Toolpath List</h3><div id="opsQueue" style="width:100%"></div>
+        <div style="display:flex;gap:4px;margin-top:4px"><button class="tb" id="btnMergeTp" data-tip="Merge the picked toolpaths (Shift- or Cmd/Ctrl-click rows) into one: same tool, cut together, no tool change">Merge</button><button class="tb" id="btnUnmergeTp" data-tip="Split a merged toolpath back into its parts">Unmerge</button><span class="muted" style="font-size:9.5px;align-self:center">Shift-click rows to pick</span></div></div>
     </div>
     <div class="rfoot">
       <label data-tip="Show simulated cut material vs. line toolpaths"><input type="checkbox" id="simSolid" checked>Show 2D previews</label>
@@ -651,7 +664,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
     <span>Pos <span class="v" id="coords">0, 0 in</span></span>
     <span><span class="v" id="zoomlbl"></span></span>
     <span id="msg" class="v"></span>
-    <button class="tb" id="btnTheme" title="Switch to dark mode" style="margin-left:auto;font-size:10px;padding:1px 7px">☾ Dark</button>
+    <button class="tb" id="btnUnits" title="Units: inches / millimetres (the drawing is unchanged)" style="margin-left:auto;font-size:10px;padding:1px 7px">in</button><button class="tb" id="btnTheme" title="Switch to dark mode" style="font-size:10px;padding:1px 7px">☾ Dark</button>
     <span class="ver" id="appVer" title="Build version">v<!--VER--></span>
   </div>
 </div>
