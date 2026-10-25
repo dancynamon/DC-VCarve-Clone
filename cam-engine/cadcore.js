@@ -1111,7 +1111,8 @@ function projectToJSON(doc, job, opsQueue, meta) {
   const obj = {
     format: PROJECT_FORMAT, version: PROJECT_VERSION,
     meta: meta || {},
-    job: job ? { w: job.w, h: job.h, thickness: job.thickness, origin: job.origin, show: job.show !== false, units: job.units === 'mm' ? 'mm' : 'in' } : null,
+    job: job ? { w: job.w, h: job.h, thickness: job.thickness, origin: job.origin, show: job.show !== false, units: job.units === 'mm' ? 'mm' : 'in',
+      type: job.type === 'rotary' ? 'rotary' : 'flat', diameter: job.diameter || 0, sides: job.sides === 2 ? 2 : 1, flip: job.flip === 'v' ? 'v' : 'h' } : null,
     layers: _layersToArray(doc && doc.layers),
     shapes: (doc && doc.shapes) ? doc.shapes : [],
     ops: opsQueue || []
@@ -1128,7 +1129,8 @@ function projectFromJSON(text) {
     ? o.layers.map(l => ({ name: String(l.name), visible: l.visible !== false, color: l.color || '#9fe7ff' }))
     : [{ name: '0', visible: true, color: '#9fe7ff' }];
   const job = o.job
-    ? { w: +o.job.w || 24, h: +o.job.h || 18, thickness: +o.job.thickness || 0.5, origin: o.job.origin || 'bl', show: o.job.show !== false, units: o.job.units === 'mm' ? 'mm' : 'in' }
+    ? { w: +o.job.w || 24, h: +o.job.h || 18, thickness: +o.job.thickness || 0.5, origin: o.job.origin || 'bl', show: o.job.show !== false, units: o.job.units === 'mm' ? 'mm' : 'in',
+        type: o.job.type === 'rotary' ? 'rotary' : 'flat', diameter: +o.job.diameter || 4, sides: o.job.sides === 2 ? 2 : 1, flip: o.job.flip === 'v' ? 'v' : 'h' }
     : { w: 24, h: 18, thickness: 0.5, origin: 'bl', show: true };
   return { shapes: o.shapes, layers: layers, job: job, opsQueue: Array.isArray(o.ops) ? o.ops : [], meta: o.meta || {} };
 }

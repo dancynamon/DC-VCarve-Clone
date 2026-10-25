@@ -6,7 +6,7 @@ const ctx = cv.getContext('2d');
 const overlay = document.getElementById('hud');
 
 // ---- document & state ----
-let doc = { shapes: [], layers: new Map([['0',{visible:true,color:'#1b2b3f'}]]) };
+let doc = { shapes: [], other: [], layers: new Map([['0',{visible:true,color:'#1b2b3f'}]]) };   // other = the far side's vectors in a two-sided job
 let activeLayer = '0';
 let sel = new Set();
 let tool = 'select';
@@ -26,7 +26,7 @@ let drillMarks = null;    // drill hole centers overlay [{x,y}]
 let drillDia = 0.25;      // tool dia for drill marker size
 let lastGcode = '';
 let msg = '';
-let job = { w:48.5, h:97, thickness:1.5, origin:'bl', show:true, units:'in' };   // Dan's standard sheet; units = how it is shown (always stored in inches)
+let job = { w:48.5, h:97, thickness:1.5, origin:'bl', show:true, units:'in', type:'flat', diameter:4, sides:1, flip:'h', workSide:'top' };   // Dan's standard sheet; units = how it is shown (always stored in inches)
 let measure = null;   // persisted measurement {a,b}
 let viewMode = '2d';  // '2d' design canvas | 'preview' machining backplot (VCarve-style view tabs)
 let simField = null;  // {canvas, x0,y0,x1,y1} — shaded material-removal heightfield for Preview
@@ -130,10 +130,11 @@ function S2W(p){ return { x: (p.x - view.ox)/view.ppi, y: (view.oy - p.y)/view.p
 function pxTol(px){ return px/view.ppi; }
 
 // ---- history ----
-function snapshot(){ return { shapes: JSON.parse(JSON.stringify(doc.shapes)), sel:[...sel], queue: JSON.parse(JSON.stringify(opsQueue)) }; }
+function snapshot(){ return { shapes: JSON.parse(JSON.stringify(doc.shapes)), other: JSON.parse(JSON.stringify(doc.other||[])), side: job.workSide, sel:[...sel], queue: JSON.parse(JSON.stringify(opsQueue)) }; }
+function restoreSnap(s){ doc.shapes=s.shapes; if(s.other) doc.other=s.other; if(s.side) job.workSide=s.side; sel=new Set(s.sel); if(s.queue)opsQueue=s.queue; editingIdx=null; syncSideUI(); render(); syncPanels(); buildQueueList(); }
 function pushHistory(){ history.push(snapshot()); if(history.length>100)history.shift(); future=[]; scheduleAutosave(); }
-function undo(){ if(!history.length)return; future.push(snapshot()); const s=history.pop(); doc.shapes=s.shapes; sel=new Set(s.sel); if(s.queue)opsQueue=s.queue; editingIdx=null; render(); syncPanels(); buildQueueList(); }
-function redo(){ if(!future.length)return; history.push(snapshot()); const s=future.pop(); doc.shapes=s.shapes; sel=new Set(s.sel); if(s.queue)opsQueue=s.queue; editingIdx=null; render(); syncPanels(); buildQueueList(); }
+function undo(){ if(!history.length)return; future.push(snapshot()); restoreSnap(history.pop()); }
+function redo(){ if(!future.length)return; history.push(snapshot()); restoreSnap(future.pop()); }
 
 // ---- shape mgmt ----
 function addShapes(arr){ for(const s of arr){ s.layer = s.layer||activeLayer; doc.shapes.push(s); } }
@@ -171,6 +172,7 @@ function render(){
   if(!pv && !job.show) drawGrid();   // grid lives on the job sheet (drawn inside drawJob); none in Preview
   drawJob(!pv);
   if(bgImage) drawBgImage();   // reference bitmap over the stock panel, under the vectors
+  if(!pv && job.sides===2 && doc.other.length) drawOtherSide();
   // shapes — dimmed reference lines in Preview, no selection colour
   for(const s of doc.shapes){
     if(!layerVisible(s.layer))continue;
@@ -237,6 +239,14 @@ function drawShape(s, selected, dimmed){
   }
   ctx.restore();
 }
+// Two-sided job: the far side's vectors, mirrored through the flip so they sit where they really are, as a faint dashed guide.
+function drawOtherSide(){ const r=jobRect(), mx=x=>r.x0+r.x1-x, my=y=>r.y0+r.y1-y;
+  ctx.save(); ctx.globalAlpha=0.32; ctx.setLineDash([4,4]); ctx.strokeStyle=TH().ink; ctx.lineWidth=1;
+  for(const s of doc.other){ if(!layerVisible(s.layer)||s.type==='dim')continue;
+    for(const loop of CADCORE.flatten(s)){ ctx.beginPath();
+      loop.pts.forEach((p,i)=>{ const q=W2S(job.flip==='v'?{x:p.x,y:my(p.y)}:{x:mx(p.x),y:p.y}); i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y); });
+      if(loop.closed) ctx.closePath(); ctx.stroke(); } }
+  ctx.restore(); }
 function drawNodes(s){
   if(!s||s.type==='text')return;
   if(s.prim&&s.prim.kind==='bezier'){ return drawBezierNodes(s); }
@@ -390,8 +400,11 @@ function openCamForm(op){
 }
 function updateMatSummary(){
   const set=(id,txt)=>{const el=document.getElementById(id); if(el) el.textContent=txt;};
-  set('matSummary', job.w.toFixed(2)+'" \u00d7 '+job.h.toFixed(2)+'"  \u00b7  Z0 top, '+job.thickness.toFixed(3)+'" thick');
-  set('matDatum', 'XY Datum: '+(ORIGIN_LABEL[job.origin]||job.origin));
+  const u=uk()===1?'"':' mm';
+  if(job.type==='rotary'){ set('matSummary', 'Rotary \u00d8'+fmtLen(job.diameter,3)+u+' \u00d7 '+fmtLen(job.w,2)+u+' long  \u00b7  Z0 on the surface');
+    set('matDatum', 'X0 left end \u00b7 Y unwrapped '+fmtLen(job.h,2)+u+' = A 0\u2013360\u00b0'); }
+  else { set('matSummary', fmtLen(job.w,2)+u+' \u00d7 '+fmtLen(job.h,2)+u+'  \u00b7  Z0 top, '+fmtLen(job.thickness,3)+u+' thick'+(job.sides===2?' \u00b7 two-sided':''));
+    set('matDatum', 'XY Datum: '+(ORIGIN_LABEL[job.origin]||job.origin)+(job.sides===2?' \u00b7 flip '+(job.flip==='v'?'top\u2195bottom':'left\u2194right'):'')); }
   const un=uk()===1?' inches':' mm';
   set('jobDims', 'Job Dimensions\n  Width  (X): '+fmtLen(job.w,3)+un+'\n  Height (Y): '+fmtLen(job.h,3)+un+'\n  Depth  (Z): '+fmtLen(job.thickness,3)+un);
 }
@@ -1288,7 +1301,7 @@ function download(name, text, type){
 // ---- project save/load (.aqcam) ----
 const AUTOSAVE_KEY='aqcam_autosave';
 let autosaveTimer=null;
-function projectJSON(metaName){ return CADCORE.projectToJSON(doc, job, opsQueue, {name:metaName||'aqcam job', savedAt:Date.now(), app:'Aquamentor CAD/CAM', view:viewMode}); }
+function projectJSON(metaName){ tagSides(); return CADCORE.projectToJSON({ shapes:allShapes(), layers:doc.layers }, job, opsQueue, {name:metaName||'aqcam job', savedAt:Date.now(), app:'Aquamentor CAD/CAM', view:viewMode}); }
 // ---- 2D Design / Preview view tabs ----
 // ---- 3D view: the Product Viewer engine (view3d.js, three.js) + program playback (gcodesim.js) ------------
 // What plays is a posted program: the visible toolpaths posted exactly as Save Toolpaths would, or a .tap opened
@@ -1333,18 +1346,39 @@ function setView(mode){
   else { v3Show(false); simField=null; render(); }
   drawRulerMarks(viewMode==='preview'?null:lastScr);
 }
+// ---- job type and sides ----
+// Rotary: the design is the cylinder unwrapped — X along the axis, Y round the circumference (pi x diameter) —
+// posted with Y as the A axis, simulated and shown wrapped. Two-sided: each side has its own vectors and
+// toolpaths and its own program; the far side's vectors show mirrored through the flip as a dashed guide, and
+// the 3D view of one side shows where the other side's cuts break through.
+function allShapes(){ return doc.shapes.concat(doc.other||[]); }
+function tagSides(){ if(job.sides!==2){ doc.shapes.forEach(s=>{ delete s.side; }); return; }
+  const o=job.workSide==='top'?'bottom':'top'; doc.shapes.forEach(s=>s.side=job.workSide); (doc.other||[]).forEach(s=>s.side=o); }
+function shapesOfSide(side){ return (job.sides!==2 || (side||'top')===job.workSide) ? doc.shapes : doc.other; }   // a toolpath with no side is a top-side one
+function onWorkSide(q, side){ return job.sides!==2 || (q.side||'top')===(side||job.workSide); }
+function setWorkSide(side){ side=side==='bottom'?'bottom':'top'; if(job.sides!==2||side===job.workSide){ syncSideUI(); return; }
+  pushHistory(); tagSides(); const t=doc.shapes; doc.shapes=doc.other; doc.other=t; job.workSide=side; sel.clear(); editingIdx=null;
+  syncSideUI(); buildQueueList(); recalcAll(); syncPanels();
+  setMsg('Working on the '+side+' side — the '+(side==='top'?'bottom':'top')+' side shows dashed, mirrored '+(job.flip==='v'?'top-to-bottom':'left-to-right')); }
+function syncSideUI(){ const two=job.sides===2;
+  document.querySelectorAll('.side-only').forEach(e=>e.style.display=two?'':'none');
+  document.querySelectorAll('[data-side]').forEach(b=>b.classList.toggle('active', b.dataset.side===job.workSide));
+  const lab=document.getElementById('sideLabel'); if(lab) lab.textContent=two?(job.workSide==='top'?'Top side':'Bottom side'):''; }
+// The post for this job: the chosen one, plus the A-axis wrap for a rotary job.
+function jobPost(arcs){ const post=Object.assign({},CAM.POSTS[document.getElementById('camPost').value]); post.arcs=arcs;
+  if(job.type==='rotary') post.rotary={ diameter:job.diameter, y0:jobRect().y0 }; return post; }
 // Post every visible toolpath (or all of them) as one program, in the order Save Toolpaths uses.
 // tools: T number -> cutter {type, radius, angle} for the sim and the 3D cutter model.
-function buildJobProgram(visibleOnly){
+function buildJobProgram(visibleOnly, side){
   const allOps=[], dpts=[], tools={}; let warns=[];
-  for(const q of opsQueue){ if(visibleOnly && q.visible===false) continue;
+  for(const q of opsQueue){ if(visibleOnly && q.visible===false) continue; if(!onWorkSide(q, side)) continue;
     let res; try{ res=opRes(q); }catch(e){ warns.push(String(e.message||e)); continue; }
     for(const op of res.ops){ if(!op.passes||!op.passes.length) continue; allOps.push(op);
       if(!tools[op.toolNum]) tools[op.toolNum] = op.toolProfile || (q.p.op==='vcarve'?{type:'v',radius:(q.p.toolDia||0.25)/2,angle:q.p.bitAngle||90}:{type:'flat',radius:(q.p.toolDia||0.25)/2}); }
     if(res.points)dpts.push(...res.points);
     if(res.warnings) warns=warns.concat(res.warnings); }
   if(!allOps.length) return { g:'', allOps, dpts, tools, warns };
-  const post=Object.assign({},CAM.POSTS[document.getElementById('camPost').value]); post.arcs=document.getElementById('camArcs').checked;
+  const post=jobPost(document.getElementById('camArcs').checked);
   const ordered=CAM.orderPasses({name:'job - '+allOps.length+' ops',units:'inch',ops:allOps});   // nearest-neighbor sort to cut rapids
   return { g:CAM.postProcess(ordered,post), allOps, dpts, tools, warns };
 }
@@ -1358,7 +1392,8 @@ function runSimInner(){
   let g, name, note='';
   if(PB.file){ g=PB.file.text; name=PB.file.name; PB.tools={}; }
   else { const jp=buildJobProgram(true); g=jp.g; name='visible toolpaths'; PB.tools=jp.tools; if(jp.warns.length) note=' · WARN: '+jp.warns[0]; }
-  const prog=GCSIM.parseGcode(g||''); PB.prog=prog; PB.name=name;
+  const rot=job.type==='rotary', aToY=rot?Math.PI*job.diameter/360:0;
+  const prog=GCSIM.parseGcode(g||'', { aToY }); PB.prog=prog; PB.name=name;
   PB.tl=GCSIM.timeline(prog, parseFloat((document.getElementById('pbRapid')||{}).value)||300);
   // stock: the job's material; an imported program that cuts outside it gets a block grown to fit
   const r=jobRect(); let x0=r.x0, y0=r.y0, x1=r.x1, y1=r.y1, th=job.thickness||0.5; const b=prog.bounds;
@@ -1367,13 +1402,18 @@ function runSimInner(){
     if(-b.z0>th+1e-6){ th=-b.z0; note+=' · cuts '+(-b.z0).toFixed(3)+'" deep — stock thickened to match'; }
   }
   const res=parseFloat((document.getElementById('simRes')||{}).value)||0.05;
-  PB.carver=new GCSIM.Carver(CAM, prog, { x0, y0, w:x1-x0, h:y1-y0, thickness:th, res }, pbToolFor);
+  const stock={ x0, y0, w:x1-x0, h:y1-y0, thickness:th, res };
+  // two-sided: carve the other side first, so this side shows where the two meet (holes that go right through)
+  if(job.sides===2 && !PB.file){ const other=job.workSide==='top'?'bottom':'top', jo=buildJobProgram(true, other);
+    if(jo.g){ const oc=new GCSIM.Carver(CAM, GCSIM.parseGcode(jo.g), stock, t=>jo.tools[t]||pbToolFor(t)); oc.seek(oc.p.n,0);
+      stock.floors=GCSIM.floorsFromOtherSide(oc.field, job.flip); note+=' · '+other+' side cuts included'; } }
+  PB.carver=new GCSIM.Carver(CAM, prog, stock, pbToolFor);
   PB.carver.seek(prog.n, 0); PB.carver.takeDirty(); PB.T=PB.tl.total;
   const has3d=!!v3Init();
   v3Show(has3d);                      // must be visible before we size the viewport
   if(has3d){
-    const stockKey=[x0,y0,x1,y1,th,res].join();
-    const info=v3.setStock(PB.carver.field); v3.resize();
+    const stockKey=[x0,y0,x1,y1,th,res,rot].join();
+    const info=v3.setStock(PB.carver.field, rot?{ wrap:job.diameter/2 }:null); v3.resize();
     if(stockKey!==PB.stockKey){ v3.frame(); PB.stockKey=stockKey; }
     const toolIdx={}; prog.tools.forEach((t,i)=>toolIdx[t]=i);
     v3.setPaths(prog,{ lift:Math.max(0.003,th*0.004), colorOf:t=>TOOL_COLS[(toolIdx[t]||0)%TOOL_COLS.length],
@@ -1523,7 +1563,8 @@ async function openProjectDialog(){ const fi=document.getElementById('fileInput'
   catch(err){ if(!(err&&err.name==='AbortError')) fi.click(); return; }
   const h=hs[0]; handleOpenedFile(await h.getFile(), /\.aqcam$/i.test(h.name)?h:null); }
 function applyProject(proj, srcName){
-  doc.shapes=proj.shapes;
+  Object.assign(job,{ type:proj.job.type||'flat', diameter:proj.job.diameter||4, sides:proj.job.sides===2?2:1, flip:proj.job.flip==='v'?'v':'h', workSide:'top' });
+  if(job.sides===2){ doc.shapes=proj.shapes.filter(s=>s.side!=='bottom'); doc.other=proj.shapes.filter(s=>s.side==='bottom'); } else { doc.shapes=proj.shapes; doc.other=[]; }
   doc.layers=new Map(proj.layers.map(l=>[l.name,{visible:l.visible,color:l.color}]));
   activeLayer=(proj.layers[0]&&proj.layers[0].name)||'0';
   job.w=proj.job.w; job.h=proj.job.h; job.thickness=proj.job.thickness; job.origin=proj.job.origin; job.show=proj.job.show;
@@ -1543,6 +1584,8 @@ function openProject(text, srcName){
 function applyJobInputs(){ const g=id=>document.getElementById(id);
   if(g('jobW'))g('jobW').value=job.w; if(g('jobH'))g('jobH').value=job.h; if(g('jobT'))g('jobT').value=job.thickness;
   if(g('jobOrigin'))g('jobOrigin').value=job.origin; if(g('jobShow'))g('jobShow').checked=job.show!==false;
+  if(g('jobType'))g('jobType').value=job.type||'flat'; if(g('jobDia'))g('jobDia').value=job.diameter||4; if(g('jobLen'))g('jobLen').value=job.w;
+  if(g('jobSides'))g('jobSides').value=String(job.sides||1); if(g('jobFlip'))g('jobFlip').value=job.flip||'h'; jobFormSync();
   const nw=g('nestW'),nh=g('nestH'); if(nw)nw.value=job.w; if(nh)nh.value=job.h; }
 function autosaveNow(){ try{ localStorage.setItem(AUTOSAVE_KEY, projectJSON('autosave')); }catch(e){} }
 function scheduleAutosave(){ if(autosaveTimer)clearTimeout(autosaveTimer); autosaveTimer=setTimeout(autosaveNow, 1500); }
@@ -1553,7 +1596,7 @@ function fitAll(){ if(!doc.shapes.length)return; const b=CADCORE.bboxAll(doc.sha
 
 // ---- CAM ----
 function camContours(){ const sh=sel.size?selectedShapes():doc.shapes.filter(s=>layerVisible(s.layer)); const polys=CADCORE.shapesToContoursInput(sh); return CAM.assembleContours(polys); }
-function contoursFromIds(ids){ const sh=(ids&&ids.length)?doc.shapes.filter(s=>ids.indexOf(s.id)>=0&&layerVisible(s.layer)):doc.shapes.filter(s=>layerVisible(s.layer)); return CAM.assembleContours(CADCORE.shapesToContoursInput(sh)); }
+function contoursFromIds(ids, side){ const src=shapesOfSide(side); const sh=(ids&&ids.length)?src.filter(s=>ids.indexOf(s.id)>=0&&layerVisible(s.layer)):src.filter(s=>layerVisible(s.layer)); return CAM.assembleContours(CADCORE.shapesToContoursInput(sh)); }
 // run one CAM op from params + contours -> {ops,warnings,points}. Shared by single-op build and the multi-op job.
 function buildOpRes(p, contours){
   const res=(p.op==='pocket')?CAM.pocketOp(contours,p)
@@ -1604,9 +1647,11 @@ function camParams(){ const g=id=>document.getElementById(id); const tabsN=parse
     prMax:Math.abs(parseFloat(g('camPrMax')&&g('camPrMax').value)||0),
     moAlign:(g('camMoAlign')&&g('camMoAlign').value)||'center', moStep:((parseFloat(g('camMoStep')&&g('camMoStep').value)||10)/100),
     tabs:{count:tabsN,length:parseFloat(g('camTabL').value)||0.4,height:parseFloat(g('camTabH').value)||0.1} }; }
-function camBuild(){ const contours=camContours(); const closedN=contours.filter(c=>c.closed).length; const p=camParams();
+// forFile: the program as the machine gets it (rotary jobs wrap Y to A); otherwise flat, for the backplot.
+function camBuild(forFile){ const contours=camContours(); const closedN=contours.filter(c=>c.closed).length; const p=camParams();
   const res=buildOpRes(p, contours);
-  const post=Object.assign({},CAM.POSTS[document.getElementById('camPost').value]); post.arcs=(p.op!=='drill')&&document.getElementById('camArcs').checked;
+  const arcsOn=(p.op!=='drill')&&document.getElementById('camArcs').checked;
+  const post=forFile?jobPost(arcsOn):Object.assign({},CAM.POSTS[document.getElementById('camPost').value],{arcs:arcsOn});
   const label=p.op==='pocket'?'POCKET':p.op==='drill'?'DRILL':p.op==='vcarve'?'VCARVE'
     :p.op==='inlay'?('INLAY '+p.style.toUpperCase()+' '+p.part.toUpperCase()):p.op!=='profile'?p.op.toUpperCase():p.side.toUpperCase();
   const g=CAM.postProcess({name:'design - '+label,units:'inch',ops:res.ops},post); const arcN=(g.match(/^G[23] /gm)||[]).length;
@@ -1631,7 +1676,7 @@ function camGenerate(){ const r=camBuild(); const hint=document.getElementById('
   else drillMarks=null;
   const noun=r.op==='drill'?'hole(s)':'contour(s)';
   hint.textContent='Generated '+r.passes+' pass(es), '+r.arcN+' arc move(s), '+(r.op==='drill'?(r.points?r.points.length:0):r.closedN)+' '+noun+'.'+(r.warnings.length?' WARN: '+r.warnings[0]:''); render(); }
-function camExport(){ const r=camBuild(); if(r.passes===0){document.getElementById('camHint').textContent='Nothing to export.';return;} lastGcode=r.g; toolpaths=toolpathSegs(r.g);
+function camExport(){ const r=camBuild(true); if(r.passes===0){document.getElementById('camHint').textContent='Nothing to export.';return;} lastGcode=r.g; toolpaths=job.type==='rotary'?toolpathSegs(camBuild().g):toolpathSegs(r.g);
   if(r.op==='drill'){ drillMarks=r.points; drillDia=parseFloat(document.getElementById('camDia').value)||0.25; } else drillMarks=null;
   render(); download('design.tap', r.g); }
 function camClear(){ toolpaths=null; drillMarks=null; render(); }
@@ -1649,11 +1694,12 @@ function autoOpName(p){ p=p||{}; const op=p.op||'profile';
   return op.charAt(0).toUpperCase()+op.slice(1); }
 function autoLabel(p,ids,match){ return autoOpName(p)+' · T'+p.toolNum+' Ø'+p.toolDia+'" · '+((ids&&ids.length)?ids.length+' sel':'all')+(match?' (lib)':''); }
 function normalizeOp(q){ q=q||{}; const o={ p:q.p||{}, ids:Array.isArray(q.ids)?q.ids:[], name:q.name||q.label||autoOpName(q.p), label:q.label||'', visible:q.visible!==false };
+  if(q.side==='bottom') o.side='bottom';
   if(Array.isArray(q.parts)&&q.parts.length) o.parts=q.parts.map(normalizeOp); return o; }
 // A toolpath's result: its own op, or for a merged toolpath its parts' ops merged per tool.
-function opRes(q){ if(!q.parts) return buildOpRes(q.p, contoursFromIds(q.ids));
+function opRes(q){ if(!q.parts) return buildOpRes(q.p, contoursFromIds(q.ids, q.side));
   const ops=[], warnings=[], points=[];
-  for(const pt of q.parts){ const r=buildOpRes(pt.p, contoursFromIds(pt.ids)); ops.push(...r.ops); if(r.warnings) warnings.push(...r.warnings); if(r.points) points.push(...r.points); }
+  for(const pt of q.parts){ const r=buildOpRes(pt.p, contoursFromIds(pt.ids, pt.side||q.side)); ops.push(...r.ops); if(r.warnings) warnings.push(...r.warnings); if(r.points) points.push(...r.points); }
   return { ops:CAM.mergeOps(ops), warnings, points:points.length?points:null }; }
 // Pick toolpaths in the list (Shift- or Cmd/Ctrl-click a row) to merge them.
 const qPick=new Set();
@@ -1663,7 +1709,7 @@ function mergePicked(){ const idx=opsQueue.map((q,i)=>i).filter(i=>qPick.has(ops
   if(tn.size>1){ setMsg('Merge needs one tool — these use '+[...tn].map(t=>'T'+t).join(', ')); return; }
   pushHistory(); const parts=qs.flatMap(q=>q.parts||[q]);
   const m={ p:{op:'merged',toolNum:qs[0].p.toolNum,toolDia:qs[0].p.toolDia,feed:qs[0].p.feed,plunge:qs[0].p.plunge}, ids:[], parts:parts.map(normalizeOp),
-    name:'Merged: '+parts.map(q=>q.name||autoOpName(q.p)).join(' + '), label:'', visible:true };
+    name:'Merged: '+parts.map(q=>q.name||autoOpName(q.p)).join(' + '), label:'', visible:true, side:qs[0].side };
   opsQueue=opsQueue.filter(q=>!qPick.has(q)); opsQueue.splice(idx[0],0,m); qPick.clear(); editingIdx=null; buildQueueList(); recalcAll();
   setMsg('Merged '+parts.length+' toolpaths on T'+m.p.toolNum+' — they cut together with no tool change'); }
 function unmergePicked(){ const ms=opsQueue.filter(q=>q.parts&&(qPick.has(q)||qPick.size===0));
@@ -1678,7 +1724,7 @@ function editOp(i){ const q=opsQueue[i]; if(!q)return; if(q.parts){ setMsg('"'+q
 function buildQueueList(){ const el=document.getElementById('opsQueue'); if(!el)return; el.innerHTML=''; refreshAddBtn();
   if(!opsQueue.length){ el.innerHTML='<div class="muted" style="font-size:10px">No toolpaths yet — set an Op + selection, then "+ Toolpath".</div>'; return; }
   for(const q of [...qPick]) if(opsQueue.indexOf(q)<0) qPick.delete(q);
-  opsQueue.forEach((q,i)=>{ const row=document.createElement('div'); row.className='qrow'+(i===editingIdx?' editing':'')+(qPick.has(q)?' picked':'')+(q.parts?' merged':'');
+  opsQueue.forEach((q,i)=>{ if(!onWorkSide(q)) return; const row=document.createElement('div'); row.className='qrow'+(i===editingIdx?' editing':'')+(qPick.has(q)?' picked':'')+(q.parts?' merged':'');
     row.addEventListener('click',e=>{ if(!(e.shiftKey||e.metaKey||e.ctrlKey)) return; e.preventDefault(); e.stopPropagation(); qPick.has(q)?qPick.delete(q):qPick.add(q); buildQueueList(); }, true);
     row.innerHTML='<input type="checkbox" class="qv" '+(q.visible!==false?'checked':'')+' title="Show in preview">'+
       '<span class="ql" title="Click to rename">'+(i+1)+'. '+_esc(q.name||q.label||'Toolpath')+'</span>'+
@@ -1694,10 +1740,10 @@ function addOp(){ const p=camParams(); const ids=[...sel];
   const near=t=>Math.abs(t.dia-p.toolDia)<0.001; const match=tools.find(t=>t.op===p.op && near(t)) || tools.find(near); if(match) p.toolNum=match.toolNum;
   const label=autoLabel(p,ids,match); pushHistory();
   if(editingIdx!=null && opsQueue[editingIdx]){ const q=opsQueue[editingIdx]; q.p=p; q.ids=ids; q.label=label; const idx=editingIdx; editingIdx=null; buildQueueList(); recalcAll(); setMsg('Updated toolpath '+(idx+1)+': '+(q.name||label)); return; }
-  const name=autoOpName(p); opsQueue.push({p,ids,name,label,visible:true}); buildQueueList(); recalcAll(); setMsg('Added toolpath '+opsQueue.length+': '+name); }
+  const name=autoOpName(p); const nq={p,ids,name,label,visible:true}; if(job.sides===2&&job.workSide==='bottom') nq.side='bottom'; opsQueue.push(nq); buildQueueList(); recalcAll(); setMsg('Added toolpath '+opsQueue.length+': '+name); }
 // Recompute the backplot for every VISIBLE toolpath and combine into one preview overlay.
 function recalcAll(){ const allSegs=[], allMarks=[]; let total=0;
-  for(const q of opsQueue){ if(q.visible===false)continue; let res; try{ res=opRes(q); }catch(e){ continue; }
+  for(const q of opsQueue){ if(q.visible===false||!onWorkSide(q))continue; let res; try{ res=opRes(q); }catch(e){ continue; }
     if(!res.ops.some(op=>op.passes&&op.passes.length)){ q._time=0; continue; }
     const post=Object.assign({},CAM.POSTS[document.getElementById('camPost').value]); post.arcs=(q.p.op!=='drill')&&document.getElementById('camArcs').checked;
     const g=CAM.postProcess({name:'tp',units:'inch',ops:res.ops},post);   // all ops (vcarve flat-depth posts 2)
@@ -1800,12 +1846,14 @@ function postJob(){ if(!opsQueue.length){ setMsg('Job queue empty — "Add op" f
   const byTool={}; const addTool=(t,d)=>{ (byTool[t]=byTool[t]||[]); if(byTool[t].indexOf(d)<0) byTool[t].push(d); };
   for(const q of opsQueue){ addTool(q.p.toolNum, q.p.toolDia); if(q.p.op==='vcarve'&&q.p.clearDia>0) addTool(q.p.clearNum, q.p.clearDia); }
   for(const t in byTool){ if(byTool[t].length>1){ setMsg('T'+t+' used with Ø'+byTool[t].join(' and Ø')+' — fix tool numbers'); return; } }
-  const jp=buildJobProgram(false), allOps=jp.allOps, dpts=jp.dpts, warns=jp.warns, g=jp.g;
-  if(!allOps.length){ setMsg('Job produced no cuttable passes.'); return; }
-  lastGcode=g; toolpaths=toolpathSegs(g); drillMarks=dpts.length?dpts:null; if(dpts.length)drillDia=0.25;
-  render(); download('job.tap', g);
-  const arcN=(g.match(/^G[23] /gm)||[]).length, tools=allOps.map(o=>'T'+o.toolNum).join('→');
-  setMsg('Posted job: '+allOps.length+' ops ('+tools+'), '+arcN+' arc move(s) → job.tap'+(warns.length?' · WARN: '+warns[0]:'')); }
+  // a two-sided job posts one program per side (the stock is flipped between them)
+  const sides=job.sides===2?['top','bottom']:[null], done=[]; let warns=[];
+  for(const side of sides){ const jp=buildJobProgram(false, side); warns=warns.concat(jp.warns); if(!jp.allOps.length) continue;
+    const name=side?'job-'+side+'.tap':'job.tap'; download(name, jp.g); lastGcode=jp.g;
+    done.push(name+' ('+jp.allOps.length+' ops: '+jp.allOps.map(o=>'T'+o.toolNum).join('→')+(job.type==='rotary'?', A axis':', '+(jp.g.match(/^G[23] /gm)||[]).length+' arcs')+')'); }
+  if(!done.length){ setMsg('Job produced no cuttable passes.'); return; }
+  recalcAll();   // backplot the side on screen (flat, even for a rotary job)
+  setMsg('Posted '+done.join(' · ')+(warns.length?' · WARN: '+warns[0]:'')); }
 
 // ---- self-test: build a sample design and run every CAM op (studio-only smoke test of the pure core) ----
 function runSelfTest(){
@@ -2093,10 +2141,22 @@ function drawJob(withGrid){ if(!job.show)return; const r=jobRect(); const a=W2S(
   ctx.restore();
 }
 function setJob(){ const g=id=>document.getElementById(id);
-  job.w=Math.abs(parseFloat(g('jobW').value)||24); job.h=Math.abs(parseFloat(g('jobH').value)||18);
-  job.thickness=Math.abs(parseFloat(g('jobT').value)||0.5); job.origin=g('jobOrigin').value; job.show=g('jobShow').checked;
+  job.type=g('jobType').value==='rotary'?'rotary':'flat';
+  if(job.type==='rotary'){   // the unwrapped cylinder: length along X, circumference along Y, cut depth down to the axis
+    job.diameter=Math.abs(parseFloat(g('jobDia').value)||4); job.w=Math.abs(parseFloat(g('jobLen').value)||12);
+    job.h=Math.PI*job.diameter; job.thickness=job.diameter/2; job.origin='bl'; job.sides=1; }
+  else { job.w=Math.abs(parseFloat(g('jobW').value)||24); job.h=Math.abs(parseFloat(g('jobH').value)||18);
+    job.thickness=Math.abs(parseFloat(g('jobT').value)||0.5); job.origin=g('jobOrigin').value;
+    const two=g('jobSides').value==='2'; if(!two && job.sides===2 && job.workSide==='bottom') setWorkSide('top');
+    if(!two && doc.other.length && !confirm('Make this a one-sided job? The '+doc.other.length+' bottom-side vector(s) are kept but hidden.')) return;
+    job.sides=two?2:1; job.flip=g('jobFlip').value==='v'?'v':'h'; }
+  job.show=g('jobShow').checked; applyJobInputs(); syncSideUI(); buildQueueList(); updateMatSummary();
   const ct=g('camTopZ'); if(ct&&!parseFloat(ct.value)) ct.value='0';
   fitJob(); }
+function jobFormSync(){ const g=id=>document.getElementById(id), rot=(g('jobType')||{}).value==='rotary', two=(g('jobSides')||{}).value==='2';
+  document.querySelectorAll('.job-flat').forEach(e=>e.style.display=rot?'none':''); document.querySelectorAll('.job-rot').forEach(e=>e.style.display=rot?'':'none');
+  document.querySelectorAll('.job-two').forEach(e=>e.style.display=(!rot&&two)?'':'none');
+  const c=g('jobCirc'); if(c){ const D=Math.abs(parseFloat((g('jobDia')||{}).value)||0); c.textContent='Circumference (unwrapped Y): '+fmtLen(Math.PI*D,3)+' '+unitName(); } }
 function fitJob(){ const r=jobRect(); const pad=Math.max(r.x1-r.x0,r.y1-r.y0)*0.12+0.5; const w=(r.x1-r.x0)+2*pad, h=(r.y1-r.y0)+2*pad;
   view.ppi=Math.min(cv.width/w, cv.height/h); view.ox=cv.width/2-((r.x0+r.x1)/2)*view.ppi; view.oy=cv.height/2+((r.y0+r.y1)/2)*view.ppi; render(); }
 function drawMeasure(a,b,persist){ ctx.save(); ctx.strokeStyle=persist?TH().measure:TH().draft; ctx.lineWidth=1.3; if(!persist)ctx.setLineDash([5,3]);
@@ -2184,7 +2244,7 @@ function buildProps(){ const el=document.getElementById('props'); if(!el)return;
 const MM=25.4;
 const NATIVE_VALUE=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value');
 const rawGet=el=>NATIVE_VALUE.get.call(el), rawSet=(el,v)=>NATIVE_VALUE.set.call(el,v);
-const LEN_IDS=['fitTol','jobW','jobH','jobT','gridStep','fRectW','fRectH','fRectX','fRectY','fRrectW','fRrectH','rrectR','fRrectX','fRrectY',
+const LEN_IDS=['fitTol','jobDia','jobLen','jobW','jobH','jobT','gridStep','fRectW','fRectH','fRectX','fRectY','fRrectW','fRrectH','rrectR','fRrectX','fRrectY',
   'fPolygonD','fPolygonX','fPolygonY','fStarD','fStarX','fStarY','fCircleD','fCircleX','fCircleY','fEllipseW','fEllipseH','fEllipseX','fEllipseY',
   'txtH','fTextX','fTextY','dimTextH','filletR','filletTool','nestW','nestH','nestMargin','nestSpacing',
   'camTopZ','camDepth','camPass','camDia','camFeed','camPlunge','camFinishDia','camPeck','camVStep','camVFlat','camVClearDia',
@@ -2347,7 +2407,9 @@ function wire(){
   on('btnAlignL',()=>opAlign('left')); on('btnAlignR',()=>opAlign('right')); on('btnAlignT',()=>opAlign('top')); on('btnAlignB',()=>opAlign('bottom')); on('btnAlignHC',()=>opAlign('hcenter')); on('btnAlignVC',()=>opAlign('vcenter'));
   on('btnSaveProj',saveProject); on('btnExpDXF',exportDXF); on('btnExpSVG',exportSVG);
   on('btnJobSet',setJob); on('btnFitJob',fitJob);
-  on('btnUnits',()=>setUnits(uk()===1?'mm':'in')); const ju=document.getElementById('jobUnits'); if(ju) ju.onchange=()=>setUnits(ju.value);
+  on('btnUnits',()=>setUnits(uk()===1?'mm':'in'));
+  ['jobType','jobSides','jobDia'].forEach(id=>{ const e=document.getElementById(id); if(e) e.addEventListener('change',jobFormSync); });
+  document.querySelectorAll('[data-side]').forEach(b=>b.onclick=()=>setWorkSide(b.dataset.side)); syncSideUI(); const ju=document.getElementById('jobUnits'); if(ju) ju.onchange=()=>setUnits(ju.value);
   const js=document.getElementById('jobShow'); if(js)js.onchange=e=>{job.show=e.target.checked; render();};
   // live job dimension updates (no view refit — use "Set job"/"Fit job" to re-zoom)
   const jobLive=()=>{ const g=id=>document.getElementById(id); job.w=Math.abs(parseFloat(g('jobW').value)||24); job.h=Math.abs(parseFloat(g('jobH').value)||18); job.thickness=Math.abs(parseFloat(g('jobT').value)||0.5); job.origin=g('jobOrigin').value; updateMatSummary(); render(); };
@@ -2405,7 +2467,7 @@ function wire(){
     if(hdr&&card){ hdr.addEventListener('mousedown',e=>{ if(e.target.id==='modalX')return; const r=card.getBoundingClientRect(); md={dx:e.clientX-r.left,dy:e.clientY-r.top}; e.preventDefault(); });
       window.addEventListener('mousemove',e=>{ if(!md)return; card.style.left=Math.max(2,Math.min(window.innerWidth-60,e.clientX-md.dx))+'px'; card.style.top=Math.max(2,Math.min(window.innerHeight-30,e.clientY-md.dy))+'px'; });
       window.addEventListener('mouseup',()=>{ md=null; }); } }
-  on('btnNew',()=>{ if(confirm('Clear design?')){ pushHistory(); doc.shapes=[]; sel.clear(); toolpaths=null; projectFile.handle=null; setProjectName('design.aqcam'); render(); syncPanels(); } });
+  on('btnNew',()=>{ if(confirm('Clear design?')){ pushHistory(); doc.shapes=[]; doc.other=[]; sel.clear(); toolpaths=null; projectFile.handle=null; setProjectName('design.aqcam'); render(); syncPanels(); } });
   const fi=document.getElementById('fileInput'); document.getElementById('btnImport').onclick=openProjectDialog;
   fi.onchange=e=>{ const f=e.target.files[0]; if(!f)return; handleOpenedFile(f,null); fi.value=''; };
   on('btnSaveAs',saveProjectAs); setProjectName();

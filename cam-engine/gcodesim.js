@@ -21,7 +21,9 @@
 const RAPID = 0, PLUNGE = 1, CUT = 2;
 const ARC_CHORD = 0.02;       // in — arc chord length when splitting G2/G3 for playback and carving
 
-function parseGcode(text) {
+// opts.aToY: inches of Y per degree of A, for a rotary program (A axis = the unwrapped Y).
+function parseGcode(text, opts) {
+  const aToY = opts && opts.aToY > 0 ? opts.aToY : 0;
   const src = String(text || '').split(/\r?\n/);
   const out = { x0: [], y0: [], z0: [], x1: [], y1: [], z1: [], kind: [], tool: [], feed: [], rpm: [], line: [], pause: [] };
   let x = 0, y = 0, z = null, mode = 0, f = 0, s = 0, t = 0, spin = false, abs = true, dwell = 0, pending = 0, firstZ = null, unit = 1, metric = false;
@@ -39,6 +41,8 @@ function parseGcode(text) {
     if (G.indexOf(4) >= 0) { const d = (w.X != null ? w.X : (w.P != null ? w.P : 0)); dwell += d; pending += d; continue; }   // WinCNC 'G4 X<sec>'
     if (G.indexOf(21) >= 0) { unit = 1 / 25.4; metric = true; }   // millimetres: everything here runs in inches
     if (G.indexOf(20) >= 0) unit = 1;
+    // rotary: A degrees are the unwrapped Y; a bare Y word is the machine's own Y (e.g. the park move), not the part
+    if (aToY) { if (w.A != null) w.Y = w.A * aToY / unit; else delete w.Y; }
     for (const c of 'XYZIJF') if (w[c] != null) w[c] *= unit;
     if (G.indexOf(90) >= 0) abs = true;
     if (G.indexOf(91) >= 0) { abs = false; warnings.push('G91 incremental moves at line ' + (n + 1)); }
@@ -127,9 +131,16 @@ function pointAt(p, i, u) {
 // Material removal up to a point in the program. `cam` supplies stockField / simKernel / carveSegment (camcore);
 // `toolFor(T)` -> {type:'flat'|'ball'|'v', radius, angle}. Moving forwards carves only the new stretch; moving
 // backwards re-carves from an empty block. `dirty` is the cell box touched since the caller last cleared it.
+// stock.floors (optional, two-sided jobs): per-cell depth at which this side meets the other side's cuts; cells
+// the other side has already cut through start open.
 function Carver(cam, p, stock, toolFor) {
   this.cam = cam; this.p = p; this.toolFor = toolFor;
   this.field = cam.stockField(stock);
+  if (stock.floors && stock.floors.length === this.field.z.length) {
+    const f = this.field; f.floors = stock.floors; this.base = new Float32Array(f.z.length);
+    for (let k = 0; k < f.z.length; k++) this.base[k] = f.floors[k] >= -1e-9 ? f.floor : 0;
+    f.z.set(this.base);
+  }
   this.kernels = {};
   this.at = { i: 0, u: 0 };
   this.dirty = null;
@@ -139,7 +150,7 @@ Carver.prototype.kernel = function (t) {
   return k;
 };
 Carver.prototype.reset = function () {
-  this.field.z.fill(0); this.at = { i: 0, u: 0 }; this.dirty = { i0: 0, j0: 0, i1: this.field.nx - 1, j1: this.field.ny - 1 };
+  if (this.base) this.field.z.set(this.base); else this.field.z.fill(0); this.at = { i: 0, u: 0 }; this.dirty = { i0: 0, j0: 0, i1: this.field.nx - 1, j1: this.field.ny - 1 };
 };
 Carver.prototype._mark = function (ax, ay, bx, by, r) {
   const f = this.field, res = f.res;
@@ -173,6 +184,19 @@ Carver.prototype.seek = function (i, u) {
 };
 Carver.prototype.takeDirty = function () { const d = this.dirty; this.dirty = null; return d; };
 
+// Two-sided jobs: turn the other side's finished field into this side's floors. The sides share one job
+// rectangle; flipping mirrors it left-right ('h') or top-bottom ('v'). A cell the other side cut d deep can
+// be cut (thickness - d) deep from this side before it opens.
+function floorsFromOtherSide(other, flip) {
+  const nx = other.nx, ny = other.ny, T = -other.floor, out = new Float32Array(nx * ny);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const oi = flip === 'v' ? i : nx - 1 - i, oj = flip === 'v' ? ny - 1 - j : j;
+    const d = -other.z[oj * nx + oi];
+    out[j * nx + i] = -(T - d);
+  }
+  return out;
+}
+
 // Default tool for a T number in an imported program: the tool-library preset with that number, else a 1/4" flat.
 function toolForNumber(lib, t, overrides) {
   const o = overrides && overrides[t];
@@ -183,5 +207,5 @@ function toolForNumber(lib, t, overrides) {
 }
 
 return { RAPID: RAPID, PLUNGE: PLUNGE, CUT: CUT, parseGcode: parseGcode, boundsOf: boundsOf, timeline: timeline, locate: locate, pointAt: pointAt,
-  Carver: Carver, toolForNumber: toolForNumber };
+  Carver: Carver, toolForNumber: toolForNumber, floorsFromOtherSide: floorsFromOtherSide };
 });

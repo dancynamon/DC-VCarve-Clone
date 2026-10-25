@@ -11,6 +11,8 @@
  * (flat / ball / V, sized from the tool) riding the current move, as in the Product Viewer's CNC panel.
  *
  * Machine -> world axes: X -> x, Y -> -z (away from the operator), Z -> y (up); stock centre at the origin.
+ * Rotary jobs (setStock with wrap = radius): the same unwrapped heightfield is bent round the X axis — Y runs
+ * round the circumference and a cut lowers the radius — and the toolpaths and cutter wrap with it.
  */
 (function (root) {
 'use strict';
@@ -46,16 +48,21 @@ function create(canvas, opts) {
   const lin = (rgb) => new THREE.Color().setRGB(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255, THREE.SRGBColorSpace);
   const U = {
     uHeight: { value: null }, uTexel: { value: new THREE.Vector2(1, 1) }, uCell: { value: new THREE.Vector2(0.05, 0.05) },
-    uDepth: { value: 1 }, uFloor: { value: -1 },
+    uDepth: { value: 1 }, uFloor: { value: -1 }, uWrap: { value: 0 }, uOy: { value: 0 },
     uTop: { value: lin([56, 67, 245]) }, uDeep: { value: lin([14, 18, 104]) }, uFloorCol: { value: lin([196, 170, 128]) }, uSide: { value: lin([40, 50, 200]) }
   };
   const stockMat = new THREE.MeshStandardMaterial({ roughness: 0.78, metalness: 0, envMapIntensity: 0.35, side: THREE.DoubleSide });
   stockMat.onBeforeCompile = sh => {
     Object.assign(sh.uniforms, U);
-    sh.vertexShader = 'attribute float aKind;\nattribute float aDisp;\nattribute vec2 aH;\nuniform sampler2D uHeight;\nvarying vec2 vH;\nvarying float vKind;\n' +
-      sh.vertexShader.replace('#include <begin_vertex>',
-        '#include <begin_vertex>\nvH = aH; vKind = aKind;\nif (aDisp > 0.5) transformed.y = texture(uHeight, aH).r;');
-    sh.fragmentShader = 'uniform sampler2D uHeight;\nuniform vec2 uTexel, uCell;\nuniform float uDepth, uFloor;\nuniform vec3 uTop, uDeep, uFloorCol, uSide;\nvarying vec2 vH;\nvarying float vKind;\n' +
+    sh.vertexShader = 'attribute float aKind;\nattribute float aDisp;\nattribute vec2 aH;\nuniform sampler2D uHeight;\nuniform float uWrap, uOy;\nvarying vec2 vH;\nvarying float vKind, vTh;\n' +
+      sh.vertexShader
+        .replace('#include <beginnormal_vertex>',
+          '#include <beginnormal_vertex>\nfloat th = uWrap > 0.0 ? (uOy - position.z) / uWrap : 0.0; vTh = th;\n' +
+          'if (uWrap > 0.0) objectNormal = vec3(objectNormal.x, objectNormal.y * cos(th) + objectNormal.z * sin(th), -objectNormal.y * sin(th) + objectNormal.z * cos(th));')
+        .replace('#include <begin_vertex>',
+          '#include <begin_vertex>\nvH = aH; vKind = aKind;\nif (aDisp > 0.5) transformed.y = texture(uHeight, aH).r;\n' +
+          'if (uWrap > 0.0) { float rr = uWrap + transformed.y; transformed = vec3(position.x, rr * cos(th), -rr * sin(th)); }');
+    sh.fragmentShader = 'uniform sampler2D uHeight;\nuniform vec2 uTexel, uCell;\nuniform float uDepth, uFloor, uWrap;\nuniform vec3 uTop, uDeep, uFloorCol, uSide;\nvarying vec2 vH;\nvarying float vKind, vTh;\n' +
       sh.fragmentShader
         .replace('#include <color_fragment>',
           '#include <color_fragment>\nif (vKind > 0.5) { float h0 = texture(uHeight, vH).r;\n' +
@@ -65,17 +72,20 @@ function create(canvas, opts) {
           '  float hL = texture(uHeight, vH - vec2(uTexel.x, 0.0)).r, hR = texture(uHeight, vH + vec2(uTexel.x, 0.0)).r;\n' +
           '  float hD = texture(uHeight, vH - vec2(0.0, uTexel.y)).r, hU = texture(uHeight, vH + vec2(0.0, uTexel.y)).r;\n' +
           '  vec3 nW = normalize(vec3(-(hR - hL) / (2.0 * uCell.x), 1.0, (hU - hD) / (2.0 * uCell.y)));\n' +
+          '  if (uWrap > 0.0) nW = vec3(nW.x, nW.y * cos(vTh) + nW.z * sin(vTh), -nW.y * sin(vTh) + nW.z * cos(vTh));\n' +
           '  normal = normalize((viewMatrix * vec4(nW, 0.0)).xyz);\n}');
   };
 
   let dirty = true, active = false, raf = 0;
   let stock = null, field = null, tex = null, ctr = { x: 0, y: 0 }, size = 10;
-  let paths = null, tool = null, toolKey = '';
+  let paths = null, tool = null, toolKey = '', wrapR = 0;
 
   // ---------- stock ----------
-  function setStock(f) {
+  // opts.wrap: cylinder radius for a rotary job (the field's h is the circumference, its thickness the radius)
+  function setStock(f, opts) {
     if (stock) { scene.remove(stock); stock.geometry.dispose(); }
     if (tex) tex.dispose();
+    wrapR = (opts && opts.wrap > 0) ? opts.wrap : 0; U.uWrap.value = wrapR; U.uOy.value = f.h / 2;
     field = f; ctr = { x: f.x0 + f.w / 2, y: f.y0 + f.h / 2 }; size = Math.max(f.w, f.h, f.thickness * 4);
     tex = new THREE.DataTexture(f.z, f.nx, f.ny, THREE.RedFormat, THREE.FloatType);
     tex.minFilter = tex.magFilter = THREE.NearestFilter; tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping; tex.needsUpdate = true;
@@ -86,7 +96,7 @@ function create(canvas, opts) {
     const gx = Math.ceil(f.nx / step) + 1, gy = Math.ceil(f.ny / step) + 1;
     const X = i => Math.min(f.w, i * step * f.res), Y = j => Math.min(f.h, j * step * f.res);
     const uOf = x => Math.min(1 - 0.5 / f.nx, Math.max(0.5 / f.nx, x / f.w)), vOf = y => Math.min(1 - 0.5 / f.ny, Math.max(0.5 / f.ny, y / f.h));
-    const per = 2 * (gx + gy - 2);                          // perimeter vertices, each with a top and a bottom copy
+    const per = 2 * (gx + gy);                              // perimeter vertices (at most), each with a top and a bottom copy
     const nV = gx * gy + per * 2 + 4;
     const pos = new Float32Array(nV * 3), aH = new Float32Array(nV * 2), aKind = new Float32Array(nV), aDisp = new Float32Array(nV), nrm = new Float32Array(nV * 3);
     let v = 0;
@@ -98,22 +108,28 @@ function create(canvas, opts) {
     const idx = [];
     for (let j = 0; j < gy - 1; j++) for (let i = 0; i < gx - 1; i++) { const a = j * gx + i, b = a + 1, c = a + gx, d = c + 1; idx.push(a, b, d, a, d, c); }
     // perimeter, counter-clockwise from the lower-left corner: walls from the floor up to the (texture) top edge
+    // wrapped, the ends of the cylinder are the two X edges (walls down to the axis close them like end caps);
+    // the Y edges meet at the seam, so they get no wall and there is no base
+    const walls = wrapR ? [[gx - 1, 1, 0], [0, -1, 0]] : null;
     const ring = [];
-    for (let i = 0; i < gx - 1; i++) ring.push([i, 0, 0, 0, 1]);
-    for (let j = 0; j < gy - 1; j++) ring.push([gx - 1, j, 1, 0, 0]);
-    for (let i = gx - 1; i > 0; i--) ring.push([i, gy - 1, 0, 0, -1]);
-    for (let j = gy - 1; j > 0; j--) ring.push([0, j, -1, 0, 0]);
+    if (!wrapR) for (let i = 0; i < gx - 1; i++) ring.push([i, 0, 0, 0, 1]);
+    for (let j = 0; j < gy - 1 + (wrapR ? 1 : 0); j++) ring.push([gx - 1, j, 1, 0, 0]);
+    if (!wrapR) for (let i = gx - 1; i > 0; i--) ring.push([i, gy - 1, 0, 0, -1]);
+    const ring2 = []; for (let j = gy - 1; j > (wrapR ? -1 : 0); j--) ring2.push([0, j, -1, 0, 0]);
     const first = v;
-    for (const [i, j, nx, , nz] of ring) { const x = X(i) - ox, z = -(Y(j) - oy), u = uOf(X(i)), w = vOf(Y(j));
-      put(x, 0, z, u, w, 0, nx, 0, nz, 1); put(x, f.floor, z, u, w, 0, nx, 0, nz); }
-    for (let r = 0; r < ring.length; r++) { const a = first + 2 * r, b = first + 2 * ((r + 1) % ring.length); idx.push(a, a + 1, b + 1, a, b + 1, b); }
-    const bl = put(-ox, f.floor, oy, 0, 0, 0, 0, -1, 0), br = put(ox, f.floor, oy, 0, 0, 0, 0, -1, 0), tr = put(ox, f.floor, -oy, 0, 0, 0, 0, -1, 0), tl = put(-ox, f.floor, -oy, 0, 0, 0, 0, -1, 0);
-    idx.push(bl, tr, br, bl, tl, tr);
+    const strip = rs => { const s0 = v; for (const [i, j, nx, , nz] of rs) { const x = X(i) - ox, z = -(Y(j) - oy), u = uOf(X(i)), w = vOf(Y(j));
+        put(x, 0, z, u, w, 0, nx, 0, nz, 1); put(x, f.floor, z, u, w, 0, nx, 0, nz); } return s0; };
+    if (!wrapR) {
+      strip(ring.concat(ring2)); const L = ring.length + ring2.length;
+      for (let r = 0; r < L; r++) { const a = first + 2 * r, b = first + 2 * ((r + 1) % L); idx.push(a, a + 1, b + 1, a, b + 1, b); }
+      const bl = put(-ox, f.floor, oy, 0, 0, 0, 0, -1, 0), br = put(ox, f.floor, oy, 0, 0, 0, 0, -1, 0), tr = put(ox, f.floor, -oy, 0, 0, 0, 0, -1, 0), tl = put(-ox, f.floor, -oy, 0, 0, 0, 0, -1, 0);
+      idx.push(bl, tr, br, bl, tl, tr);
+    } else for (const rs of [ring, ring2]) { const s0 = strip(rs); for (let r = 0; r < rs.length - 1; r++) { const a = s0 + 2 * r, b = a + 2; idx.push(a, a + 1, b + 1, a, b + 1, b); } }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
     geo.setAttribute('aH', new THREE.BufferAttribute(aH, 2)); geo.setAttribute('aKind', new THREE.BufferAttribute(aKind, 1)); geo.setAttribute('aDisp', new THREE.BufferAttribute(aDisp, 1));
     geo.setIndex(new THREE.BufferAttribute(v > 65535 ? Uint32Array.from(idx) : Uint16Array.from(idx), 1));
-    geo.boundingBox = new THREE.Box3(new THREE.Vector3(-ox, f.floor, -oy), new THREE.Vector3(ox, 0, oy)); geo.boundingSphere = geo.boundingBox.getBoundingSphere(new THREE.Sphere());
+    geo.boundingBox = wrapR ? new THREE.Box3(new THREE.Vector3(-ox, -wrapR, -wrapR), new THREE.Vector3(ox, wrapR, wrapR)) : new THREE.Box3(new THREE.Vector3(-ox, f.floor, -oy), new THREE.Vector3(ox, 0, oy)); geo.boundingSphere = geo.boundingBox.getBoundingSphere(new THREE.Sphere());
     stock = new THREE.Mesh(geo, stockMat); stock.frustumCulled = false; scene.add(stock);
     dirty = true;
     return { vertices: v, step: step };
@@ -121,19 +137,25 @@ function create(canvas, opts) {
   function stockChanged() { if (tex) { tex.needsUpdate = true; dirty = true; } }
 
   // ---------- toolpaths ----------
-  const W = (x, y, z, lift) => [x - ctr.x, z + (lift || 0), -(y - ctr.y)];
+  const W = (x, y, z, lift) => { if (wrapR) { const th = (y - field.y0) / wrapR, r = wrapR + z + (lift || 0); return [x - ctr.x, r * Math.cos(th), -r * Math.sin(th)]; }
+    return [x - ctr.x, z + (lift || 0), -(y - ctr.y)]; };
+  // wrapped: a move that turns the part is drawn as several short chords round the cylinder
+  const piecesOf = (p, i) => wrapR ? Math.max(1, Math.ceil(Math.abs(p.y1[i] - p.y0[i]) / wrapR / 0.05)) : 1;
   function setPaths(p, o) {
     clearPaths(); if (!p || !p.n) return;
     o = o || {}; const lift = o.lift || 0.004, colorOf = o.colorOf || (() => [1, 0.75, 0.2]);
-    let nc = 0, nr = 0; for (let i = 0; i < p.n; i++) { if (p.kind[i] === 0) nr++; else nc++; }
+    let nc = 0, nr = 0; for (let i = 0; i < p.n; i++) { const k = piecesOf(p, i); if (p.kind[i] === 0) nr += k; else nc += k; }
     const cp = new Float32Array(nc * 6), cc = new Float32Array(nc * 6), rp = new Float32Array(nr * 6);
     const cutBefore = new Int32Array(p.n + 1), rapBefore = new Int32Array(p.n + 1);
     let a = 0, b = 0;
     for (let i = 0; i < p.n; i++) {
       cutBefore[i] = a; rapBefore[i] = b;
-      const s = W(p.x0[i], p.y0[i], p.z0[i], lift), e = W(p.x1[i], p.y1[i], p.z1[i], lift);
-      if (p.kind[i] === 0) { rp.set(s, 6 * b); rp.set(e, 6 * b + 3); b++; }
-      else { cp.set(s, 6 * a); cp.set(e, 6 * a + 3); const c = colorOf(p.tool[i]); cc.set(c, 6 * a); cc.set(c, 6 * a + 3); a++; }
+      const K = piecesOf(p, i), c = p.kind[i] === 0 ? null : colorOf(p.tool[i]);
+      for (let q = 0; q < K; q++) {
+        const at = u => W(p.x0[i] + (p.x1[i] - p.x0[i]) * u, p.y0[i] + (p.y1[i] - p.y0[i]) * u, p.z0[i] + (p.z1[i] - p.z0[i]) * u, lift);
+        const s = at(q / K), e = at((q + 1) / K);
+        if (!c) { rp.set(s, 6 * b); rp.set(e, 6 * b + 3); b++; }
+        else { cp.set(s, 6 * a); cp.set(e, 6 * a + 3); cc.set(c, 6 * a); cc.set(c, 6 * a + 3); a++; } }
     }
     cutBefore[p.n] = a; rapBefore[p.n] = b;
     const mk = (posArr, colArr, opacity, color, dashed) => {
@@ -167,7 +189,7 @@ function create(canvas, opts) {
       paths.cutDone.geometry.setDrawRange(0, 2 * paths.cutBefore[k]);
       paths.rapDone.geometry.setDrawRange(0, 2 * paths.rapBefore[k]);
     }
-    if (pt) { ensureTool(toolSpec); const w = W(pt[0], pt[1], pt[2]); tool.position.set(w[0], w[1], w[2]); tool.visible = toolVisible; }
+    if (pt) { ensureTool(toolSpec); const w = W(pt[0], pt[1], pt[2]); tool.position.set(w[0], w[1], w[2]); tool.rotation.x = wrapR ? -(pt[1] - field.y0) / wrapR : 0; tool.visible = toolVisible; }
     dirty = true;
   }
 
@@ -214,7 +236,7 @@ function create(canvas, opts) {
     renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); dirty = true;
   }
   function frame(dir) {
-    const f = field || { w: 10, h: 10, thickness: 1 };
+    const f = !field ? { w: 10, h: 10, thickness: 1 } : wrapR ? { w: field.w, h: 2 * wrapR, thickness: 2 * wrapR, wrap: true } : field;
     dir = dir || [0.45, 0.95, 1.05];
     const fov = camera.fov * Math.PI / 180, aspect = camera.aspect || 1, n = Math.hypot(dir[0], dir[1], dir[2]);
     let d;
@@ -223,8 +245,9 @@ function create(canvas, opts) {
       const r = 0.5 * Math.hypot(f.w, f.h, f.thickness), half = Math.min(fov / 2, Math.atan(Math.tan(fov / 2) * aspect));
       d = r / Math.sin(half) * 0.92;
     }
-    controls.target.set(0, -f.thickness / 2, 0);
-    camera.position.set(dir[0] / n * d, dir[1] / n * d - f.thickness / 2, dir[2] / n * d);
+    const ty = f.wrap ? 0 : -f.thickness / 2;
+    controls.target.set(0, ty, 0);
+    camera.position.set(dir[0] / n * d, dir[1] / n * d + ty, dir[2] / n * d);
     camera.near = Math.max(0.01, d / 400); camera.far = d * 20; camera.updateProjectionMatrix();
     controls.update(); dirty = true;
   }

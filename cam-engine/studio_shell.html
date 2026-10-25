@@ -272,6 +272,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
 .qrow .qx{background:none;border:none;color:var(--ink-dim);cursor:pointer;font-size:13px;line-height:1;padding:0 2px}
 .qrow .qx:hover{color:#e0524f}
 .qrow.editing{border-color:var(--accent-bd);background:var(--accent-soft)}
+.sidebtn.active{background:var(--accent-soft);border-color:var(--accent-bd);color:var(--accent);font-weight:700}
 .qrow.picked{box-shadow:inset 3px 0 0 #e8590c;background:#fff1e6}
 body.dark .qrow.picked{background:#3a2a1c}
 .qrow.merged .ql{font-style:italic}
@@ -381,13 +382,22 @@ body.dark .qrow.picked{background:#3a2a1c}
         <div class="tform" data-form="job"><h4>Job Setup</h4><div class="tfbody">
           <div class="grp">Units</div>
           <label data-tip="Show and type lengths in inches or millimetres. The drawing is not rescaled; metric posts write G21 programs.">Units<select id="jobUnits"><option value="in">Inches</option><option value="mm">Millimetres</option></select></label>
-          <div class="grp">Job size</div>
-          <label data-tip="Material width (X)">W&quot;<input type="number" id="jobW" value="48.5" step="0.5" style="width:60px"></label>
-          <label data-tip="Material height (Y)">H&quot;<input type="number" id="jobH" value="97" step="0.5" style="width:60px"></label>
-          <div class="grp">Material</div>
-          <label data-tip="Material thickness (Z)">Thickness&quot;<input type="number" id="jobT" value="1.5" step="0.05" style="width:58px"></label>
-          <div class="grp">XY datum position</div>
-          <label data-tip="Where X0 Y0 sits on the material">Origin<select id="jobOrigin"><option value="bl">Bottom-L</option><option value="br">Bottom-R</option><option value="tl">Top-L</option><option value="tr">Top-R</option><option value="center">Center</option></select></label>
+          <div class="grp">Job type</div>
+          <label data-tip="Flat sheet, or a rotary job: a cylinder turned on the A axis, designed unwrapped">Type<select id="jobType"><option value="flat">Flat</option><option value="rotary">Rotary (wrapped)</option></select></label>
+          <label class="job-flat" data-tip="Two-sided: cut one side, flip the stock, cut the other">Sides<select id="jobSides"><option value="1">One</option><option value="2">Two (flip)</option></select></label>
+          <label class="job-two" data-tip="How the stock is turned over between sides">Flip<select id="jobFlip"><option value="h">Left &#8596; right</option><option value="v">Top &#8597; bottom</option></select></label>
+          <div class="grp job-rot">Cylinder</div>
+          <label class="job-rot" data-tip="Stock diameter">Diameter&quot;<input type="number" id="jobDia" value="4" step="0.25" style="width:60px"></label>
+          <label class="job-rot" data-tip="Length along the rotary axis (X)">Length&quot;<input type="number" id="jobLen" value="12" step="0.5" style="width:60px"></label>
+          <div class="formhint job-rot" id="jobCirc"></div>
+          <div class="formhint job-rot">Draw on the unwrapped surface: X along the axis, Y round the circumference. Z0 is the cylinder surface; Y posts as A (degrees).</div>
+          <div class="grp job-flat">Job size</div>
+          <label class="job-flat" data-tip="Material width (X)">W&quot;<input type="number" id="jobW" value="48.5" step="0.5" style="width:60px"></label>
+          <label class="job-flat" data-tip="Material height (Y)">H&quot;<input type="number" id="jobH" value="97" step="0.5" style="width:60px"></label>
+          <div class="grp job-flat">Material</div>
+          <label class="job-flat" data-tip="Material thickness (Z)">Thickness&quot;<input type="number" id="jobT" value="1.5" step="0.05" style="width:58px"></label>
+          <div class="grp job-flat">XY datum position</div>
+          <label class="job-flat" data-tip="Where X0 Y0 sits on the material">Origin<select id="jobOrigin"><option value="bl">Bottom-L</option><option value="br">Bottom-R</option><option value="tl">Top-L</option><option value="tr">Top-R</option><option value="center">Center</option></select></label>
           <label data-tip="Show/hide the material outline"><input type="checkbox" id="jobShow" checked>Show material</label>
         </div><div class="formfoot"><button class="tb" data-formclose="1">Close</button><button class="tb primary" id="btnJobSet">OK</button></div></div>
 
@@ -540,6 +550,8 @@ body.dark .qrow.picked{background:#3a2a1c}
           <button class="tb" id="btnJobForm" data-tip="Set material size, thickness and the XY datum">Set …</button>
           <div class="formhint" id="matSummary">—</div>
           <div class="formhint" id="matDatum">XY Datum</div>
+          <div class="side-only" style="display:none;width:100%;margin-top:4px"><span class="muted" style="font-size:10px">Working side</span>
+            <div style="display:flex;gap:3px;margin-top:2px"><button class="tb sidebtn" data-side="top" data-tip="Draw and toolpath the top side">Top</button><button class="tb sidebtn" data-side="bottom" data-tip="Draw and toolpath the bottom side (after the flip)">Bottom</button></div></div>
         </div>
         <div class="secgrp"><h3>Toolpath Operations</h3>
           <div class="iconrow" style="grid-template-columns:repeat(5,1fr)">

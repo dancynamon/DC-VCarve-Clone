@@ -1036,6 +1036,11 @@ function orderPasses(job, start){
 // job = { name, units, ops:[{toolNum,rpm,feed,plunge,clearZ,passes:[{z,tabHeight,closed,path}]}] }
 function postProcess(job, post){
   const P=Object.assign({},POSTS.shopsabre,post||{});
+  // Rotary (wrapped) job: the design is drawn unwrapped, Y running round the circumference. Y becomes the A axis
+  // in degrees (one turn = pi x diameter), Z stays zero on the cylinder surface, and arcs are posted as G1 since
+  // an XY arc means nothing in X-A.
+  if(P.rotary&&P.rotary.diameter>0){ const circ=Math.PI*P.rotary.diameter*(P.metric?25.4:1), y0=(P.rotary.y0||0)*(P.metric?25.4:1), fmt=P.axisFmt;
+    P.arcs=false; P.helical=false; P.axisFmt=(a,v,dp)=>a==='Y'?fmt('A',(v-y0)*360/circ,dp):fmt(a,v,dp); }
   if(P.metric){ job=scaleJob(job,25.4); if(P.arcTol!=null) P.arcTol*=25.4; else P.arcTol=0.0015*25.4; }
   const dp=P.decimals;
   const X=v=>P.axisFmt('X',v,dp), Y=v=>P.axisFmt('Y',v,dp), Z=v=>P.axisFmt('Z',v,dp);
@@ -1221,7 +1226,7 @@ function _simKernel(tool, R, res) {
 // Returns false when the move stays at or above the top. Shared by simulateStock and the 3D View's live carving.
 function carveSegment(f, k, x0, y0, z0, x1, y1, z1) {
   if (z0 >= 0 && z1 >= 0) return false;                           // pure rapid above stock — no cut
-  const res = f.res, nx = f.nx, ny = f.ny, z = f.z, floor = f.floor;
+  const res = f.res, nx = f.nx, ny = f.ny, z = f.z, floor = f.floor, floors = f.floors || null;
   const rad = k.rad, size = k.size, off = k.off, mask = k.mask;
   const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy);
   const n = Math.max(1, Math.ceil(len / (res * 0.8)));
@@ -1231,8 +1236,11 @@ function carveSegment(f, k, x0, y0, z0, x1, y1, z1) {
     const ci = Math.floor((px - f.x0) / res), cj = Math.floor((py - f.y0) / res);
     for (let dj = -rad; dj <= rad; dj++) { const jj = cj + dj; if (jj < 0 || jj >= ny) continue; const kr = (dj + rad) * size;
       for (let di = -rad; di <= rad; di++) { const ii = ci + di; if (ii < 0 || ii >= nx) continue; const ki = kr + (di + rad); if (!mask[ki]) continue;
-        let surf = pz + off[ki]; if (surf < floor) surf = floor;
-        const zi = jj * nx + ii; if (surf < z[zi]) z[zi] = surf; } }
+        let surf = pz + off[ki]; const zi = jj * nx + ii;
+        // two-sided jobs: `floors` is how deep this side can go before it meets the other side's cuts;
+        // reaching it opens a hole, shown as the full-depth floor
+        if (floors) { if (surf <= floors[zi] + 1e-9) surf = floor; } else if (surf < floor) surf = floor;
+        if (surf < z[zi]) z[zi] = surf; } }
   }
   return true;
 }

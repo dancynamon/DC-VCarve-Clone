@@ -81,6 +81,36 @@ const near = (a, b, t) => Math.abs(a - b) <= (t || 1e-6);
   ok('90° V groove: tip depth at centre', near(CAM.stockHeightAt(c.field, 2, 1.005), -0.2, 0.012), CAM.stockHeightAt(c.field, 2, 1.005));
   ok('90° V groove: 0.1" off-centre is half as deep', near(CAM.stockHeightAt(c.field, 2, 1.105), -0.1, 0.012), CAM.stockHeightAt(c.field, 2, 1.105));
 }
+
+// ---- two-sided: the other side's cuts set this side's floors ----
+{
+  const stock = { x0: 0, y0: 0, w: 4, h: 2, thickness: 1, res: 0.05 }, tool = { type: 'flat', radius: 0.125 };
+  // bottom side: a 0.6" deep slot along y at x = 1 (in the bottom frame), and a through hole at (3,1)
+  const bot = new S.Carver(CAM, S.parseGcode('Z1\nG0 X1 Y0.2\nG1 Z-0.6 F20\nG1 Y1.8 F60\nG0 Z1\nG0 X3 Y1\nG1 Z-1 F20\nG0 Z1\n'), stock, () => tool);
+  bot.seek(bot.p.n, 0);
+  const floors = S.floorsFromOtherSide(bot.field, 'h');
+  ok('floors: uncut cell = full thickness', near(floors[Math.floor(1 / 0.05) * 80 + 40], -1));
+  // flipped left-right: bottom x=1 is top x=3
+  const top = new S.Carver(CAM, S.parseGcode('Z1\nG0 X0.5 Y1\nG1 Z-0.5 F20\nG1 X3.5 F60\nG0 Z1\n'), Object.assign({ floors }, stock), () => tool);
+  ok('floors: the other side\'s through hole starts open (mirrored)', near(CAM.stockHeightAt(top.field, 1, 1), -1));
+  top.seek(top.p.n, 0);
+  ok('a 0.5" groove crossing the 0.6" slot from below breaks through there', near(CAM.stockHeightAt(top.field, 3, 1), -1));
+  ok('...and is 0.5" deep elsewhere', near(CAM.stockHeightAt(top.field, 2, 1), -0.5));
+  top.seek(0, 0);
+  ok('rewinding restores the other side\'s holes, not a blank block', near(CAM.stockHeightAt(top.field, 1, 1), -1) && near(CAM.stockHeightAt(top.field, 3, 1), 0));
+}
+// ---- rotary: Y posts as A degrees and plays back unwrapped ----
+{
+  global.ClipperLib = global.ClipperLib || require('./package/clipper.js');
+  const D = 4, circ = Math.PI * D;
+  const op = CAM.profileOp([{ closed: false, pts: [{ x: 1, y: 0 }, { x: 1, y: circ / 4 }, { x: 3, y: circ / 4 }] }], { side: 'on', toolDia: 0.25, cutDepth: 0.1, passDepth: 0.1 }).ops[0];
+  const g = CAM.postProcess({ name: 'r', units: 'inch', ops: [op] }, Object.assign({}, CAM.POSTS.shopsabre, { rotary: { diameter: D, y0: 0 } }));
+  ok('rotary post: a quarter turn is A90', /A90\.0000/.test(g) && !/ Y\d/.test(g.replace(/^G0 X0\.0000 Y115\.0000$/m, '')), g.split('\r\n').filter(l => /A/.test(l)).slice(0, 3).join('|'));
+  ok('rotary post: no arcs', !/^G[23] /m.test(g));
+  const p = S.parseGcode(g, { aToY: circ / 360 });
+  let maxY = 0; for (let i = 0; i < p.n; i++) if (p.z1[i] < 0) maxY = Math.max(maxY, p.y1[i]);
+  ok('rotary playback: A unwraps back to Y', near(maxY, circ / 4, 1e-3), maxY);
+}
 // ---- tool defaults for imported programs ----
 {
   const lib = CAM.defaultTools();
