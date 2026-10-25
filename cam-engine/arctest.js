@@ -121,5 +121,23 @@ ok('tabbed circle raises Z for tabs',/G1 Z-0\.15/.test(gt)||/G1 Z-0\.1500/.test(
   ok('a real circle still posts as arcs', n>0, n);
 }
 
+
+// Uneven chords: a gentle curve sampled every 0.1" with ONE 0.8" straight run. The arc fit must not bow
+// across the long run (it did by 0.0104" on the Barron turtles sheet — Vectric cut it straight).
+{
+  const P=[]; const R=6, cx=0, cy=-R;
+  for(let a=0.35;a>0.07;a-=0.1/R) P.push({x:cx+R*Math.cos(Math.PI/2-a), y:cy+R*Math.sin(Math.PI/2-a)});
+  const last=P[P.length-1]; const jump=0.8/R; let a0=Math.PI/2-(0.07)+0; // continue past the straight run
+  const b={x:cx+R*Math.cos(Math.PI/2+0.06), y:cy+R*Math.sin(Math.PI/2+0.06)};
+  P.push(b); for(let a=0.06+0.1/R;a<0.35;a+=0.1/R) P.push({x:cx+R*Math.cos(Math.PI/2+a), y:cy+R*Math.sin(Math.PI/2+a)});
+  const mv=CAM.fitArcs(P,0.0015); let worst=0, prev=P[0];
+  const segD=(p,a,c)=>{const dx=c.x-a.x,dy=c.y-a.y,L2=dx*dx+dy*dy;let t=L2?((p.x-a.x)*dx+(p.y-a.y)*dy)/L2:0;t=Math.max(0,Math.min(1,t));return Math.hypot(p.x-a.x-dx*t,p.y-a.y-dy*t);};
+  const toPoly=p=>{let d=1e9;for(let k=0;k<P.length-1;k++)d=Math.min(d,segD(p,P[k],P[k+1]));return d;};
+  for(const m of mv){ if(m.type==='arc'){ const r=Math.hypot(prev.x-m.cx,prev.y-m.cy); let s=Math.atan2(prev.y-m.cy,prev.x-m.cx), e=Math.atan2(m.y-m.cy,m.x-m.cx);
+      if(m.cw){ if(e>=s) e-=2*Math.PI; } else { if(e<=s) e+=2*Math.PI; }
+      for(let k=1;k<64;k++){ const a=s+(e-s)*k/64; worst=Math.max(worst,toPoly({x:m.cx+r*Math.cos(a),y:m.cy+r*Math.sin(a)})); } }
+    prev={x:m.x,y:m.y}; }
+  ok('uneven chords: fitted arcs stay within 0.0025" of the polyline', worst<=0.0025, 'worst='+worst.toFixed(4));
+}
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

@@ -120,8 +120,10 @@ console.log('\n(post-pp assertions added)');
   ok('linked spiral is one open path', passes[0].closed===false);
   ok('linked spiral holds every ring\'s points', passes[0].path.length >= unlinked.reduce((n,p)=>n+p.path.length,0),
      `${passes[0].path.length} vs ${unlinked.reduce((n,p)=>n+p.path.length,0)}`);
-  // climb -> CW rings
-  ok('pocket climb CW', CAM.signedArea(passes[0].path.map(p=>({x:p.x,y:p.y})))<0);
+  // climb -> CCW rings inside a pocket (CW spindle: climb outside = CW, inside = CCW); conventional = CW, which is what Vectric posts
+  ok('pocket climb CCW', CAM.signedArea(passes[0].path.map(p=>({x:p.x,y:p.y})))>0);
+
+
   // multi-depth multiplies pass count
   const pk2 = CAM.pocketOp(sq, {toolDia:0.5, stepover:0.5, cutDepth:0.5, passDepth:0.25, topZ:0});
   ok('pocket multi-depth', pk2.ops[0].passes.length===passes.length*2, pk2.ops[0].passes.length);
@@ -754,6 +756,17 @@ console.log('\n(post-pp assertions added)');
   const rp=CAM.pocketOp(sq, Object.assign({rampEntry:true}, O));
   ok('link: ramp entry survives linking',
      rp.ops[0].passes[0].path.some(p=>p.ramp!=null) && rp.ops[0].passes[0].closed===false);
+})();
+
+// ---- on-the-line cut of a CLOSED vector must cut its closing edge (Fish 36x24 engrave gap) ----
+(function(){
+  const sq=CAM.assembleContours([{closed:true,pts:[{x:0,y:0},{x:1,y:0},{x:1,y:1},{x:0,y:1},{x:0,y:0}]}]);
+  const pa=CAM.profileOp(sq,{side:'on',toolDia:0.125,cutDepth:0.1,passDepth:0.1}).ops[0].passes[0].path;
+  ok('on-line closed: path returns to its start', pa.length===5 && pa[4].x===pa[0].x && pa[4].y===pa[0].y, JSON.stringify(pa));
+  const pt=CAM.profileOp(sq,{side:'on',toolDia:0.125,cutDepth:0.1,passDepth:0.1,tabs:{count:2,length:0.2,height:0.05}}).ops[0].passes[0].path;
+  ok('on-line closed + tabs: path returns to its start', pt[pt.length-1].x===pt[0].x && pt[pt.length-1].y===pt[0].y);
+  const op=CAM.profileOp(CAM.assembleContours([{closed:false,pts:[{x:0,y:0},{x:1,y:0},{x:1,y:1}]}]),{side:'on',toolDia:0.125,cutDepth:0.1,passDepth:0.1}).ops[0].passes[0].path;
+  ok('on-line open: path unchanged', op.length===3);
 })();
 
 console.log(`\n${pass} passed, ${fail} failed`);

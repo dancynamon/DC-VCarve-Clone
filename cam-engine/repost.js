@@ -66,6 +66,21 @@ function dxfIndex(text) {
   }
   return byLayer;
 }
+// Same shape as dxfIndex, straight from a VCarve .crv/.crv3d — no DXF export, no VCarve.
+let _crv = null;
+function loadCrvParser() {
+  if (_crv) return _crv;
+  const ctx = {}; vm.createContext(ctx);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, 'crvparse.js'), 'utf8') + ';this.CRVPARSE=CRVPARSE;', ctx);
+  return (_crv = ctx.CRVPARSE);
+}
+function crvIndex(bytes, opts) {
+  const r = loadCrvParser().toShapes(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes), Object.assign({ tol: 0.002 }, opts || {}));
+  const byLayer = {};
+  for (const L of r.layers) byLayer[L.name] = L.contours.map(c => ({ closed: !!c.closed, pts: c.pts.map(q => ({ x: q.x, y: q.y })) }));
+  Object.defineProperty(byLayer, '_job', { value: r.job, enumerable: false });
+  return byLayer;
+}
 function selectEntries(index, select) {
   const out = [];
   for (const s of (select || [])) {
@@ -77,8 +92,9 @@ function selectEntries(index, select) {
   }
   return out;
 }
-function repostJob(dxfText, spec) {
-  const index = dxfIndex(dxfText), ops = [], warnings = [], summary = [];
+function repostJob(src, spec) {
+  // src: DXF text, or an index already built (crvIndex / dxfIndex)
+  const index = typeof src === 'string' ? dxfIndex(src) : src, ops = [], warnings = [], summary = [];
   for (const raw of (spec.ops || [])) {
     const o = Object.assign({ op: 'profile', toolNum: 1, toolDia: 0.25, rpm: 18000, feed: 120,
                              plunge: 40, cutDepth: 0.25, passDepth: 0.25, topZ: 0, clearZ: 0.25 }, raw);
@@ -92,10 +108,28 @@ function repostJob(dxfText, spec) {
       const r = CAM.drillOp(cs, o);
       r.ops[0].passes.forEach(p => passes.push(p));
       r.warnings.forEach(w => warnings.push(`${o.label || o.op}: ${w}`));
+    } else if (o.op === 'pocket' && o.groupIslands !== false) {
+      // one pocket over ALL selected vectors: nested ones are islands (even-odd), as VCarve treats a selection
+      const cs = CAM.assembleContours(entries.map(e => ({ closed: e.ent.closed, pts: e.ent.pts })));
+      if (o.restOf) {
+        // rest machining only: what a restOf-diameter tool leaves behind, cut with this (smaller) tool
+        const r = CAM.pocketOp(cs, Object.assign({}, o, { toolDia: o.restOf, finishDia: o.toolDia, finishNum: o.toolNum }));
+        if (o.finishWall) {   // VCarve runs the small tool around the whole pocket wall, then any rest areas
+          const w = CAM.profileOp(cs, Object.assign({}, o, { side: 'inside' }));
+          w.ops.forEach(sub => sub.passes.forEach(q => passes.push(q)));
+        }
+        r.ops.slice(1).forEach(sub => sub.passes.forEach(q => passes.push(q)));
+        r.warnings.filter(w => !(o.finishWall && /already cleared everything/.test(w))).forEach(w => warnings.push(`${o.label || o.op}: ${w}`));
+      } else {
+      const r = CAM.pocketOp(cs, o);
+      for (const sub of r.ops) sub.passes.forEach(q => passes.push(q));
+      r.warnings.forEach(w => warnings.push(`${o.label || o.op}: ${w}`));
+      }
     } else {
       for (const e of entries) {
         const cs = CAM.assembleContours([{ closed: e.ent.closed, pts: e.ent.pts }]);
         const p = Object.assign({}, o, e.over);
+        if (p.tabs && e.ent.tabs && e.ent.tabs.length) p.tabs = Object.assign({}, p.tabs, { points: e.ent.tabs });   // tabs placed on the vector in VCarve
         const r = (o.op === 'pocket') ? CAM.pocketOp(cs, p)
           : (o.op === 'vcarve') ? CAM.vcarveOp(cs, Object.assign({}, p, { maxDepth: p.cutDepth, step: p.vstep }))
           : CAM.profileOp(cs, p);
@@ -114,7 +148,7 @@ function repostJob(dxfText, spec) {
            arcs: (g.match(/^G[23] /gm) || []).length, lines: (g.match(/^G1 /gm) || []).length };
 }
 
-module.exports = { repost, dxfToContours, repostJob, dxfIndex, assertDxf, parseArgs };
+module.exports = { repost, dxfToContours, repostJob, dxfIndex, crvIndex, assertDxf, parseArgs };
 
 // ---- CLI argument parsing -----------------------------------------------------------------------
 // Every flag is declared with a type, and anything not declared is an ERROR rather than a silent
@@ -181,7 +215,7 @@ if (require.main === module) {
 
   // never write a .tap over one of the inputs — a slipped argument should not eat a source file
   const guardOut = (out, ins) => {
-    if (/\.(dxf|svg|pdf|aqjob\.json|json)$/i.test(out)) die(`refusing to write G-code to "${out}" — that is a source file`);
+    if (/\.(dxf|svg|pdf|crv|crv3d|aqjob\.json|json)$/i.test(out)) die(`refusing to write G-code to "${out}" — that is a source file`);
     for (const i of ins) if (i && path.resolve(i) === path.resolve(out)) die(`output "${out}" is the same file as an input`);
   };
 
@@ -193,14 +227,18 @@ if (require.main === module) {
     try { spec = JSON.parse(fs.readFileSync(flags.job, 'utf8')); }
     catch (e) { die(`cannot read job spec ${flags.job}: ${e.message}`); }
     const base = path.dirname(flags.job);
-    const dxfPath = flags.dxf || (spec.dxf && path.join(base, spec.dxf));
-    if (!dxfPath) die(`job spec has no "dxf" field — pass --dxf <in.dxf>`);
+    const crvPath = !flags.dxf && spec.crv ? path.join(base, spec.crv) : null;
+    const dxfPath = crvPath || flags.dxf || (spec.dxf && path.join(base, spec.dxf));
+    if (!dxfPath) die(`job spec has no "dxf" or "crv" field — pass --dxf <in.dxf>`);
     const out = flags.out || path.join(base, spec.out || (spec.name || 'job') + '.tap');
     guardOut(out, [dxfPath, flags.job]);
-    let dxfText;
-    try { dxfText = fs.readFileSync(dxfPath, 'utf8'); assertDxf(dxfText, dxfPath); } catch (e) { die(e.message); }
+    let src;
+    try {
+      if (crvPath) src = crvIndex(fs.readFileSync(crvPath));
+      else { src = fs.readFileSync(dxfPath, 'utf8'); assertDxf(src, dxfPath); }
+    } catch (e) { die(e.message); }
     let r;
-    try { r = repostJob(dxfText, spec); } catch (e) { die(e.message); }
+    try { r = repostJob(src, spec); } catch (e) { die(e.message); }
     fs.writeFileSync(out, r.gcode);
     console.log(`${dxfPath} + ${flags.job} -> ${out}`);
     for (const s of r.ops) console.log(`  T${s.tool} ${s.label}: ${s.vectors} vectors, ${s.passes} passes`);

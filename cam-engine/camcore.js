@@ -10,6 +10,9 @@ const SCALE = 100000, TOL = 1e-4;
 const ARC_TOL = 0.001;        // ClipperOffset arc tolerance: how far an offset round join may sit off true
 const ARC_CHORD_RATIO = 12;    // max chord / median chord inside one fitted arc — a real curve is near-uniform
 const ARC_MAX_SAG = 0.05;      // hard cap (in) on how far a fitted arc may depart from the polyline it replaces
+const ARC_UNEVEN_SAG = 0.002;  // ...and the cap for a chord noticeably LONGER than its neighbours (> 2x median). A uniformly
+                               // coarse circle is still a circle; one long straight run inside a curve is not: it got a
+                               // 0.0104" bow before this (Barron turtles sheet, vs Vectric's straight line).
 function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
 function near(a,b,t){return dist(a,b)<=(t==null?TOL:t);}
 function signedArea(pts){let s=0;for(let i=0,n=pts.length;i<n;i++){const a=pts[i],b=pts[(i+1)%n];s+=a.x*b.y-b.x*a.y;}return s/2;}
@@ -113,14 +116,23 @@ function offsetOpenPath(pts, delta, joinType){
   return run;
 }
 
-function withTabs(loop, count, tabLen, closed){
+function withTabs(loop, count, tabLen, closed, points){
   closed = closed!==false;
+  if(points && points.length) count = points.length;            // placed tabs (VCarve vcToolpathTab) win over count
   if(!count||count<1||!tabLen) return loop.map(p=>({x:p.x,y:p.y,tab:false}));
   const n=loop.length, segLen=[]; let total=0;
   const last = closed?n:n-1;
   for(let i=0;i<last;i++){const a=loop[i],b=loop[(i+1)%n];const L=dist(a,b);segLen.push(L);total+=L;}
   if(total===0) return loop.map(p=>({x:p.x,y:p.y,tab:false}));
-  const centers=[]; for(let k=0;k<count;k++) centers.push((k+0.5)/count*total);
+  const centers=[];
+  if(points && points.length){
+    // each placed tab sits where the vector's tab point projects onto this (offset) loop
+    for(const q of points){ let best=Infinity, at=0, acc=0;
+      for(let i=0;i<last;i++){ const a=loop[i],b=loop[(i+1)%n],L=segLen[i],dx=b.x-a.x,dy=b.y-a.y;
+        let t=L>0?((q.x-a.x)*dx+(q.y-a.y)*dy)/(L*L):0; t=Math.max(0,Math.min(1,t));
+        const d=Math.hypot(a.x+dx*t-q.x,a.y+dy*t-q.y); if(d<best){best=d;at=acc+L*t;} acc+=L; }
+      centers.push(at); }
+  } else for(let k=0;k<count;k++) centers.push((k+0.5)/count*total);
   const half=Math.min(tabLen, total/count*0.9)/2;
   const iv=centers.map(c=>[c-half,c+half]);
   function inTab(pos){for(const [s,e] of iv){let a=((s%total)+total)%total,b=((e%total)+total)%total;if(a<=b){if(pos>=a&&pos<=b)return true;}else{if(pos>=a||pos<=b)return true;}}return false;}
@@ -188,6 +200,7 @@ function profileOp(contours, opts){
   const r=o.toolDia/2, warnings=[], passesAll=[]; let leadSkipped=false;
   const depths=[]; let d=Math.min(o.passDepth,o.cutDepth);
   while(d<o.cutDepth-1e-9){depths.push(d);d+=o.passDepth;} depths.push(o.cutDepth);
+  if(Array.isArray(o.depths)&&o.depths.length){ depths.length=0; for(const v of o.depths) depths.push(+v); }   // explicit pass list (VCarve _mctddDepthValues)
   const openSide = (o.side==='left'||o.side==='right');
   for(const c of contours){
     let loops, pts=(o.reverse && !c.closed)?reversed(c.pts):c.pts;
@@ -210,12 +223,20 @@ function profileOp(contours, opts){
       if(c.closed && o.side!=='on' && !openSide){
         const wantCCW=(o.side==='outside')?!o.climb:o.climb;
         lp=wantCCW?ensureCCW(lp):ensureCW(lp);
+      } else if(c.closed && o.side==='on' && o.orientOn){
+        // opt-in only: Vectric's Quick Engrave follows the VECTOR's own direction (Fish 36x24); Little Pals disagreed but
+        // its TAP is stale against its CRV (tabs too). Settle on blind test BT-06.
+        lp=o.climb?ensureCW(lp):ensureCCW(lp);
       }
-      const tabH=(o.tabs&&o.tabs.count>0&&o.tabs.height)||0;
-      const wantTabs=(o.tabs && o.tabs.count>0 && (c.closed || openSide || o.side==='on'));
+      const tabH=(o.tabs&&(o.tabs.count>0||(o.tabs.points&&o.tabs.points.length))&&o.tabs.height)||0;
+      const wantTabs=(o.tabs && (o.tabs.count>0 || (o.tabs.points&&o.tabs.points.length)) && (c.closed || openSide || o.side==='on'));
       const plain=lp.map(p=>({x:p.x,y:p.y,tab:false}));
-      const tabbed=wantTabs?withTabs(lp,o.tabs.count,o.tabs.length,c.closed):plain;
+      const tabbed=wantTabs?withTabs(lp,o.tabs.count,o.tabs.length,c.closed,o.tabs.points):plain;
       let closed=c.closed&&o.side!=='on';
+      // On-the-line cut of a CLOSED vector is emitted as an open path, so it must end where it began —
+      // without the repeated start point the closing edge is never cut (a gap in every engraved outline).
+      if(c.closed && o.side==='on' && plain.length>1){ const f=plain[0]; plain.push({x:f.x,y:f.y,tab:false});
+        if(tabbed!==plain){ const g=tabbed[0]; tabbed.push({x:g.x,y:g.y,tab:g.tab}); } }
       const lead=pts0=>{
         if(!(closed && o.leadType && o.leadType!=='none')) return {path:pts0, closed};
         const interiorSign=signedArea(lp)>0?1:-1;                       // left normal = interior when CCW
@@ -399,6 +420,7 @@ function pocketOp(contours, opts){
   const region=regionFromLoops(loops);
   const depths=[]; let d=Math.min(o.passDepth,o.cutDepth);
   while(d<o.cutDepth-1e-9){depths.push(d);d+=o.passDepth;} depths.push(o.cutDepth);
+  if(Array.isArray(o.depths)&&o.depths.length){ depths.length=0; for(const v of o.depths) depths.push(+v); }   // explicit pass list (VCarve _mctddDepthValues)
   const passes=[];
   if(o.pocketStyle==='raster'){
     // fill boundary = region pulled one tool-radius inside the wall (the XY region is depth-independent, so compute rows once)
@@ -433,7 +455,9 @@ function pocketOp(contours, opts){
     if(!rings.length){ warnings.push('Tool too large to enter the pocket region'); }
     let rampEntrySkipped=false;
     // orient first: climb/conventional decides traversal, and the link start point is picked along it
-    const oriented=rings.map(lp=>o.climb?ensureCW(lp):ensureCCW(lp));
+    // Same convention as an inside profile (CW spindle): climb = CCW around the wall, conventional = CW.
+    // It was the other way round; Vectric posts conventional pockets CW (Swiss Cheese / Big Blue mats).
+    const oriented=rings.map(lp=>o.climb?ensureCCW(lp):ensureCW(lp));
     // linked pockets spiral innermost-first; unlinked keeps the historical outermost-first ring order
     const chains = o.linkRings===false ? oriented.map(lp=>[lp])
                                        : linkRings(oriented.slice().reverse(), so, region, o.linkMax);
@@ -515,7 +539,9 @@ function centroid(pts){
 }
 function drillOp(contours, opts){
   const o=Object.assign({toolNum:1,toolDia:0.25,topZ:0,cutDepth:0.25,peck:0,safeZ:0.25,feed:120,plunge:40,rpm:18000},opts||{});
-  const points=contours.filter(c=>c.closed && c.pts && c.pts.length>=3).map(c=>centroid(c.pts));
+  const points=[];
+  for(const c of contours.filter(c=>c.closed && c.pts && c.pts.length>=3)){ const p=centroid(c.pts);
+    if(!points.some(q=>Math.hypot(q.x-p.x,q.y-p.y)<0.001)) points.push(p); }   // one hole per position (stacked/duplicate vectors drill once, as VCarve does)
   const warnings=[]; if(!points.length) warnings.push('Drill needs closed contour(s) — drills one hole at each centroid');
   const depths=[];
   if(o.peck&&o.peck>0){ let d=Math.min(o.peck,o.cutDepth); while(d<o.cutDepth-1e-9){depths.push(d); d+=o.peck;} depths.push(o.cutDepth); }
@@ -780,6 +806,7 @@ function arcCovers(P,i,j,arc,tol,maxStep){
     if(max>2*r) return false;                                    // chord longer than the diameter
     const sag=r-Math.sqrt(Math.max(0,r*r-max*max/4));
     if(sag>ARC_MAX_SAG) return false;                            // departs too far from the polyline
+    if(med>0 && max>2*med && sag>Math.max(tol,ARC_UNEVEN_SAG)) return false; // bows off a long straight run
   }
   let prevAng=null, dir=0;
   for(let k=i;k<=j;k++){
@@ -886,7 +913,10 @@ function postProcess(job, post){
   P.header(L,job,P);
   job.ops.forEach((op,oi)=>{
     const clear = op.clearZ!=null?op.clearZ:0.25;
-    P.opStart(L, op, P, oi===0);
+    // Vectric's ShopSabre post: consecutive toolpaths on the same tool + speed run with NO tool-change block
+    const prevOp = oi>0 ? job.ops[oi-1] : null;
+    const sameTool = prevOp && P.mergeSameTool && prevOp.toolNum===op.toolNum && Math.round(prevOp.rpm)===Math.round(op.rpm);
+    if(!sameTool) P.opStart(L, op, P, oi===0);
     op.passes.forEach(pass=>{
       const path=pass.path; if(!path.length)return;
       const cutZ=pass.z, tabZ=pass.z+(pass.tabHeight||0);
@@ -971,7 +1001,7 @@ const POSTS={
   // Exact match to Dan's Vectric post: ShopSabre_DC_ATC_speed_arc_inch.pp
   shopsabre:{
     name:'ShopSabre DC ATC Speed Arc (inch)', decimals:4, feedDecimals:1, eol:'\r\n',
-    safeZ:2.0, parkX:0.0, parkY:115.0, warmupDwell:4, arcs:true, arcTol:0.0015, helical:true,
+    safeZ:2.0, parkX:0.0, parkY:115.0, warmupDwell:4, arcs:true, arcTol:0.0015, helical:true, mergeSameTool:true,
     axisFmt:(a,v,dp)=>`${a}${(Math.abs(v)<1e-9?0:v).toFixed(dp)}`,
     header(L){ L.push('G90'); L.push(''); },
     // HEADER tool block (isFirst, has Z2 + feed line) vs TOOLCHANGE (no Z2/feed)
