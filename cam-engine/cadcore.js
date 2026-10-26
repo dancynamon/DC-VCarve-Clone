@@ -840,6 +840,176 @@ function filletPolyCorner(pts, closed, i, radius, segs) {
   for (let k = 0; k < n; k++) { if (k === i) { for (const q of arc) out.push({ x: q.x, y: q.y }); } else out.push({ x: pts[k].x, y: pts[k].y }); }
   return out;
 }
+// Dog-bone / T-bone relief at vertex `i` for a cutter of radius `r` (VCarve's Fillet tool, Dog-Bone and T-Bone modes).
+// A round tool cannot reach into a sharp inside corner, so a square part will not seat; the relief is a notch the
+// tool can cut. It always opens away from the side the tool is on (the smaller angle between the two edges), so
+// the same call works for a mortise corner (convex corner of a hole) and an inside corner of a part.
+//   dogbone: the notch sits on the corner's bisector; its circle passes through the corner point.
+//   tbone:   the tool runs straight on along one edge (`edge` 'prev' or 'next') into the corner; the circle is
+//            tangent to that edge at the corner and the overcut goes into the other edge only (less visible).
+// Returns the new pts array, or null (collinear / open endpoint / an edge too short for the notch).
+function bonePolyCorner(pts, closed, i, r, mode, edge) {
+  const n = pts.length; if (n < 3 || !(r > 0)) return null;
+  const pi = closed ? (i - 1 + n) % n : i - 1, ni = closed ? (i + 1) % n : i + 1;
+  if (pi < 0 || ni >= n) return null;
+  const p = pts[i], a = pts[pi], b = pts[ni];
+  let u = { x: a.x - p.x, y: a.y - p.y }, v = { x: b.x - p.x, y: b.y - p.y };
+  const lu = Math.hypot(u.x, u.y), lv = Math.hypot(v.x, v.y);
+  if (lu < 1e-9 || lv < 1e-9) return null;
+  u = { x: u.x / lu, y: u.y / lu }; v = { x: v.x / lv, y: v.y / lv };
+  const cosT = Math.max(-1, Math.min(1, u.x * v.x + u.y * v.y)), theta = Math.acos(cosT);
+  if (theta < 1e-3 || Math.PI - theta < 1e-3) return null;
+  let C, t1, t2;
+  if (mode === 'tbone') {
+    const along = edge === 'next' ? v : u, other = edge === 'next' ? u : v;
+    let w = { x: other.x - (other.x * along.x + other.y * along.y) * along.x, y: other.y - (other.x * along.x + other.y * along.y) * along.y };
+    const lw = Math.hypot(w.x, w.y); w = { x: w.x / lw, y: w.y / lw };
+    C = { x: p.x + w.x * r, y: p.y + w.y * r };
+    const tOther = 2 * r * (other.x * w.x + other.y * w.y);
+    if (edge === 'next') { t1 = tOther; t2 = 0; } else { t1 = 0; t2 = tOther; }
+  } else {
+    let bis = { x: u.x + v.x, y: u.y + v.y }; const lb = Math.hypot(bis.x, bis.y); bis = { x: bis.x / lb, y: bis.y / lb };
+    C = { x: p.x + bis.x * r, y: p.y + bis.y * r };
+    t1 = t2 = 2 * r * Math.cos(theta / 2);
+  }
+  if (t1 > lu * 0.999 || t2 > lv * 0.999) return null;
+  const T1 = { x: p.x + u.x * t1, y: p.y + u.y * t1 }, T2 = { x: p.x + v.x * t2, y: p.y + v.y * t2 };
+  const a1 = Math.atan2(T1.y - C.y, T1.x - C.x), a2 = Math.atan2(T2.y - C.y, T2.x - C.x), ap = Math.atan2(p.y - C.y, p.x - C.x);
+  const ccwSpan = x => { let d = x - a1; while (d < 0) d += TAU; while (d >= TAU) d -= TAU; return d; };
+  const ccw = ccwSpan(ap) <= ccwSpan(a2) + 1e-9;          // run the way that passes through the corner point
+  const arc = arcPolyline(C.x, C.y, r, a1, a2, ccw);
+  arc[0] = { x: T1.x, y: T1.y }; arc[arc.length - 1] = { x: T2.x, y: T2.y };
+  const out = [];
+  for (let k = 0; k < n; k++) { if (k === i) { for (const q of arc) out.push({ x: q.x, y: q.y }); } else out.push({ x: pts[k].x, y: pts[k].y }); }
+  return out;
+}
+// Corners of a path that a corner tool should treat: sharper than `maxAngle` degrees, and (for a closed path)
+// 'convex' corners — those of a hole or slot the tool cuts inside — or 'concave' ones — inside corners of a part
+// the tool cuts round the outside — or 'all'. Curves come in as many near-straight vertices; the angle limit skips them.
+function cornerIndices(pts, closed, which, maxAngle) {
+  const n = pts.length, lim = (maxAngle || 150) * Math.PI / 180, out = [];
+  let area = 0; for (let k = 0; k < n; k++) { const a = pts[k], b = pts[(k + 1) % n]; area += a.x * b.y - b.x * a.y; }
+  const orient = area >= 0 ? 1 : -1;
+  for (let i = 0; i < n; i++) {
+    if (!closed && (i === 0 || i === n - 1)) continue;
+    const a = pts[(i - 1 + n) % n], p = pts[i], b = pts[(i + 1) % n];
+    const ux = a.x - p.x, uy = a.y - p.y, vx = b.x - p.x, vy = b.y - p.y, lu = Math.hypot(ux, uy), lv = Math.hypot(vx, vy);
+    if (lu < 1e-9 || lv < 1e-9) continue;
+    const th = Math.acos(Math.max(-1, Math.min(1, (ux * vx + uy * vy) / (lu * lv))));
+    if (th > lim) continue;
+    if (closed && which && which !== 'all') {
+      const turn = ((p.x - a.x) * (b.y - p.y) - (p.y - a.y) * (b.x - p.x)) * orient;   // > 0: convex
+      if ((which === 'convex') !== (turn > 0)) continue;
+    }
+    out.push(i);
+  }
+  return out;
+}
+// Apply a corner treatment to many corners of one path: mode 'fillet' (radius r) | 'dogbone' | 'tbone' (tool radius r).
+// Works from the last corner back so earlier indices stay valid. Returns {pts, done} (pts unchanged when done = 0).
+function treatCorners(pts, closed, indices, r, mode, edge) {
+  let cur = pts.map(q => ({ x: q.x, y: q.y })), done = 0;
+  for (const i of indices.slice().sort((x, y) => y - x)) {
+    const np = mode === 'fillet' ? filletPolyCorner(cur, closed, i, r, 16) : bonePolyCorner(cur, closed, i, r, mode, edge);
+    if (np) { cur = np; done++; }
+  }
+  return { pts: cur, done: done };
+}
+
+// ---------- curve fitting (VCarve "Fit Curves to Vectors") ----------
+// Rebuild a jagged polyline (a bitmap trace, a DXF from a scanner, hand-clicked nodes) from straight lines and
+// true circular arcs that stay within `tol` of every original point. Lines keep only their end points; arcs are
+// re-tessellated evenly, so the arc fitter in the post turns them back into single G2/G3 moves. mode 'lines' =
+// lines only. Corners sharper than ~145 degrees (that hold beyond the noise) are kept as corners.
+function _circle3(a, b, c) {
+  const d = 2 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y)); if (Math.abs(d) < 1e-12) return null;
+  const a2 = a.x * a.x + a.y * a.y, b2 = b.x * b.x + b.y * b.y, c2 = c.x * c.x + c.y * c.y;
+  const x = (a2 * (b.y - c.y) + b2 * (c.y - a.y) + c2 * (a.y - b.y)) / d, y = (a2 * (c.x - b.x) + b2 * (a.x - c.x) + c2 * (b.x - a.x)) / d;
+  return { x: x, y: y, r: Math.hypot(a.x - x, a.y - y) };
+}
+function fitCurves(pts, closed, tol, mode) {
+  tol = tol > 0 ? tol : 0.005;
+  let P = pts.map(p => ({ x: p.x, y: p.y })).filter((p, i, A) => i === 0 || Math.hypot(p.x - A[i - 1].x, p.y - A[i - 1].y) > 1e-9);
+  if (closed && P.length > 2 && Math.hypot(P[0].x - P[P.length - 1].x, P[0].y - P[P.length - 1].y) < 1e-9) P.pop();
+  if (P.length < 3) return { pts: P, lines: Math.max(0, P.length - 1), arcs: 0 };
+  // corners split the run: fitting never smooths across them
+  const n = P.length, corner = new Uint8Array(n);
+  const ang = i => { const a = P[(i - 1 + n) % n], p = P[i], b = P[(i + 1) % n];
+    const ux = a.x - p.x, uy = a.y - p.y, vx = b.x - p.x, vy = b.y - p.y, lu = Math.hypot(ux, uy), lv = Math.hypot(vx, vy);
+    return Math.acos(Math.max(-1, Math.min(1, (ux * vx + uy * vy) / (lu * lv)))); };
+  for (let i = 0; i < n; i++) if ((closed || (i > 0 && i < n - 1)) && ang(i) < Math.PI * 0.8 && _localSharp(P, i, closed, tol)) corner[i] = 1;
+  // start a closed loop at a corner (or anywhere) and walk it as one open run that returns to its start
+  let s0 = 0; if (closed) { for (let i = 0; i < n; i++) if (corner[i]) { s0 = i; break; } }
+  const W = []; for (let k = 0; k < n; k++) W.push(Object.assign({ c: corner[(s0 + k) % n] }, P[(s0 + k) % n]));
+  if (closed) W.push(Object.assign({ c: 1 }, W[0]));
+  const out = [{ x: W[0].x, y: W[0].y }]; let lines = 0, arcs = 0, i = 0;
+  const lineOK = (a, b) => { for (let k = a + 1; k < b; k++) if (distToSeg(W[k], W[a], W[b]) > tol) return false; return true; };
+  const arcOK = (a, b) => { if (b - a < 3) return null; const c = _circle3(W[a], W[(a + b) >> 1], W[b]); if (!c || c.r > 1e4 * tol || c.r < tol) return null;
+    let turn = 0, sign = 0;
+    for (let k = a; k <= b; k++) { if (Math.abs(Math.hypot(W[k].x - c.x, W[k].y - c.y) - c.r) > tol) return null;
+      if (k > a) { let d = Math.atan2(W[k].y - c.y, W[k].x - c.x) - Math.atan2(W[k - 1].y - c.y, W[k - 1].x - c.x); while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU;
+        const sg = Math.sign(d); if (sg && sign && sg !== sign) return null; if (sg) sign = sg; turn += d; } }
+    // the chord between samples must stay on the arc too (no fitting across a gap)
+    for (let k = a + 1; k <= b; k++) { const mx = (W[k].x + W[k - 1].x) / 2, my = (W[k].y + W[k - 1].y) / 2; if (c.r - Math.hypot(mx - c.x, my - c.y) > tol) return null; }
+    return Math.abs(turn) < TAU - 1e-6 ? { c: c, turn: turn } : null; };
+  while (i < W.length - 1) {
+    let stop = i + 1; while (stop < W.length - 1 && !W[stop].c) stop++;       // next corner (or the end)
+    let bestJ = i + 1, best = null;
+    if (mode !== 'lines') {
+      // grow an arc as far as it holds (binary search on the far end, then confirm)
+      let lo = i + 3, hi = stop, ok = -1, okArc = null;
+      if (lo <= hi) { while (lo <= hi) { const mid = (lo + hi) >> 1, A = arcOK(i, mid); if (A) { ok = mid; okArc = A; lo = mid + 1; } else hi = mid - 1; } }
+      let lj = i + 1; for (let j = i + 2; j <= stop; j++) { if (lineOK(i, j)) lj = j; else break; }
+      if (ok > lj) { bestJ = ok; best = okArc; } else bestJ = lj;
+    } else { let lj = i + 1; for (let j = i + 2; j <= stop; j++) { if (lineOK(i, j)) lj = j; else break; } bestJ = lj; }
+    if (best) { const c = best.c, a0 = Math.atan2(W[i].y - c.y, W[i].x - c.x), a1 = a0 + best.turn;
+      const arc = arcPolyline(c.x, c.y, c.r, a0, a1, best.turn > 0, arcStepFor(c.r)); arc[arc.length - 1] = { x: W[bestJ].x, y: W[bestJ].y };
+      for (let k = 1; k < arc.length; k++) out.push(arc[k]); arcs++; }
+    else { out.push({ x: W[bestJ].x, y: W[bestJ].y }); lines++; }
+    i = bestJ;
+  }
+  if (closed) out.pop();
+  return { pts: out, lines: lines, arcs: arcs };
+}
+// A vertex is a real corner only if the turn holds beyond the noise: the points a few tolerances away on
+// each side still meet at a sharp angle (a jagged trace has sharp-looking zig-zags that are just noise).
+function _localSharp(P, i, closed, tol) {
+  const n = P.length, reach = Math.max(4 * tol, 1e-6);
+  const walk = dir => { let k = i, d = 0; for (let s = 0; s < n; s++) { const nk = k + dir; if (!closed && (nk < 0 || nk >= n)) break; const q = P[(nk + n) % n]; d += Math.hypot(q.x - P[(k + n) % n].x, q.y - P[(k + n) % n].y); k = nk; if (d >= reach) break; } return P[(k + n) % n]; };
+  const a = walk(-1), b = walk(1), p = P[i];
+  const ux = a.x - p.x, uy = a.y - p.y, vx = b.x - p.x, vy = b.y - p.y, lu = Math.hypot(ux, uy), lv = Math.hypot(vx, vy);
+  if (lu < 1e-12 || lv < 1e-12) return false;
+  return Math.acos(Math.max(-1, Math.min(1, (ux * vx + uy * vy) / (lu * lv)))) < Math.PI * 0.8;
+}
+
+// ---------- groups ----------
+// A group is a shared `group` id on its member shapes: picking any member picks them all, and they move,
+// scale, rotate and copy as one. One level — grouping shapes that are already grouped merges them.
+function groupShapes(shapes, ids) {
+  const set = new Set(ids), g = 'g' + uid();
+  let n = 0; for (const s of shapes) if (set.has(s.id)) { s.group = g; n++; }
+  return n >= 2 ? g : (shapes.forEach(s => { if (set.has(s.id) && s.group === g) delete s.group; }), null);
+}
+function ungroupShapes(shapes, ids) {
+  const set = new Set(ids), gs = new Set();
+  for (const s of shapes) if (set.has(s.id) && s.group) gs.add(s.group);
+  let n = 0; for (const s of shapes) if (s.group && gs.has(s.group)) { delete s.group; n++; }
+  return n;
+}
+// Grow a set of shape ids to whole groups.
+function expandToGroups(shapes, ids) {
+  const out = new Set(ids), gs = new Set();
+  for (const s of shapes) if (out.has(s.id) && s.group) gs.add(s.group);
+  if (gs.size) for (const s of shapes) if (s.group && gs.has(s.group)) out.add(s.id);
+  return out;
+}
+// Copies (paste, duplicate, mirror, array) keep their grouping but must not join the original's group.
+function regroup(copies) {
+  const map = {};
+  for (const s of copies) if (s.group) { if (!map[s.group]) map[s.group] = 'g' + uid(); s.group = map[s.group]; }
+  return copies;
+}
+
 function _nearestParam(pts, closed, p) {
   const n = pts.length; let best = 0, bd = Infinity, seg = closed ? n : n - 1;
   for (let i = 0; i < seg; i++) { const a = pts[i], b = pts[(i + 1) % n], dx = b.x - a.x, dy = b.y - a.y, L2 = dx * dx + dy * dy;
@@ -941,7 +1111,8 @@ function projectToJSON(doc, job, opsQueue, meta) {
   const obj = {
     format: PROJECT_FORMAT, version: PROJECT_VERSION,
     meta: meta || {},
-    job: job ? { w: job.w, h: job.h, thickness: job.thickness, origin: job.origin, show: job.show !== false } : null,
+    job: job ? { w: job.w, h: job.h, thickness: job.thickness, origin: job.origin, show: job.show !== false, units: job.units === 'mm' ? 'mm' : 'in',
+      type: job.type === 'rotary' ? 'rotary' : 'flat', diameter: job.diameter || 0, sides: job.sides === 2 ? 2 : 1, flip: job.flip === 'v' ? 'v' : 'h' } : null,
     layers: _layersToArray(doc && doc.layers),
     shapes: (doc && doc.shapes) ? doc.shapes : [],
     ops: opsQueue || []
@@ -958,7 +1129,8 @@ function projectFromJSON(text) {
     ? o.layers.map(l => ({ name: String(l.name), visible: l.visible !== false, color: l.color || '#9fe7ff' }))
     : [{ name: '0', visible: true, color: '#9fe7ff' }];
   const job = o.job
-    ? { w: +o.job.w || 24, h: +o.job.h || 18, thickness: +o.job.thickness || 0.5, origin: o.job.origin || 'bl', show: o.job.show !== false }
+    ? { w: +o.job.w || 24, h: +o.job.h || 18, thickness: +o.job.thickness || 0.5, origin: o.job.origin || 'bl', show: o.job.show !== false, units: o.job.units === 'mm' ? 'mm' : 'in',
+        type: o.job.type === 'rotary' ? 'rotary' : 'flat', diameter: +o.job.diameter || 4, sides: o.job.sides === 2 ? 2 : 1, flip: o.job.flip === 'v' ? 'v' : 'h' }
     : { w: 24, h: 18, thickness: 0.5, origin: 'bl', show: true };
   return { shapes: o.shapes, layers: layers, job: job, opsQueue: Array.isArray(o.ops) ? o.ops : [], meta: o.meta || {} };
 }
@@ -984,6 +1156,7 @@ return {
   mkLine, mkPoly, mkRect, mkRoundRect, mkCircle, mkEllipse, mkArc, mkPolygon, mkStar, mkText,
   mkBezier, flattenBezier, reflowBezier, mirrorSmoothHandle,
   segInt, pathIntersections, filletPolyCorner, trimPolyline, extendPolyline,
+  bonePolyCorner, cornerIndices, treatCorners, groupShapes, ungroupShapes, expandToGroups, regroup, fitCurves,
   flatten, bbox, bboxAll, bboxPts, hitTest, distToSeg, pointInPoly, snapPoints, rectSnapPoints,
   translate, rotate, scale, mirror,
   offsetShapes, booleanOp,

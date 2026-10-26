@@ -1,6 +1,6 @@
 const C=require('./cadcore.js');
 let pass=0,fail=0; const ok=(n,c,x)=>{c?pass++:(fail++,console.log('  FAIL',n,x===undefined?'':JSON.stringify(x)));};
-const bb=s=>C.bbox(s); const close=(a,b,t)=>Math.abs(a-b)<=(t||1e-6);
+const bb=s=>C.bbox(s); const close=(a,b,t)=>Math.abs(a-b)<=(t||1e-6); const TAU_=Math.PI*2;
 
 // primitives
 const r=C.mkRect(0,0,4,3); ok('rect bbox',close(bb(r).maxX,4)&&close(bb(r).maxY,3));
@@ -416,6 +416,64 @@ ok('grid: refines when zoomed in', close(C.gridStepFor(0.5,200,10),0.05) && clos
 ok('grid: base step at mid zoom', C.gridStepFor(0.5,25,10)===0.5);
 ok('grid: reaches 0.0001 at deep zoom', close(C.gridStepFor(0.5,100000,10),0.0001,1e-12) && close(C.gridStepFor(0.5,1e7,10),0.0001,1e-12));
 ok('q4: 0.0001 lattice', C.q4(1.23456)===1.2346 && C.q4(-0.00001)===0 && C.q4(17.75)===17.75);
+
+// dog-bone / T-bone relief
+{ const sq=[{x:0,y:0},{x:4,y:0},{x:4,y:2},{x:0,y:2}];   // a 4x2 mortise, CCW
+  const r=0.125, d=C.bonePolyCorner(sq,true,0,r,'dogbone');
+  ok('dogbone: replaces the corner with an arc', d && d.length>sq.length+3, d&&d.length);
+  ok('dogbone: notch bulges out past both edges', Math.min(...d.map(q=>q.x))<-0.25*r && Math.min(...d.map(q=>q.y))<-0.25*r);
+  ok('dogbone: notch circle passes through the corner point', d.some(q=>Math.hypot(q.x,q.y)<2e-3) || close(Math.min(...d.map(q=>Math.hypot(q.x-r/Math.SQRT2,q.y-r/Math.SQRT2))),r,1e-6));
+  const C0={x:r/Math.SQRT2,y:r/Math.SQRT2}; const onC=d.slice(1,d.length-3).filter(q=>!(q.x>=4-1e-9||q.y>=2-1e-9));
+  ok('dogbone: notch points sit on the tool circle', onC.every(q=>Math.abs(Math.hypot(q.x-C0.x,q.y-C0.y)-r)<1e-9 || (q.x>0.5||q.y>0.5)));
+  ok('dogbone: edges meet the notch 2r·cos45 from the corner', d.some(q=>close(q.x,2*r*Math.SQRT1_2)&&close(q.y,0)) && d.some(q=>close(q.y,2*r*Math.SQRT1_2)&&close(q.x,0)));
+  const tb=C.bonePolyCorner(sq,true,0,r,'tbone','prev');   // prev edge of vertex 0 runs along x=0 (from (0,2))
+  ok('tbone: overcut only along the other edge', tb && close(Math.min(...tb.map(q=>q.y)),-r,1e-3) && Math.min(...tb.map(q=>q.x))>-1e-9, tb&&[Math.min(...tb.map(q=>q.x)),Math.min(...tb.map(q=>q.y))]);
+  const tb2=C.bonePolyCorner(sq,true,0,r,'tbone','next');
+  ok('tbone next: overcut along x instead', tb2 && close(Math.min(...tb2.map(q=>q.x)),-r,1e-3) && Math.min(...tb2.map(q=>q.y))>-1e-9);
+  ok('bone: edge too short -> null', C.bonePolyCorner([{x:0,y:0},{x:0.1,y:0},{x:0.1,y:0.1},{x:0,y:0.1}],true,0,0.25,'dogbone')===null);
+  ok('bone: collinear -> null', C.bonePolyCorner([{x:0,y:0},{x:1,y:0},{x:2,y:0}],false,1,0.1,'dogbone')===null);
+  // L-shaped part (outside cut): one concave corner at (2,1)
+  const L=[{x:0,y:0},{x:4,y:0},{x:4,y:1},{x:2,y:1},{x:2,y:3},{x:0,y:3}];
+  ok('corners: convex of the L = 5', C.cornerIndices(L,true,'convex').length===5);
+  ok('corners: concave of the L = the inside corner', JSON.stringify(C.cornerIndices(L,true,'concave'))==='[3]');
+  ok('corners: orientation-independent', JSON.stringify(C.cornerIndices(L.slice().reverse(),true,'concave'))==='[2]');
+  ok('corners: curve vertices skipped', C.cornerIndices(C.mkCircle({x:0,y:0},2).pts,true,'all').length===0);
+  const inL=C.treatCorners(L,true,C.cornerIndices(L,true,'concave'),0.125,'dogbone');
+  ok('treat: dogbone notch cut into the part at its inside corner', inL.done===1 && Math.min(...inL.pts.map(q=>q.x>1.5&&q.y>0.5&&q.y<2?q.x:9))<1.97 && Math.min(...inL.pts.map(q=>q.x>1.5&&q.x<3?q.y:9))<0.97);
+  const all=C.treatCorners(sq,true,C.cornerIndices(sq,true,'convex'),0.125,'dogbone');
+  ok('treat: all four mortise corners', all.done===4 && Math.min(...all.pts.map(q=>q.x))<0 && Math.max(...all.pts.map(q=>q.x))>4);
+  const fl=C.treatCorners(sq,true,[0,1,2,3],0.25,'fillet'); ok('treat: fillet mode rounds every corner', fl.done===4);
+}
+// curve fitting
+{ let seed=7; const rnd=()=>{ seed=(seed*16807)%2147483647; return seed/2147483647-0.5; };
+  const noisy=Array.from({length:400},(_,i)=>{ const a=TAU_*i/400, r=2+rnd()*0.004; return {x:5+r*Math.cos(a),y:5+r*Math.sin(a)}; });
+  const f=C.fitCurves(noisy,true,0.005);
+  ok('fit: noisy circle becomes arcs', f.arcs>=1 && f.lines<=2, f);
+  ok('fit: every output point on the true circle within tol', f.pts.every(p=>Math.abs(Math.hypot(p.x-5,p.y-5)-2)<0.0075));
+  const jag=[]; for(let i=0;i<=200;i++) jag.push({x:i*0.02,y:(i%2?0.002:-0.002)});
+  for(let i=1;i<=100;i++) jag.push({x:4+(i%2?0.002:-0.002),y:i*0.02});
+  const fl=C.fitCurves(jag,false,0.005,'lines');
+  ok('fit: zig-zag noise on an L becomes 2 lines', fl.lines===2 && fl.pts.length===3, fl.pts.length);
+  ok('fit: the corner survives', fl.pts.some(p=>Math.abs(p.x-4)<0.01&&Math.abs(p.y)<0.01));
+  const sq=[]; for(let i=0;i<40;i++) sq.push({x:i*0.1,y:0}); for(let i=0;i<20;i++) sq.push({x:4,y:i*0.1}); for(let i=0;i<40;i++) sq.push({x:4-i*0.1,y:2}); for(let i=0;i<20;i++) sq.push({x:0,y:2-i*0.1});
+  const fs=C.fitCurves(sq,true,0.005);
+  ok('fit: densely sampled rectangle -> 4 lines', fs.lines===4 && fs.arcs===0 && fs.pts.length===4, fs);
+  const slot=[]; for(let i=0;i<=30;i++) slot.push({x:i*0.1,y:0}); for(let i=1;i<30;i++){ const a=-Math.PI/2+Math.PI*i/30; slot.push({x:3+Math.cos(a),y:1+Math.sin(a)}); }
+  for(let i=0;i<=30;i++) slot.push({x:3-i*0.1,y:2}); for(let i=1;i<30;i++){ const a=Math.PI/2+Math.PI*i/30; slot.push({x:Math.cos(a),y:1+Math.sin(a)}); }
+  const fo=C.fitCurves(slot,true,0.002);
+  ok('fit: an obround = 2 lines + 2 arcs', fo.lines===2 && fo.arcs===2, fo.lines+'/'+fo.arcs);
+}
+
+// groups
+{ const a=C.mkRect(0,0,1,1), b=C.mkCircle({x:3,y:3},1), c=C.mkRect(5,5,1,1), sh=[a,b,c];
+  const g=C.groupShapes(sh,[a.id,b.id]);
+  ok('group: members tagged', g && a.group===g && b.group===g && !c.group);
+  ok('group: one shape is not a group', C.groupShapes(sh,[c.id])===null && !c.group);
+  ok('group: picking a member picks the group', [...C.expandToGroups(sh,[b.id])].sort().join()===[a.id,b.id].sort().join());
+  const cp=C.regroup([C.clone(a),C.clone(b)]);
+  ok('regroup: copies share a new group', cp[0].group===cp[1].group && cp[0].group!==g);
+  ok('ungroup', C.ungroupShapes(sh,[a.id])===2 && !a.group && !b.group);
+}
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail?1:0);

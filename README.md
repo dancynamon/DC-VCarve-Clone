@@ -5,7 +5,7 @@ Single self-contained HTML — no install, offline, posts G-code for ShopSabre (
 
 ## Quick start
 ```
-npm test     # 725 checks: CAM (236) + CAD (180) + import (88) + clipart (47) + trace (45) + 3D (44) + PDF (30) + arc-fit (15) + air-cut (30) + smoke (10)
+npm test     # 863 checks: CAM (274) + CAD (229) + import (95) + clipart (47) + trace (45) + 3D mesh (44) + playback (44) + PDF (30) + arc-fit (15) + air-cut (30) + smoke (10)
 npm run build # regenerates cadcam-studio.html from cam-engine/ sources
 open cadcam-studio.html
 ```
@@ -30,12 +30,18 @@ Rebuilt from screenshots of Dan's own Aspire install (`docs/vcarve-reference/`):
   colour per group (create = blue, transform = purple, edit = teal, destructive = red, layout = rust)
   plus a per-icon accent hue on `--a` for the secondary parts. Each glyph shows what the tool does — profile is an offset
   path around a shape, pocket is concentric clearing rings, v-carve is a V groove in section.
-- **True 3D view:** the machined stock is rendered as a real solid in WebGL, with the **toolpath
-  moves drawn over it** (amber cuts, optional grey rapids — both toggleable in the 3D footer).
-  **Left-drag to pan, Option/Alt-drag (or middle / right button) to orbit, wheel to zoom, double-click to reframe;**
-  Top / Iso / Front presets over the view. Toolpaths added, edited or toggled while the 3D view is open re-simulate at once. Panning
-  moves the orbit target, so you are never locked to the centre of the job. Falls back to the flat
-  top-down shading if the browser has no WebGL.
+- **3D view on the 3D Product Viewer's engine:** three.js r160 + OrbitControls + RoomEnvironment, the same
+  bundle as `~/code/3D-Product-Viewer` (`cam-engine/package/aq3d-three.min.js`). The stock is a heightfield
+  texture shaded per pixel, so V-carve flanks keep full simulation detail. **The program plays:** Play / Pause,
+  scrub, step to the previous / next contour or tool change, speed (Auto ≈ 30 s for the whole job, or 1×–1000×
+  machine time). The block is carved live as the cutter (flat / ball / V model, sized from the tool) moves, forwards
+  or backwards. A readout shows the running move, G-code line, tool, S, F and XYZ, and a G-code pane follows the
+  running line. Also: per-tool path colours, rapids, ghost stock. **Left-drag pans, Option/Alt-drag (or middle /
+  right button) orbits, the wheel zooms to the cursor, double-click reframes;** Top / Iso / Front presets. Falls back
+  to the flat top-down shading without WebGL2.
+- **Open a .tap / .nc / .gcode** (File → Open, or drag it in): it plays in the 3D view and backplots in 2D. Set
+  each T number's cutter shape and size in the Tools box (remembered per T number); the stock grows to fit a
+  program that cuts outside the job.
 - **Canvas theme:** 2D View is a near-white ground with dark ink; 3D View uses the lavender gradient
   (`#babbf4 → #e0e0f8`) sampled straight out of the reference screenshots. All canvas colours come
   from one `THEMES` table in `studio_app.js`, so retuning is a single edit.
@@ -64,9 +70,25 @@ Rebuilt from screenshots of Dan's own Aspire install (`docs/vcarve-reference/`):
 - **Save / Save As…** (Ctrl+S / Ctrl+Shift+S, Ctrl+O to open): in Chrome/Edge a real save dialog, and Save writes back to
   the opened file; elsewhere Save As asks for a name and downloads. Build version shown lower-right and under Help.
 - **Layers tab:** add / rename (double-click) / colour / delete, and → moves the selection to a layer.
+- **Group / Ungroup** (⌘/Ctrl+G, ⌘/Ctrl+Shift+G, Edit menu, right-click): grouped vectors pick, move, scale, rotate
+  and copy as one.
+- **Inches or millimetres** per job (Job Setup, or the in/mm button in the status bar). The drawing is always stored in
+  inches; length fields, readouts, rulers and the grid switch to mm, and any length field takes a unit suffix
+  (`25mm`, `1.5in`). The metric posts (ShopSabre / Generic mm) write G21 programs.
+- **Two-sided jobs** (Job Setup → Sides: Two, flip left↔right or top↕bottom): Top / Bottom switch, per-side vectors and
+  toolpaths. The far side shows mirrored and dashed. Save Toolpaths writes `job-top.tap` + `job-bottom.tap`, and the 3D
+  view shows where the two sides' cuts meet and go through.
+- **Rotary (wrapped) jobs** (Job Setup → Type: Rotary, diameter × length): you draw on the unwrapped surface (Y runs round
+  the circumference). Y posts as the A axis in degrees, with Z0 on the surface, and the 3D view shows the part as a
+  cylinder.
 - **Default job: 48.5" × 97" × 1.5" thick** — the standard sheet, so it is right on open.
 - **CAD editor:** job/material setup, draw line/polyline/rect/rounded-rect/circle/ellipse/arc/polygon/star/text,
   select/move/scale/rotate, node edit, offset, weld/subtract/intersect, mirror, array, align, snapping, measure, tooltips, layers, undo/redo.
+- **Fillet / Dog-bone / T-bone** (Fillet tool): round a corner, or cut a relief notch sized to the tool so a square part
+  seats in an inside corner. Click one corner, or apply it to every sharp convex (holes, slots) or concave (part)
+  corner of the selection.
+- **Fit Curves to Vectors** (Edit Objects): rebuild jagged traced or scanned vectors from straight lines and true arcs
+  within a tolerance, keeping real corners. They then post as clean G2/G3 moves.
 - **Dimension annotations (D):** aligned / horizontal / vertical / radius / diameter / angle dimensions with
   extension lines, solid arrowheads and an auto-formatted label (in / mm / plain, decimals, manual override).
   Snap to nodes, midpoints, centres and job corners; edit numerically like any shape. Annotations are never machined.
@@ -79,6 +101,13 @@ Rebuilt from screenshots of Dan's own Aspire install (`docs/vcarve-reference/`):
   Pocket (concentric rings **linked into one inside-out spiral**, or raster), Drill, V-Carve, **Inlay**
   (matched female cavity + male plug, straight or V-carve fit, with a per-side gap and a mirrored plug)
   → G2/G3 arcs → ShopSabre post → backplot → Export .tap.
+- **More toolpaths:** **Chamfer** (V-bit bevel along an edge, depth from the width and bit angle), **Quick Engrave**
+  (V-bit along vectors; sharp corners get a tail that rises out of the corner so they stay crisp), **Fluting**
+  (grooves that ramp in and out, linear or smooth, with a ball / V / flat tool), **Prism** (raised bevelled shapes: a
+  ridge at the surface, flanks at the bit angle) and **Moulding** (a cross-section profile swept along rails with a
+  ball nose, compensated so the ball does not gouge).
+- **Merge toolpaths:** Shift/Cmd-click toolpaths in the list, then Merge. They become one toolpath per tool, cut
+  together with a single tool block, and each part keeps its own feeds. Unmerge splits them again.
 - **Toolpath templates:** save a machining recipe (settings only, no geometry) and apply it to any job's
   vectors; five starter recipes built in, import/export as `.aqtpl`.
 
@@ -123,6 +152,6 @@ retract move below N up to it; the park height and the travel envelope are uncha
 - `cam-engine/` — sources: `cadcore.js` (CAD), `camcore.js` (CAM), `studio_app.js` (UI), `studio_shell.html` (markup/CSS), `dxfparse.js`, `pdfparse.js`, `bitmaptrace.js`, `clipart.js`, `repost.js`, `build.js`, `package/clipper.js`, tests, ShopSabre `.pp`, roadmap README.
 
 ## Roadmap
-The 2D VCarve-parity build is complete — status table and full feature notes in `cam-engine/README.md`.
-Next: 3D / Aspire-style relief work, on top of the existing `simulateStock` heightfield.
+VCarve Pro parity, without the Aspire 3D tier, is complete. The status table and full feature notes are in
+`cam-engine/README.md`. Next, when wanted: the 3D / Aspire tier (STL import, 3D roughing / finishing, reliefs, textures).
 # DC-VCarve-Clone
