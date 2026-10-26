@@ -83,7 +83,7 @@ const THEMES_DARK={
 };
 const THEMES={ '2d':THEMES_LIGHT['2d'], preview:THEMES_LIGHT.preview };
 let darkMode=(function(){ try{ return localStorage.getItem('aqcam.theme')==='dark'; }catch(e){ return false; } })();
-function setTheme(dark){ darkMode=!!dark; const T=darkMode?THEMES_DARK:THEMES_LIGHT; THEMES['2d']=T['2d']; THEMES.preview=T.preview;
+function setTheme(dark){ darkMode=!!dark; if(typeof asmApplyTheme==='function') setTimeout(()=>{ asmApplyTheme(); if(typeof ASM!=='undefined'&&ASM.r) ASM.r.draw(); },0); const T=darkMode?THEMES_DARK:THEMES_LIGHT; THEMES['2d']=T['2d']; THEMES.preview=T.preview;
   document.body.classList.toggle('dark', darkMode); try{ localStorage.setItem('aqcam.theme', darkMode?'dark':'light'); }catch(e){}
   const b=document.getElementById('btnTheme'); if(b){ b.textContent=darkMode?'☀ Light':'☾ Dark'; b.title=darkMode?'Switch to light mode':'Switch to dark mode'; }
   v3Colors();
@@ -158,7 +158,7 @@ function snapWorld(scr){
 }
 
 // ---- rendering ----
-function resize(){ const r=cv.parentElement.getBoundingClientRect(); cv.width=r.width; cv.height=r.height;
+function resize(){ const r=cv.getBoundingClientRect(); cv.width=r.width; cv.height=r.height;   // own box: the 2D + 3D split gives it half the stage
   overlay.width=r.width; overlay.height=r.height;
   if(v3) v3.resize(); if(!view._init){ view.oy=cv.height-60; view._init=true; } render(); drawRulerMarks(lastScr); }
 function render(){
@@ -191,6 +191,7 @@ function render(){
     if(rulers) drawRulers();
   }
   updateHud();
+  if(typeof asmOnRender==='function') asmOnRender();   // 2D + 3D Assembly: rebuild what this edit changed
 }
 function drawGrid(){
   if(!grid.on) return;
@@ -322,9 +323,8 @@ function updateCursor(scr){ const w=S2W(scr); document.getElementById('coords').
 const ROTATE_CURSOR="url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 22 22'><path d='M11 3a8 8 0 1 1-7.4 4.9' fill='none' stroke='white' stroke-width='4'/><path d='M11 3a8 8 0 1 1-7.4 4.9' fill='none' stroke='%23222' stroke-width='2'/><path d='M2 3v6h6' fill='none' stroke='white' stroke-width='4'/><path d='M2 3v6h6' fill='none' stroke='%23222' stroke-width='2'/></svg>\") 11 11, alias";
 const SCALE_CURSORS={nw:'nwse-resize',se:'nwse-resize',ne:'nesw-resize',sw:'nesw-resize',n:'ns-resize',s:'ns-resize',e:'ew-resize',w:'ew-resize'};
 function hoverCursor(scr){ if(tool!=='select'||viewMode==='preview'){ cv.style.cursor=''; return; }
-  const h=hitHandle(scr); let c='';
-  if(h&&h.type==='rotate') c=ROTATE_CURSOR; else if(h&&h.type==='scale') c=SCALE_CURSORS[h.k]||'move';
-  else { const w=S2W(scr); if(pickShapeAt(w)) c='move'; }
+  const h=hitHandle(scr); let c='default';   // select tool = ordinary arrow pointer (over shapes too); handles keep their resize / rotate cursors
+  if(h&&h.type==='rotate') c=ROTATE_CURSOR; else if(h&&h.type==='scale') c=SCALE_CURSORS[h.k]||'default';
   cv.style.cursor=c; }
 
 // ---- tools / interaction ----
@@ -335,7 +335,7 @@ function setTool(t){ if(t!=='measure') measure=null; tool=t; sel=(t==='node')?se
   const form=TOOL_FORMS[t];
   if(form) showForm(form,'drawing');            // the tool's options take over the dock
   else if(formOpen() && t!=='clipart') setCmdTab(cmdTab);   // incl. Select: any open form (draw tool, Job Setup, Nesting) gives the dock back
-  cv.style.cursor='';
+  cv.style.cursor=(t==='select')?'default':'';   // select tool = arrow pointer
   setMsg((TOOLMSG[t]||'')+(t in FORM_CREATE?'  ·  Enter = Create from the form (anchor + size)':'')); render(); }
 const FORM_CREATE={rect:1,rrect:1,circle:1,ellipse:1,polygon:1,star:1,text:1};
 const TOOLMSG={ select:'Click to select · drag to move · handles to scale/rotate · marquee to box-select',
@@ -714,7 +714,7 @@ window.addEventListener('mouseup', e=>{
   if(drag&&drag.kind==='draw'){ commitDraft(); }
   if(drag&&drag.kind==='marquee'){ marqueeSelect(drag.a,drag.b,e.shiftKey); }
   if(drag&&['move','scale','rotate','nodemove','bznode'].includes(drag.kind)){ /* already mutated; history pushed on down */ syncPanels(); }
-  drag=null; render();
+  drag=null; render(); hoverCursor(evScr(e));
 });
 cv.addEventListener('contextmenu', shapeContextMenu);
 window.addEventListener('mousedown', e=>{ if(ctxEl && !ctxEl.contains(e.target)) hideCtxMenu(); }, true);
@@ -861,6 +861,25 @@ function applyRotateModal(){ if(!rotBase){ hideRotateModal(); return; }
 function closeRotateModal(){ if(rotBase){ const map=new Map(rotBase.map(o=>[o.id,o])); doc.shapes=doc.shapes.map(s=>map.has(s.id)?map.get(s.id):s); } hideRotateModal(); render(); }
 function hideRotateModal(){ document.getElementById('rotModal').style.display='none'; rotBase=null; }
 
+// ---- File > New ----
+// In-app dialog, not window.confirm(): inside a sandboxed iframe (the published Artifact) confirm() returns
+// false without ever showing, so the old New button silently did nothing there.
+function openNewModal(){ const m=document.getElementById('newModal'); if(!m){ newJob(); return; }
+  const msg=document.getElementById('newMsg'); if(msg) msg.textContent='Start a new job? This clears '+doc.shapes.length+' shape(s), '+doc.layers.size+' layer(s) and '+opsQueue.length+' toolpath(s) from the current design.';
+  m.style.display='block'; const ok=document.getElementById('newOk'); if(ok) ok.focus(); }
+function hideNewModal(){ const m=document.getElementById('newModal'); if(m) m.style.display='none'; }
+// Full reset of the document: vectors, layers, selection, toolpath list, overlays, file handle. The job sheet
+// (size/thickness/datum) is kept and the Job Setup form opens, the way VCarve's File > New lands on Job Setup.
+function newJob(){
+  pushHistory();
+  doc.shapes=[]; doc.other=[]; doc.layers=new Map([['0',{visible:true,color:'#1b2b3f'}]]); activeLayer='0';
+  sel.clear(); opsQueue=[]; editingIdx=null; toolpaths=null; drillMarks=null; pendingRestore=null;
+  projectFile.handle=null; setProjectName('design.aqcam');
+  if(typeof asmReset==='function') asmReset();   // a new job is a new single sheet
+  buildQueueList(); syncPanels(); fitJob(); setView('2d'); showForm('job','drawing'); autosaveNow();
+  setMsg('New job — design cleared (Undo restores it)');
+}
+
 // ---- z-order ----
 function bringToFront(){ if(!sel.size)return; pushHistory(); const a=doc.shapes.filter(s=>sel.has(s.id)), rest=doc.shapes.filter(s=>!sel.has(s.id)); doc.shapes=rest.concat(a); render(); syncPanels(); }
 function sendToBack(){ if(!sel.size)return; pushHistory(); const a=doc.shapes.filter(s=>sel.has(s.id)), rest=doc.shapes.filter(s=>!sel.has(s.id)); doc.shapes=a.concat(rest); render(); syncPanels(); }
@@ -932,7 +951,7 @@ function selectDown(scr,w,e){
   if(hitId){ const hit=[...CADCORE.expandToGroups(doc.shapes,[hitId])];   // a grouped shape picks its whole group
     if(e.shiftKey){ const on=sel.has(hitId); hit.forEach(id=>on?sel.delete(id):sel.add(id)); } else if(!sel.has(hitId)){ sel=new Set(hit); }
     pushHistory(); const base=JSON.parse(JSON.stringify(selectedShapes())); const raw=S2W(scr); const a0=CADCORE.bboxAnchor(CADCORE.bboxAll(base), modalAnchor);
-    drag={kind:'move',grab:raw,a0,base,ids:[...sel]}; }
+    drag={kind:'move',grab:raw,a0,base,ids:[...sel]}; cv.style.cursor='move'; }   // arrow while hovering, 4-way cross while pressed on a shape
   else { if(!e.shiftKey) sel.clear(); drag={kind:'marquee',a:scr,b:scr}; }
   syncPanels();
 }
@@ -1233,7 +1252,9 @@ function importText(name, text){
   if(/\.dxf$/i.test(name)){ const ents=parseDxf(text); const polys=[]; for(const e of ents){ for(const p of entityToPolys(e)) polys.push(p); } const shapes=CADCORE.dxfPolysToShapes(polys);
     pushHistory(); CADCORE.registerDxfLayers(doc.layers, polys.filter(p=>p.type!=='TEXT'&&p.type!=='DIMENSION')); addShapes(shapes); fitAll(); buildLayers();
     const K=new Set(shapes.map(s=>s.layer)).size; syncPanels(); render();
-    setMsg('Imported '+shapes.length+' vector'+(shapes.length!==1?'s':'')+' on '+K+' layer'+(K!==1?'s':'')+' from '+name); return; }
+    setMsg('Imported '+shapes.length+' vector'+(shapes.length!==1?'s':'')+' on '+K+' layer'+(K!==1?'s':'')+' from '+name);
+    if(typeof asmApplyLayerDefaults==='function') asmApplyLayerDefaults(name, shapes);   // OUTSIDE_PROFILE / DRILL_.._THRU / POCKET_..DEEP -> sheet size, thickness, toolpaths
+    return; }
   else if(/\.svg$/i.test(name)){ const shapes=CADCORE.svgToShapes(text); pushHistory(); addShapes(shapes); fitAll(); }
   else { setMsg('Unsupported file: '+name); }
   syncPanels(); render();
@@ -1252,6 +1273,27 @@ function importPDF(name, buf){
   pushHistory(); addShapes(shapes); fitAll(); syncPanels(); render();
   let m='Imported '+shapes.length+' path'+(shapes.length!==1?'s':'')+' from PDF · '+name;
   if(loops.hasLiveText) m+='  ·  WARNING: this PDF also has live text that was NOT imported — outline the fonts to cut it.';
+  setMsg(m);
+}
+// VCarve .crv / Aspire .crv3d — OLE2 container, MFC CArchive vector data. Decoded by crvparse.js (the JS port of
+// crvlib.py, see cam-engine/README.md); build.js bundles it when the file is present. The parser refuses rather than
+// guesses, so a thrown error here is reported verbatim — never patched around.
+function importCRV(name, buf){
+  if(typeof CRVPARSE==='undefined'){ setMsg('Cannot open '+name+': the .crv reader (cam-engine/crvparse.js) is not in this build — add it and run npm run build'); return; }
+  let res; try{ res=CRVPARSE.toShapes(new Uint8Array(buf), { tol:0.002 }); }
+  catch(err){ setMsg('CRV parse failed: '+err.message+' · '+name); return; }
+  // res: { job:{w,h}|null, units:'in'|'mm'|null, unitsSource, layers:[{name, color?, contours:[{pts:[{x,y}], closed}]}] }
+  const layers=(res&&res.layers)||[]; const shapes=[];
+  for(const L of layers){ const lname=(L.name||'0').trim()||'0';
+    if(!doc.layers.has(lname)) doc.layers.set(lname,{visible:true,color:L.color||'#1b2b3f'});
+    for(const c of (L.contours||[])){ if(!c.pts||c.pts.length<2) continue; shapes.push(CADCORE.mkPoly(c.pts, !!c.closed, lname)); } }
+  if(!shapes.length){ setMsg('No vectors in '+name+(res&&res.empty?' — the file was saved with its vectors deleted':'')); syncPanels(); return; }
+  pushHistory();
+  if(res.job&&res.job.w>0&&res.job.h>0){ job.w=res.job.w; job.h=res.job.h; applyJobInputs(); updateMatSummary(); }
+  addShapes(shapes); fitAll(); syncPanels(); render();
+  let m='Imported '+shapes.length+' vector'+(shapes.length!==1?'s':'')+' on '+layers.length+' layer'+(layers.length!==1?'s':'')+' from '+name;
+  if(res.job) m+=' · job '+(+res.job.w.toFixed(3))+' × '+(+res.job.h.toFixed(3));
+  if(res.units==='mm') m+='  ·  WARNING: job size reads as millimetres ('+(res.unitsSource||'heuristic')+') — the format carries no units flag; check the size before cutting.';
   setMsg(m);
 }
 // Saving a file has two routes. Opened from disk, a plain download link works and always has.
@@ -1338,8 +1380,10 @@ function v3Show(on){
 }
 function v3Preset(which){ if(v3) v3.preset(which); }
 function setView(mode){
+  const split = mode==='asm';   // 2D + 3D Assembly: the 2D editor stays live on the left
   viewMode = (mode==='preview') ? 'preview' : '2d';
-  document.querySelectorAll('.vtab').forEach(b=>b.classList.toggle('active', b.dataset.view===viewMode));
+  document.querySelectorAll('.vtab').forEach(b=>b.classList.toggle('active', b.dataset.view===(split?'asm':viewMode)));
+  if(typeof asmSetSplit==='function' && (split || (typeof ASM!=='undefined' && ASM.on))) asmSetSplit(split);
   const stage=document.querySelector('.stage'); if(stage)stage.classList.toggle('preview', viewMode==='preview');
   if(viewMode==='preview'){ const solid=document.getElementById('simSolid');
     if(solid&&solid.checked) runSim(); else { v3Show(false); simField=null; recalcAll(); } }
@@ -1556,10 +1600,11 @@ function handleOpenedFile(f, handle){ const rd=new FileReader();
   else if(/\.aqclip$/i.test(f.name)){ rd.onload=ev=>importClipText(ev.target.result); rd.readAsText(f); }
   else if(/\.pdf$/i.test(f.name)){ rd.onload=ev=>importPDF(f.name,ev.target.result); rd.readAsArrayBuffer(f); }
   else if(/\.(tap|nc|ngc|gcode|cnc)$/i.test(f.name)){ rd.onload=ev=>openProgram(f.name,ev.target.result); rd.readAsText(f); }
+  else if(/\.crv(3d)?$/i.test(f.name)){ rd.onload=ev=>importCRV(f.name,ev.target.result); rd.readAsArrayBuffer(f); }
   else { rd.onload=ev=>importText(f.name,ev.target.result); rd.readAsText(f); } }
 // Open: native picker when available (keeps the handle so Save writes back); falls back to the <input type=file>.
 async function openProjectDialog(){ const fi=document.getElementById('fileInput'); if(!window.showOpenFilePicker){ fi.click(); return; }
-  let hs; try{ hs=await window.showOpenFilePicker({ multiple:false, types:[{ description:'Job, template, clipart, vector or bitmap', accept:{ 'application/json':['.aqcam','.aqtpl','.aqclip'], 'image/vnd.dxf':['.dxf'], 'image/svg+xml':['.svg'], 'application/pdf':['.pdf'], 'text/plain':['.tap','.nc','.ngc','.gcode','.cnc'], 'image/*':['.png','.jpg','.jpeg','.gif','.bmp','.webp'] } }] }); }
+  let hs; try{ hs=await window.showOpenFilePicker({ multiple:false, types:[{ description:'Job, template, clipart, VCarve/Aspire .crv/.crv3d, G-code program, vector or bitmap', accept:{ 'application/json':['.aqcam','.aqtpl','.aqclip'], 'application/octet-stream':['.crv','.crv3d'], 'image/vnd.dxf':['.dxf'], 'image/svg+xml':['.svg'], 'application/pdf':['.pdf'], 'text/plain':['.tap','.nc','.ngc','.gcode','.cnc'], 'image/*':['.png','.jpg','.jpeg','.gif','.bmp','.webp'] } }] }); }
   catch(err){ if(!(err&&err.name==='AbortError')) fi.click(); return; }
   const h=hs[0]; handleOpenedFile(await h.getFile(), /\.aqcam$/i.test(h.name)?h:null); }
 function applyProject(proj, srcName){
@@ -1569,6 +1614,7 @@ function applyProject(proj, srcName){
   activeLayer=(proj.layers[0]&&proj.layers[0].name)||'0';
   job.w=proj.job.w; job.h=proj.job.h; job.thickness=proj.job.thickness; job.origin=proj.job.origin; job.show=proj.job.show;
   setUnits(proj.job.units||'in', true);
+  if(typeof asmReset==='function') asmReset();
   opsQueue=(proj.opsQueue||[]).map(normalizeOp); editingIdx=null;
   applyJobInputs(); toolpaths=null; drillMarks=null; sel.clear();
   history=[]; future=[];
@@ -1596,22 +1642,13 @@ function fitAll(){ if(!doc.shapes.length)return; const b=CADCORE.bboxAll(doc.sha
 
 // ---- CAM ----
 function camContours(){ const sh=sel.size?selectedShapes():doc.shapes.filter(s=>layerVisible(s.layer)); const polys=CADCORE.shapesToContoursInput(sh); return CAM.assembleContours(polys); }
+// a toolpath's contours: its picked vectors, or (layer-driven jobs) the vectors its layer rule selects — on the toolpath's side
+function contoursForOp(q){ if(!q.sel) return contoursFromIds(q.ids, q.side);
+  const items=shapesOfSide(q.side).filter(s=>layerVisible(s.layer)).map(s=>({id:s.id,layer:s.layer,bbox:CADCORE.bboxAll([s]),shape:s}));
+  return CAM.assembleContours(CADCORE.shapesToContoursInput(ASSEMBLY.selectByRule(items,q.sel).map(it=>it.shape))); }
 function contoursFromIds(ids, side){ const src=shapesOfSide(side); const sh=(ids&&ids.length)?src.filter(s=>ids.indexOf(s.id)>=0&&layerVisible(s.layer)):src.filter(s=>layerVisible(s.layer)); return CAM.assembleContours(CADCORE.shapesToContoursInput(sh)); }
 // run one CAM op from params + contours -> {ops,warnings,points}. Shared by single-op build and the multi-op job.
-function buildOpRes(p, contours){
-  const res=(p.op==='pocket')?CAM.pocketOp(contours,p)
-    :(p.op==='drill')?CAM.drillOp(contours,p)
-    :(p.op==='vcarve')?CAM.vcarveOp(contours,Object.assign({},p,{maxDepth:p.cutDepth,step:p.vstep}))
-    :(p.op==='inlay')?CAM.inlayOp(contours,Object.assign({},p,{step:p.vstep}))
-    :(p.op==='chamfer')?CAM.chamferOp(contours,Object.assign({},p,{width:p.chWidth,offset:p.chOffset,cutDepth:0}))
-    :(p.op==='engrave')?CAM.quickEngraveOp(contours,Object.assign({},p,{sharpAngle:p.qeSharp}))
-    :(p.op==='fluting')?CAM.flutingOp(contours,Object.assign({},p,{ramp:p.flRamp,rampLen:p.flRampLen,smooth:p.flSmooth}))
-    :(p.op==='prism')?CAM.prismOp(contours,Object.assign({},p,{maxDepth:p.prMax,step:p.vstep}))
-    :(p.op==='moulding')?CAM.mouldingOp(contours,Object.assign({},p,{align:p.moAlign,stepover:p.moStep}))
-    :CAM.profileOp(contours,p);
-  for(const op of res.ops) op.clearZ=p.clearZ;   // vcarve flat-depth returns 2 ops (endmill + V-bit)
-  return res;
-}
+function buildOpRes(p, contours){ return ASSEMBLY.opResult(CAM, p, contours); }   // shared with the asmtap.js CLI (vcarve flat-depth returns 2 ops)
 function camParams(){ const g=id=>document.getElementById(id); const tabsN=parseInt(g('camTabN').value,10)||0;
   return { op:(g('camOp')&&g('camOp').value)||'profile', toolNum:parseInt(g('camTool').value,10)||1, toolDia:parseFloat(g('camDia').value)||0.25, side:g('camSide').value, climb:g('camDir').value==='climb',
     cutDepth:Math.abs(parseFloat(g('camDepth').value)||0.25), passDepth:Math.abs(parseFloat(g('camPass').value)||0.125), feed:parseFloat(g('camFeed').value)||120,
@@ -1695,11 +1732,12 @@ function autoOpName(p){ p=p||{}; const op=p.op||'profile';
 function autoLabel(p,ids,match){ return autoOpName(p)+' · T'+p.toolNum+' Ø'+p.toolDia+'" · '+((ids&&ids.length)?ids.length+' sel':'all')+(match?' (lib)':''); }
 function normalizeOp(q){ q=q||{}; const o={ p:q.p||{}, ids:Array.isArray(q.ids)?q.ids:[], name:q.name||q.label||autoOpName(q.p), label:q.label||'', visible:q.visible!==false };
   if(q.side==='bottom') o.side='bottom';
+  if(q.sel&&Array.isArray(q.sel.layers)) o.sel=q.sel;
   if(Array.isArray(q.parts)&&q.parts.length) o.parts=q.parts.map(normalizeOp); return o; }
 // A toolpath's result: its own op, or for a merged toolpath its parts' ops merged per tool.
-function opRes(q){ if(!q.parts) return buildOpRes(q.p, contoursFromIds(q.ids, q.side));
+function opRes(q){ if(!q.parts) return buildOpRes(q.p, contoursForOp(q));
   const ops=[], warnings=[], points=[];
-  for(const pt of q.parts){ const r=buildOpRes(pt.p, contoursFromIds(pt.ids, pt.side||q.side)); ops.push(...r.ops); if(r.warnings) warnings.push(...r.warnings); if(r.points) points.push(...r.points); }
+  for(const pt of q.parts){ const r=buildOpRes(pt.p, contoursForOp(Object.assign({},pt,{side:pt.side||q.side}))); ops.push(...r.ops); if(r.warnings) warnings.push(...r.warnings); if(r.points) points.push(...r.points); }
   return { ops:CAM.mergeOps(ops), warnings, points:points.length?points:null }; }
 // Pick toolpaths in the list (Shift- or Cmd/Ctrl-click a row) to merge them.
 const qPick=new Set();
@@ -1739,7 +1777,7 @@ function addOp(){ const p=camParams(); const ids=[...sel];
   // auto-assign a consistent tool number from the saved library by diameter (prefer same op kind)
   const near=t=>Math.abs(t.dia-p.toolDia)<0.001; const match=tools.find(t=>t.op===p.op && near(t)) || tools.find(near); if(match) p.toolNum=match.toolNum;
   const label=autoLabel(p,ids,match); pushHistory();
-  if(editingIdx!=null && opsQueue[editingIdx]){ const q=opsQueue[editingIdx]; q.p=p; q.ids=ids; q.label=label; const idx=editingIdx; editingIdx=null; buildQueueList(); recalcAll(); setMsg('Updated toolpath '+(idx+1)+': '+(q.name||label)); return; }
+  if(editingIdx!=null && opsQueue[editingIdx]){ const q=opsQueue[editingIdx]; if(q.p&&q.p.clearZ!=null) p.clearZ=q.p.clearZ; q.p=p; q.ids=ids; q.label=label; const idx=editingIdx; editingIdx=null; buildQueueList(); recalcAll(); setMsg('Updated toolpath '+(idx+1)+': '+(q.name||label)); return; }
   const name=autoOpName(p); const nq={p,ids,name,label,visible:true}; if(job.sides===2&&job.workSide==='bottom') nq.side='bottom'; opsQueue.push(nq); buildQueueList(); recalcAll(); setMsg('Added toolpath '+opsQueue.length+': '+name); }
 // Recompute the backplot for every VISIBLE toolpath and combine into one preview overlay.
 function recalcAll(){ const allSegs=[], allMarks=[]; let total=0;
@@ -1848,8 +1886,10 @@ function postJob(){ if(!opsQueue.length){ setMsg('Job queue empty — "Add op" f
   for(const t in byTool){ if(byTool[t].length>1){ setMsg('T'+t+' used with Ø'+byTool[t].join(' and Ø')+' — fix tool numbers'); return; } }
   // a two-sided job posts one program per side (the stock is flipped between them)
   const sides=job.sides===2?['top','bottom']:[null], done=[]; let warns=[];
+  const sheetFile=(typeof ASM!=='undefined' && ASM.active && asmSheet(ASM.active)) ? asmSheet(ASM.active).file : '';   // an assembly sheet posts as <sheet>.tap
+  const base=sheetFile ? sheetFile.replace(/\.dxf$/i,'') : 'job';
   for(const side of sides){ const jp=buildJobProgram(false, side); warns=warns.concat(jp.warns); if(!jp.allOps.length) continue;
-    const name=side?'job-'+side+'.tap':'job.tap'; download(name, jp.g); lastGcode=jp.g;
+    const name=side?base+'-'+side+'.tap':base+'.tap'; download(name, jp.g); lastGcode=jp.g;
     done.push(name+' ('+jp.allOps.length+' ops: '+jp.allOps.map(o=>'T'+o.toolNum).join('→')+(job.type==='rotary'?', A axis':', '+(jp.g.match(/^G[23] /gm)||[]).length+' arcs')+')'); }
   if(!done.length){ setMsg('Job produced no cuttable passes.'); return; }
   recalcAll();   // backplot the side on screen (flat, even for a rotary job)
@@ -2467,7 +2507,10 @@ function wire(){
     if(hdr&&card){ hdr.addEventListener('mousedown',e=>{ if(e.target.id==='modalX')return; const r=card.getBoundingClientRect(); md={dx:e.clientX-r.left,dy:e.clientY-r.top}; e.preventDefault(); });
       window.addEventListener('mousemove',e=>{ if(!md)return; card.style.left=Math.max(2,Math.min(window.innerWidth-60,e.clientX-md.dx))+'px'; card.style.top=Math.max(2,Math.min(window.innerHeight-30,e.clientY-md.dy))+'px'; });
       window.addEventListener('mouseup',()=>{ md=null; }); } }
-  on('btnNew',()=>{ if(confirm('Clear design?')){ pushHistory(); doc.shapes=[]; doc.other=[]; sel.clear(); toolpaths=null; projectFile.handle=null; setProjectName('design.aqcam'); render(); syncPanels(); } });
+  on('btnNew',openNewModal); on('newOk',()=>{ hideNewModal(); newJob(); }); on('newCancel',hideNewModal); on('newX',hideNewModal);
+  const nm=document.getElementById('newModal');
+  if(nm){ nm.addEventListener('mousedown',e=>{ if(e.target===nm)hideNewModal(); });
+    nm.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); hideNewModal(); newJob(); } else if(e.key==='Escape'){ e.preventDefault(); hideNewModal(); } }); }
   const fi=document.getElementById('fileInput'); document.getElementById('btnImport').onclick=openProjectDialog;
   fi.onchange=e=>{ const f=e.target.files[0]; if(!f)return; handleOpenedFile(f,null); fi.value=''; };
   on('btnSaveAs',saveProjectAs); setProjectName();
