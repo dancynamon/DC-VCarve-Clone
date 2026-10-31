@@ -1,0 +1,28 @@
+name: test
+
+on:
+  # main only on push: PR branches are covered by pull_request, so a branch
+  # with an open PR doesn't run everything twice.
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # No dependencies: the cam-engine suites use only Node built-ins.
+      # gcsimtest.js (G-code simulator) runs as part of npm test.
+      - run: npm test
