@@ -1,0 +1,8 @@
+# Vendored from aquamentor-vector-studio, which holds the canonical copies. Do not edit these files
+# here: change them in vector-studio, then run tools/sync-pdfparse.sh. Checked by cam-engine/vendortest.js.
+# source: aquamentor-vector-studio@f4d1a72
+# sha256  vendored-path  canonical-path
+9bc02b82cc6fd8fdaf17ddacefff52ee3c9c243cd5e528d67ecb180897ce9430  cam-engine/pdfparse.js  engine/pdfparse.js
+5ecc88098619987550e9b2eb874905eafe1f4f83b01966b7abc2d5de2b4ffd30  cam-engine/pdfparse.test.js  engine/pdfparse.test.js
+1fcc7245efa29fd22de908bc7784c0c7a2162e41a7757415c1f48114a6d0e139  cam-engine/pdfparse.golden.json  engine/pdfparse.golden.json
+a650c6946682edc1a64016f6553eeb5c32ce45eb7ca0ad5d8221961af011d97c  cam-engine/package/clipper.js  engine/package/clipper.js
