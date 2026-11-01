@@ -1424,7 +1424,8 @@ function buildJobProgram(visibleOnly, side){
   if(!allOps.length) return { g:'', allOps, dpts, tools, warns };
   const post=jobPost(document.getElementById('camArcs').checked);
   const ordered=CAM.orderPasses({name:'job - '+allOps.length+' ops',units:'inch',ops:allOps});   // nearest-neighbor sort to cut rapids
-  return { g:CAM.postProcess(ordered,post), allOps, dpts, tools, warns };
+  try{ return { g:CAM.postProcess(ordered,post), allOps, dpts, tools, warns }; }
+  catch(e){ return { g:'', allOps, dpts, tools, warns, refused:String(e.message||e) }; }   // unsafe speeds / clearance: no program
 }
 function pbToolOverrides(){ try{ return JSON.parse(localStorage.getItem(PB_TOOLS_KEY)||'{}')||{}; }catch(e){ return {}; } }
 function pbToolFor(t){ return PB.tools[t] || GCSIM.toolForNumber(tools, t, pbToolOverrides()); }
@@ -1435,7 +1436,7 @@ function runSimInner(){
   pbPause();
   let g, name, note='';
   if(PB.file){ g=PB.file.text; name=PB.file.name; PB.tools={}; }
-  else { const jp=buildJobProgram(true); g=jp.g; name='visible toolpaths'; PB.tools=jp.tools; if(jp.warns.length) note=' · WARN: '+jp.warns[0]; }
+  else { const jp=buildJobProgram(true); g=jp.g; name='visible toolpaths'; PB.tools=jp.tools; if(jp.refused) note=' · '+jp.refused.replace(/\n/g,' · '); else if(jp.warns.length) note=' · WARN: '+jp.warns[0]; }
   const rot=job.type==='rotary', aToY=rot?Math.PI*job.diameter/360:0;
   const prog=GCSIM.parseGcode(g||'', { aToY }); PB.prog=prog; PB.name=name;
   PB.tl=GCSIM.timeline(prog, parseFloat((document.getElementById('pbRapid')||{}).value)||300);
@@ -1649,10 +1650,12 @@ function contoursForOp(q){ if(!q.sel) return contoursFromIds(q.ids, q.side);
 function contoursFromIds(ids, side){ const src=shapesOfSide(side); const sh=(ids&&ids.length)?src.filter(s=>ids.indexOf(s.id)>=0&&layerVisible(s.layer)):src.filter(s=>layerVisible(s.layer)); return CAM.assembleContours(CADCORE.shapesToContoursInput(sh)); }
 // run one CAM op from params + contours -> {ops,warnings,points}. Shared by single-op build and the multi-op job.
 function buildOpRes(p, contours){ return ASSEMBLY.opResult(CAM, p, contours); }   // shared with the asmtap.js CLI (vcarve flat-depth returns 2 ops)
+// speeds: a blank field takes the default; anything typed (0, negative, junk) goes through as is so postProcess refuses it
+const _speed=(el,def)=>{ const v=el?String(el.value).trim():''; return v===''?def:parseFloat(v); };
 function camParams(){ const g=id=>document.getElementById(id); const tabsN=parseInt(g('camTabN').value,10)||0;
   return { op:(g('camOp')&&g('camOp').value)||'profile', toolNum:parseInt(g('camTool').value,10)||1, toolDia:parseFloat(g('camDia').value)||0.25, side:g('camSide').value, climb:g('camDir').value==='climb',
-    cutDepth:Math.abs(parseFloat(g('camDepth').value)||0.25), passDepth:Math.abs(parseFloat(g('camPass').value)||0.125), feed:parseFloat(g('camFeed').value)||120,
-    plunge:parseFloat(g('camPlunge').value)||40, rpm:parseFloat(g('camRpm').value)||18000, topZ:parseFloat(g('camTopZ').value)||0, clearZ:0.25,
+    cutDepth:Math.abs(parseFloat(g('camDepth').value)||0.25), passDepth:Math.abs(parseFloat(g('camPass').value)||0.125), feed:_speed(g('camFeed'),120),
+    plunge:_speed(g('camPlunge'),40), rpm:_speed(g('camRpm'),18000), topZ:parseFloat(g('camTopZ').value)||0, clearZ:_speed(g('camSafeZ'),0.25),
     stepover:((parseFloat(g('camStep')&&g('camStep').value)||40)/100),
     pocketStyle:(g('camPocketStyle')&&g('camPocketStyle').value)||'offset',
     rampEntry:!!(g('camHelixEntry')&&g('camHelixEntry').checked),
@@ -1706,14 +1709,15 @@ function toolpathSegs(g){ // parse to segments for overlay (tracks Z so the back
       for(let s=1;s<=n;s++){const a=sa+(ea-sa)*s/n,ax=cx+r*Math.cos(a),ay=cy+r*Math.sin(a); segs.push({x0:px,y0:py,x1:ax,y1:ay,z0:z0+(z-z0)*(s-1)/n,z1:z0+(z-z0)*s/n}); px=ax;py=ay;} } }   // helical: interpolate Z (z0->z) along the arc
   return segs;
 }
-function camGenerate(){ const r=camBuild(); const hint=document.getElementById('camHint');
+function camRefused(e){ const hint=document.getElementById('camHint'); hint.textContent=String(e.message||e).replace(/\n/g,' · '); hint.className='cam-hint warn'; toolpaths=null; render(); }
+function camGenerate(){ let r; try{ r=camBuild(); }catch(e){ camRefused(e); return; } const hint=document.getElementById('camHint');
   if(r.passes===0){ hint.textContent=(r.warnings&&r.warnings.length)?r.warnings[0]:'No closed contours selected/visible.'; hint.className='cam-hint warn'; toolpaths=null; render(); return; }
   lastGcode=r.g; toolpaths=toolpathSegs(r.g); hint.className='cam-hint';
   if(r.op==='drill'){ drillMarks=r.points; drillDia=parseFloat(document.getElementById('camDia').value)||0.25; }
   else drillMarks=null;
   const noun=r.op==='drill'?'hole(s)':'contour(s)';
   hint.textContent='Generated '+r.passes+' pass(es), '+r.arcN+' arc move(s), '+(r.op==='drill'?(r.points?r.points.length:0):r.closedN)+' '+noun+'.'+(r.warnings.length?' WARN: '+r.warnings[0]:''); render(); }
-function camExport(){ const r=camBuild(true); if(r.passes===0){document.getElementById('camHint').textContent='Nothing to export.';return;} lastGcode=r.g; toolpaths=job.type==='rotary'?toolpathSegs(camBuild().g):toolpathSegs(r.g);
+function camExport(){ let r; try{ r=camBuild(true); }catch(e){ camRefused(e); return; } if(r.passes===0){document.getElementById('camHint').textContent='Nothing to export.';return;} lastGcode=r.g; toolpaths=job.type==='rotary'?toolpathSegs(camBuild().g):toolpathSegs(r.g);
   if(r.op==='drill'){ drillMarks=r.points; drillDia=parseFloat(document.getElementById('camDia').value)||0.25; } else drillMarks=null;
   render(); download('design.tap', r.g); }
 function camClear(){ toolpaths=null; drillMarks=null; render(); }
@@ -1738,7 +1742,8 @@ function normalizeOp(q){ q=q||{}; const o={ p:q.p||{}, ids:Array.isArray(q.ids)?
 function opRes(q){ if(!q.parts) return buildOpRes(q.p, contoursForOp(q));
   const ops=[], warnings=[], points=[];
   for(const pt of q.parts){ const r=buildOpRes(pt.p, contoursForOp(Object.assign({},pt,{side:pt.side||q.side}))); ops.push(...r.ops); if(r.warnings) warnings.push(...r.warnings); if(r.points) points.push(...r.points); }
-  return { ops:CAM.mergeOps(ops), warnings, points:points.length?points:null }; }
+  const merged=CAM.mergeOps(ops); for(const op of merged) if(op.notes) warnings.push(...op.notes);
+  return { ops:merged, warnings, points:points.length?points:null }; }
 // Pick toolpaths in the list (Shift- or Cmd/Ctrl-click a row) to merge them.
 const qPick=new Set();
 function mergePicked(){ const idx=opsQueue.map((q,i)=>i).filter(i=>qPick.has(opsQueue[i]));
@@ -1777,14 +1782,15 @@ function addOp(){ const p=camParams(); const ids=[...sel];
   // auto-assign a consistent tool number from the saved library by diameter (prefer same op kind)
   const near=t=>Math.abs(t.dia-p.toolDia)<0.001; const match=tools.find(t=>t.op===p.op && near(t)) || tools.find(near); if(match) p.toolNum=match.toolNum;
   const label=autoLabel(p,ids,match); pushHistory();
-  if(editingIdx!=null && opsQueue[editingIdx]){ const q=opsQueue[editingIdx]; if(q.p&&q.p.clearZ!=null) p.clearZ=q.p.clearZ; q.p=p; q.ids=ids; q.label=label; const idx=editingIdx; editingIdx=null; buildQueueList(); recalcAll(); setMsg('Updated toolpath '+(idx+1)+': '+(q.name||label)); return; }
+  if(editingIdx!=null && opsQueue[editingIdx]){ const q=opsQueue[editingIdx]; q.p=p; q.ids=ids; q.label=label; const idx=editingIdx; editingIdx=null; buildQueueList(); recalcAll(); setMsg('Updated toolpath '+(idx+1)+': '+(q.name||label)); return; }
   const name=autoOpName(p); const nq={p,ids,name,label,visible:true}; if(job.sides===2&&job.workSide==='bottom') nq.side='bottom'; opsQueue.push(nq); buildQueueList(); recalcAll(); setMsg('Added toolpath '+opsQueue.length+': '+name); }
 // Recompute the backplot for every VISIBLE toolpath and combine into one preview overlay.
-function recalcAll(){ const allSegs=[], allMarks=[]; let total=0;
+function recalcAll(){ const allSegs=[], allMarks=[]; let total=0, refused='';
   for(const q of opsQueue){ if(q.visible===false||!onWorkSide(q))continue; let res; try{ res=opRes(q); }catch(e){ continue; }
     if(!res.ops.some(op=>op.passes&&op.passes.length)){ q._time=0; continue; }
     const post=Object.assign({},CAM.POSTS[document.getElementById('camPost').value]); post.arcs=(q.p.op!=='drill')&&document.getElementById('camArcs').checked;
-    const g=CAM.postProcess({name:'tp',units:'inch',ops:res.ops},post);   // all ops (vcarve flat-depth posts 2)
+    let g; try{ g=CAM.postProcess({name:'tp',units:'inch',ops:res.ops},post); }   // all ops (vcarve flat-depth posts 2)
+    catch(e){ q._time=0; if(!refused) refused=(q.name||q.label||'Toolpath')+': '+String(e.message||e).replace(/\n/g,' · '); continue; }
     const segs=toolpathSegs(g);
     q._time=CAM.estimateTime(segs,{feed:q.p.feed,plunge:q.p.plunge,rapid:300}).seconds; total+=q._time;
     for(const s of segs) allSegs.push(s);
@@ -1794,7 +1800,7 @@ function recalcAll(){ const allSegs=[], allMarks=[]; let total=0;
   const solid=document.getElementById('simSolid');
   if(viewMode==='preview' && solid && solid.checked && !simBusy){ runSim(); return; }
   render();
-  const n=opsQueue.filter(q=>q.visible!==false).length; setMsg('Preview: '+n+'/'+opsQueue.length+' toolpath(s) · '+allSegs.length+' move(s) · est '+fmtTime(total)+' cut time'); }
+  const n=opsQueue.filter(q=>q.visible!==false).length; setMsg((refused?refused+' — ':'')+'Preview: '+n+'/'+opsQueue.length+' toolpath(s) · '+allSegs.length+' move(s) · est '+fmtTime(total)+' cut time'); }
 // ---- fillet / trim / extend click tools ----
 // Fillet tool: Fillet rounds the clicked corner; Dog-bone / T-bone cut a relief notch sized to the tool, so a
 // square part seats in an inside corner (VCarve's Fillet tool modes). "Apply to selection" does every sharp corner.
@@ -1867,7 +1873,7 @@ function opCheckVectors(){
 // Load a saved params object back into the CAM panel inputs (inverse of camParams; used by Edit).
 function applyParamsToPanel(p){ if(!p)return; const g=id=>document.getElementById(id); const set=(id,v)=>{const el=g(id); if(el&&v!=null)el.value=v;}; const chk=(id,v)=>{const el=g(id); if(el)el.checked=!!v;};
   set('camOp',p.op); set('camTool',p.toolNum); set('camDia',p.toolDia); set('camSide',p.side); set('camDir',p.climb?'climb':'conv');
-  set('camDepth',p.cutDepth); set('camPass',p.passDepth); set('camFeed',p.feed); set('camPlunge',p.plunge); set('camRpm',p.rpm); set('camTopZ',p.topZ);
+  set('camDepth',p.cutDepth); set('camPass',p.passDepth); set('camFeed',p.feed); set('camPlunge',p.plunge); set('camRpm',p.rpm); set('camTopZ',p.topZ); set('camSafeZ',p.clearZ!=null?p.clearZ:0.25);
   if(p.stepover!=null)set('camStep',Math.round(p.stepover*100)); set('camPocketStyle',p.pocketStyle); chk('camHelixEntry',p.rampEntry); set('camFinishDia',p.finishDia);
   set('camPeck',p.peck); set('camVAngle',p.bitAngle); set('camVStep',p.vstep); set('camVFlat',p.flatDepth); set('camVClearDia',p.clearDia);
   set('camLead',p.leadType); set('camLeadLen',p.leadLen); set('camRampLen',p.rampLen);
@@ -1889,6 +1895,7 @@ function postJob(){ if(!opsQueue.length){ setMsg('Job queue empty — "Add op" f
   const sheetFile=(typeof ASM!=='undefined' && ASM.active && asmSheet(ASM.active)) ? asmSheet(ASM.active).file : '';   // an assembly sheet posts as <sheet>.tap
   const base=sheetFile ? sheetFile.replace(/\.dxf$/i,'') : 'job';
   for(const side of sides){ const jp=buildJobProgram(false, side); warns=warns.concat(jp.warns); if(!jp.allOps.length) continue;
+    if(jp.refused){ setMsg(jp.refused.replace(/\n/g,' · ')); return; }
     const name=side?base+'-'+side+'.tap':base+'.tap'; download(name, jp.g); lastGcode=jp.g;
     done.push(name+' ('+jp.allOps.length+' ops: '+jp.allOps.map(o=>'T'+o.toolNum).join('→')+(job.type==='rotary'?', A axis':', '+(jp.g.match(/^G[23] /gm)||[]).length+' arcs')+')'); }
   if(!done.length){ setMsg('Job produced no cuttable passes.'); return; }
@@ -2287,7 +2294,7 @@ const rawGet=el=>NATIVE_VALUE.get.call(el), rawSet=(el,v)=>NATIVE_VALUE.set.call
 const LEN_IDS=['fitTol','jobDia','jobLen','jobW','jobH','jobT','gridStep','fRectW','fRectH','fRectX','fRectY','fRrectW','fRrectH','rrectR','fRrectX','fRrectY',
   'fPolygonD','fPolygonX','fPolygonY','fStarD','fStarX','fStarY','fCircleD','fCircleX','fCircleY','fEllipseW','fEllipseH','fEllipseX','fEllipseY',
   'txtH','fTextX','fTextY','dimTextH','filletR','filletTool','nestW','nestH','nestMargin','nestSpacing',
-  'camTopZ','camDepth','camPass','camDia','camFeed','camPlunge','camFinishDia','camPeck','camVStep','camVFlat','camVClearDia',
+  'camTopZ','camSafeZ','camDepth','camPass','camDia','camFeed','camPlunge','camFinishDia','camPeck','camVStep','camVFlat','camVClearDia',
   'camInlayGap','camInlayPocketD','camInlayMaleD','camInlayStartD','camInlayMargin','camLeadLen','camRampLen','camTabL','camTabH',
   'camChWidth','camChOffset','camFlRampLen','camPrMax','pbRapid','pX','pY','pW','pH'];
 const MODAL_NONLEN=new Set(['n','rotDeg','a0Deg','a1Deg','prec']);

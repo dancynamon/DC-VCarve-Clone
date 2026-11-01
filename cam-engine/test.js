@@ -87,8 +87,9 @@ ok('circle outside R grows to 1.25', Math.abs((cb.maxX-cb.minX)/2-1.25)<2e-2, (c
   const r = CAM.profileOp(rectC2,{side:'outside',toolNum:2,toolDia:0.25,cutDepth:0.25,passDepth:0.5,feed:120,plunge:40,rpm:18000});
   const g = CAM.postProcess({name:'X',units:'inch',ops:r.ops}, CAM.POSTS.shopsabre);
   const lines = g.split('\r\n');
-  const head = lines.slice(0,12).join('|');
-  const expHead = 'G90||M5|M51|T2|Z2|S18000|M3|g4 x 4|M50||F120.0';
+  const head = lines.slice(0,13).join('|');
+  // G20 is ours, not the .pp's: Vectric's post leaves units to the WinCNC default (see POSTS.shopsabre.header)
+  const expHead = 'G90|G20||M5|M51|T2|Z2|S18000|M3|g4 x 4|M50||F120.0';
   ok('header byte-exact to .pp', head===expHead, JSON.stringify({got:head}));
   const tail = lines.slice(-6).join('|');
   const expTail = '|G0 Z2.0000|G0 X0.0000 Y115.0000||M5|m51';
@@ -852,6 +853,70 @@ console.log('\n(post-pp assertions added)');
   ok('on-line closed + tabs: path returns to its start', pt[pt.length-1].x===pt[0].x && pt[pt.length-1].y===pt[0].y);
   const op=CAM.profileOp(CAM.assembleContours([{closed:false,pts:[{x:0,y:0},{x:1,y:0},{x:1,y:1}]}]),{side:'on',toolDia:0.125,cutDepth:0.1,passDepth:0.1}).ops[0].passes[0].path;
   ok('on-line open: path unchanged', op.length===3);
+})();
+
+// ---- G-code safety: rapids clear the stock top, units are explicit, bad speeds are refused ----
+(function(){
+  const rect=(x,y,w,h)=>CAM.assembleContours([{closed:true,pts:[{x,y},{x:x+w,y},{x:x+w,y:y+h},{x,y:y+h}]}]);
+  const T={feed:100,plunge:30,rpm:18000};
+  // every test job, built for a given stock top (Z zero on the table => topZ = stock thickness)
+  const jobs=topZ=>{ const o=Object.assign({topZ},T);
+    return {
+      profileTabs: CAM.profileOp(rect(0,0,4,3),Object.assign({side:'outside',toolNum:1,toolDia:0.25,cutDepth:0.5,passDepth:0.25,tabs:{count:2,length:0.4,height:0.1}},o)).ops,
+      profileRamp: CAM.profileOp(rect(0,0,4,3),Object.assign({side:'outside',toolNum:1,toolDia:0.25,cutDepth:0.5,passDepth:0.25,leadType:'arc',leadLen:0.25,rampLen:0.3},o)).ops,
+      pocket: CAM.pocketOp(rect(1,1,2,1),Object.assign({toolNum:2,toolDia:0.25,cutDepth:0.3,passDepth:0.15,rampEntry:true},o)).ops,
+      drill: CAM.drillOp(rect(1,1,0.1,0.1),Object.assign({toolNum:5,cutDepth:0.4,peck:0.1},o)).ops,
+      vcarve: CAM.vcarveOp(rect(0,0,2,1),Object.assign({toolNum:3,bitAngle:90,maxDepth:0.2,step:0.05},o)).ops,
+      engrave: CAM.quickEngraveOp(rect(0,0,2,1),Object.assign({toolNum:3,cutDepth:0.06},o)).ops,
+      // male plug sunk 0.5" below the surface: deeper than the 0.25" clearance
+      inlayMale: CAM.inlayOp(rect(0,0,2,1),Object.assign({style:'pocket',part:'male',toolNum:1,toolDia:0.125,pocketDepth:0.2,maleDepth:0.2,startDepth:0.5,passDepth:0.1},o)).ops,
+      clear08: CAM.profileOp(rect(0,0,4,3),Object.assign({side:'outside',toolNum:1,toolDia:0.25,cutDepth:0.25,passDepth:0.25},o)).ops.map(op=>Object.assign(op,{clearZ:0.8})) }; };
+  // lowest Z the machine ever sits at during a rapid (G0 lines and WinCNC's bare 'Zn' lines), in inches
+  const minRapidZ=(g,k)=>{ let z=null, lo=Infinity;
+    for(const raw of g.split(/\r?\n/)){ const ln=raw.trim().toUpperCase(); const zm=ln.match(/Z(-?[\d.]+)/); if(zm) z=+zm[1]/k;
+      if(/^G0\b/.test(ln)||/^Z-?[\d.]+$/.test(ln)) lo=Math.min(lo,z==null?Infinity:z); }
+    return lo; };
+  const posts=[['shopsabre',1],['shopsabre_mm',25.4],['generic',1],['generic_mm',25.4]];
+  for(const topZ of [0,1.5,3]){ const J=jobs(topZ);
+    for(const [name,ops] of Object.entries(J)) for(const [pn,k] of posts){
+      const g=CAM.postProcess({name,units:'inch',ops},CAM.POSTS[pn]);
+      const clr=ops.reduce((m,op)=>Math.min(m,op.clearZ!=null?op.clearZ:0.25),Infinity);
+      const lo=minRapidZ(g,k);
+      ok(`safety: every G0 Z >= topZ+clearance (${name}, topZ ${topZ}, ${pn})`, lo>=topZ+clr-1e-3, `lowest rapid Z ${lo}`); } }
+  // topZ=0 stays byte-identical: rapids at Z0.2500, Z2 tool block, Z2.0000 park
+  const g0=CAM.postProcess({name:'p',units:'inch',ops:jobs(0).profileTabs},CAM.POSTS.shopsabre);
+  ok('safety: topZ 0 rapids stay at Z0.2500', /G0 X\S+ Y\S+ Z0\.2500\r\n/.test(g0) && /^Z2$/m.test(g0) && /G0 Z2\.0000\r\n/.test(g0));
+  // tall stock: tool block and park Z rise above the stock too
+  const g3=CAM.postProcess({name:'p',units:'inch',ops:jobs(3).profileTabs},CAM.POSTS.shopsabre);
+  ok('safety: topZ 3 raises tool-block and park Z to 3.25', /^Z3\.2500$/m.test(g3) && /G0 Z3\.2500\r\nG0 X0\.0000 Y115\.0000/.test(g3) && !/^Z2$/m.test(g3));
+  // units are explicit on every post
+  const one=jobs(0).profileTabs;
+  ok('safety: inch ShopSabre post sets G20', /^G20$/m.test(CAM.postProcess({name:'u',units:'inch',ops:one},CAM.POSTS.shopsabre)));
+  ok('safety: mm ShopSabre post sets G21, not G20', (g=>/^G21$/m.test(g)&&!/^G20$/m.test(g))(CAM.postProcess({name:'u',units:'inch',ops:one},CAM.POSTS.shopsabre_mm)));
+  // feeds / plunge / rpm are validated: refused with a message naming the problem
+  const refuse=(patch,re)=>{ const ops=jobs(0).profileTabs.map(op=>Object.assign({},op,patch));
+    try{ CAM.postProcess({name:'v',units:'inch',ops},CAM.POSTS.shopsabre); return false; }catch(e){ return re.test(e.message) && /Not posted/.test(e.message); } };
+  ok('validate: negative feed refused', refuse({feed:-100},/feed rate -100/));
+  ok('validate: zero feed refused', refuse({feed:0},/feed rate 0 must/));
+  ok('validate: NaN plunge refused', refuse({plunge:NaN},/plunge rate NaN/));
+  ok('validate: plunge faster than feed refused', refuse({feed:50,plunge:80},/plunge rate 80 is faster than the feed rate 50/));
+  ok('validate: zero rpm refused', refuse({rpm:0},/spindle speed 0/));
+  ok('validate: rpm over limit refused', refuse({rpm:60000},/over the 24000 rpm limit/));
+  ok('validate: feed over limit refused', refuse({feed:5000},/over the 1000 in\/min limit/));
+  ok('validate: negative safe Z refused', refuse({clearZ:-0.1},/safe Z -0\.1/));
+  ok('validate: plunge == feed allowed', !refuse({feed:30,plunge:30},/./));
+  ok('validate: checkJob lists every problem', CAM.checkJob({ops:[Object.assign({},one[0],{feed:-1,rpm:0})]},CAM.POSTS.shopsabre).length===2);
+  // a merged part's own feeds are checked too
+  ok('validate: merged pass with bad plunge refused', (()=>{ const op=Object.assign({},one[0]); op.passes=op.passes.map((p,i)=>i?Object.assign({},p,{feed:100,plunge:-5}):p);
+    try{ CAM.postProcess({name:'m',units:'inch',ops:[op]},CAM.POSTS.shopsabre); return false; }catch(e){ return /plunge rate -5/.test(e.message); } })());
+  // merging toolpaths on one tool at different rpm: higher rpm wins, and it is logged
+  const a=Object.assign({},one[0],{rpm:16000}), b=Object.assign({},one[0],{rpm:18000});
+  const warn=console.warn, logged=[]; console.warn=m=>logged.push(m);
+  const m=CAM.mergeOps([a,b]); console.warn=warn;
+  ok('merge: different rpm on one tool runs at the higher rpm', m.length===1 && m[0].rpm===18000);
+  ok('merge: rpm change is logged', logged.length===1 && /16000 and 18000 rpm/.test(logged[0]) && m[0].notes && m[0].notes.length===1, JSON.stringify(logged));
+  const same=CAM.mergeOps([Object.assign({},one[0]),Object.assign({},one[0])]);
+  ok('merge: same rpm adds no note', !same[0].notes);
 })();
 
 console.log(`\n${pass} passed, ${fail} failed`);

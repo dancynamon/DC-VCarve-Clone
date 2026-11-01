@@ -783,7 +783,8 @@ function _mirrorPass(p, cx){
   return Object.assign({},p,{path});
 }
 function _shiftOpZ(op, dz){
-  return Object.assign({},op,{topZ:op.topZ+dz, passes:op.passes.map(p=>Object.assign({},p,{z:p.z+dz}))});
+  // topZ stays the real stock surface: postProcess clears it by clearZ, so sinking topZ would rapid through the stock
+  return Object.assign({},op,{passes:op.passes.map(p=>Object.assign({},p,{z:p.z+dz}))});
 }
 function _rectLoop(b){ return [{x:b.minX,y:b.minY},{x:b.maxX,y:b.minY},{x:b.maxX,y:b.maxY},{x:b.minX,y:b.maxY}]; }
 function _loopsToContours(loops){ return loops.map(lp=>({closed:true, pts:lp.map(p=>({x:p.x,y:p.y}))})); }
@@ -1060,9 +1061,37 @@ function orderPasses(job, start){
   return newJob;
 }
 
-// job = { name, units, ops:[{toolNum,rpm,feed,plunge,clearZ,passes:[{z,tabHeight,closed,path}]}] }
+// Refuse a job whose speeds or clearance would be unsafe on the machine. Returns a list of problems (empty = ok).
+// Checked in inches, before the metric posts scale the job. Limits come from the post (maxFeed in/min, maxRpm).
+function checkJob(job, P){
+  const errs=[], maxFeed=P.maxFeed||1000, maxRpm=P.maxRpm||24000, maxClear=P.maxClearZ||6;
+  const bad=v=>typeof v!=='number'||!isFinite(v);
+  (job.ops||[]).forEach((op,oi)=>{
+    const who=`toolpath ${oi+1} (T${op.toolNum}${op.kind?' '+op.kind:''})`;
+    if(bad(op.rpm)||op.rpm<=0) errs.push(`${who}: spindle speed ${op.rpm} must be a number above 0`);
+    else if(op.rpm>maxRpm) errs.push(`${who}: spindle speed ${op.rpm} is over the ${maxRpm} rpm limit`);
+    const tz=op.topZ==null?0:op.topZ, cz=op.clearZ;
+    if(bad(tz)) errs.push(`${who}: start depth (stock top) ${op.topZ} must be a number`);
+    if(cz!=null&&(bad(cz)||cz<=0||cz>maxClear)) errs.push(`${who}: safe Z ${cz} must be above 0 and at most ${maxClear}" over the stock`);
+    // a merged toolpath carries each part's own feed / plunge on its passes
+    const speeds=[[op.feed,op.plunge]];
+    for(const ps of op.passes||[]) if(ps.feed!=null||ps.plunge!=null) speeds.push([ps.feed!=null?ps.feed:op.feed, ps.plunge!=null?ps.plunge:op.plunge]);
+    const seen=new Set();
+    for(const [f,pl] of speeds){ const k=f+'/'+pl; if(seen.has(k)) continue; seen.add(k);
+      if(bad(f)||f<=0) errs.push(`${who}: feed rate ${f} must be a number above 0`);
+      else if(f>maxFeed) errs.push(`${who}: feed rate ${f} is over the ${maxFeed} in/min limit`);
+      if(bad(pl)||pl<=0) errs.push(`${who}: plunge rate ${pl} must be a number above 0`);
+      else if(!bad(f)&&f>0&&pl>f) errs.push(`${who}: plunge rate ${pl} is faster than the feed rate ${f}`); }
+  });
+  return errs;
+}
+// job = { name, units, ops:[{toolNum,rpm,feed,plunge,topZ,clearZ,passes:[{z,tabHeight,closed,path}]}] }
+// Rapids and retracts go to topZ + clearZ (clearZ = safe height above the stock top, 0.25" when unset), so a job
+// zeroed on the table (topZ = stock thickness) still clears the stock. With topZ = 0 the output is unchanged.
 function postProcess(job, post){
   const P=Object.assign({},POSTS.shopsabre,post||{});
+  const errs=checkJob(job,P);
+  if(errs.length){ const e=new Error('Not posted — fix these first: '+errs.join('\n')); e.problems=errs; throw e; }
   // Rotary (wrapped) job: the design is drawn unwrapped, Y running round the circumference. Y becomes the A axis
   // in degrees (one turn = pi x diameter), Z stays zero on the cylinder surface, and arcs are posted as G1 since
   // an XY arc means nothing in X-A.
@@ -1074,9 +1103,12 @@ function postProcess(job, post){
   const arcTol = P.arcTol!=null?P.arcTol:0.0015;
   const useArcs = !!P.arcs;
   const L=[];
+  const clearOf=op=>(op.topZ||0)+(op.clearZ!=null?op.clearZ:0.25*(P.metric?25.4:1));   // scaleJob already set clearZ for metric
+  // tool-change and end-of-job Z: the post's own safe Z, raised when the stock top + clearance is higher
+  P.parkZ=Math.max(P.safeZ, ...job.ops.map(clearOf));
   P.header(L,job,P);
   job.ops.forEach((opAll,oi)=>{
-    const clear = opAll.clearZ!=null?opAll.clearZ:0.25;
+    const clear = clearOf(opAll);
     // Vectric's ShopSabre post: consecutive toolpaths on the same tool + speed run with NO tool-change block
     const prevOp = oi>0 ? job.ops[oi-1] : null;
     const sameTool = prevOp && P.mergeSameTool && prevOp.toolNum===opAll.toolNum && Math.round(prevOp.rpm)===Math.round(opAll.rpm);
@@ -1174,12 +1206,14 @@ const POSTS={
     name:'ShopSabre DC ATC Speed Arc (inch)', decimals:4, feedDecimals:1, eol:'\r\n',
     safeZ:2.0, parkX:0.0, parkY:115.0, warmupDwell:4, arcs:true, arcTol:0.0015, helical:true, mergeSameTool:true,
     axisFmt:(a,v,dp)=>`${a}${(Math.abs(v)<1e-9?0:v).toFixed(dp)}`,
-    header(L){ L.push('G90'); L.push(''); },
+    // G20 (inch) is not in Vectric's .pp, which leaves units to the WinCNC default; posted explicitly so a
+    // controller left in mm by a metric job can't run this program 25.4x small. Mirrors G21 in the mm twin.
+    header(L){ L.push('G90'); L.push('G20'); L.push(''); },
     // HEADER tool block (isFirst, has Z2 + feed line) vs TOOLCHANGE (no Z2/feed)
     opStart(L,op,P,isFirst){
       L.push('M5'); L.push('M51');
       L.push(`T${op.toolNum}`);
-      if(isFirst) L.push('Z2');
+      if(isFirst) L.push(P.parkZ>P.safeZ?`Z${P.parkZ.toFixed(P.decimals)}`:'Z2');
       L.push(`S${Math.round(op.rpm)}`);
       L.push('M3');
       L.push(`g4 x ${P.warmupDwell}`);
@@ -1188,7 +1222,7 @@ const POSTS={
     },
     footer(L,job,P){
       L.push('');
-      L.push(`G0 Z${P.safeZ.toFixed(P.decimals)}`);
+      L.push(`G0 Z${Math.max(P.safeZ,P.parkZ||0).toFixed(P.decimals)}`);
       L.push(`G0 X${P.parkX.toFixed(P.decimals)} Y${P.parkY.toFixed(P.decimals)}`);
       L.push('');
       L.push('M5'); L.push('m51');
@@ -1199,7 +1233,7 @@ const POSTS={
     name:'Generic ISO (inch)', decimals:4, feedDecimals:1, eol:'\n', safeZ:0.5, helical:true,
     axisFmt:(a,v,dp)=>`${a}${(Math.abs(v)<1e-9?0:v).toFixed(dp)}`,
     header(L,job){L.push('%');if(job.name)L.push(`(${job.name})`);L.push('G20');L.push('G90');L.push('G17');L.push('G40');},
-    opStart(L,op){L.push('');L.push(`T${op.toolNum} M6`);L.push(`S${Math.round(op.rpm)} M3`);L.push('G0 Z0.5000');},
+    opStart(L,op,P){L.push('');L.push(`T${op.toolNum} M6`);L.push(`S${Math.round(op.rpm)} M3`);L.push(`G0 Z${Math.max(P.safeZ,P.parkZ||0).toFixed(4)}`);},
     footer(L){L.push('');L.push('M5');L.push('M30');L.push('%');}
   }
 };
@@ -1211,16 +1245,21 @@ POSTS.shopsabre_mm=Object.assign({},POSTS.shopsabre,{ name:'ShopSabre DC ATC Spe
   opStart(L,op,P,isFirst){ const t=[]; POSTS.shopsabre.opStart(t,op,P,isFirst); for(const l of t) L.push(l==='Z2'?'Z50.800':l); } });
 POSTS.generic_mm=Object.assign({},POSTS.generic,{ name:'Generic ISO (mm)', metric:true, decimals:3, safeZ:12.7,
   header(L,job){ const t=[]; POSTS.generic.header(t,job); for(const l of t) L.push(l==='G20'?'G21':l); },
-  opStart(L,op){L.push('');L.push(`T${op.toolNum} M6`);L.push(`S${Math.round(op.rpm)} M3`);L.push('G0 Z12.700');} });
+  opStart(L,op,P){L.push('');L.push(`T${op.toolNum} M6`);L.push(`S${Math.round(op.rpm)} M3`);L.push(`G0 Z${Math.max(P.safeZ,P.parkZ||0).toFixed(3)}`);} });
 // Merge toolpaths (VCarve "Merge toolpaths"): the ops of several toolpaths become one op per tool, so the job
 // cuts them together — ordered as one set, with no tool change between them. Each pass keeps the feed and
 // plunge of the toolpath it came from. Ops that must keep their depth order (prism, moulding) keep it.
+// A tool merged from toolpaths with different spindle speeds runs at the highest one; that is logged
+// (console + the merged op's `notes`) so the speed change isn't silent.
 function mergeOps(ops){
   const byTool=new Map();
   for(const op of ops){ if(!op||!op.passes||!op.passes.length) continue;
     let m=byTool.get(op.toolNum);
     if(!m){ m=Object.assign({},op,{kind:'merged',passes:[],parts:[]}); byTool.set(op.toolNum,m); }
-    m.parts.push(op.kind); if(op.keepOrder) m.keepOrder=true; if(op.rpm>m.rpm) m.rpm=op.rpm;
+    m.parts.push(op.kind); if(op.keepOrder) m.keepOrder=true;
+    if(Math.round(op.rpm)!==Math.round(m.rpm)){ const hi=Math.max(op.rpm,m.rpm), lo=Math.min(op.rpm,m.rpm);
+      const note=`merge T${op.toolNum}: toolpaths at ${lo} and ${hi} rpm run together at ${hi} rpm`;
+      (m.notes=m.notes||[]).push(note); if(typeof console!=='undefined') console.warn(note); m.rpm=hi; }
     for(const ps of op.passes) m.passes.push(Object.assign({},ps,{feed:op.feed,plunge:op.plunge})); }
   return [...byTool.values()];
 }
@@ -1314,5 +1353,5 @@ function stockHeightAt(field, x, y) {
 
 return {SCALE,TOL,dist,signedArea,isCCW,ensureCCW,ensureCW,boundsOf,assembleContours,offsetLoop,offsetOpenPath,withTabs,linkRings,fitArcs,profileOp,pocketOp,drillOp,vcarveOp,inlayOp,centroid,defaultTools,upsertTool,removeTool,slugId,orderPasses,
   sanitizeTemplateParams,normalizeTemplate,templateFromQueue,applyTemplate,templateToJSON,templateFromJSON,
-  upsertTemplate,removeTemplate,defaultTemplates,TEMPLATE_VERSION,TEMPLATE_FORMAT,TEMPLATE_PARAM_KEYS,chamferOp,quickEngraveOp,flutingOp,prismOp,mouldingOp,regionComponents,profileDepthFn,postProcess,scaleJob,mergeOps,POSTS,simulateStock,stockField,simKernel,carveSegment,stockHeightAt,estimateTime};
+  upsertTemplate,removeTemplate,defaultTemplates,TEMPLATE_VERSION,TEMPLATE_FORMAT,TEMPLATE_PARAM_KEYS,chamferOp,quickEngraveOp,flutingOp,prismOp,mouldingOp,regionComponents,profileDepthFn,postProcess,checkJob,scaleJob,mergeOps,POSTS,simulateStock,stockField,simKernel,carveSegment,stockHeightAt,estimateTime};
 });

@@ -608,7 +608,8 @@ body.dark .qrow.picked{background:#3a2a1c}
       </div>
       <div class="rpane" id="paneCamForm"><div class="tform" data-form="cam"><h4 id="camFormTitle">Profile Toolpath</h4><div class="tfbody">
           <div class="grp">Cutting depths</div>
-          <label data-tip="Depth of the material surface (Z zero)">Start depth&quot;<input type="number" id="camTopZ" value="0" step="0.01" style="width:54px"></label>
+          <label data-tip="Height of the stock top above Z zero (stock thickness when Z zero is the table)">Start depth&quot;<input type="number" id="camTopZ" value="0" step="0.01" style="width:54px"></label>
+          <label data-tip="Rapids and retracts clear the stock top (start depth) by this much">Safe Z&quot;<input type="number" id="camSafeZ" value="0.25" step="0.05" min="0.05" style="width:54px"></label>
           <label data-ops="profile pocket drill vcarve inlay engrave fluting">Cut depth&quot;<input type="number" id="camDepth" value="0.5" step="0.01" style="width:54px"></label>
           <label data-tip="Maximum depth removed per pass">Pass depth&quot;<input type="number" id="camPass" value="0.25" step="0.01" style="width:54px"></label>
 
