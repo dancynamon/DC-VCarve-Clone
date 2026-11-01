@@ -1,0 +1,367 @@
+{
+ "barbell_pikespeak_outside_art.pdf": {
+  "vectors": {
+   "loops": 752,
+   "closed": 749,
+   "pts": 42403,
+   "text": 7,
+   "digest": "b534c462"
+  },
+  "doc": {
+   "shapes": 561,
+   "w": 428.4,
+   "h": 428.4,
+   "text": 7,
+   "colors": 16,
+   "digest": "04c6ff4f"
+  }
+ },
+ "foam_fish_newtrier.pdf": {
+  "vectors": {
+   "loops": 588,
+   "closed": 588,
+   "pts": 44418,
+   "text": 0,
+   "digest": "1985ba1d"
+  },
+  "doc": {
+   "shapes": 2,
+   "w": 3419.712,
+   "h": 3420.576,
+   "text": 0,
+   "colors": 2,
+   "digest": "0bc7bfb6"
+  }
+ },
+ "foam_shark_newtrier.pdf": {
+  "vectors": {
+   "loops": 58,
+   "closed": 58,
+   "pts": 17380,
+   "text": 0,
+   "digest": "39c472a5"
+  },
+  "doc": {
+   "shapes": 2,
+   "w": 3417.12,
+   "h": 3417.12,
+   "text": 0,
+   "colors": 2,
+   "digest": "cc53aec0"
+  }
+ },
+ "jig_saf_side1.pdf": {
+  "vectors": {
+   "loops": 1926,
+   "closed": 1926,
+   "pts": 143604,
+   "text": 0,
+   "digest": "eb091dd9"
+  },
+  "doc": {
+   "shapes": 1386,
+   "w": 3183.61,
+   "h": 1109.2,
+   "text": 0,
+   "colors": 4,
+   "digest": "f6d965f7"
+  }
+ },
+ "jig_saf_side2.pdf": {
+  "vectors": {
+   "loops": 582,
+   "closed": 582,
+   "pts": 27426,
+   "text": 0,
+   "digest": "99817645"
+  },
+  "doc": {
+   "shapes": 252,
+   "w": 3183.61,
+   "h": 1109.2,
+   "text": 0,
+   "colors": 3,
+   "digest": "2d096fb3"
+  }
+ },
+ "manny_xrt50_side1_girlsinc_src.pdf": {
+  "vectors": {
+   "loops": 791,
+   "closed": 791,
+   "pts": 36202,
+   "text": 3,
+   "digest": "7ac4d08e"
+  },
+  "doc": {
+   "shapes": 702,
+   "w": 4464,
+   "h": 1728,
+   "text": 3,
+   "colors": 6,
+   "digest": "8099eb0e",
+   "why": "text 2->3: one hex-string show op was not counted by the old VS copy (shapes unchanged)"
+  }
+ },
+ "manny_xrt50_side2_src.pdf": {
+  "vectors": {
+   "loops": 81,
+   "closed": 81,
+   "pts": 9935,
+   "text": 0,
+   "digest": "0f40ea74"
+  },
+  "doc": {
+   "shapes": 71,
+   "w": 4464,
+   "h": 1728,
+   "text": 0,
+   "colors": 5,
+   "digest": "9917a192"
+  }
+ },
+ "mat_48x24_evans_spot+color.pdf": {
+  "vectors": {
+   "loops": 1075,
+   "closed": 1075,
+   "pts": 170368,
+   "text": 0,
+   "digest": "2797e1ab",
+   "why": "old copies never returned: an [/ASCII85Decode /FlateDecode] image stream went into the inflater, which looped forever past end of input"
+  },
+  "doc": {
+   "shapes": 1001,
+   "w": 612,
+   "h": 792,
+   "text": 0,
+   "colors": 6,
+   "digest": "f1c793f9",
+   "why": "old copies never returned: an [/ASCII85Decode /FlateDecode] image stream went into the inflater, which looped forever past end of input"
+  }
+ },
+ "mat_wsa6152_plate_source.pdf": {
+  "vectors": {
+   "loops": 274,
+   "closed": 274,
+   "pts": 21544,
+   "text": 0,
+   "digest": "8dfe8e32"
+  },
+  "doc": {
+   "shapes": 81,
+   "w": 3456,
+   "h": 1728,
+   "text": 0,
+   "colors": 5,
+   "digest": "34f14122"
+  }
+ },
+ "mat_wsa6152_proof_vector.pdf": {
+  "vectors": {
+   "loops": 272,
+   "closed": 272,
+   "pts": 21264,
+   "text": 0,
+   "digest": "6a0c5640"
+  },
+  "doc": {
+   "shapes": 66,
+   "w": 3456,
+   "h": 1728,
+   "text": 0,
+   "colors": 3,
+   "digest": "b29b7a83"
+  }
+ },
+ "poolsign_calway_18x24_outlined.pdf": {
+  "vectors": {
+   "loops": 1324,
+   "closed": 1324,
+   "pts": 72931,
+   "text": 0,
+   "digest": "e48720c1"
+  },
+  "doc": {
+   "shapes": 985,
+   "w": 1296,
+   "h": 1728,
+   "text": 0,
+   "colors": 6,
+   "digest": "b0c0d724"
+  }
+ },
+ "ref_mainst_kickboard_spot+color.pdf": {
+  "vectors": {
+   "loops": 438,
+   "closed": 438,
+   "pts": 32650,
+   "text": 0,
+   "digest": "68b2cc93",
+   "why": "old copies never returned: an [/ASCII85Decode /FlateDecode] image stream went into the inflater, which looped forever past end of input"
+  },
+  "doc": {
+   "shapes": 348,
+   "w": 612,
+   "h": 792,
+   "text": 0,
+   "colors": 7,
+   "digest": "c9a7d7c0",
+   "why": "old copies never returned: an [/ASCII85Decode /FlateDecode] image stream went into the inflater, which looped forever past end of input"
+  }
+ },
+ "ref_mainst_kickboard_yellow_spot+color.pdf": {
+  "vectors": {
+   "loops": 219,
+   "closed": 219,
+   "pts": 16325,
+   "text": 0,
+   "digest": "c60dce5c",
+   "why": "old copies never returned: an [/ASCII85Decode /FlateDecode] image stream went into the inflater, which looped forever past end of input"
+  },
+  "doc": {
+   "shapes": 174,
+   "w": 612,
+   "h": 792,
+   "text": 0,
+   "colors": 8,
+   "digest": "ae542c86",
+   "why": "old copies never returned: an [/ASCII85Decode /FlateDecode] image stream went into the inflater, which looped forever past end of input"
+  }
+ },
+ "ref_manny_xrt50_aug_apd_spot+color.pdf": {
+  "vectors": {
+   "loops": 1544,
+   "closed": 1544,
+   "pts": 58276,
+   "text": 6,
+   "digest": "a57f0c91"
+  },
+  "doc": {
+   "shapes": 1410,
+   "w": 612,
+   "h": 792,
+   "text": 6,
+   "colors": 6,
+   "digest": "27369b0c"
+  }
+ },
+ "saf_angelfish_v3_side1_spot+color.pdf": {
+  "vectors": {
+   "loops": 696,
+   "closed": 696,
+   "pts": 29486,
+   "text": 0,
+   "digest": "cdbf5782"
+  },
+  "doc": {
+   "shapes": 178,
+   "w": 3183.61,
+   "h": 1109.2,
+   "text": 0,
+   "colors": 5,
+   "digest": "5f7b075a"
+  }
+ },
+ "tube40_conestoga_proof_outlined.pdf": {
+  "vectors": {
+   "loops": 726,
+   "closed": 724,
+   "pts": 26242,
+   "text": 0,
+   "digest": "2a291c4a"
+  },
+  "doc": {
+   "shapes": 692,
+   "w": 3384,
+   "h": 720,
+   "text": 0,
+   "colors": 5,
+   "digest": "1af7addf"
+  }
+ },
+ "xrt40_red_blank_SEP2026.pdf": {
+  "vectors": {
+   "loops": 680,
+   "closed": 678,
+   "pts": 12270,
+   "text": 4,
+   "digest": "6f3de3f4"
+  },
+  "doc": {
+   "shapes": 655,
+   "w": 3384,
+   "h": 720,
+   "text": 4,
+   "colors": 5,
+   "digest": "fd2aecd7",
+   "why": "text 2->4: hex-string show ops were not counted by the old VS copy (shapes unchanged)"
+  }
+ },
+ "sample-logo-xobject.pdf": {
+  "vectors": {
+   "loops": 4,
+   "closed": 4,
+   "pts": 332,
+   "text": 0,
+   "digest": "4ad0c605"
+  },
+  "doc": {
+   "shapes": 1,
+   "w": 612,
+   "h": 792,
+   "text": 0,
+   "colors": 1,
+   "digest": "e189f7c6"
+  }
+ },
+ "sample-logo.pdf": {
+  "vectors": {
+   "loops": 4,
+   "closed": 4,
+   "pts": 332,
+   "text": 0,
+   "digest": "4ad0c605"
+  },
+  "doc": {
+   "shapes": 1,
+   "w": 612,
+   "h": 792,
+   "text": 0,
+   "colors": 1,
+   "digest": "e189f7c6"
+  }
+ },
+ "sample-mixed.pdf": {
+  "vectors": {
+   "loops": 1,
+   "closed": 1,
+   "pts": 4,
+   "text": 1,
+   "digest": "c9c0f044"
+  },
+  "doc": {
+   "shapes": 2,
+   "w": 612,
+   "h": 792,
+   "text": 1,
+   "colors": 1,
+   "digest": "b4c6cd95"
+  }
+ },
+ "sample-text-only.pdf": {
+  "vectors": {
+   "loops": 0,
+   "closed": 0,
+   "pts": 0,
+   "text": 1,
+   "digest": "811c9dc5"
+  },
+  "doc": {
+   "shapes": 1,
+   "w": 612,
+   "h": 792,
+   "text": 1,
+   "colors": 1,
+   "digest": "36a1da78"
+  }
+ }
+}

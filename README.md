@@ -149,7 +149,8 @@ retract move below N up to it; the park height and the travel envelope are uncha
 
 ## Layout
 - `cadcam-studio.html` — built app (run `npm run build` to regenerate).
-- `cam-engine/` — sources: `cadcore.js` (CAD), `camcore.js` (CAM), `studio_app.js` (UI), `studio_shell.html` (markup/CSS), `dxfparse.js`, `pdfparse.js`, `bitmaptrace.js`, `clipart.js`, `repost.js`, `build.js`, `package/clipper.js`, tests, ShopSabre `.pp`, roadmap README.
+- `cam-engine/` — sources: `cadcore.js` (CAD), `camcore.js` (CAM), `studio_app.js` (UI), `studio_shell.html` (markup/CSS), `dxfparse.js`, `pdfparse.js` (vendored — see below), `bitmaptrace.js`, `clipart.js`, `repost.js`, `build.js`, `package/clipper.js`, tests, ShopSabre `.pp`, roadmap README.
+- **Vendored from aquamentor-vector-studio:** `cam-engine/pdfparse.js` (PDF/.ai import, with `pdfparse.test.js` + `pdfparse.golden.json`) and `cam-engine/package/clipper.js` are copies of the canonical files in vector-studio, pinned by sha256 in `cam-engine/VENDORED`. Don't edit them here: fix vector-studio, then `tools/sync-pdfparse.sh [path/to/aquamentor-vector-studio]`. `npm test` (`vendortest.js`) fails if a copy drifts from its pin or from the built `cadcam-studio.html`.
 
 ## Roadmap
 VCarve Pro parity, without the Aspire 3D tier, is complete. The status table and full feature notes are in
