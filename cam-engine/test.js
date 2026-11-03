@@ -87,8 +87,9 @@ ok('circle outside R grows to 1.25', Math.abs((cb.maxX-cb.minX)/2-1.25)<2e-2, (c
   const r = CAM.profileOp(rectC2,{side:'outside',toolNum:2,toolDia:0.25,cutDepth:0.25,passDepth:0.5,feed:120,plunge:40,rpm:18000});
   const g = CAM.postProcess({name:'X',units:'inch',ops:r.ops}, CAM.POSTS.shopsabre);
   const lines = g.split('\r\n');
-  const head = lines.slice(0,12).join('|');
-  const expHead = 'G90||M5|M51|T2|Z2|S18000|M3|g4 x 4|M50||F120.0';
+  const head = lines.slice(0,13).join('|');
+  // G20 is ours, not the .pp's: Vectric's post leaves units to the WinCNC default (see POSTS.shopsabre.header)
+  const expHead = 'G90|G20||M5|M51|T2|Z2|S18000|M3|g4 x 4|M50||F120.0';
   ok('header byte-exact to .pp', head===expHead, JSON.stringify({got:head}));
   const tail = lines.slice(-6).join('|');
   const expTail = '|G0 Z2.0000|G0 X0.0000 Y115.0000||M5|m51';
@@ -758,6 +759,91 @@ console.log('\n(post-pp assertions added)');
      rp.ops[0].passes[0].path.some(p=>p.ramp!=null) && rp.ops[0].passes[0].closed===false);
 })();
 
+// ---- decorative / edge toolpaths ----
+(function(){
+  const sq={closed:true,pts:[{x:0,y:0},{x:4,y:0},{x:4,y:2},{x:0,y:2}]};
+  const near=(a,b,e)=>Math.abs(a-b)<=(e||1e-6);
+  // chamfer: depth from width and angle; tip on the vector
+  const ch=CAM.chamferOp([sq],{bitAngle:90,width:0.125,toolDia:0.5});
+  ok('chamfer: 90° bit, 0.125" wide -> 0.125" deep', near(ch.depth,0.125) && near(ch.ops[0].passes[0].z,-0.125));
+  ok('chamfer: tip runs on the vector', ch.ops[0].passes[0].path.some(p=>near(p.x,4)&&near(p.y,2)));
+  const ch60=CAM.chamferOp([sq],{bitAngle:60,width:0.125,toolDia:0.5,passDepth:0.1});
+  ok('chamfer: 60° bit goes deeper, split by pass depth', ch60.ops[0].passes.length===3 && near(ch60.depth,0.125/Math.tan(Math.PI/6),1e-9));
+  ok('chamfer: warns when wider than the bit', CAM.chamferOp([sq],{width:0.5,toolDia:0.25}).warnings.length===1);
+  ok('chamfer: offset outside moves the tip off the edge', CAM.chamferOp([sq],{width:0.1,offset:0.05}).ops[0].passes[0].path.some(p=>p.x>4.04));
+  // quick engrave: sharp-corner tails rise to the surface
+  const qe=CAM.quickEngraveOp([sq],{bitAngle:90,cutDepth:0.1});
+  const qp=qe.ops[0].passes[0].path;
+  ok('quick engrave: 3D pass', qe.ops[0].passes[0].z3d===true);
+  const tails=qp.filter(p=>near(p.z,0));
+  ok('quick engrave: one tail per square corner', tails.length===4, tails.length);
+  const D=0.1/Math.sin(Math.PI/4);
+  ok('quick engrave: tail reaches (w/2)/sin(θ/2) outside the corner', tails.some(p=>near(p.x,-D*Math.SQRT1_2,1e-9)&&near(p.y,-D*Math.SQRT1_2,1e-9)));
+  const g=CAM.postProcess({name:'q',units:'inch',ops:qe.ops},CAM.POSTS.shopsabre);
+  ok('quick engrave: posts G1 X Y Z moves', /G1 X-0\.1000 Y-0\.1000 Z0\.0000 F80/.test(g), g.split('\r\n').slice(12,20).join('|'));
+  ok('quick engrave: curves get no tails', CAM.quickEngraveOp([{closed:true,pts:Array.from({length:72},(_,i)=>({x:Math.cos(i*Math.PI/36),y:Math.sin(i*Math.PI/36)}))}],{cutDepth:0.1}).ops[0].passes[0].path.every(p=>near(p.z,-0.1)));
+  // fluting: ramps in and out
+  const fl=CAM.flutingOp([{closed:false,pts:[{x:0,y:0},{x:10,y:0}]}],{cutDepth:0.2,rampLen:2,ramp:'both'});
+  const fp=fl.ops[0].passes[0].path, zAt=x=>fp.reduce((b,p)=>Math.abs(p.x-x)<Math.abs(b.x-x)?p:b).z;
+  ok('fluting: starts and ends at the surface', near(fp[0].z,0)&&near(fp[fp.length-1].z,0));
+  ok('fluting: halfway up the ramp = half depth', near(zAt(1),-0.1,1e-9) && near(zAt(9),-0.1,1e-9));
+  ok('fluting: full depth between the ramps', near(zAt(5),-0.2));
+  const fs=CAM.flutingOp([{closed:false,pts:[{x:0,y:0},{x:10,y:0}]}],{cutDepth:0.2,rampLen:2,ramp:'start',smooth:true}).ops[0].passes[0].path;
+  ok('fluting: smooth ramp is gentler at the start', fs.find(p=>near(p.x,0.5,0.03)).z>-0.2*0.25*0.7 && near(fs[fs.length-1].z,-0.2));
+  ok('fluting: ramp too long is shortened', near(CAM.flutingOp([{closed:false,pts:[{x:0,y:0},{x:2,y:0}]}],{cutDepth:0.2,rampLen:5}).ops[0].passes[0].path.find(p=>near(p.x,1,0.03)).z,-0.2,1e-6));
+  ok('fluting: ball tool profile', fl.ops[0].toolProfile.type==='ball');
+  // prism: ridge at the surface, edges deepest
+  const pr=CAM.prismOp([{closed:true,pts:[{x:0,y:0},{x:4,y:0},{x:4,y:1},{x:0,y:1}]}],{bitAngle:90,step:0.02,toolDia:1.5});
+  const zs=pr.ops[0].passes.map(p=>p.z);
+  ok('prism: deepest at the edge = R/tan(45°)', near(pr.depth,0.5,0.01), pr.depth);
+  ok('prism: cut ridge-first (shallow to deep)', zs.every((z,i)=>i===0||z<=zs[i-1]+1e-12));
+  ok('prism: shallowest ring near the surface', zs[0]>-0.03);
+  ok('prism: keeps its order through orderPasses', CAM.orderPasses({ops:pr.ops}).ops[0].passes[0]===pr.ops[0].passes[0]);
+  const two=CAM.prismOp([{closed:true,pts:[{x:0,y:0},{x:4,y:0},{x:4,y:1},{x:0,y:1}]},{closed:true,pts:[{x:0,y:3},{x:4,y:3},{x:4,y:5},{x:0,y:5}]}],{step:0.02,toolDia:3});
+  ok('prism: each piece uses its own width', near(two.depth,1,0.01) && two.ops[0].passes.some(p=>p.path.every(q=>q.y<1.01)&&near(p.z,-0.5,0.02)));
+  ok('prism: maxDepth caps the edge', near(CAM.prismOp([sq],{maxDepth:0.3,step:0.05,toolDia:2}).depth,0.3));
+  // moulding: a cove profile swept along a rail
+  const rail={closed:false,pts:[{x:0,y:10},{x:20,y:10}]};
+  const cove={closed:false,pts:Array.from({length:41},(_,i)=>{ const a=Math.PI*i/40; return {x:50+Math.cos(Math.PI-a),y:-Math.sin(a)}; })};   // 2" wide, 1" deep half-round
+  const mo=CAM.mouldingOp([rail,cove],{toolDia:0.25,stepover:0.1});
+  ok('moulding: picks the smaller vector as the profile', mo.profileIndex===1 && near(mo.width,2,1e-9));
+  ok('moulding: depth of the cove', near(mo.depth,1,0.02), mo.depth);
+  const ys=mo.ops[0].passes.map(p=>p.path[0].y);
+  ok('moulding: passes spread across the profile width about the rail', Math.min(...ys)<9.1 && Math.max(...ys)>10.9);
+  const centre=mo.ops[0].passes.reduce((b,p)=>Math.abs(p.path[0].y-10)<Math.abs(b.path[0].y-10)?p:b);
+  ok('moulding: deepest on the rail for a centred cove', near(centre.z,-1,0.02));
+  const edge=mo.ops[0].passes.reduce((b,p)=>Math.abs(p.path[0].y-10)>Math.abs(b.path[0].y-10)?p:b);
+  ok('moulding: ball compensation keeps the edge pass shallower than the profile under the tip', edge.z>-1 && edge.z<0);
+  ok('moulding: left align puts the rail on the profile edge', CAM.mouldingOp([rail,cove],{toolDia:0.25,stepover:0.2,align:'left'}).ops[0].passes.every(p=>p.path[0].y>=10-1e-6));
+  ok('moulding: needs two vectors', CAM.mouldingOp([rail],{}).warnings.length===1);
+  // 3D passes run through the G-code sim parser cleanly
+  const S=require('./gcodesim.js'); const pp=S.parseGcode(CAM.postProcess({name:'f',units:'inch',ops:fl.ops},CAM.POSTS.shopsabre));
+  ok('fluting G-code: plunge ramps are cuts, depth reaches -0.2', pp.bounds.z0<=-0.2+1e-6 && pp.n>50);
+})();
+
+// ---- merge toolpaths + metric posts ----
+(function(){
+  const sq={closed:true,pts:[{x:0,y:0},{x:4,y:0},{x:4,y:2},{x:0,y:2}]}, sq2={closed:true,pts:[{x:6,y:0},{x:8,y:0},{x:8,y:2},{x:6,y:2}]};
+  const a=CAM.profileOp([sq],{toolNum:1,toolDia:0.25,cutDepth:0.25,passDepth:0.25,feed:100,plunge:20}).ops[0];
+  const b=CAM.profileOp([sq2],{toolNum:1,toolDia:0.25,cutDepth:0.25,passDepth:0.25,feed:60,plunge:10}).ops[0];
+  const c=CAM.drillOp([sq],{toolNum:5,cutDepth:0.3}).ops[0];
+  const m=CAM.mergeOps([a,b,c]);
+  ok('merge: one op per tool', m.length===2 && m[0].toolNum===1 && m[0].passes.length===2 && m[1].toolNum===5);
+  const g=CAM.postProcess({name:'m',units:'inch',ops:[m[0]]},CAM.POSTS.shopsabre);
+  ok('merge: one tool block for the merged pair', (g.match(/^T1$/gm)||[]).length===1);
+  ok('merge: each part keeps its own feeds', /F100\.0/.test(g) && /F60\.0/.test(g) && /F20\.0/.test(g) && /F10\.0/.test(g));
+  // metric twin: same geometry ×25.4, G21, metric feeds; parses back to the inch program
+  const gi=CAM.postProcess({name:'i',units:'inch',ops:[a]},CAM.POSTS.shopsabre), gm=CAM.postProcess({name:'m',units:'inch',ops:[a]},CAM.POSTS.shopsabre_mm);
+  ok('metric post: G21 + scaled moves + safe Z in mm', /^G21$/m.test(gm) && /^Z50\.800$/m.test(gm) && /X104\.775/.test(gm) && /F2540\.0/.test(gm), gm.split('\r\n').slice(0,16).join('|'));
+  ok('inch post unchanged by the metric twin', !/G21/.test(gi) && /^Z2$/m.test(gi));
+  const S=require('./gcodesim.js'), pi=S.parseGcode(gi), pm=S.parseGcode(gm);
+  let d=0; for(let i=0;i<Math.min(pi.n,pm.n);i++) d=Math.max(d,Math.abs(pi.x1[i]-pm.x1[i]),Math.abs(pi.y1[i]-pm.y1[i]),Math.abs(pi.z1[i]-pm.z1[i]));
+  ok('metric program plays back as the same inch moves', pm.metric && pi.n===pm.n && d<0.0005, pi.n+'/'+pm.n+' d='+d);
+  ok('metric feeds read back in in/min', Math.abs(pm.feed[pm.n-1]-pi.feed[pi.n-1])<0.01);
+  const gg=CAM.postProcess({name:'g',units:'inch',ops:[a]},CAM.POSTS.generic_mm);
+  ok('generic metric post: G21 not G20', /^G21$/m.test(gg) && !/^G20$/m.test(gg));
+})();
+
 // ---- on-the-line cut of a CLOSED vector must cut its closing edge (Fish 36x24 engrave gap) ----
 (function(){
   const sq=CAM.assembleContours([{closed:true,pts:[{x:0,y:0},{x:1,y:0},{x:1,y:1},{x:0,y:1},{x:0,y:0}]}]);
@@ -767,6 +853,70 @@ console.log('\n(post-pp assertions added)');
   ok('on-line closed + tabs: path returns to its start', pt[pt.length-1].x===pt[0].x && pt[pt.length-1].y===pt[0].y);
   const op=CAM.profileOp(CAM.assembleContours([{closed:false,pts:[{x:0,y:0},{x:1,y:0},{x:1,y:1}]}]),{side:'on',toolDia:0.125,cutDepth:0.1,passDepth:0.1}).ops[0].passes[0].path;
   ok('on-line open: path unchanged', op.length===3);
+})();
+
+// ---- G-code safety: rapids clear the stock top, units are explicit, bad speeds are refused ----
+(function(){
+  const rect=(x,y,w,h)=>CAM.assembleContours([{closed:true,pts:[{x,y},{x:x+w,y},{x:x+w,y:y+h},{x,y:y+h}]}]);
+  const T={feed:100,plunge:30,rpm:18000};
+  // every test job, built for a given stock top (Z zero on the table => topZ = stock thickness)
+  const jobs=topZ=>{ const o=Object.assign({topZ},T);
+    return {
+      profileTabs: CAM.profileOp(rect(0,0,4,3),Object.assign({side:'outside',toolNum:1,toolDia:0.25,cutDepth:0.5,passDepth:0.25,tabs:{count:2,length:0.4,height:0.1}},o)).ops,
+      profileRamp: CAM.profileOp(rect(0,0,4,3),Object.assign({side:'outside',toolNum:1,toolDia:0.25,cutDepth:0.5,passDepth:0.25,leadType:'arc',leadLen:0.25,rampLen:0.3},o)).ops,
+      pocket: CAM.pocketOp(rect(1,1,2,1),Object.assign({toolNum:2,toolDia:0.25,cutDepth:0.3,passDepth:0.15,rampEntry:true},o)).ops,
+      drill: CAM.drillOp(rect(1,1,0.1,0.1),Object.assign({toolNum:5,cutDepth:0.4,peck:0.1},o)).ops,
+      vcarve: CAM.vcarveOp(rect(0,0,2,1),Object.assign({toolNum:3,bitAngle:90,maxDepth:0.2,step:0.05},o)).ops,
+      engrave: CAM.quickEngraveOp(rect(0,0,2,1),Object.assign({toolNum:3,cutDepth:0.06},o)).ops,
+      // male plug sunk 0.5" below the surface: deeper than the 0.25" clearance
+      inlayMale: CAM.inlayOp(rect(0,0,2,1),Object.assign({style:'pocket',part:'male',toolNum:1,toolDia:0.125,pocketDepth:0.2,maleDepth:0.2,startDepth:0.5,passDepth:0.1},o)).ops,
+      clear08: CAM.profileOp(rect(0,0,4,3),Object.assign({side:'outside',toolNum:1,toolDia:0.25,cutDepth:0.25,passDepth:0.25},o)).ops.map(op=>Object.assign(op,{clearZ:0.8})) }; };
+  // lowest Z the machine ever sits at during a rapid (G0 lines and WinCNC's bare 'Zn' lines), in inches
+  const minRapidZ=(g,k)=>{ let z=null, lo=Infinity;
+    for(const raw of g.split(/\r?\n/)){ const ln=raw.trim().toUpperCase(); const zm=ln.match(/Z(-?[\d.]+)/); if(zm) z=+zm[1]/k;
+      if(/^G0\b/.test(ln)||/^Z-?[\d.]+$/.test(ln)) lo=Math.min(lo,z==null?Infinity:z); }
+    return lo; };
+  const posts=[['shopsabre',1],['shopsabre_mm',25.4],['generic',1],['generic_mm',25.4]];
+  for(const topZ of [0,1.5,3]){ const J=jobs(topZ);
+    for(const [name,ops] of Object.entries(J)) for(const [pn,k] of posts){
+      const g=CAM.postProcess({name,units:'inch',ops},CAM.POSTS[pn]);
+      const clr=ops.reduce((m,op)=>Math.min(m,op.clearZ!=null?op.clearZ:0.25),Infinity);
+      const lo=minRapidZ(g,k);
+      ok(`safety: every G0 Z >= topZ+clearance (${name}, topZ ${topZ}, ${pn})`, lo>=topZ+clr-1e-3, `lowest rapid Z ${lo}`); } }
+  // topZ=0 stays byte-identical: rapids at Z0.2500, Z2 tool block, Z2.0000 park
+  const g0=CAM.postProcess({name:'p',units:'inch',ops:jobs(0).profileTabs},CAM.POSTS.shopsabre);
+  ok('safety: topZ 0 rapids stay at Z0.2500', /G0 X\S+ Y\S+ Z0\.2500\r\n/.test(g0) && /^Z2$/m.test(g0) && /G0 Z2\.0000\r\n/.test(g0));
+  // tall stock: tool block and park Z rise above the stock too
+  const g3=CAM.postProcess({name:'p',units:'inch',ops:jobs(3).profileTabs},CAM.POSTS.shopsabre);
+  ok('safety: topZ 3 raises tool-block and park Z to 3.25', /^Z3\.2500$/m.test(g3) && /G0 Z3\.2500\r\nG0 X0\.0000 Y115\.0000/.test(g3) && !/^Z2$/m.test(g3));
+  // units are explicit on every post
+  const one=jobs(0).profileTabs;
+  ok('safety: inch ShopSabre post sets G20', /^G20$/m.test(CAM.postProcess({name:'u',units:'inch',ops:one},CAM.POSTS.shopsabre)));
+  ok('safety: mm ShopSabre post sets G21, not G20', (g=>/^G21$/m.test(g)&&!/^G20$/m.test(g))(CAM.postProcess({name:'u',units:'inch',ops:one},CAM.POSTS.shopsabre_mm)));
+  // feeds / plunge / rpm are validated: refused with a message naming the problem
+  const refuse=(patch,re)=>{ const ops=jobs(0).profileTabs.map(op=>Object.assign({},op,patch));
+    try{ CAM.postProcess({name:'v',units:'inch',ops},CAM.POSTS.shopsabre); return false; }catch(e){ return re.test(e.message) && /Not posted/.test(e.message); } };
+  ok('validate: negative feed refused', refuse({feed:-100},/feed rate -100/));
+  ok('validate: zero feed refused', refuse({feed:0},/feed rate 0 must/));
+  ok('validate: NaN plunge refused', refuse({plunge:NaN},/plunge rate NaN/));
+  ok('validate: plunge faster than feed refused', refuse({feed:50,plunge:80},/plunge rate 80 is faster than the feed rate 50/));
+  ok('validate: zero rpm refused', refuse({rpm:0},/spindle speed 0/));
+  ok('validate: rpm over limit refused', refuse({rpm:60000},/over the 24000 rpm limit/));
+  ok('validate: feed over limit refused', refuse({feed:5000},/over the 1000 in\/min limit/));
+  ok('validate: negative safe Z refused', refuse({clearZ:-0.1},/safe Z -0\.1/));
+  ok('validate: plunge == feed allowed', !refuse({feed:30,plunge:30},/./));
+  ok('validate: checkJob lists every problem', CAM.checkJob({ops:[Object.assign({},one[0],{feed:-1,rpm:0})]},CAM.POSTS.shopsabre).length===2);
+  // a merged part's own feeds are checked too
+  ok('validate: merged pass with bad plunge refused', (()=>{ const op=Object.assign({},one[0]); op.passes=op.passes.map((p,i)=>i?Object.assign({},p,{feed:100,plunge:-5}):p);
+    try{ CAM.postProcess({name:'m',units:'inch',ops:[op]},CAM.POSTS.shopsabre); return false; }catch(e){ return /plunge rate -5/.test(e.message); } })());
+  // merging toolpaths on one tool at different rpm: higher rpm wins, and it is logged
+  const a=Object.assign({},one[0],{rpm:16000}), b=Object.assign({},one[0],{rpm:18000});
+  const warn=console.warn, logged=[]; console.warn=m=>logged.push(m);
+  const m=CAM.mergeOps([a,b]); console.warn=warn;
+  ok('merge: different rpm on one tool runs at the higher rpm', m.length===1 && m[0].rpm===18000);
+  ok('merge: rpm change is logged', logged.length===1 && /16000 and 18000 rpm/.test(logged[0]) && m[0].notes && m[0].notes.length===1, JSON.stringify(logged));
+  const same=CAM.mergeOps([Object.assign({},one[0]),Object.assign({},one[0])]);
+  ok('merge: same rpm adds no note', !same[0].notes);
 })();
 
 console.log(`\n${pass} passed, ${fail} failed`);

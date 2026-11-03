@@ -111,6 +111,11 @@ function opResult(CAM, p, contours) {
     : (p.op === 'drill') ? CAM.drillOp(contours, p)
     : (p.op === 'vcarve') ? CAM.vcarveOp(contours, Object.assign({}, p, { maxDepth: p.cutDepth, step: p.vstep }))
     : (p.op === 'inlay') ? CAM.inlayOp(contours, Object.assign({}, p, { step: p.vstep }))
+    : (p.op === 'chamfer') ? CAM.chamferOp(contours, Object.assign({}, p, { width: p.chWidth, offset: p.chOffset, cutDepth: 0 }))
+    : (p.op === 'engrave') ? CAM.quickEngraveOp(contours, Object.assign({}, p, { sharpAngle: p.qeSharp }))
+    : (p.op === 'fluting') ? CAM.flutingOp(contours, Object.assign({}, p, { ramp: p.flRamp, rampLen: p.flRampLen, smooth: p.flSmooth }))
+    : (p.op === 'prism') ? CAM.prismOp(contours, Object.assign({}, p, { maxDepth: p.prMax, step: p.vstep }))
+    : (p.op === 'moulding') ? CAM.mouldingOp(contours, Object.assign({}, p, { align: p.moAlign, stepover: p.moStep }))
     : CAM.profileOp(contours, p);
   for (const op of res.ops) op.clearZ = p.clearZ;
   if (p.op === 'pocket' && res.ops.length) {
