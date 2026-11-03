@@ -286,7 +286,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
     <div class="menu" data-menu="file">File<div class="mdrop">
       <button data-act="new">New</button><button data-act="open">Open / Import…<span class="k">Ctrl+O</span></button><div class="msep"></div>
       <button data-act="save">Save<span class="k">Ctrl+S</span></button><button data-act="saveas">Save As…<span class="k">Ctrl+Shift+S</span></button><div class="msep"></div>
-      <button data-act="expdxf">Export DXF</button><button data-act="expsvg">Export SVG</button>
+      <button data-act="expdxf">Export DXF</button><button data-act="expdxfsplit">Export DXF (split inside/outside)</button><button data-act="expsvg">Export SVG</button>
       <div class="msep"></div><button data-act="asmopen">Open Assembly (JSON + DXFs)…</button><button data-act="asmfolder">Open Assembly Folder…</button><button data-act="asmsave">Save Assembly JSON</button><div class="msep"></div><button data-act="trace">Import Bitmap / Trace…</button></div></div>
     <div class="menu" data-menu="edit">Edit<div class="mdrop">
       <button data-act="undo">Undo<span class="k">Ctrl+Z</span></button><button data-act="redo">Redo<span class="k">Ctrl+Y</span></button><div class="msep"></div>
@@ -471,6 +471,7 @@ body.dark ::-webkit-scrollbar{width:10px;height:10px}body.dark ::-webkit-scrollb
           <div class="grp">Clearances</div>
           <label data-tip="Edge keep-out margin inside the sheet border">Margin&quot;<input type="number" id="nestMargin" value="0" step="0.125" min="0" style="width:56px"></label>
           <label data-tip="Gap between packed parts (kerf + handling)">Gap&quot;<input type="number" id="nestSpacing" value="0.125" step="0.0625" min="0" style="width:56px"></label>
+          <label data-tip="Stock to nest onto">Stock <select id="nestStock"><option value="sheet">Job sheet (W x H above)</option><option value="b96">HDPE 96in boards</option><option value="b48">HDPE 48in boards (48.25 worst case)</option><option value="mix">HDPE 48in + 96in mix</option></select></label>
           <label data-tip="Allow each part to rotate 90&#176; when it fits better landscape"><input type="checkbox" id="nestRotate" checked>Allow 90&#176; rotation</label>
         </div><div class="formfoot"><button class="tb" data-formclose="1">Close</button><button class="tb primary" id="btnNest">Nest</button></div></div>
 
