@@ -38,13 +38,19 @@ function doOne(f, E) {
   const tA = Object.keys(A).sort().join(), tB = Object.keys(B).sort().join(); let worst = 0, zBad = 0;
   for (const t of Object.keys(A)) if (B[t]) { for (let i = 0; i < 4; i++) worst = Math.max(worst, Math.abs(A[t][i] - B[t][i])); if (Math.abs(A[t][4] - B[t][4]) > 0.01) zBad = Math.max(zBad, Math.abs(A[t][4] - B[t][4])); }
   const toolsMatch = tA === tB, ok = toolsMatch && worst <= 0.06 && !zBad;
-  return { file: f, status: ok ? 'match' : (loss.length ? 'reported-loss' : 'MISMATCH'), toolsMatch, worst: +worst.toFixed(4), zBad: +zBad.toFixed(4), tA, tB, loss, ops: tr.ops.length };
+  // A posted .tap often holds only some of the job's toolpaths, or was posted before the job changed. Separate "the Vectric cuts all
+  // fall inside what we imported" (a partial .tap, not an error) from a real disagreement.
+  const contains = (X, Y) => X && Y && Y[0] >= X[0] - 0.06 && Y[1] >= X[1] - 0.06 && Y[2] <= X[2] + 0.06 && Y[3] <= X[3] + 0.06;
+  const oursCoversTap = Object.keys(B).every(t => contains(A[t], B[t]));
+  const tapCoversOurs = Object.keys(A).every(t => contains(B[t], A[t]));
+  const zOk = Object.keys(A).every(t => !B[t] || Math.abs(A[t][4] - B[t][4]) <= 0.01);
+  return { file: f, status: ok ? 'match' : (loss.length ? 'reported-loss' : 'MISMATCH'), toolsMatch, worst: +worst.toFixed(4), zBad: +zBad.toFixed(4), tA, tB, loss, ops: tr.ops.length, oursCoversTap, tapCoversOurs, zOk };
 }
 if (process.argv[2] === '--worker') { const E = load(); process.on('message', ({ i, f }) => { let r; try { r = doOne(f, E); } catch (e) { r = { file: f, status: 'error', msg: e.message.slice(0, 160) }; } process.send({ i, r }); }); process.send({ ready: true }); return; }
 function walk(root, out) { let e; try { e = fs.readdirSync(root, { withFileTypes: true }); } catch (x) { return; } for (const d of e) { if (d.name.startsWith('.')) continue; const p = path.join(root, d.name); if (d.isDirectory()) walk(p, out); else if (/\.crv3?d?$/i.test(d.name)) out.push(p); } }
 const av = process.argv.slice(2); let outDir = null, root = null;
 for (let i = 0; i < av.length; i++) { if (av[i] === '--out') outDir = av[++i]; else root = av[i]; }
-const files = []; walk(path.resolve(root), files); files.sort(); fs.mkdirSync(outDir, { recursive: true });
+const files = []; if (process.env.CRVT_ONLY) files.push(...JSON.parse(fs.readFileSync(process.env.CRVT_ONLY, 'utf8'))); else walk(path.resolve(root), files); files.sort(); fs.mkdirSync(outDir, { recursive: true });
 const rows = new Array(files.length); let next = 0, done = 0;
 const finish = () => { const S = {}, mis = []; for (const r of rows) { const k = r.skip ? 'skip:' + r.skip : r.status; S[k] = (S[k] || 0) + 1; if (r.status === 'MISMATCH') mis.push(r); }
   mis.sort((a, b) => b.worst - a.worst);

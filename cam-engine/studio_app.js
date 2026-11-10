@@ -1317,7 +1317,7 @@ function importCRV(name, buf, opts){
   if(res.toolpathData&&typeof CRVTP!=='undefined'){ const openG=layers.flatMap(L=>(L.contours||[]).filter(c=>!c.closed&&c.guid).map(c=>c.guid));
     const tr=CRVTP.toStudioOps(res.toolpathData,{guids:[...byGuid.keys()],openGuids:openG,safeZ:res.safeZ});
     for(const o of tr.ops){ const ids=o.guids.flatMap(g=>byGuid.get(g)||[]); const nq=normalizeOp({p:o.p,ids,name:o.name,label:'',visible:true}); opsQueue.push(nq); tpN++; }
-    items.push(...tr.report); if(tpN) buildQueueList(); }
+    items.push(...tr.report); if(tpN){ buildQueueList(); items.push({code:'TOOLPATHS_REBUILT',level:'warn',msg:'The '+tpN+' imported toolpath(s) were rebuilt by this app from the settings in the file, not copied from VCarve. Compare the backplot with the job before you cut.',count:tpN}); } }
   else if(res.toolpathData===null&&typeof CRVTP==='undefined') items.push({code:'TOOLPATHS_NOT_IMPORTED',level:'loss',msg:'This build cannot read saved toolpaths.',count:1});
   items.push({code:'ORIGINAL_UNCHANGED',level:'info',msg:'The original '+name+' is unchanged. Saving writes an .aqcam (or Export DXF / Save Toolpaths for .tap); this app cannot write .crv or .crv3d files.',count:1});
   fitAll(); syncPanels(); render();
