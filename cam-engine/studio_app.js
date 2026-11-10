@@ -424,7 +424,7 @@ const MENU_ACTIONS={
   'cut':()=>opCut(), 'copy':()=>opCopy(), 'paste':()=>opPaste(),
   'check':()=>document.getElementById('btnCheckVec').click(),
   'recalc':()=>recalcAll(), 'post':()=>postJob(),
-  'v2d':()=>setView('2d'), 'v3d':()=>setView('preview'),
+  'v2d':()=>setView('2d'), 'v3d':()=>openCncEngine(), 'vsim':()=>setView('preview'),
   'rulers':()=>{ setRulers(!rulers); syncViewMenu(); }, 'dark':()=>{ setTheme(!darkMode); syncViewMenu(); },
   'fit':()=>fitAll(), 'fitjob':()=>fitJob(),
   'keys':()=>{document.getElementById('keysModal').style.display='block';},
@@ -1603,7 +1603,10 @@ function pbUI(){
 function openProgram(name, text, keepEditor){
   const keep=PB.file&&keepEditor;
   PB.file={ name, text, original:keep?PB.file.original:text, history:keep?PB.file.history:[], handle:keep?PB.file.handle:null, saved:keep?PB.file.saved:text }; lastGcode=text; toolpaths=toolpathSegs(text); drillMarks=null;
-  setView('preview');
+  // The program stays in the 2D backplot; the 3D View tab opens it in the engine window. The carving simulation parses it itself when it is showing.
+  if(keepEditor&&viewMode==='preview') setView('preview');
+  else { PB.prog=GCSIM.parseGcode(text,{aToY:job.type==='rotary'?Math.PI*job.diameter/360:0}); PB.name=name; setView('2d'); if(!keepEditor&&!doc.shapes.length) fitProgram(); }
+  scheduleCncPush();
   const iss=(PB.prog&&PB.prog.issues)||[];
   if(iss.length){ setMsg('Opened '+name+' · WARNING: '+iss[0].msg);
     if(!keepEditor) showFileReport(name, iss.slice(0,40).map(i=>({code:i.code,level:i.level,msg:i.msg,count:1})), {}); }
@@ -1612,6 +1615,35 @@ function openProgram(name, text, keepEditor){
 function openProgramBytes(name, buf, handle){ const r=TAPEDIT.readBytes(new Uint8Array(buf), name);
   if(!r.ok){ showFileReport(name,[{code:r.code,level:'loss',msg:r.msg,count:1}],{failed:true}); setMsg('Could not open '+name+': '+r.msg); return; }
   openProgram(name, r.text); PB.file.handle=handle||null; }
+// Zoom the 2D view to what a program cuts, when no drawing is open to fit to.
+function fitProgram(){ const b=PB.prog&&PB.prog.bounds; if(!b||!(b.cutX0<=b.cutX1)) return; const pad=0.5, w=b.cutX1-b.cutX0+2*pad, h=b.cutY1-b.cutY0+2*pad;
+  view.ppi=Math.min(cv.width/w, cv.height/h); view.ox=cv.width/2-(b.cutX0+b.cutX1)/2*view.ppi; view.oy=cv.height/2+(b.cutY0+b.cutY1)/2*view.ppi; render(); }
+// ---- the 3D engine window (cncengine.js) ----
+let cncWin=null, cncTimer=null;
+function cncOpen(){ return !!cncWin&&!cncWin.closed; }
+function cncPayload(){ const table={w:SETTINGS.tableW,h:SETTINGS.tableH}, aToY=job.type==='rotary'?Math.PI*job.diameter/360:0;
+  if(PB.file){ const t={}; for(const n of ((PB.prog&&PB.prog.tools)||[])) t[n]=GCSIM.toolForNumber(tools,n,pbToolOverrides()); return {type:'cnc-program',name:PB.file.name,text:PB.file.text,tools:t,job:null,table,aToY}; }
+  const jp=buildJobProgram(true), name=projectFile.name.replace(/\.(aqcam|dxf)$/i,'');
+  if(!jp.g) return {type:'cnc-program',name,text:'',empty:jp.refused?('No program: '+jp.refused):'No toolpaths yet. Add a toolpath, or open a .tap file.',table};
+  const r=jobRect(); return {type:'cnc-program',name,text:jp.g,tools:jp.tools,job:{x0:r.x0,y0:r.y0,x1:r.x1,y1:r.y1,thickness:job.thickness},table,aToY}; }
+function cncPush(){ if(cncOpen()) cncWin.postMessage(cncPayload(),'*'); }
+function scheduleCncPush(){ if(!cncOpen()) return; clearTimeout(cncTimer); cncTimer=setTimeout(cncPush,400); }
+function openCncEngine(){ if(cncOpen()){ cncWin.focus(); cncPush(); return; }
+  const libs=['package/aq3d-three.min.js','gcodesim.js','cncengine.js'].map(n=>{ const s=document.querySelector('script[data-lib="'+n+'"]'); return s?s.textContent:''; });
+  if(libs.some(s=>!s)){ setMsg('The 3D engine is not in this build'); return; }
+  const url=URL.createObjectURL(new Blob([CNCENGINE.page(libs)],{type:'text/html'}));
+  cncWin=window.open(url,'aqcnc3d','popup,width=1360,height=860');
+  if(!cncWin){ setMsg('The browser blocked the 3D engine window. Allow pop-ups for this page, then click 3D View again.'); return; }
+  setMsg('Opened the 3D engine window'); }
+window.addEventListener('message',e=>{ if(e.source===cncWin&&e.data&&e.data.type==='cnc-ready') cncPush(); });
+// ---- files opened from Finder through the Mac launcher (tools/mac) ----
+function launcherToken(){ const m=/[?&]open=([^&]+)/.exec(location.search||''); return m?m[1]:null; }
+// Stands in for a browser file handle, so Save writes the file back the same way as a file picked in the Open dialog.
+function launcherHandle(tok,name){ return { kind:'file', name, async createWritable(){ let body; return { async write(d){ body=d; }, async close(){ const r=await fetch('/file/'+tok,{method:'PUT',body}); if(!r.ok) throw new Error('the file could not be written: '+await r.text()); } }; } }; }
+async function openFromLauncher(){ const tok=launcherToken(); if(!tok) return;
+  try{ const r=await fetch('/file/'+tok); if(!r.ok) throw new Error(await r.text());
+    const name=decodeURIComponent(r.headers.get('X-File-Name')||'file'); handleOpenedFile(new File([await r.arrayBuffer()],name), launcherHandle(tok,name)); }
+  catch(err){ setMsg('Could not open the file: '+err.message); showFileReport('file',[{code:'OPEN_FAILED',level:'loss',msg:err.message+'. Open the file from Finder again.',count:1}],{failed:true}); } }
 // ---- G-code editor ----------------------------------------------------------------------------------------------------
 function gcNum(id){ const v=String(document.getElementById(id).value).trim(); return v===''?NaN:parseFloat(v); }
 function openGcodeEditor(){ if(!PB.file){ setMsg('Open a .tap or G-code file first (File → Open)'); return; }
@@ -1661,7 +1693,7 @@ async function gcSaveAs(){ if(!PB.file||gcTextPending())return; const base=PB.fi
   if(window.claude&&typeof window.claude.use==='function'){ download(n,PB.file.text,'text/plain'); return; }
   downloadViaLink(n,bytes,'text/plain'); setMsg('Saved '+n+' to your Downloads folder'); }
 
-function closeProgram(){ PB.file=null; toolpaths=null; if(viewMode==='preview') runSim(); else render(); setMsg('Closed the program — the 3D view shows the visible toolpaths'); }
+function closeProgram(){ PB.file=null; toolpaths=null; scheduleCncPush(); if(viewMode==='preview') runSim(); else render(); setMsg('Closed the program — the 3D view shows the visible toolpaths'); }
 // Shade the heightfield into an offscreen canvas: wood-tone depth ramp + directional hillshade for a carved look.
 function shadeHeightfield(field, r){
   const {nx,ny,z,res}=field; let maxD=1e-4; for(let i=0;i<z.length;i++){ const d=-z[i]; if(d>maxD)maxD=d; }
@@ -1700,11 +1732,12 @@ function fileSave(){ return programIsCurrent()?gcSave():saveProject(); }
 function fileSaveAs(){ return programIsCurrent()?gcSaveAs():saveProjectAs(); }
 // ---- Settings ----
 const SETTINGS_KEY='aqcam.settings';
-const SETTINGS=(function(){ const d={importUnits:'auto',strictAnchors:false}; try{ const s=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'); if(['auto','inch','mm'].indexOf(s.importUnits)>=0) d.importUnits=s.importUnits; d.strictAnchors=s.strictAnchors===true; }catch(e){} return d; })();
+const SETTINGS=(function(){ const d={importUnits:'auto',strictAnchors:false,tableW:60,tableH:120}; try{ const s=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'); if(s.tableW>0) d.tableW=+s.tableW; if(s.tableH>0) d.tableH=+s.tableH; if(['auto','inch','mm'].indexOf(s.importUnits)>=0) d.importUnits=s.importUnits; d.strictAnchors=s.strictAnchors===true; }catch(e){} return d; })();
 function persistSettings(){ try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(SETTINGS)); }catch(e){} }
-function openSettings(){ closeMenus(); const g=id=>document.getElementById(id); g('setDisplayUnits').value=job.units==='mm'?'mm':'in'; g('setImportUnits').value=SETTINGS.importUnits; g('setStrictAnchors').checked=SETTINGS.strictAnchors; g('settingsModal').style.display='block'; }
+function openSettings(){ closeMenus(); const g=id=>document.getElementById(id); g('setDisplayUnits').value=job.units==='mm'?'mm':'in'; g('setImportUnits').value=SETTINGS.importUnits; g('setStrictAnchors').checked=SETTINGS.strictAnchors; g('setTableW').value=SETTINGS.tableW; g('setTableH').value=SETTINGS.tableH; g('settingsModal').style.display='block'; }
 function wireSettings(){ const g=id=>document.getElementById(id), close=()=>{ g('settingsModal').style.display='none'; }; g('settingsX').onclick=close; g('settingsOk').onclick=close;
   g('setDisplayUnits').onchange=e=>setUnits(e.target.value);
+  const tbl=(key,id)=>{ g(id).onchange=e=>{ const v=parseFloat(e.target.value); if(!(v>0)){ e.target.value=SETTINGS[key]; return; } SETTINGS[key]=v; persistSettings(); scheduleCncPush(); }; }; tbl('tableW','setTableW'); tbl('tableH','setTableH');
   g('setImportUnits').onchange=e=>{ SETTINGS.importUnits=e.target.value; persistSettings(); setMsg('Units of opened files: '+e.target.selectedOptions[0].textContent+'. Applies to the next file you open.'); };
   g('setStrictAnchors').onchange=e=>{ SETTINGS.strictAnchors=e.target.checked; persistSettings(); setMsg('Anchor check '+(e.target.checked?'on':'off')+'. Applies to the next file you open.'); }; }
 function setProjectName(name){ if(name) projectFile.name=name; document.title=projectFile.name.replace(/\.aqcam$/i,'')+' — Aquamentor CAD/CAM'; }
@@ -1910,7 +1943,7 @@ function moveOp(i,dir){ const j=i+dir; if(j<0||j>=opsQueue.length)return; pushHi
   if(editingIdx===i)editingIdx=j; else if(editingIdx===j)editingIdx=i; buildQueueList(); }
 function renameOp(i){ const q=opsQueue[i]; if(!q)return; const n=prompt('Toolpath name:', q.name||q.label||'Toolpath'); if(n==null)return; pushHistory(); q.name=n.trim()||q.name; buildQueueList(); }
 function editOp(i){ const q=opsQueue[i]; if(!q)return; if(q.parts){ setMsg('"'+q.name+'" is merged — Unmerge it to edit its parts'); return; } applyParamsToPanel(q.p); openCamForm(q.p&&q.p.op); sel=new Set(q.ids); editingIdx=i; buildQueueList(); render(); setMsg('Editing "'+(q.name||q.label)+'" — adjust settings, then click ✓ Update'); }
-function buildQueueList(){ const el=document.getElementById('opsQueue'); if(!el)return; el.innerHTML=''; refreshAddBtn();
+function buildQueueList(){ scheduleCncPush(); const el=document.getElementById('opsQueue'); if(!el)return; el.innerHTML=''; refreshAddBtn();
   if(!opsQueue.length){ el.innerHTML='<div class="muted" style="font-size:10px">No toolpaths yet — set an Op + selection, then "+ Toolpath".</div>'; return; }
   for(const q of [...qPick]) if(opsQueue.indexOf(q)<0) qPick.delete(q);
   opsQueue.forEach((q,i)=>{ if(!onWorkSide(q)) return; const row=document.createElement('div'); row.className='qrow'+(i===editingIdx?' editing':'')+(qPick.has(q)?' picked':'')+(q.parts?' merged':'');
@@ -2575,7 +2608,7 @@ function initToolGroups(){
 // ---- wire UI ----
 function wire(){
   document.querySelectorAll('.tool').forEach(b=>b.onclick=()=>setTool(b.dataset.tool));
-  document.querySelectorAll('.vtab').forEach(b=>b.onclick=()=>setView(b.dataset.view));
+  document.querySelectorAll('.vtab').forEach(b=>b.onclick=()=>{ if(b.dataset.view==='preview') openCncEngine(); else setView(b.dataset.view); });
   initToolGroups();
   const simSolid=document.getElementById('simSolid'), simRes=document.getElementById('simRes');
   if(simSolid)simSolid.onchange=()=>{ if(viewMode==='preview') setView('preview'); };
@@ -2716,6 +2749,7 @@ function wire(){
 }
 // Non-blocking restore prompt: show an in-canvas banner (never a native confirm that blocks page load).
 function offerRestore(){
+  if(launcherToken()) return;   // this window was opened for one file
   let saved; try{ saved=localStorage.getItem(AUTOSAVE_KEY); }catch(e){ return; }
   if(!saved)return;
   let proj; try{ proj=CADCORE.projectFromJSON(saved); }catch(e){ return; }
@@ -2745,8 +2779,9 @@ function initTips(){ const tip=document.getElementById('tip'); if(!tip) return; 
     cur=el; timer=setTimeout(()=>{ if(cur===el) place(el); }, 350); });
   document.addEventListener('mouseout', e=>{ const el=e.target.closest&&e.target.closest('[data-tip]'); if(el&&el===cur&&!(e.relatedTarget&&el.contains(e.relatedTarget))) hide(); });
   document.addEventListener('mousedown', hide, true); window.addEventListener('scroll', hide, true); window.addEventListener('blur', hide); }
+window.addEventListener('load',()=>openFromLauncher());
 wire(); initCalcFields(); setUnits((function(){ try{ return localStorage.getItem('aqcam.units'); }catch(e){ return null; } })()||'in', true); initTips(); resize(); setTool('select'); syncPanels(); render();
 window.AQ_STUDIO = { doc, get sel(){return sel;}, get view(){return viewMode;}, CADCORE, CAM, importText, importPDF, openProject, saveProject, saveProjectAs, projectJSON, setView, camBuild, setTool, addShapes, render,
   opCopy, opCut, opPaste, get clip(){return clip;}, createFromForm, openShapeModal, applyShapeModal, closeShapeModal, setModalAnchor, setRotAnchor, get anchor(){return modalAnchor;}, get rotAnchor(){return rotAnchor;},
   openRotateModal, applyRotateModal, addLayer, moveSelToLayer, get grid(){return grid;}, selectedShapes, get projectFile(){return projectFile;},
-  get v3(){return v3;}, get playback(){return PB;}, pbSet, pbPlay, pbPause, openProgram, closeProgram, buildJobProgram, setTheme, setRulers, get darkMode(){return darkMode;}, get rulers(){return rulers;}, v3Preset, get simField(){return simField;}, openHelpSearch, helpSearchRun, showForm, runSim, recalcAll, get opsQueue(){return opsQueue;} };
+  get v3(){return v3;}, get playback(){return PB;}, pbSet, pbPlay, pbPause, openProgram, closeProgram, openCncEngine, get cncWin(){return cncWin;}, buildJobProgram, setTheme, setRulers, get darkMode(){return darkMode;}, get rulers(){return rulers;}, v3Preset, get simField(){return simField;}, openHelpSearch, helpSearchRun, showForm, runSim, recalcAll, get opsQueue(){return opsQueue;} };

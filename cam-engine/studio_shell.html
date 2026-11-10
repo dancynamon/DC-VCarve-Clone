@@ -336,7 +336,7 @@ body.dark .qrow.picked{background:#3a2a1c}
       <button data-act="op:inlay">Inlay Toolpath…</button><button data-act="op:chamfer">Chamfer Toolpath…</button><button data-act="op:engrave">Quick Engrave…</button><button data-act="op:fluting">Fluting Toolpath…</button><button data-act="op:prism">Prism Carving…</button><button data-act="op:moulding">Moulding Toolpath…</button><div class="msep"></div>
       <button data-act="recalc">Preview Visible Toolpaths</button><button data-act="post">Save Toolpaths…</button></div></div>
     <div class="menu" data-menu="view">View<div class="mdrop">
-      <button data-act="v2d">2D View</button><button data-act="v3d">3D View</button><button data-act="vasm">2D + 3D Assembly</button><div class="msep"></div>
+      <button data-act="v2d">2D View</button><button data-act="v3d">3D View</button><button data-act="vsim">Carving Simulation</button><button data-act="vasm">2D + 3D Assembly</button><div class="msep"></div>
       <button data-act="fit">Zoom to Fit</button><button data-act="fitjob">Zoom to Job</button><div class="msep"></div>
       <button data-act="rulers"><span class="chk">✓</span>Rulers</button><button data-act="dark"><span class="chk"></span>Dark Mode</button></div></div>
     <div class="menu" data-menu="settings">Settings<div class="mdrop"><button data-act="settings">Units and File Import…</button></div></div>
@@ -546,7 +546,7 @@ body.dark .qrow.picked{background:#3a2a1c}
     </div>
   </div>
 
-<div class="stage"><div class="viewtabs"><button class="vtab active" data-view="2d" data-tip="Edit vectors">2D View</button><button class="vtab" data-view="preview" data-tip="Machining preview of all visible toolpaths">3D View</button><button class="vtab" data-view="asm" data-tip="2D sheet editor + live 3D assembly of every part, side by side">2D + 3D Assembly</button></div>
+<div class="stage"><div class="viewtabs"><button class="vtab active" data-view="2d" data-tip="Edit vectors">2D View</button><button class="vtab" data-view="preview" data-tip="Open the toolpaths on the CNC table in the 3D engine window">3D View</button><button class="vtab" data-view="asm" data-tip="2D sheet editor + live 3D assembly of every part, side by side">2D + 3D Assembly</button></div>
     <div class="simctrl" id="simCtrl"><button class="tb" id="simTop" data-tip="Straight-down view (matches 2D)">Top</button><button class="tb" id="simIso" data-tip="3/4 view">Iso</button><button class="tb" id="simFront" data-tip="Low front view">Front</button><span class="sep"></span><label data-tip="Left-drag = pan &#183; Option/Alt-drag (or middle / right button) = orbit &#183; wheel = zoom to cursor &#183; double-click = reframe">Drag = pan · Alt-drag = orbit · Wheel = zoom</label></div>
     <div class="restorebar" id="restoreBar"><span id="restoreMsg">Restore last session?</span><button class="tb" id="restoreYes">Restore</button><button class="tb" id="restoreNo">Dismiss</button></div>
     <canvas id="cv"></canvas><canvas id="gl"></canvas><canvas id="hud"></canvas><div class="glhint" id="glHint">drag to pan · Option/Alt-drag (or middle / right button) to orbit · wheel to zoom · double-click to reset</div>
@@ -723,6 +723,8 @@ body.dark .qrow.picked{background:#3a2a1c}
       <div class="gcrow gcnote">How lengths are shown and typed. The drawing is not rescaled.</div>
       <div class="gcrow"><b style="min-width:150px">Units of opened files</b><select id="setImportUnits"><option value="auto">Automatic (read from the file)</option><option value="inch">Always inches</option><option value="mm">Always millimetres</option></select></div>
       <div class="gcrow gcnote">For .crv, .crv3d and .dxf files you open from now on. Files already open do not change. A choice that differs from the file is flagged in the import report every time. G-code keeps its own units.</div>
+      <div class="gcrow"><b style="min-width:150px">CNC table size</b><input id="setTableW" type="number" min="1" step="1" style="width:70px"> x <input id="setTableH" type="number" min="1" step="1" style="width:70px"> in</div>
+      <div class="gcrow gcnote">X by Y. The 3D engine window draws this table and flags anything that runs off it.</div>
       <label class="gcrow" style="margin-top:8px"><input type="checkbox" id="setStrictAnchors"><b>Anchor check</b></label>
       <div class="gcrow gcnote">On: refuse a Vectric file when every saved object anchor disagrees with the drawing, with an Open Anyway button. Off: open it and add a note to the report. Some good files have all their anchors out of date, so off is the default.</div>
     </div>

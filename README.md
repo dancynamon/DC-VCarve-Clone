@@ -5,7 +5,7 @@ Single self-contained HTML — no install, offline, posts G-code for ShopSabre (
 
 ## Quick start
 ```
-npm test     # 1432 checks across 19 suites
+npm test     # 1459 checks across 20 suites
 npm run build # regenerates cadcam-studio.html from cam-engine/ sources
 open cadcam-studio.html
 ```
@@ -158,6 +158,16 @@ again). A file that opens but loses something says what it lost, with counts and
 - **Settings → Units and File Import:** display units; units of opened `.crv`, `.crv3d` and `.dxf` files (automatic, always inches, always
   millimetres, flagged whenever it differs from the file); and the Vectric anchor check (off by default, on refuses a file whose saved
   anchors all disagree with its drawing, with an Open Anyway button).
+
+## Double-click and the 3D engine window
+`tools/mac/install.sh` installs **Aquamentor CADCAM.app** and makes it the Mac's default for `.tap`, `.dxf`, `.crv3d` and `.crv`. A file opened
+from Finder opens in a CAD/CAM window, and Save writes back to it through a small server that listens on 127.0.0.1 only. The app runs a copy
+of `cadcam-studio.html`, so run the script again after a new build.
+
+The **3D View** tab opens the 3D engine window: a plain CNC table on the three.js engine of the 3D Product Viewer, with the toolpaths by tool, stock,
+a cutter that plays through the program, per-tool lengths and times, the current G-code line, and checks for cuts off the table, rapids
+through the stock and cuts past the stock. It follows edits made in CAD/CAM while it is open. The table size is in Settings. The carving
+simulation is still in View → Carving Simulation.
 
 ## Dry-running a job
 `node cam-engine/aircut.js in.tap out.tap [--clearance 0.25] [--band 0.30]` rewrites a posted program
