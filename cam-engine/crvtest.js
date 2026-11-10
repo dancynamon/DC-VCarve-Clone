@@ -211,7 +211,7 @@ function studioContext() {
       appendChild(c) { this.children.push(c); return c; }, insertBefore(c) { this.children.push(c); return c; },
       removeChild() {}, remove() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent() {},
       setAttribute() {}, getAttribute() { return null; }, focus() {}, click() {}, closest() { return null; },
-      contains() { return false; }, querySelector() { return mkEl('input'); }, querySelectorAll() { return []; },
+      contains() { return false; }, querySelector() { return mkEl('input'); }, querySelectorAll() { return [mkEl('button'), mkEl('button'), mkEl('button')]; },
       getBoundingClientRect() { return { left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600 }; },
       getContext() {
         return new Proxy({ canvas: { width: 800, height: 600 } }, { get: (t, k) => {
@@ -237,6 +237,9 @@ function studioContext() {
     document, console, Math, JSON, Date, setTimeout, clearTimeout, setInterval: () => 0, clearInterval() {},
     requestAnimationFrame: () => 0, TextDecoder, TextEncoder, parseFloat, parseInt, isNaN, isFinite,
     localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
+    // studio_app.js wraps every length field's native `value` property, so the stub needs the real thing's shape.
+    MutationObserver: function () { this.observe = () => {}; this.disconnect = () => {}; },
+    HTMLInputElement: (() => { function H() {} Object.defineProperty(H.prototype, 'value', { get() { return this._v === undefined ? '' : this._v; }, set(v) { this._v = v; }, configurable: true }); return H; })(),
     navigator: { userAgent: 'node' }, location: { href: 'file:///studio' }, performance: { now: () => Date.now() },
     Blob: function () {}, URL: { createObjectURL: () => 'blob:', revokeObjectURL() {} }, FileReader: function () {},
     Image: function () {}, alert() {}, prompt: () => null, confirm: () => true,
@@ -246,15 +249,16 @@ function studioContext() {
   };
   ctx.window = ctx; ctx.self = ctx; ctx.globalThis = ctx;
   vm.createContext(ctx);
-  const order = ['package/clipper.js', 'package/opentype.js', 'camcore.js', 'cadcore.js', 'dxfparse.js',
-                 'pdfparse.js', 'crvparse.js', 'bitmaptrace.js', 'clipart.js', 'studio_app.js'];
+  const order = ['package/clipper.js', 'package/opentype.js', 'camcore.js', 'cadcore.js', 'cutprep.js', 'dxfparse.js',
+                 'pdfparse.js', 'tpdparse.js', 'crvparse.js', 'crvtoolpaths.js', 'bitmaptrace.js', 'clipart.js', 'gcodesim.js', 'tapedit.js', 'assembly.js', 'studio_app.js'];
   for (const f of order) vm.runInContext(fs.readFileSync(path.join(__dirname, f), 'utf8'), ctx, { filename: f });
   return ctx;
 }
 const eIn = (c, expr) => vm.runInContext(expr, c);
 const layerKeys = c => JSON.parse(eIn(c, 'JSON.stringify([...doc.layers.keys()])'));
 const shapeLayers = c => JSON.parse(eIn(c, '(()=>{const o={};for(const s of doc.shapes)o[s.layer]=(o[s.layer]||0)+1;return JSON.stringify(o)})()'));
-const panelRows = c => eIn(c, '(()=>{const el=document.getElementById("layerList");return el&&el.children?el.children.length:-1})()');
+// a layer row, as distinct from the "+ Add layer" button and the other controls the panel appends after the rows
+const panelRows = c => eIn(c, '(()=>{const el=document.getElementById("layerList");return el&&el.children?el.children.filter(r=>/^lyr/.test(r.className||"")).length:-1})()');
 const panelText = c => eIn(c, '(()=>{const el=document.getElementById("layerList");return el&&el.children?el.children.map(r=>r.innerHTML).join("|"):""})()');
 
 let studio = null;
@@ -299,5 +303,137 @@ if (studio) {
      panelRows(studio) + ' rows vs ' + kDxf.length + ' layers · ' + panelText(studio));
 }
 
-console.log(`\n${pass}/${pass + fail} crv checks passed`);
-process.exit(fail ? 1 : 0);
+// --- reliability: the report channel, toolpaths, thickness and units evidence ---
+const ctxTP = {}; vm.createContext(ctxTP);
+for (const f of ['tpdparse.js', 'crvparse.js', 'crvtoolpaths.js']) vm.runInContext(fs.readFileSync(path.join(__dirname, f), 'utf8'), ctxTP, { filename: f });
+const tp2 = vm.runInContext('CRVPARSE', ctxTP).toShapes(bytes('sample-tabs.crv3d'), { tol: 0.002 });
+const tr = vm.runInContext('CRVTP', ctxTP).toStudioOps(tp2.toolpathData, { guids: tp2.layers.flatMap(L => L.contours.map(c => c.guid)), safeZ: tp2.safeZ });
+ok('toolpaths: the saved Profile comes through', tr.ops.length === 1 && tr.ops[0].name === 'Profile 2' && tr.ops[0].p.op === 'profile', JSON.stringify(tr.ops.map(o => o.name)));
+ok('toolpaths: tool and depth are the file\'s', tr.ops[0].p.toolNum === 7 && tr.ops[0].p.cutDepth > 0 && tr.ops[0].guids.length === 1, JSON.stringify(tr.ops[0].p).slice(0, 200));
+ok('toShapes carries job thickness', tp2.job && tp2.job.thickness > 0, JSON.stringify(tp2.job));
+ok('toShapes names the contour guids', tp2.layers[0].contours[0].guid && tp2.layers[0].contours[0].guid.length === 32, tp2.layers[0].contours[0].guid);
+const tr3 = vm.runInContext('CRVTP', ctxTP).toStudioOps({ toolpaths: [{ name: 'X', type: 'Fancy', params: {}, tools: [{ toolNum: 1, dia: 0.25, passDepth: 0.1, stepover: 0.1, feed: 10, plunge: 5, rpm: 1000 }], selection: ['aa'] }, { name: 'Y', type: 'Drill', params: { _dpdCutDepth: 0.5 }, tools: [{ toolNum: 1, dia: 0.25, passDepth: 0.1, stepover: 0.1, feed: 10, plunge: 5, rpm: 1000 }], selection: ['missing'] }] }, { guids: ['aa'] });
+ok('toolpaths: an unsupported kind is named as lost', tr3.ops.length === 0 && tr3.report.some(r => r.code === 'TOOLPATH_NOT_CONVERTED' && r.level === 'loss' && r.items[0].indexOf('X') === 0), JSON.stringify(tr3.report));
+ok('toolpaths: a selection with no vectors is named as lost', tr3.report.some(r => r.code === 'TOOLPATH_NO_VECTORS' && r.items[0] === 'Y'), JSON.stringify(tr3.report));
+const op4 = g => ({ name: 'P', type: 'Profile Outside', params: { _ppdCutDepth: 0.5, _mctddDepthValues: '0.25;0.5' }, tools: [{ toolNum: 1, dia: 0.25, passDepth: 0.1, stepover: 0.1, feed: 10, plunge: 5, rpm: 1000 }], selection: g });
+const trO = vm.runInContext('CRVTP', ctxTP).toStudioOps({ toolpaths: [op4(['a', 'b'])] }, { guids: ['a', 'b'], openGuids: ['b'] });
+ok('toolpaths: an open vector is not cut on the line by an outside profile', trO.ops.length === 1 && trO.ops[0].guids.join() === 'a' && trO.report.some(r => r.code === 'TOOLPATH_OPEN_VECTORS' && r.level === 'loss'), JSON.stringify(trO));
+const trO2 = vm.runInContext('CRVTP', ctxTP).toStudioOps({ toolpaths: [op4(['b'])] }, { guids: ['a', 'b'], openGuids: ['b'] });
+ok('toolpaths: all-open is not imported at all', trO2.ops.length === 0 && trO2.report[0].code === 'TOOLPATH_OPEN_VECTORS', JSON.stringify(trO2));
+const clean = parseCrv(bytes('sample.crv'), {});
+ok('a clean file has an empty report', Array.isArray(clean.report) && clean.report.filter(r => r.level !== 'info').length === 0, JSON.stringify(clean.report));
+ok('a bitmap is reported as not imported', parseCrv(bytes('sample-bitmap.crv3d'), {}).report.some(r => r.code === 'BITMAP_NOT_IMPORTED' && r.level === 'loss'));
+ok('a 3D model is reported as not imported', parseCrv(bytes('sample-model.crv3d'), {}).report.some(r => r.code === 'MODEL_3D_NOT_IMPORTED' && r.level === 'loss'));
+if (studio) {
+  const buf2 = fs.readFileSync(path.join(__dirname, 'sample-tabs.crv3d')); studio.__ab2 = buf2.buffer.slice(buf2.byteOffset, buf2.byteOffset + buf2.byteLength);
+  eIn(studio, 'doc.shapes=[];opsQueue=[];doc.layers=new Map([["0",{visible:true,color:"#1b2b3f"}]]);');
+  eIn(studio, 'importCRV("sample-tabs.crv3d", __ab2)');
+  ok('studio: the toolpath lands in the list', eIn(studio, 'opsQueue.length') === 1 && eIn(studio, 'opsQueue[0].ids.length') === 1);
+  ok('studio: material thickness is applied', Math.abs(eIn(studio, 'job.thickness') - tp2.job.thickness) < 1e-9);
+  const seg = JSON.parse(eIn(studio, 'JSON.stringify(toolpathSegs("[G0 X9 Y9]\\nG0 X1 Y0\\nG1 X2 F10 [X50]\\n"))'));
+  ok('2D backplot honours WinCNC [comments]', seg.length === 2 && Math.max(...seg.map(s => s.x1)) === 2, JSON.stringify(seg));
+  const fc = JSON.parse(eIn(studio, 'JSON.stringify(toolpathSegs("g0x1.5y0\\ng2i2f300\\n"))'));
+  ok('2D backplot draws an I-only full circle', fc.length >= 24 && fc.some(s => s.x1 > 5.4), fc.length);
+  ok('studio: the toolpath selection is real shape ids', eIn(studio, 'doc.shapes.some(s=>s.id===opsQueue[0].ids[0])'));
+}
+
+// --- Settings: units chosen by hand and the anchor check ---
+{
+  const inchRead = parseCrv(bytes('sample-tabs.crv3d'), { units: 'inch' }), mmRead = parseCrv(bytes('sample-tabs.crv3d'), { units: 'mm' });
+  const xOf = r => r.reduce((m, p) => Math.max(m, ...p.pts.map(q => q.x)), -Infinity);
+  ok('units: choosing mm divides the drawing by 25.4', Math.abs(xOf(mmRead) * 25.4 - xOf(inchRead)) < 1e-6, xOf(mmRead) + ' vs ' + xOf(inchRead));
+  ok('units: a choice against the automatic reading is flagged', mmRead.report.some(r => r.code === 'UNITS_CHOSEN' && r.level === 'warn'), JSON.stringify(mmRead.report));
+  ok('units: a choice that agrees is only a note', inchRead.report.some(r => r.code === 'UNITS_CHOSEN' && r.level === 'info'), JSON.stringify(inchRead.report));
+  ok('units: automatic adds no choice note', !parseCrv(bytes('sample-tabs.crv3d'), {}).report.some(r => r.code === 'UNITS_CHOSEN'));
+}
+// A fixture with every saved anchor moved 5" off its drawing: each anchor is found by its value and overwritten in place.
+function staleAnchors(file) {
+  const out = bytes(file), dv = new DataView(out.buffer, out.byteOffset, out.byteLength), boxes = new Map();
+  for (const p of parseCrv(bytes(file), {})) { const g = p.ent.guid, b = boxes.get(g) || [Infinity, Infinity, -Infinity, -Infinity]; for (const q of p.pts) { b[0] = Math.min(b[0], q.x); b[1] = Math.min(b[1], q.y); b[2] = Math.max(b[2], q.x); b[3] = Math.max(b[3], q.y); } boxes.set(g, b); }
+  const centres = [...boxes.values()].map(b => [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2]); let n = 0;
+  for (let i = 0; i + 16 <= out.length; i++) { const x = dv.getFloat64(i, true); if (!isFinite(x) || Math.abs(x) > 1e5) continue; const y = dv.getFloat64(i + 8, true); if (centres.some(c => Math.abs(c[0] - x) < 0.01 && Math.abs(c[1] - y) < 0.01)) { dv.setFloat64(i, x + 5, true); n++; i += 15; } }
+  return { out, n };
+}
+const stale = staleAnchors('sample-points.crv3d');
+ok('anchors: the test fixture was really altered', stale.n >= 4, stale.n);
+ok('anchors: with the check off, the file opens and it is noted', parseCrv(stale.out, {}).report.some(r => r.code === 'STALE_ANCHORS' && r.level === 'info'));
+let anchorErr = null; try { parseCrv(stale.out, { strictAnchors: true }); } catch (e) { anchorErr = e; }
+ok('anchors: with the check on, the file is refused and says why', anchorErr && anchorErr.anchorMismatch === true && /anchor/.test(anchorErr.message), anchorErr && anchorErr.message);
+ok('anchors: with the check on, a good file still opens', parseCrv(bytes('sample-points.crv3d'), { strictAnchors: true }).length > 0);
+
+// --- Save and Save As: what gets overwritten and what does not ---
+async function saveChecks() {
+  if (!studio) return;
+  const mkHandle = name => ({ name, kind: 'file', writes: [], data: null, async createWritable() { const h = this; return { async write(d) { h.data = d; h.writes.push(d); }, async close() {} }; } });
+  const dxfT = (extra, u) => ['0', 'SECTION', '2', 'HEADER', '9', '$INSUNITS', '70', String(u || 1), '0', 'ENDSEC', '0', 'SECTION', '2', 'ENTITIES', '0', 'LINE', '8', 'L1', '10', '0', '20', '0', '11', '4', '21', '0'].concat(extra || [], ['0', 'ENDSEC', '0', 'EOF']).join('\n');
+  const textEnt = ['0', 'TEXT', '8', 'L1', '10', '1', '20', '1', '40', '1', '1', 'HELLO'];
+  const reset = () => eIn(studio, 'newJob();PB.file=null;document.getElementById("gcModal").style.display="none";SETTINGS.importUnits="auto";SETTINGS.strictAnchors=false;');
+  let picked = null, pickH = null; studio.showSaveFilePicker = async o => { picked = o; return pickH; };
+  const open = (name, text, h) => { studio.__t = text; studio.__h = h; eIn(studio, 'importText(' + JSON.stringify(name) + ',__t,__h)'); };
+  const save = () => eIn(studio, 'fileSave()'), saveAs = () => eIn(studio, 'fileSaveAs()');
+
+  reset(); let h = mkHandle('a.dxf'); open('a.dxf', dxfT(), h); await save();
+  ok('save: a clean DXF writes back to itself', h.writes.length === 1 && eIn(studio, 'projectFile.format') === 'dxf', h.writes.length);
+  { const e = vm.runInContext('(t=>parseDxf(t))', studio)(h.data); ok('save: what was written reopens as the same line', e.length === 1 && e[0].layer === 'L1', JSON.stringify(e).slice(0, 200)); }
+
+  reset(); h = mkHandle('b.dxf'); open('b.dxf', dxfT(textEnt), h); pickH = mkHandle('b-edited.dxf'); picked = null; await save();
+  ok('save: a DXF that lost text on import is never overwritten', h.writes.length === 0 && picked && picked.suggestedName === 'b-edited.dxf' && pickH.writes.length === 1, picked && picked.suggestedName);
+
+  reset(); h = mkHandle('c.dxf'); open('c.dxf', dxfT([], 4), h); pickH = mkHandle('c2.dxf'); picked = null; await save();
+  ok('save: a DXF converted from mm is never overwritten', h.writes.length === 0 && !!picked);
+
+  reset(); h = mkHandle('d.dxf'); open('d.dxf', dxfT(), h); eIn(studio, 'opsQueue.push({p:{},ids:[],name:"x"})'); pickH = mkHandle('d.aqcam'); picked = null; await save();
+  ok('save: toolpaths divert a DXF save to .aqcam', h.writes.length === 0 && picked && /\.aqcam$/.test(picked.suggestedName) && eIn(studio, 'projectFile.format') === 'aqcam', picked && picked.suggestedName);
+
+  reset(); h = mkHandle('e.dxf'); open('e.dxf', dxfT(), h); eIn(studio, 'doc.shapes=[]'); picked = null; await save();
+  ok('save: an emptied DXF does not wipe the file', h.writes.length === 0 && !picked);
+
+  reset(); eIn(studio, 'doc.shapes=[CADCORE.mkPoly([{x:0,y:0},{x:1,y:1}],false,"0")]'); const job1 = mkHandle('job.aqcam'); eIn(studio, 'setSaveTarget'); studio.__j = job1; eIn(studio, 'setSaveTarget(__j,"job.aqcam","aqcam")');
+  h = mkHandle('f.dxf'); open('f.dxf', dxfT(), h); await save();
+  ok('save: a DXF merged into a job saves the job, not the DXF', h.writes.length === 0 && job1.writes.length === 1, h.writes.length + '/' + job1.writes.length);
+
+  reset(); eIn(studio, 'doc.shapes=[CADCORE.mkPoly([{x:0,y:0},{x:1,y:1}],false,"0")]'); pickH = mkHandle('out.dxf'); picked = null; await saveAs();
+  ok('save as: the name chosen sets the format', eIn(studio, 'projectFile.format') === 'dxf' && /LINE|POLYLINE/.test(pickH.data) && picked.types.length === 2, String(pickH.data).slice(0, 60));
+  await save(); ok('save as: Save then goes to the new file', pickH.writes.length === 2, pickH.writes.length);
+
+  const denied = mkHandle('g.dxf'); denied.queryPermission = async () => 'prompt'; denied.requestPermission = async () => 'denied';
+  reset(); open('g.dxf', dxfT(), denied); pickH = mkHandle('g2.dxf'); picked = null; await save();
+  ok('save: refused permission falls back to Save As', denied.writes.length === 0 && !!picked && pickH.writes.length === 1);
+
+  // G-code: bytes exact, the handle survives an edit, unapplied hand edits are not lost
+  reset(); const tapH = mkHandle('p.tap'); studio.__h = tapH;
+  const tap = 'G0 Z0.5\r\nG0 X1 Y1\r\nG1 Z-0.1 F20\r\nG1 X2 F60 [caf\xe9]\r\nG0 Z0.5\r\n'; studio.__b = Uint8Array.from(Buffer.from(tap, 'latin1')).buffer;
+  eIn(studio, 'openProgramBytes("p.tap",__b,__h)');
+  await save(); ok('save: an unedited program is not rewritten', tapH.writes.length === 0, tapH.writes.length);
+  eIn(studio, 'gcCommit(TAPEDIT.translate(PB.file.text,{dx:1,dy:0}));document.getElementById("gcModal").style.display="block";document.getElementById("gcText").value=PB.file.text.replace(/\\r\\n/g,"\\n")');   // a real text box reports LF
+  ok('save: a CRLF program in the text box is not mistaken for unapplied edits', eIn(studio, 'gcTextPending()') === false);
+  await save();
+  const want = eIn(studio, 'TAPEDIT.textToBytes(PB.file.text)');
+  ok('save: an edited program writes back to the opened file', tapH.writes.length === 1 && Buffer.from(tapH.data).equals(Buffer.from(want)), tapH.writes.length);
+  ok('save: edited bytes keep CRLF and the comment byte', Buffer.from(tapH.data).toString('latin1').includes('[caf\xe9]\r\n'));
+  eIn(studio, 'document.getElementById("gcModal").style.display="block";document.getElementById("gcText").value=PB.file.text+"G0 X9\\n"');
+  await save(); ok('save: hand edits that were not applied block the save', tapH.writes.length === 1, tapH.writes.length);
+  eIn(studio, 'document.getElementById("gcText").value=PB.file.text'); pickH = mkHandle('p2.tap'); picked = null; await saveAs();
+  ok('save as: G-code writes the new file and Save follows it', pickH.writes.length === 1 && eIn(studio, 'PB.file.name') === 'p2.tap' && /-edited\.tap$/.test(picked.suggestedName), picked && picked.suggestedName);
+  eIn(studio, 'document.getElementById("gcModal").style.display="none";doc.shapes=[CADCORE.mkPoly([{x:0,y:0},{x:1,y:1}],false,"0")]');
+  ok('save: with a drawing open and the editor closed, Save means the drawing', eIn(studio, 'programIsCurrent()') === false);
+
+  // Settings reach the importers
+  reset(); const ab3 = fs.readFileSync(path.join(__dirname, 'sample-tabs.crv3d')); studio.__ab3 = ab3.buffer.slice(ab3.byteOffset, ab3.byteOffset + ab3.byteLength);
+  eIn(studio, 'importCRV("s.crv3d",__ab3)'); const w0 = eIn(studio, 'job.w');
+  reset(); eIn(studio, 'SETTINGS.importUnits="mm";importCRV("s.crv3d",__ab3)');
+  ok('settings: units apply to a Vectric open', Math.abs(eIn(studio, 'job.w') * 25.4 - w0) < 1e-6 && eIn(studio, 'lastReport.items.some(r=>r.code==="UNITS_CHOSEN")'), eIn(studio, 'job.w') + ' vs ' + w0);
+  ok('settings: the report offers the other units', eIn(studio, '!!lastReport.opts.action'));
+  reset(); eIn(studio, 'SETTINGS.importUnits="mm"'); open('m.dxf', dxfT(), mkHandle('m.dxf'));
+  ok('settings: units apply to a DXF open, which is then not overwritten', Math.abs(eIn(studio, 'CADCORE.bbox(doc.shapes[0]).maxX') - 4 / 25.4) < 1e-6 && !!eIn(studio, 'projectFile.why'));
+  reset(); eIn(studio, 'SETTINGS.strictAnchors=true'); studio.__st = stale.out.buffer.slice(stale.out.byteOffset, stale.out.byteOffset + stale.out.byteLength);
+  eIn(studio, 'importCRV("st.crv3d",__st)');
+  ok('settings: anchor check on refuses in the studio', eIn(studio, 'doc.shapes.length') === 0 && eIn(studio, 'lastReport.items[0].code') === 'ANCHOR_MISMATCH');
+  eIn(studio, 'lastReport.opts.action.fn()');
+  ok('settings: Open Anyway opens it', eIn(studio, 'doc.shapes.length') > 0);
+  reset();
+}
+saveChecks().catch(e => ok('save checks ran', false, e.stack)).then(() => {
+  console.log(`\n${pass}/${pass + fail} crv checks passed`);
+  process.exit(fail ? 1 : 0);
+});

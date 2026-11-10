@@ -1,0 +1,38 @@
+name: release-app
+
+# Every push to main that passes the tests becomes the build the Mac app downloads
+# (tools/mac/cadcam_launcher.py watches this release).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-app
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test
+      - run: npm run build
+      - name: Publish the build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha=$(sha256sum cadcam-studio.html | cut -d' ' -f1)
+          printf '{"sha256":"%s","commit":"%s"}\n' "$sha" "$GITHUB_SHA" > latest.json
+          gh release view studio-latest >/dev/null 2>&1 || \
+            gh release create studio-latest --title "Studio (latest build)" --notes "The build the Aquamentor CADCAM Mac app downloads. Updated by every push to main."
+          # the page first and the hash last, so the app never sees a hash without its file
+          gh release upload studio-latest cadcam-studio.html --clobber
+          gh release upload studio-latest latest.json --clobber

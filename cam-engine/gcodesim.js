@@ -21,45 +21,118 @@
 const RAPID = 0, PLUNGE = 1, CUT = 2;
 const ARC_CHORD = 0.02;       // in — arc chord length when splitting G2/G3 for playback and carving
 
+// One source line as words, with comments understood the way WinCNC reads them: [ ... ] and ( ... ) are comments, and
+// so is anything after ';'. Returns {words:[{L,v,ls,vs,ve}], bare:[letters with no number], junk:text|null, unclosed}.
+// ls/vs/ve are the offsets of the letter and of the number in the raw line, so an editor can replace just the number.
+// Junk (a stray number, 'F80.0.0') is reported and never guessed at: the caller decides what to do with that line.
+const NUM_RE = /[-+]?(?:\d+\.?\d*|\.\d+)/y;
+function tokenizeLine(raw) {
+  const words = [], bare = []; let junk = null, unclosed = false, i = 0;
+  const n = raw.length;
+  const skip = c => c === ' ' || c === '\t' || c === '\f' || c === '\x1a';
+  if (raw.trim()[0] === '%') return { words, bare, junk: null, unclosed: false };
+  while (i < n) {
+    const c = raw[i];
+    if (skip(c)) { i++; continue; }
+    if (c === '[' || c === '(') {
+      const e = raw.indexOf(c === '[' ? ']' : ')', i);
+      if (e < 0) { unclosed = true; i = n; } else i = e + 1;
+      continue;
+    }
+    if (c === ';') break;
+    if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) {
+      let j = i + 1;
+      while (j < n && skip(raw[j])) j++;
+      NUM_RE.lastIndex = j;
+      const m = NUM_RE.exec(raw);
+      if (m) {
+        const ve = j + m[0].length;
+        if (raw[ve] === '.') { if (junk == null) junk = raw.slice(i, i + 24); i = ve + 1; continue; }    // 'F80.0.0': two decimal points
+        words.push({ L: c.toUpperCase(), v: +m[0], ls: i, vs: j, ve: ve });
+        i = ve; continue;
+      }
+      bare.push(c.toUpperCase()); i++; continue;
+    }
+    if (junk == null) junk = raw.slice(i, i + 24);
+    i++;
+  }
+  return { words, bare, junk, unclosed };
+}
+// G codes that change nothing the simulator models; any other unknown G is reported.
+const G_HARMLESS = new Set([17, 40, 49, 54, 64, 80, 94]);
+const ISSUE_CAP = 200, WARN_CAP = 50;
+
 // opts.aToY: inches of Y per degree of A, for a rotary program (A axis = the unwrapped Y).
 function parseGcode(text, opts) {
   const aToY = opts && opts.aToY > 0 ? opts.aToY : 0;
-  const src = String(text || '').split(/\r?\n/);
+  const src = String(text || '').split(/\r\n|\n|\r/);
   const out = { x0: [], y0: [], z0: [], x1: [], y1: [], z1: [], kind: [], tool: [], feed: [], rpm: [], line: [], pause: [] };
   let x = 0, y = 0, z = null, mode = 0, f = 0, s = 0, t = 0, spin = false, abs = true, dwell = 0, pending = 0, firstZ = null, unit = 1, metric = false;
-  const tools = [], warnings = [];
+  const tools = [], warnings = [], issues = [], issueCounts = {};
+  // issues: what the simulator could not take at face value. Each names its line; level 'loss' means the backplot
+  // is not what the machine would do on that line, so the file is not safe to edit or trust without looking.
+  const issue = (code, level, ln, msg, raw) => {
+    issueCounts[code] = (issueCounts[code] || 0) + 1;
+    if (issues.length < ISSUE_CAP) issues.push({ code, level, line: ln, msg, raw: raw === undefined ? undefined : String(raw).slice(0, 80) });
+    if (warnings.length < WARN_CAP) warnings.push(msg);
+  };
   const push = (ax, ay, az, bx, by, bz, k, ln) => {
     out.x0.push(ax); out.y0.push(ay); out.z0.push(az); out.x1.push(bx); out.y1.push(by); out.z1.push(bz);
     out.kind.push(k); out.tool.push(t); out.feed.push(f); out.rpm.push(spin ? s : 0); out.line.push(ln); out.pause.push(pending); pending = 0;
   };
   for (let n = 0; n < src.length; n++) {
-    const c = src[n].replace(/\(.*?\)|;.*$/g, '').toUpperCase();
-    if (!c.trim() || c.trim()[0] === '%') continue;
+    const raw = src[n], ln = n + 1;
+    if (!raw.trim()) continue;
+    const tk = tokenizeLine(raw);
+    if (tk.unclosed) issue('UNCLOSED_COMMENT', 'warn', ln, 'Line ' + ln + ': a comment bracket is never closed; the rest of the line was treated as a comment', raw);
     const w = {}, G = [], M = [];
-    const re = /([A-Z])\s*([-+]?\d*\.?\d+)/g; let m;
-    while ((m = re.exec(c))) { const v = +m[2]; if (m[1] === 'G') G.push(v); else if (m[1] === 'M') M.push(v); else w[m[1]] = v; }
+    for (const k of tk.words) { if (k.L === 'G') G.push(k.v); else if (k.L === 'M') M.push(k.v); else w[k.L] = k.v; }
+    const isG53 = G.indexOf(53) >= 0;
+    const badBare = tk.bare.filter(b => !(isG53 && 'XYZ'.indexOf(b) >= 0));
+    if (tk.junk != null || badBare.length) { issue('JUNK_TEXT', 'loss', ln, 'Line ' + ln + ' could not be read and was not simulated: "' + raw.trim().slice(0, 60) + '"', raw); continue; }
+    if (!tk.words.length && !tk.bare.length) continue;   // a comment line
     if (G.indexOf(4) >= 0) { const d = (w.X != null ? w.X : (w.P != null ? w.P : 0)); dwell += d; pending += d; continue; }   // WinCNC 'G4 X<sec>'
+    if (isG53) { issue('G53', 'warn', ln, 'Line ' + ln + ': G53 machine-coordinate move is not simulated (the backplot holds position there)', raw); continue; }
+    if (w.L != null) issue('WORD_L', 'warn', ln, 'Line ' + ln + ': WinCNC L word (L' + w.L + ') is not simulated', raw);
     if (G.indexOf(21) >= 0) { unit = 1 / 25.4; metric = true; }   // millimetres: everything here runs in inches
     if (G.indexOf(20) >= 0) unit = 1;
     // rotary: A degrees are the unwrapped Y; a bare Y word is the machine's own Y (e.g. the park move), not the part
     if (aToY) { if (w.A != null) w.Y = w.A * aToY / unit; else delete w.Y; }
-    for (const c of 'XYZIJF') if (w[c] != null) w[c] *= unit;
+    for (const c of 'XYZIJFR') if (w[c] != null) w[c] *= unit;
     if (G.indexOf(90) >= 0) abs = true;
-    if (G.indexOf(91) >= 0) { abs = false; warnings.push('G91 incremental moves at line ' + (n + 1)); }
+    if (G.indexOf(91) >= 0) { abs = false; issue('G91', 'warn', ln, 'G91 incremental moves at line ' + ln, raw); }
+    for (const g of G) if (g !== 0 && g !== 1 && g !== 2 && g !== 3 && g !== 20 && g !== 21 && g !== 90 && g !== 91 && !G_HARMLESS.has(g)) issue('G' + g, 'loss', ln, 'Line ' + ln + ': G' + g + ' is not simulated; the backplot may not match the machine after this line', raw);
     if (w.T != null) { t = Math.round(w.T); if (tools.indexOf(t) < 0) tools.push(t); }
     if (w.S != null) s = w.S;
     if (M.indexOf(3) >= 0 || M.indexOf(4) >= 0) spin = true;
     if (M.indexOf(5) >= 0) spin = false;
     if (w.F != null) f = w.F;
     for (const g of G) if (g === 0 || g === 1 || g === 2 || g === 3) mode = g;
-    if (w.X == null && w.Y == null && w.Z == null) continue;
+    const isArc = mode === 2 || mode === 3;
+    const hasCentre = w.I != null || w.J != null || w.R != null;
+    const fullCircle = isArc && w.X == null && w.Y == null && w.Z == null && (w.I != null || w.J != null);   // WinCNC 'G2 I2': a whole circle from where it stands
+    if (w.X == null && w.Y == null && w.Z == null && !fullCircle) continue;
     const nx = w.X != null ? (abs ? w.X : x + w.X) : x;
     const ny = w.Y != null ? (abs ? w.Y : y + w.Y) : y;
     const nz = w.Z != null ? (abs ? w.Z : (z || 0) + w.Z) : (z == null ? 0 : z);
-    if (z == null) { z = nz; firstZ = nz; if (w.X == null && w.Y == null) continue; }
-    const ln = n + 1;
-    if ((mode === 2 || mode === 3) && (w.I != null || w.J != null)) {
-      const cx = x + (w.I || 0), cy = y + (w.J || 0), r = Math.hypot(x - cx, y - cy);
+    if (z == null) { z = nz; firstZ = nz; if (w.X == null && w.Y == null && !fullCircle) continue; }
+    if (isArc && !hasCentre) {
+      issue('ARC_WITHOUT_CENTER', 'loss', ln, 'Line ' + ln + ': G' + mode + ' arc has no I, J or R; drawn as a straight line, but the controller may do something else', raw);
+    }
+    let cx = null, cy = null, r = 0;
+    if (isArc && (w.I != null || w.J != null)) {
+      cx = x + (w.I || 0); cy = y + (w.J || 0); r = Math.hypot(x - cx, y - cy);
+      if (Math.abs(r - Math.hypot(nx - cx, ny - cy)) > 0.002)
+        issue('ARC_RADIUS_MISMATCH', 'warn', ln, 'Line ' + ln + ': arc end point is ' + Math.abs(r - Math.hypot(nx - cx, ny - cy)).toFixed(4) + '" off the circle its I/J describe', raw);
+    } else if (isArc && w.R != null) {
+      const dx = nx - x, dy = ny - y, d = Math.hypot(dx, dy), R = Math.abs(w.R);
+      if (d < 1e-9 || d > 2 * R + 1e-6) issue('ARC_R_IMPOSSIBLE', 'loss', ln, 'Line ' + ln + ': R arc cannot reach its end point; drawn as a straight line', raw);
+      else { // R>0 = the short way round; G2 centre sits to the right of the chord, G3 to the left, flipped for R<0
+        const h = Math.sqrt(Math.max(0, R * R - d * d / 4)), side = (mode === 3 ? 1 : -1) * (w.R > 0 ? 1 : -1);
+        cx = (x + nx) / 2 - side * h * dy / d; cy = (y + ny) / 2 + side * h * dx / d; r = R;
+      }
+    }
+    if (cx != null) {
       let a0 = Math.atan2(y - cy, x - cx), a1 = Math.atan2(ny - cy, nx - cx);
       if (mode === 2) { while (a1 >= a0) a1 -= 2 * Math.PI; } else { while (a1 <= a0) a1 += 2 * Math.PI; }
       if (Math.abs(nx - x) < 1e-9 && Math.abs(ny - y) < 1e-9) a1 = a0 + (mode === 2 ? -2 : 2) * Math.PI;   // full circle
@@ -75,10 +148,11 @@ function parseGcode(text, opts) {
     }
     x = nx; y = ny; z = nz;
   }
+  if (!out.kind.length && !issues.some(i => i.level === 'loss')) issue('NO_MOTION', 'loss', 1, 'The program contains no moves', '');
   const N = out.kind.length, F = a => Float64Array.from(a);
   const prog = { n: N, x0: F(out.x0), y0: F(out.y0), z0: F(out.z0), x1: F(out.x1), y1: F(out.y1), z1: F(out.z1),
     kind: Uint8Array.from(out.kind), tool: Int32Array.from(out.tool), feed: Float32Array.from(out.feed), rpm: Float32Array.from(out.rpm),
-    line: Int32Array.from(out.line), pause: Float32Array.from(out.pause), tools: tools, dwell: dwell, metric: metric, src: src, warnings: warnings, firstZ: firstZ };
+    line: Int32Array.from(out.line), pause: Float32Array.from(out.pause), tools: tools, dwell: dwell, metric: metric, src: src, warnings: warnings, issues: issues, issueCounts: issueCounts, firstZ: firstZ };
   prog.bounds = boundsOf(prog);
   return prog;
 }
@@ -206,6 +280,6 @@ function toolForNumber(lib, t, overrides) {
   return { type: 'flat', radius: 0.125, angle: 90 };
 }
 
-return { RAPID: RAPID, PLUNGE: PLUNGE, CUT: CUT, parseGcode: parseGcode, boundsOf: boundsOf, timeline: timeline, locate: locate, pointAt: pointAt,
+return { RAPID: RAPID, PLUNGE: PLUNGE, CUT: CUT, parseGcode: parseGcode, tokenizeLine: tokenizeLine, boundsOf: boundsOf, timeline: timeline, locate: locate, pointAt: pointAt,
   Carver: Carver, toolForNumber: toolForNumber, floorsFromOtherSide: floorsFromOtherSide };
 });

@@ -26,7 +26,9 @@ function asmThicknessFromName(name, dflt) {
 }
 // DXF text -> {shapes, layers Map, job patch, queue} — the studio's import path plus layer-name defaults
 function asmSheetFromDxf(name, text, thickness) {
-  const polys = []; for (const e of parseDxf(text)) for (const p of entityToPolys(e)) polys.push(p);
+  const ents = parseDxf(text), polys = []; for (const e of ents) for (const p of entityToPolys(e)) polys.push(p);
+  const lost = (ents.report || []).filter(r => r.level === 'loss');
+  if (lost.length) setMsg('WARNING: ' + name + ' did not fully import: ' + lost.map(r => r.count + ' ' + r.msg).join(' · '));
   const shapes = CADCORE.dxfPolysToShapes(polys);
   const names = []; for (const s of shapes) if (names.indexOf(s.layer) < 0) names.push(s.layer);
   const layers = new Map(names.map(n => [n, { visible: true, color: asmLayerColor(n) }]));
