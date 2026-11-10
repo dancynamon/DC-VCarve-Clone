@@ -710,7 +710,7 @@ body.dark .qrow.picked{background:#3a2a1c}
     <span><span class="v" id="zoomlbl"></span></span>
     <span id="msg" class="v"></span>
     <button class="tb" id="btnUnits" title="Units: inches / millimetres (the drawing is unchanged)" style="margin-left:auto;font-size:11px;padding:1px 7px">in</button>
-    <span class="ver" id="appVer" title="Build version">v0.5.0 · build 261110.0623</span>
+    <span class="ver" id="appVer" title="Build version">v0.5.0 · build 261113.1459</span>
   </div>
 </div>
 <div id="tip"></div>
@@ -732,7 +732,7 @@ body.dark .qrow.picked{background:#3a2a1c}
       <div class="gcrow"><b style="min-width:150px">CNC table size</b><input id="setTableW" type="number" min="1" step="1" style="width:70px"> x <input id="setTableH" type="number" min="1" step="1" style="width:70px"> in</div>
       <div class="gcrow gcnote">X by Y. The 3D engine window draws this table and flags anything that runs off it.</div>
       <label class="gcrow" style="margin-top:8px"><input type="checkbox" id="setStrictAnchors"><b>Anchor check</b></label>
-      <div class="gcrow gcnote">On: refuse a Vectric file when every saved object anchor disagrees with the drawing, with an Open Anyway button. Off: open it and add a note to the report. Some good files have all their anchors out of date, so off is the default.</div>
+      <div class="gcrow gcnote">On, the default: refuse a Vectric file when every saved object anchor disagrees with the drawing, because its geometry cannot be trusted. Off: open it and add a note to the report.</div>
     </div>
     <div class="modal-foot"><button class="tb primary" id="settingsOk">Done</button></div>
   </div>
@@ -19555,9 +19555,9 @@ const CRV_NULL_GUID = '00000000000000000000000000000000';
 // approximate a curve's extremum, and at the drawing tolerance a cubic's
 // bbox falls short of the true one by more than 1e-6.
 const CRV_ANCHOR_FLATTEN_TOL = 1e-7;
-// A cached anchor is routinely stale, and Vectric's own bezier extremum differs from ours by up to 2e-4 on files whose geometry
-// is exact. The anchor is therefore a report, not a gate; what proves the decode is the stream framing and span chaining.
-const CRV_ANCHOR_TOL = 1e-3;
+// A file whose every saved anchor disagrees with the decoded drawing is refused: its geometry cannot be trusted. One stale anchor among
+// good ones is only noted.
+const CRV_ANCHOR_TOL = 1e-5;
 
 // MFC tag constants. THE TRAP: `~wClassTag` masks off bit 15, so the ordinary
 // new-class tag 0xFFFF decodes to 0x80007FFF — the sentinel AFTER decoding is
@@ -20369,9 +20369,9 @@ function parseCrv(u8, opts) {
   // objects at once — and still fails.
   const report = [];
   const rep = (code, level, msg, count, items) => { report.push({ code, level, msg, count: count == null ? 1 : count, items: items || [] }); if (level !== 'info') warnings.push(msg); };
-  // The strict check is the caller's choice: real files can have every anchor stale, so by default this is only a note.
-  if (opts.strictAnchors && anchorN >= 4 && anchorOk === 0) {
-    const e = new Error('CRV: every one of the ' + anchorN + ' saved object anchors disagrees with the decoded drawing (worst ' + anchorWorst.toFixed(4) + ' in file units). The anchor check is on in Settings, so this file was refused.');
+  // Every caller gets this refusal. Only the studio's Settings switch passes strictAnchors:false.
+  if (opts.strictAnchors !== false && anchorN >= 4 && anchorOk === 0) {
+    const e = new Error('CRV: the geometry in this file cannot be trusted. All ' + anchorN + ' saved object anchors disagree with the decoded drawing, by as much as ' + anchorWorst.toFixed(6) + ' in file units. Nothing was imported.');
     e.anchorMismatch = true; throw e;
   }
   if (want !== 'auto')
@@ -22134,9 +22134,9 @@ function importPDF(name, buf){
 function importCRV(name, buf, opts){
   if(typeof CRVPARSE==='undefined'){ setMsg('Cannot open '+name+': the .crv reader (cam-engine/crvparse.js) is not in this build — add it and run npm run build'); return; }
   opts=opts||{};
-  let res; try{ res=CRVPARSE.toShapes(new Uint8Array(buf), { tol:0.002, units:opts.units||SETTINGS.importUnits, strictAnchors:SETTINGS.strictAnchors&&!opts.skipAnchorCheck }); }
-  catch(err){ const m=err.notCrvFile?(name+' is not a Vectric file (the contents do not match its .crv/.crv3d extension). '+err.message):err.message;
-    showFileReport(name,[{code:err.anchorMismatch?'ANCHOR_MISMATCH':'OPEN_FAILED',level:'loss',msg:m,count:1}],err.anchorMismatch?{failed:true,action:{label:'Open Anyway',fn:()=>importCRV(name,buf,Object.assign({},opts,{skipAnchorCheck:true}))}}:{failed:true}); setMsg('Could not open '+name+': '+m); return; }
+  let res; try{ res=CRVPARSE.toShapes(new Uint8Array(buf), { tol:0.002, units:opts.units||SETTINGS.importUnits, strictAnchors:SETTINGS.anchorCheck }); }
+  catch(err){ const m=err.notCrvFile?(name+' is not a Vectric file (the contents do not match its .crv/.crv3d extension). '+err.message):err.anchorMismatch?(name+' was refused. '+err.message.replace(/^CRV: /,'')):err.message;
+    showFileReport(name,[{code:err.anchorMismatch?'ANCHOR_MISMATCH':'OPEN_FAILED',level:'loss',msg:m,count:1}],{failed:true}); setMsg('Could not open '+name+': '+m); return; }
   // res: { job:{w,h,thickness}|null, unitsSource, layers:[{name, color?, contours:[{pts:[{x,y}], closed, guid, tabs}]}], report, toolpathData, safeZ }
   const layers=(res&&res.layers)||[]; const shapes=[]; const byGuid=new Map();
   for(const L of layers){ const lname=(L.name||'0').trim()||'0';
@@ -22580,14 +22580,14 @@ function fileSave(){ return programIsCurrent()?gcSave():saveProject(); }
 function fileSaveAs(){ return programIsCurrent()?gcSaveAs():saveProjectAs(); }
 // ---- Settings ----
 const SETTINGS_KEY='aqcam.settings';
-const SETTINGS=(function(){ const d={importUnits:'auto',strictAnchors:false,tableW:60,tableH:120}; try{ const s=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'); if(s.tableW>0) d.tableW=+s.tableW; if(s.tableH>0) d.tableH=+s.tableH; if(['auto','inch','mm'].indexOf(s.importUnits)>=0) d.importUnits=s.importUnits; d.strictAnchors=s.strictAnchors===true; }catch(e){} return d; })();
+const SETTINGS=(function(){ const d={importUnits:'auto',anchorCheck:true,tableW:60,tableH:120}; try{ const s=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'); if(s.tableW>0) d.tableW=+s.tableW; if(s.tableH>0) d.tableH=+s.tableH; if(['auto','inch','mm'].indexOf(s.importUnits)>=0) d.importUnits=s.importUnits; d.anchorCheck=s.anchorCheck!==false; }catch(e){} return d; })();
 function persistSettings(){ try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(SETTINGS)); }catch(e){} }
-function openSettings(){ closeMenus(); const g=id=>document.getElementById(id); g('setDisplayUnits').value=job.units==='mm'?'mm':'in'; g('setImportUnits').value=SETTINGS.importUnits; g('setStrictAnchors').checked=SETTINGS.strictAnchors; g('setTableW').value=SETTINGS.tableW; g('setTableH').value=SETTINGS.tableH; g('settingsModal').style.display='block'; }
+function openSettings(){ closeMenus(); const g=id=>document.getElementById(id); g('setDisplayUnits').value=job.units==='mm'?'mm':'in'; g('setImportUnits').value=SETTINGS.importUnits; g('setStrictAnchors').checked=SETTINGS.anchorCheck; g('setTableW').value=SETTINGS.tableW; g('setTableH').value=SETTINGS.tableH; g('settingsModal').style.display='block'; }
 function wireSettings(){ const g=id=>document.getElementById(id), close=()=>{ g('settingsModal').style.display='none'; }; g('settingsX').onclick=close; g('settingsOk').onclick=close;
   g('setDisplayUnits').onchange=e=>setUnits(e.target.value);
   const tbl=(key,id)=>{ g(id).onchange=e=>{ const v=parseFloat(e.target.value); if(!(v>0)){ e.target.value=SETTINGS[key]; return; } SETTINGS[key]=v; persistSettings(); scheduleCncPush(); }; }; tbl('tableW','setTableW'); tbl('tableH','setTableH');
   g('setImportUnits').onchange=e=>{ SETTINGS.importUnits=e.target.value; persistSettings(); setMsg('Units of opened files: '+e.target.selectedOptions[0].textContent+'. Applies to the next file you open.'); };
-  g('setStrictAnchors').onchange=e=>{ SETTINGS.strictAnchors=e.target.checked; persistSettings(); setMsg('Anchor check '+(e.target.checked?'on':'off')+'. Applies to the next file you open.'); }; }
+  g('setStrictAnchors').onchange=e=>{ SETTINGS.anchorCheck=e.target.checked; persistSettings(); setMsg('Anchor check '+(e.target.checked?'on':'off')+'. Applies to the next file you open.'); }; }
 function setProjectName(name){ if(name) projectFile.name=name; document.title=projectFile.name.replace(/\.aqcam$/i,'')+' — Aquamentor CAD/CAM'; }
 // A handle from the Open dialog or a drop starts read-only, so this is where the browser asks once for permission to change the file.
 async function writeHandle(handle, data){

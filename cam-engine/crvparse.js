@@ -468,9 +468,9 @@ const CRV_NULL_GUID = '00000000000000000000000000000000';
 // approximate a curve's extremum, and at the drawing tolerance a cubic's
 // bbox falls short of the true one by more than 1e-6.
 const CRV_ANCHOR_FLATTEN_TOL = 1e-7;
-// A cached anchor is routinely stale, and Vectric's own bezier extremum differs from ours by up to 2e-4 on files whose geometry
-// is exact. The anchor is therefore a report, not a gate; what proves the decode is the stream framing and span chaining.
-const CRV_ANCHOR_TOL = 1e-3;
+// A file whose every saved anchor disagrees with the decoded drawing is refused: its geometry cannot be trusted. One stale anchor among
+// good ones is only noted.
+const CRV_ANCHOR_TOL = 1e-5;
 
 // MFC tag constants. THE TRAP: `~wClassTag` masks off bit 15, so the ordinary
 // new-class tag 0xFFFF decodes to 0x80007FFF — the sentinel AFTER decoding is
@@ -1282,9 +1282,9 @@ function parseCrv(u8, opts) {
   // objects at once — and still fails.
   const report = [];
   const rep = (code, level, msg, count, items) => { report.push({ code, level, msg, count: count == null ? 1 : count, items: items || [] }); if (level !== 'info') warnings.push(msg); };
-  // The strict check is the caller's choice: real files can have every anchor stale, so by default this is only a note.
-  if (opts.strictAnchors && anchorN >= 4 && anchorOk === 0) {
-    const e = new Error('CRV: every one of the ' + anchorN + ' saved object anchors disagrees with the decoded drawing (worst ' + anchorWorst.toFixed(4) + ' in file units). The anchor check is on in Settings, so this file was refused.');
+  // Every caller gets this refusal. Only the studio's Settings switch passes strictAnchors:false.
+  if (opts.strictAnchors !== false && anchorN >= 4 && anchorOk === 0) {
+    const e = new Error('CRV: the geometry in this file cannot be trusted. All ' + anchorN + ' saved object anchors disagree with the decoded drawing, by as much as ' + anchorWorst.toFixed(6) + ' in file units. Nothing was imported.');
     e.anchorMismatch = true; throw e;
   }
   if (want !== 'auto')

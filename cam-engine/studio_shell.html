@@ -732,7 +732,7 @@ body.dark .qrow.picked{background:#3a2a1c}
       <div class="gcrow"><b style="min-width:150px">CNC table size</b><input id="setTableW" type="number" min="1" step="1" style="width:70px"> x <input id="setTableH" type="number" min="1" step="1" style="width:70px"> in</div>
       <div class="gcrow gcnote">X by Y. The 3D engine window draws this table and flags anything that runs off it.</div>
       <label class="gcrow" style="margin-top:8px"><input type="checkbox" id="setStrictAnchors"><b>Anchor check</b></label>
-      <div class="gcrow gcnote">On: refuse a Vectric file when every saved object anchor disagrees with the drawing, with an Open Anyway button. Off: open it and add a note to the report. Some good files have all their anchors out of date, so off is the default.</div>
+      <div class="gcrow gcnote">On, the default: refuse a Vectric file when every saved object anchor disagrees with the drawing, because its geometry cannot be trusted. Off: open it and add a note to the report.</div>
     </div>
     <div class="modal-foot"><button class="tb primary" id="settingsOk">Done</button></div>
   </div>

@@ -1303,9 +1303,9 @@ function importPDF(name, buf){
 function importCRV(name, buf, opts){
   if(typeof CRVPARSE==='undefined'){ setMsg('Cannot open '+name+': the .crv reader (cam-engine/crvparse.js) is not in this build — add it and run npm run build'); return; }
   opts=opts||{};
-  let res; try{ res=CRVPARSE.toShapes(new Uint8Array(buf), { tol:0.002, units:opts.units||SETTINGS.importUnits, strictAnchors:SETTINGS.strictAnchors&&!opts.skipAnchorCheck }); }
-  catch(err){ const m=err.notCrvFile?(name+' is not a Vectric file (the contents do not match its .crv/.crv3d extension). '+err.message):err.message;
-    showFileReport(name,[{code:err.anchorMismatch?'ANCHOR_MISMATCH':'OPEN_FAILED',level:'loss',msg:m,count:1}],err.anchorMismatch?{failed:true,action:{label:'Open Anyway',fn:()=>importCRV(name,buf,Object.assign({},opts,{skipAnchorCheck:true}))}}:{failed:true}); setMsg('Could not open '+name+': '+m); return; }
+  let res; try{ res=CRVPARSE.toShapes(new Uint8Array(buf), { tol:0.002, units:opts.units||SETTINGS.importUnits, strictAnchors:SETTINGS.anchorCheck }); }
+  catch(err){ const m=err.notCrvFile?(name+' is not a Vectric file (the contents do not match its .crv/.crv3d extension). '+err.message):err.anchorMismatch?(name+' was refused. '+err.message.replace(/^CRV: /,'')):err.message;
+    showFileReport(name,[{code:err.anchorMismatch?'ANCHOR_MISMATCH':'OPEN_FAILED',level:'loss',msg:m,count:1}],{failed:true}); setMsg('Could not open '+name+': '+m); return; }
   // res: { job:{w,h,thickness}|null, unitsSource, layers:[{name, color?, contours:[{pts:[{x,y}], closed, guid, tabs}]}], report, toolpathData, safeZ }
   const layers=(res&&res.layers)||[]; const shapes=[]; const byGuid=new Map();
   for(const L of layers){ const lname=(L.name||'0').trim()||'0';
@@ -1749,14 +1749,14 @@ function fileSave(){ return programIsCurrent()?gcSave():saveProject(); }
 function fileSaveAs(){ return programIsCurrent()?gcSaveAs():saveProjectAs(); }
 // ---- Settings ----
 const SETTINGS_KEY='aqcam.settings';
-const SETTINGS=(function(){ const d={importUnits:'auto',strictAnchors:false,tableW:60,tableH:120}; try{ const s=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'); if(s.tableW>0) d.tableW=+s.tableW; if(s.tableH>0) d.tableH=+s.tableH; if(['auto','inch','mm'].indexOf(s.importUnits)>=0) d.importUnits=s.importUnits; d.strictAnchors=s.strictAnchors===true; }catch(e){} return d; })();
+const SETTINGS=(function(){ const d={importUnits:'auto',anchorCheck:true,tableW:60,tableH:120}; try{ const s=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'); if(s.tableW>0) d.tableW=+s.tableW; if(s.tableH>0) d.tableH=+s.tableH; if(['auto','inch','mm'].indexOf(s.importUnits)>=0) d.importUnits=s.importUnits; d.anchorCheck=s.anchorCheck!==false; }catch(e){} return d; })();
 function persistSettings(){ try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(SETTINGS)); }catch(e){} }
-function openSettings(){ closeMenus(); const g=id=>document.getElementById(id); g('setDisplayUnits').value=job.units==='mm'?'mm':'in'; g('setImportUnits').value=SETTINGS.importUnits; g('setStrictAnchors').checked=SETTINGS.strictAnchors; g('setTableW').value=SETTINGS.tableW; g('setTableH').value=SETTINGS.tableH; g('settingsModal').style.display='block'; }
+function openSettings(){ closeMenus(); const g=id=>document.getElementById(id); g('setDisplayUnits').value=job.units==='mm'?'mm':'in'; g('setImportUnits').value=SETTINGS.importUnits; g('setStrictAnchors').checked=SETTINGS.anchorCheck; g('setTableW').value=SETTINGS.tableW; g('setTableH').value=SETTINGS.tableH; g('settingsModal').style.display='block'; }
 function wireSettings(){ const g=id=>document.getElementById(id), close=()=>{ g('settingsModal').style.display='none'; }; g('settingsX').onclick=close; g('settingsOk').onclick=close;
   g('setDisplayUnits').onchange=e=>setUnits(e.target.value);
   const tbl=(key,id)=>{ g(id).onchange=e=>{ const v=parseFloat(e.target.value); if(!(v>0)){ e.target.value=SETTINGS[key]; return; } SETTINGS[key]=v; persistSettings(); scheduleCncPush(); }; }; tbl('tableW','setTableW'); tbl('tableH','setTableH');
   g('setImportUnits').onchange=e=>{ SETTINGS.importUnits=e.target.value; persistSettings(); setMsg('Units of opened files: '+e.target.selectedOptions[0].textContent+'. Applies to the next file you open.'); };
-  g('setStrictAnchors').onchange=e=>{ SETTINGS.strictAnchors=e.target.checked; persistSettings(); setMsg('Anchor check '+(e.target.checked?'on':'off')+'. Applies to the next file you open.'); }; }
+  g('setStrictAnchors').onchange=e=>{ SETTINGS.anchorCheck=e.target.checked; persistSettings(); setMsg('Anchor check '+(e.target.checked?'on':'off')+'. Applies to the next file you open.'); }; }
 function setProjectName(name){ if(name) projectFile.name=name; document.title=projectFile.name.replace(/\.aqcam$/i,'')+' — Aquamentor CAD/CAM'; }
 // A handle from the Open dialog or a drop starts read-only, so this is where the browser asks once for permission to change the file.
 async function writeHandle(handle, data){
