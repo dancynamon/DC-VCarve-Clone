@@ -82,7 +82,8 @@ const THEMES_DARK={
     labelBg:'rgba(30,32,70,0.96)', labelBd:'#6b74c8', labelInk:'#e0e4ff' })
 };
 const THEMES={ '2d':THEMES_LIGHT['2d'], preview:THEMES_LIGHT.preview };
-let darkMode=(function(){ try{ return localStorage.getItem('aqcam.theme')==='dark'; }catch(e){ return false; } })();
+// the saved choice; before one is made, follow the Mac's own light / dark setting
+let darkMode=(function(){ try{ const t=localStorage.getItem('aqcam.theme'); if(t) return t==='dark'; }catch(e){} return !!(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches); })();
 function setTheme(dark){ darkMode=!!dark; if(typeof asmApplyTheme==='function') setTimeout(()=>{ asmApplyTheme(); if(typeof ASM!=='undefined'&&ASM.r) ASM.r.draw(); },0); const T=darkMode?THEMES_DARK:THEMES_LIGHT; THEMES['2d']=T['2d']; THEMES.preview=T.preview;
   document.body.classList.toggle('dark', darkMode); try{ localStorage.setItem('aqcam.theme', darkMode?'dark':'light'); }catch(e){}
   const b=document.getElementById('btnTheme'); if(b){ b.textContent=darkMode?'☀ Light':'☾ Dark'; b.title=darkMode?'Switch to light mode':'Switch to dark mode'; }
@@ -105,7 +106,7 @@ function drawRulers(){ const th=TH(); const W=cv.width, H=cv.height, R=RULER_W;
   const major=rulerStep(), minor=major/(uk()===1?4:5);
   ctx.save(); ctx.fillStyle=th.rulerBg; ctx.fillRect(0,0,W,R); ctx.fillRect(0,0,R,H);
   ctx.strokeStyle=th.rulerBd; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(0,R+0.5); ctx.lineTo(W,R+0.5); ctx.moveTo(R+0.5,0); ctx.lineTo(R+0.5,H); ctx.stroke();
-  ctx.strokeStyle=th.rulerTick; ctx.fillStyle=th.rulerInk; ctx.font='9px monospace';
+  ctx.strokeStyle=th.rulerTick; ctx.fillStyle=th.rulerInk; ctx.font='600 10px sans-serif';
   const fmt=v=>{ const r=Math.round(v*uk()*10000)/10000; return (Math.abs(r)<1e-9?0:r).toString(); };
   const w0=S2W({x:R,y:H}), w1=S2W({x:W,y:R});
   ctx.beginPath(); ctx.textAlign='left'; ctx.textBaseline='top';
@@ -117,7 +118,7 @@ function drawRulers(){ const th=TH(); const W=cv.width, H=cv.height, R=RULER_W;
     ctx.moveTo(R-len,sy); ctx.lineTo(R,sy);
     if(isMajor){ ctx.save(); ctx.translate(1,sy-2); ctx.rotate(-Math.PI/2); ctx.textAlign='left'; ctx.textBaseline='top'; ctx.fillText(fmt(y),0,0); ctx.restore(); } }
   ctx.stroke();
-  ctx.fillStyle=th.rulerBg; ctx.fillRect(0,0,R,R); ctx.fillStyle=th.rulerInk; ctx.font='8px monospace'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(unitName(), R/2, R/2);
+  ctx.fillStyle=th.rulerBg; ctx.fillRect(0,0,R,R); ctx.fillStyle=th.rulerInk; ctx.font='600 9px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(unitName(), R/2, R/2);
   ctx.restore(); }
 // cursor marker on the overlay canvas (cheap: no scene re-render on every mouse move)
 let lastScr=null; const hctx=overlay.getContext('2d');
@@ -300,7 +301,7 @@ function drawDepthLegend(zTop,zBot){
   const grad=ctx.createLinearGradient(0,y,0,y+h); grad.addColorStop(0,depthColor(1)); grad.addColorStop(1,depthColor(0));
   ctx.fillStyle=grad; ctx.fillRect(x,y,w,h);
   ctx.strokeStyle=TH().legendBd; ctx.lineWidth=1; ctx.strokeRect(x+0.5,y+0.5,w,h);
-  ctx.fillStyle=TH().legendInk; ctx.font='10px monospace'; ctx.textAlign='left'; ctx.textBaseline='middle';
+  ctx.fillStyle=TH().legendInk; ctx.font='600 11px sans-serif'; ctx.textAlign='left'; ctx.textBaseline='middle';
   ctx.fillText('Z '+zTop.toFixed(2)+'"', x+w+5, y+5);
   ctx.fillText(zBot.toFixed(2)+'"', x+w+5, y+h-5);
   ctx.textBaseline='alphabetic'; ctx.fillStyle=TH().legendSub; ctx.fillText('depth', x-1, y-6);
@@ -1644,6 +1645,22 @@ async function openFromLauncher(){ const tok=launcherToken(); if(!tok) return;
   try{ const r=await fetch('/file/'+tok); if(!r.ok) throw new Error(await r.text());
     const name=decodeURIComponent(r.headers.get('X-File-Name')||'file'); handleOpenedFile(new File([await r.arrayBuffer()],name), launcherHandle(tok,name)); }
   catch(err){ setMsg('Could not open the file: '+err.message); showFileReport('file',[{code:'OPEN_FAILED',level:'loss',msg:err.message+'. Open the file from Finder again.',count:1}],{failed:true}); } }
+// ---- running as the Mac app (served by tools/mac/cadcam_launcher.py) ----
+// Offers Install while in a browser tab, takes files Finder opens while a window is already up, and notices a newer build.
+function initAppShell(){ const meta=document.querySelector('meta[name="aq-app-build"]'); if(!meta) return;
+  const bar=document.getElementById('appBar'), msg=document.getElementById('appBarMsg'), go=document.getElementById('appBarGo'), no=document.getElementById('appBarNo');
+  const show=(text,label,fn)=>{ msg.textContent=text; go.textContent=label; go.onclick=()=>{ bar.classList.remove('show'); fn(); }; bar.classList.add('show'); };
+  no.onclick=()=>bar.classList.remove('show');
+  const isEmpty=()=>!allShapes().length&&!opsQueue.length&&!PB.file;
+  let install=null;
+  window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); install=e; show('Install as an app, with its own name in the Mac menu bar','Install',()=>install.prompt()); });
+  setInterval(async()=>{ try{ const it=await (await fetch('/next-open')).json(); if(!it) return; const url='/cadcam-studio.html?open='+it.token;
+      if(isEmpty()) location.href=url; else show('Open '+it.name+'?','Open in a new window',()=>window.open(url,'_blank')); }catch(e){} }, 2000);
+  let told=false;
+  const checkBuild=async()=>{ if(told) return; try{ const b=(await (await fetch('/build')).json()).build; if(b===meta.content) return; told=true;
+      if(isEmpty()) return location.reload();
+      show('A new version is ready — reloading keeps your autosave','Reload',()=>{ autosaveNow(); location.reload(); }); }catch(e){} };
+  setInterval(checkBuild,60000); window.addEventListener('focus',checkBuild); }
 // ---- G-code editor ----------------------------------------------------------------------------------------------------
 function gcNum(id){ const v=String(document.getElementById(id).value).trim(); return v===''?NaN:parseFloat(v); }
 function openGcodeEditor(){ if(!PB.file){ setMsg('Open a .tap or G-code file first (File → Open)'); return; }
@@ -2351,7 +2368,7 @@ function drawJob(withGrid){ if(!job.show)return; const r=jobRect(); const a=W2S(
   corner(x,y,1,1); corner(x+w,y,-1,1); corner(x,y+h,1,-1); corner(x+w,y+h,-1,-1);
   // size caption pill inside the top-left corner of the stock
   const cap=job.w+'" × '+job.h+'"  ·  '+job.thickness+'" thick';
-  ctx.font='bold 13px monospace'; const cw=ctx.measureText(cap).width; const ch=20;
+  ctx.font='bold 13px sans-serif'; const cw=ctx.measureText(cap).width; const ch=20;
   if(w>cw+26 && h>ch+10){ const px=x+9, py=y+9;
     ctx.fillStyle=TH().labelBg; ctx.fillRect(px,py,cw+16,ch);
     ctx.strokeStyle=TH().labelBd; ctx.lineWidth=1; ctx.strokeRect(px+0.5,py+0.5,cw+15,ch-1);
@@ -2361,7 +2378,7 @@ function drawJob(withGrid){ if(!job.show)return; const r=jobRect(); const a=W2S(
   const o=W2S({x:0,y:0}); ctx.fillStyle=TH().origin; ctx.beginPath(); ctx.arc(o.x,o.y,4,0,TAU); ctx.fill();
   ctx.strokeStyle=TH().origin; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(o.x,o.y); ctx.lineTo(o.x+18,o.y); ctx.moveTo(o.x,o.y); ctx.lineTo(o.x,o.y-18); ctx.stroke();
   // edge dimension labels
-  ctx.fillStyle=TH().dimLbl; ctx.font='bold 12px monospace'; ctx.textAlign='center';
+  ctx.fillStyle=TH().dimLbl; ctx.font='bold 12px sans-serif'; ctx.textAlign='center';
   ctx.fillText(job.w+'"', x+w/2, b.y+15);
   ctx.save(); ctx.translate(a.x-10,(a.y+b.y)/2); ctx.rotate(-Math.PI/2); ctx.fillText(job.h+'"',0,0); ctx.restore();
   ctx.restore();
@@ -2392,7 +2409,7 @@ function drawMeasure(a,b,persist){ ctx.save(); ctx.strokeStyle=persist?TH().meas
   const dx=b.x-a.x, dy=b.y-a.y, dist=Math.hypot(dx,dy), ang=Math.atan2(dy,dx)*180/Math.PI;
   const mid={x:(p.x+q.x)/2,y:(p.y+q.y)/2};
   const label=dist.toFixed(3)+'"  ('+dx.toFixed(3)+' x '+dy.toFixed(3)+')  '+ang.toFixed(1)+String.fromCharCode(176);
-  ctx.font='11px monospace'; const wlab=ctx.measureText(label).width;
+  ctx.font='600 12px sans-serif'; const wlab=ctx.measureText(label).width;
   ctx.fillStyle=TH().measureBg; ctx.fillRect(mid.x+8, mid.y-20, wlab+10, 16);
   ctx.fillStyle=TH().measureInk; ctx.textAlign='left'; ctx.fillText(label, mid.x+13, mid.y-8);
   ctx.restore();
@@ -2779,7 +2796,7 @@ function initTips(){ const tip=document.getElementById('tip'); if(!tip) return; 
     cur=el; timer=setTimeout(()=>{ if(cur===el) place(el); }, 350); });
   document.addEventListener('mouseout', e=>{ const el=e.target.closest&&e.target.closest('[data-tip]'); if(el&&el===cur&&!(e.relatedTarget&&el.contains(e.relatedTarget))) hide(); });
   document.addEventListener('mousedown', hide, true); window.addEventListener('scroll', hide, true); window.addEventListener('blur', hide); }
-window.addEventListener('load',()=>openFromLauncher());
+window.addEventListener('load',()=>{ openFromLauncher(); initAppShell(); });
 wire(); initCalcFields(); setUnits((function(){ try{ return localStorage.getItem('aqcam.units'); }catch(e){ return null; } })()||'in', true); initTips(); resize(); setTool('select'); syncPanels(); render();
 window.AQ_STUDIO = { doc, get sel(){return sel;}, get view(){return viewMode;}, CADCORE, CAM, importText, importPDF, openProject, saveProject, saveProjectAs, projectJSON, setView, camBuild, setTool, addShapes, render,
   opCopy, opCut, opPaste, get clip(){return clip;}, createFromForm, openShapeModal, applyShapeModal, closeShapeModal, setModalAnchor, setRotAnchor, get anchor(){return modalAnchor;}, get rotAnchor(){return rotAnchor;},

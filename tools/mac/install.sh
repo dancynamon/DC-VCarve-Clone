@@ -1,6 +1,7 @@
 #!/bin/bash
 # Installs "Aquamentor CADCAM.app" and makes it the Mac's default for .tap, .dxf, .crv3d and .crv.
-# Run it again after building a new version: it copies the current cadcam-studio.html into place.
+# It only needs running once: after that the app updates itself from each build published from main. Run it again
+# only if this script or the launcher changes (or to try a local build, which stays until the next published one).
 #   tools/mac/install.sh
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"; REPO="$(cd "$HERE/../.." && pwd)"
@@ -51,3 +52,23 @@ for ext in tap dxf crv3d crv; do
   duti -s "$ID" "com.aquamentor.$ext" all   # by the type declared above: duti cannot set a default by extension on this macOS
   printf '%s -> %s\n' ".$ext" "$(duti -x "$ext" | head -1)"
 done
+
+# Keep the app's server (and its update check) running, so the installed app can start from the Dock at any time.
+AGENT="$HOME/Library/LaunchAgents/com.aquamentor.cadcam-server.plist"
+launchctl bootout "gui/$(id -u)/com.aquamentor.cadcam-server" 2>/dev/null || true
+pkill -f "cadcam_launcher.py serve" 2>/dev/null || true
+mkdir -p "$HOME/Library/LaunchAgents" "$HOME/Library/Logs"
+cat > "$AGENT" <<EOF2
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.aquamentor.cadcam-server</string>
+  <key>ProgramArguments</key><array><string>/usr/bin/python3</string><string>$SUP/cadcam_launcher.py</string><string>serve</string></array>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardErrorPath</key><string>$HOME/Library/Logs/Aquamentor CADCAM.log</string>
+</dict></plist>
+EOF2
+sleep 1
+launchctl bootstrap "gui/$(id -u)" "$AGENT"
+echo "Server running; the app now updates itself from main."

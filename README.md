@@ -3,6 +3,14 @@
 Browser-based 2D CNC CAD/CAM (VCarve-style) for Aquamentor / WaterLine CNC.
 Single self-contained HTML — no install, offline, posts G-code for ShopSabre (WinCNC).
 
+## The Mac app
+`tools/mac/install.sh` installs **Aquamentor CADCAM** (once; it needs `duti`). Open it, click **Install** in the bar it shows, and from then
+on it is its own app with its name in the Mac menu bar and a Dock icon, with no HTML file to open.
+
+**It updates itself.** Every push to `main` runs the tests and, if they pass, publishes a build
+(`.github/workflows/release-app.yml`). The app checks every 5 minutes, verifies the download's hash and swaps it in; open windows offer Reload.
+So an update is live once it is merged to `main`. Changes to the launcher or installer themselves still need `tools/mac/install.sh` run again.
+
 ## Quick start
 ```
 npm test     # 1459 checks across 20 suites
