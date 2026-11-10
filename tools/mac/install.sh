@@ -48,6 +48,6 @@ EOF
 codesign --force --deep -s - "$APP"
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP"
 for ext in tap dxf crv3d crv; do
-  duti -s "$ID" ".$ext" all
+  duti -s "$ID" "com.aquamentor.$ext" all   # by the type declared above: duti cannot set a default by extension on this macOS
   printf '%s -> %s\n' ".$ext" "$(duti -x "$ext" | head -1)"
 done
