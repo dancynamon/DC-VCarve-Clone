@@ -411,7 +411,7 @@ function updateMatSummary(){
 // ---- menu bar ----
 const MENU_ACTIONS={
   'new':()=>document.getElementById('btnNew').click(),
-  'open':()=>openProjectDialog(),
+  'open':()=>openProjectDialog(), 'gcedit':()=>openGcodeEditor(), 'report':()=>{ if(lastReport) showFileReport(lastReport.name,lastReport.items,lastReport.opts); else setMsg('No import report yet'); },
   'save':()=>saveProject(), 'saveas':()=>saveProjectAs(),
   'job':()=>showForm('job','drawing'), 'rotate':()=>openRotateModal(),
   'selall':()=>{ sel=new Set(doc.shapes.filter(s=>layerVisible(s.layer)).map(s=>s.id)); render(); syncPanels(); },
@@ -1263,10 +1263,15 @@ function opJoin(){ const sh=selectedShapes().filter(s=>s.type==='path'); if(sh.l
 
 // ---- import / export ----
 function importText(name, text){
-  if(/\.dxf$/i.test(name)){ const ents=parseDxf(text); const polys=[]; for(const e of ents){ for(const p of entityToPolys(e)) polys.push(p); } const shapes=CADCORE.dxfPolysToShapes(polys);
-    pushHistory(); CADCORE.registerDxfLayers(doc.layers, polys.filter(p=>p.type!=='TEXT'&&p.type!=='DIMENSION')); addShapes(shapes); fitAll(); buildLayers();
+  if(/\.dxf$/i.test(name)){ let ents;
+    try{ ents=parseDxf(text); }catch(err){ showFileReport(name,[{code:'OPEN_FAILED',level:'loss',msg:err.message,count:1}],{failed:true}); setMsg('Could not open '+name+': '+err.message); return; }
+    const polys=[]; for(const e of ents){ for(const p of entityToPolys(e)) polys.push(p); } const shapes=CADCORE.dxfPolysToShapes(polys);
+    if(!shapes.length){ showFileReport(name,(ents.report||[]).concat([{code:'NO_VECTORS',level:'loss',msg:'The file opened but holds no vectors this app can use.',count:1}]),{failed:true}); setMsg('No usable vectors in '+name+' — see the import report'); return; }
+    pushHistory(); CADCORE.registerDxfLayers(doc.layers, polys.filter(p=>p.type!=='TEXT'&&p.type!=='DIMENSION'), ents.layerTable); addShapes(shapes); fitAll(); buildLayers(); doc.sourceName=name;
     const K=new Set(shapes.map(s=>s.layer)).size; syncPanels(); render();
-    setMsg('Imported '+shapes.length+' vector'+(shapes.length!==1?'s':'')+' on '+K+' layer'+(K!==1?'s':'')+' from '+name);
+    const items=ents.report||[], bad=items.filter(r=>r.level==='loss').length;
+    setMsg('Imported '+shapes.length+' vector'+(shapes.length!==1?'s':'')+' on '+K+' layer'+(K!==1?'s':'')+' from '+name+(ents.units&&ents.units.factor!==1?' · scaled from '+ents.units.name:'')+(bad?' · WARNING: some of this file did not import, see the report':''));
+    showFileReport(name,items,{});
     if(typeof asmApplyLayerDefaults==='function') asmApplyLayerDefaults(name, shapes);   // OUTSIDE_PROFILE / DRILL_.._THRU / POCKET_..DEEP -> sheet size, thickness, toolpaths
     return; }
   else if(/\.svg$/i.test(name)){ const shapes=CADCORE.svgToShapes(text); pushHistory(); addShapes(shapes); fitAll(); }
@@ -1292,30 +1297,60 @@ function importPDF(name, buf){
 // VCarve .crv / Aspire .crv3d — OLE2 container, MFC CArchive vector data. Decoded by crvparse.js (the JS port of
 // crvlib.py, see cam-engine/README.md); build.js bundles it when the file is present. The parser refuses rather than
 // guesses, so a thrown error here is reported verbatim — never patched around.
-function importCRV(name, buf){
+function importCRV(name, buf, opts){
   if(typeof CRVPARSE==='undefined'){ setMsg('Cannot open '+name+': the .crv reader (cam-engine/crvparse.js) is not in this build — add it and run npm run build'); return; }
-  let res; try{ res=CRVPARSE.toShapes(new Uint8Array(buf), { tol:0.002 }); }
-  catch(err){ setMsg('CRV parse failed: '+err.message+' · '+name); return; }
-  // res: { job:{w,h}|null, units:'in'|'mm'|null, unitsSource, layers:[{name, color?, contours:[{pts:[{x,y}], closed}]}] }
-  const layers=(res&&res.layers)||[]; const shapes=[];
+  let res; try{ res=CRVPARSE.toShapes(new Uint8Array(buf), { tol:0.002, units:(opts&&opts.units)||'auto' }); }
+  catch(err){ const m=err.notCrvFile?(name+' is not a Vectric file (the contents do not match its .crv/.crv3d extension). '+err.message):err.message;
+    showFileReport(name,[{code:'OPEN_FAILED',level:'loss',msg:m,count:1}],{failed:true}); setMsg('Could not open '+name+': '+m); return; }
+  // res: { job:{w,h,thickness}|null, unitsSource, layers:[{name, color?, contours:[{pts:[{x,y}], closed, guid, tabs}]}], report, toolpathData, safeZ }
+  const layers=(res&&res.layers)||[]; const shapes=[]; const byGuid=new Map();
   for(const L of layers){ const lname=(L.name||'0').trim()||'0';
-    if(!doc.layers.has(lname)) doc.layers.set(lname,{visible:true,color:L.color||'#1b2b3f'});
-    for(const c of (L.contours||[])){ if(!c.pts||c.pts.length<2) continue; shapes.push(CADCORE.mkPoly(c.pts, !!c.closed, lname)); } }
-  if(!shapes.length){ setMsg('No vectors in '+name+(res&&res.empty?' — the file was saved with its vectors deleted':'')); syncPanels(); return; }
+    if(!doc.layers.has(lname)) doc.layers.set(lname,{visible:true,color:L.color||nextLayerColor()});
+    for(const c of (L.contours||[])){ if(!c.pts||c.pts.length<2) continue; const sh=CADCORE.mkPoly(c.pts, !!c.closed, lname); shapes.push(sh); if(c.guid){ if(!byGuid.has(c.guid)) byGuid.set(c.guid,[]); byGuid.get(c.guid).push(sh.id); } } }
+  const items=(res.report||[]).slice();
+  if(!shapes.length){ setMsg('No vectors in '+name+(res&&res.empty?' — the file was saved with its vectors deleted':'')); showFileReport(name,items,{failed:true}); syncPanels(); return; }
   pushHistory();
-  if(res.job&&res.job.w>0&&res.job.h>0){ job.w=res.job.w; job.h=res.job.h; applyJobInputs(); updateMatSummary(); }
-  addShapes(shapes); fitAll(); syncPanels(); render();
-  let m='Imported '+shapes.length+' vector'+(shapes.length!==1?'s':'')+' on '+layers.length+' layer'+(layers.length!==1?'s':'')+' from '+name;
-  if(res.job) m+=' · job '+(+res.job.w.toFixed(3))+' × '+(+res.job.h.toFixed(3));
-  if(res.units==='mm') m+='  ·  WARNING: job size reads as millimetres ('+(res.unitsSource||'heuristic')+') — the format carries no units flag; check the size before cutting.';
+  if(res.job&&res.job.w>0&&res.job.h>0){ job.w=res.job.w; job.h=res.job.h; if(res.job.thickness>0) job.thickness=res.job.thickness; applyJobInputs(); updateMatSummary(); }
+  addShapes(shapes); doc.sourceName=name;
+  // the saved toolpaths, rebuilt as editable toolpaths on the imported vectors
+  let tpN=0;
+  if(res.toolpathData&&typeof CRVTP!=='undefined'){ const tr=CRVTP.toStudioOps(res.toolpathData,{guids:[...byGuid.keys()],safeZ:res.safeZ});
+    for(const o of tr.ops){ const ids=o.guids.flatMap(g=>byGuid.get(g)||[]); const nq=normalizeOp({p:o.p,ids,name:o.name,label:'',visible:true}); opsQueue.push(nq); tpN++; }
+    items.push(...tr.report); if(tpN) buildQueueList(); }
+  else if(res.toolpathData===null&&typeof CRVTP==='undefined') items.push({code:'TOOLPATHS_NOT_IMPORTED',level:'loss',msg:'This build cannot read saved toolpaths.',count:1});
+  items.push({code:'ORIGINAL_UNCHANGED',level:'info',msg:'The original '+name+' is unchanged. Saving writes an .aqcam (or Export DXF / Save Toolpaths for .tap); this app cannot write .crv or .crv3d files.',count:1});
+  fitAll(); syncPanels(); render();
+  projectFile.handle=null; setProjectName(name.replace(/\.crv3?d?$/i,'')+'.aqcam');
+  let m='Imported '+shapes.length+' vector'+(shapes.length!==1?'s':'')+' on '+layers.length+' layer'+(layers.length!==1?'s':'')+(tpN?' and '+tpN+' toolpath'+(tpN!==1?'s':''):'')+' from '+name;
+  if(res.job) m+=' · job '+(+res.job.w.toFixed(3))+' × '+(+res.job.h.toFixed(3))+(res.job.thickness?' × '+(+res.job.thickness.toFixed(3)):'');
+  if(items.some(r=>r.level==='loss')) m+=' · WARNING: some of this file did not import, see the report';
   setMsg(m);
+  const flip=res.sourceUnits==='mm'?'inch':'mm';
+  showFileReport(name,items,items.some(r=>r.code==='UNITS_UNVERIFIED')?{action:{label:'Reopen as '+(flip==='mm'?'millimetres':'inches'),fn:()=>{ doc.shapes=doc.shapes.filter(s=>shapes.indexOf(s)<0); opsQueue=opsQueue.filter(q=>!q.ids||!q.ids.some(id=>shapes.some(s=>s.id===id))); importCRV(name,buf,{units:flip}); }}}:{});
 }
+// a layer colour no other layer is using
+function nextLayerColor(){ const used=new Set([...doc.layers.values()].map(l=>l.color)); const pal=(typeof LAYER_COLORS!=='undefined'?LAYER_COLORS:['#1b2b3f']); for(const c of pal) if(!used.has(c)) return c; return '#'+Math.floor(Math.random()*0xFFFFFF).toString(16).padStart(6,'0'); }
+// ---- what came through and what did not -------------------------------------------------------------------------------
+let lastReport=null;
+function showFileReport(name, items, opts){ items=(items||[]).filter(Boolean); opts=opts||{}; lastReport={name,items,opts};
+  const shown=items.filter(r=>r.level!=='info'||opts.failed); const body=document.getElementById('reportBody'), bg=document.getElementById('reportModal');
+  if(!body||!bg) return;
+  const title=document.getElementById('reportTitle'); if(title) title.textContent=(opts.failed?'Could not open ':'Import report: ')+name;
+  body.innerHTML=''; const all=shown.concat(items.filter(r=>r.level==='info'&&!opts.failed));
+  if(!shown.length) return;   // nothing lost, nothing worth interrupting for
+  for(const r of all){ const d=document.createElement('div'); d.className='rpt '+r.level; const tag=r.level==='loss'?'NOT IMPORTED':r.level==='warn'?'CHECK':'NOTE';
+    d.innerHTML='<b>'+tag+'</b> '+esc(r.msg)+(r.count>1&&!/^\d/.test(r.msg)?' ('+r.count+')':'')+(r.items&&r.items.length?'<small>'+r.items.map(esc).join(', ')+(r.count>r.items.length?', …':'')+'</small>':''); body.appendChild(d); }
+  const foot=document.getElementById('reportFoot'); foot.innerHTML='<button class="tb primary" id="reportOk">OK</button>';
+  if(opts.action){ const b=document.createElement('button'); b.className='tb'; b.textContent=opts.action.label; b.onclick=()=>{ bg.style.display='none'; opts.action.fn(); }; foot.insertBefore(b,foot.firstChild); }
+  document.getElementById('reportOk').onclick=()=>{ bg.style.display='none'; };
+  bg.style.display='block'; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 // Saving a file has two routes. Opened from disk, a plain download link works and always has.
 // Published as an Artifact, the viewer sandbox makes that link inert — the host has to hand the file
 // over — so when the host is present we go through it, and every export in the app benefits because
 // they all come through here. Locally nothing changes: window.claude does not exist, so we take the
 // link path exactly as before.
-function downloadViaLink(name, text, type){
+function downloadViaLink(name, text, type){   // text may be a string or a Uint8Array (G-code keeps its exact bytes)
   const b=new Blob([text],{type:type||'text/plain'}); const a=document.createElement('a');
   a.href=URL.createObjectURL(b); a.download=name; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);
@@ -1561,10 +1596,55 @@ function pbUI(){
     const T=PB.T; runSim(); pbSet(T); });
 }
 // Open a posted program (.tap / .nc / .gcode): it plays in the 3D view and backplots in the 2D view.
-function openProgram(name, text){
-  PB.file={ name, text }; lastGcode=text; toolpaths=toolpathSegs(text); drillMarks=null;
-  setView('preview'); if(PB.prog&&PB.prog.warnings.length) setMsg('Opened '+name+' · WARN: '+PB.prog.warnings[0]);
+function openProgram(name, text, keepEditor){
+  PB.file={ name, text, original:(PB.file&&keepEditor)?PB.file.original:text, history:(PB.file&&keepEditor)?PB.file.history:[] }; lastGcode=text; toolpaths=toolpathSegs(text); drillMarks=null;
+  setView('preview');
+  const iss=(PB.prog&&PB.prog.issues)||[];
+  if(iss.length){ setMsg('Opened '+name+' · WARNING: '+iss[0].msg);
+    if(!keepEditor) showFileReport(name, iss.slice(0,40).map(i=>({code:i.code,level:i.level,msg:i.msg,count:1})), {}); }
 }
+// G-code arrives as bytes so a comment in any encoding and every line ending survive an edit untouched.
+function openProgramBytes(name, buf){ const r=TAPEDIT.readBytes(new Uint8Array(buf), name);
+  if(!r.ok){ showFileReport(name,[{code:r.code,level:'loss',msg:r.msg,count:1}],{failed:true}); setMsg('Could not open '+name+': '+r.msg); return; }
+  openProgram(name, r.text); }
+// ---- G-code editor ----------------------------------------------------------------------------------------------------
+function gcNum(id){ const v=String(document.getElementById(id).value).trim(); return v===''?NaN:parseFloat(v); }
+function openGcodeEditor(){ if(!PB.file){ setMsg('Open a .tap or G-code file first (File → Open)'); return; }
+  document.getElementById('gcTitle').textContent='Edit G-code: '+PB.file.name;
+  gcSyncTools(); document.getElementById('gcText').value=PB.file.text; gcShowCheck(); document.getElementById('gcSaveNote').textContent='Save As writes a new file. '+PB.file.name+' is not changed unless you choose to overwrite it.';
+  document.getElementById('gcModal').style.display='block'; }
+function gcSyncTools(){ const ts=(PB.prog&&PB.prog.tools)||[]; const fill=(id,first)=>{ const s=document.getElementById(id); s.innerHTML=first; for(const t of ts){ const o=document.createElement('option'); o.value=t; o.textContent='T'+t; s.appendChild(o); } };
+  fill('gcTool',''); fill('gcFeedTool','<option value="">all tools</option>'); }
+function gcShowCheck(){ const m=TAPEDIT.analyse(PB.file.text); const el=document.getElementById('gcReport');
+  if(m.blockers.length){ const b=m.blockers[0]; el.innerHTML='<div class="bad">Edits are refused for this program. Line '+b.line+': '+esc(b.why)+' ('+esc(b.raw)+')'+(m.blockers.length>1?' and '+(m.blockers.length-1)+' more line(s).':'.')+'</div><div>You can still hand-edit the text to fix it.</div>'; }
+  else el.innerHTML='<div class="good">This program can be edited.</div>'; }
+function gcRun(kind){ if(!PB.file)return; const t=PB.file.text; let r;
+  try{ if(kind==='translate') r=TAPEDIT.translate(t,{dx:gcNum('gcDx')||0,dy:gcNum('gcDy')||0});
+    else if(kind==='feed'){ const tl=document.getElementById('gcFeedTool').value; r=TAPEDIT.scaleFeed(t,{factor:gcNum('gcFeed')/100,which:document.getElementById('gcFeedWhich').value,tool:tl===''?undefined:+tl}); }
+    else if(kind==='speed') r=TAPEDIT.scaleSpeed(t,{factor:gcNum('gcSpeed')/100});
+    else if(kind==='safe') r=TAPEDIT.raiseSafeHeight(t,{z:gcNum('gcSafe')});
+    else if(kind==='dz') r=TAPEDIT.shiftCutDepth(t,{dz:gcNum('gcDz'),maxDepth:gcMaxDepth()});
+    else if(kind==='final') r=TAPEDIT.setFinalDepth(t,{z:gcNum('gcFinal'),maxDepth:gcMaxDepth()});
+    else if(kind==='rmtool') r=TAPEDIT.removeTool(t,{tool:+document.getElementById('gcTool').value});
+  }catch(err){ gcShowRefusal(err); return; }
+  gcCommit(r); }
+function gcMaxDepth(){ const j=job.thickness; return j>0?j:undefined; }
+function gcShowRefusal(err){ document.getElementById('gcReport').innerHTML='<div class="bad">Refused, nothing was changed. '+esc(err.message)+'</div>'; setMsg('G-code edit refused: '+err.message); }
+function gcCommit(r){ PB.file.history.push(PB.file.text); openProgram(PB.file.name, r.text, true); gcSyncTools(); document.getElementById('gcText').value=r.text; gcShowResult(r); }
+function gcShowResult(r){ const rows=r.report.rows.map(a=>'<tr><th>'+esc(a[0])+'</th><td>'+esc(a[1])+'</td><td>'+esc(a[2])+'</td></tr>').join('');
+  const iss=r.report.after.issues||[];
+  document.getElementById('gcReport').innerHTML='<table><tr><th></th><th>Before</th><th>After</th></tr>'+rows+'</table>'+(r.notes||[]).map(n=>'<div class="'+(/^WARNING/.test(n)?'bad':'')+'">'+esc(n)+'</div>').join('')+(iss.length?'<div class="bad">After this edit, '+iss.length+' line(s) need attention: '+iss.slice(0,8).map(i=>esc(i.msg)).join(' · ')+'</div>':'');
+  setMsg('G-code edited: '+r.changes.length+' line(s) changed · re-simulated'); }
+function gcApplyText(){ if(!PB.file)return; const after=document.getElementById('gcText').value; if(after===PB.file.text){ setMsg('The text has not changed'); return; } let r; try{ r=TAPEDIT.textEdit(PB.file.text, after); }catch(err){ gcShowRefusal(err); return; } gcCommit(r); }
+function gcUndo(){ if(!PB.file||!PB.file.history.length){ setMsg('Nothing to undo'); return; } const t=PB.file.history.pop(); openProgram(PB.file.name,t,true); document.getElementById('gcText').value=t; gcSyncTools(); gcShowCheck(); setMsg('Undid the last G-code edit'); }
+function gcRevert(){ if(!PB.file)return; PB.file.history=[]; openProgram(PB.file.name,PB.file.original,true); document.getElementById('gcText').value=PB.file.original; gcSyncTools(); gcShowCheck(); setMsg('Back to the opened file'); }
+async function gcSaveAs(){ if(!PB.file)return; const base=PB.file.name.replace(/\.[^.]+$/,''), ext=(PB.file.name.match(/\.[^.]+$/)||['.tap'])[0], bytes=TAPEDIT.textToBytes(PB.file.text);
+  const def=base+'-edited'+ext;
+  if(window.showSaveFilePicker){ try{ const h=await window.showSaveFilePicker({suggestedName:def,types:[{description:'G-code program',accept:{'text/plain':['.tap','.nc','.ngc','.gcode','.cnc']}}]}); const w=await h.createWritable(); await w.write(bytes); await w.close(); setMsg('Saved '+h.name+' ('+bytes.length+' bytes)'); return; }catch(err){ if(err&&err.name==='AbortError')return; setMsg('Save failed ('+err.message+'), downloading instead'); } }
+  const n=prompt('Save G-code as (file name):',def); if(!n){ setMsg('Save cancelled'); return; }
+  if(window.claude&&typeof window.claude.use==='function'){ download(n,PB.file.text,'text/plain'); return; }
+  downloadViaLink(n,bytes,'text/plain'); setMsg('Saved '+n+' to your Downloads folder'); }
+
 function closeProgram(){ PB.file=null; toolpaths=null; if(viewMode==='preview') runSim(); else render(); setMsg('Closed the program — the 3D view shows the visible toolpaths'); }
 // Shade the heightfield into an offscreen canvas: wood-tone depth ramp + directional hillshade for a carved look.
 function shadeHeightfield(field, r){
@@ -1614,7 +1694,7 @@ function handleOpenedFile(f, handle){ const rd=new FileReader();
   else if(/\.aqtpl$/i.test(f.name)){ rd.onload=ev=>importTplText(ev.target.result); rd.readAsText(f); }
   else if(/\.aqclip$/i.test(f.name)){ rd.onload=ev=>importClipText(ev.target.result); rd.readAsText(f); }
   else if(/\.pdf$/i.test(f.name)){ rd.onload=ev=>importPDF(f.name,ev.target.result); rd.readAsArrayBuffer(f); }
-  else if(/\.(tap|nc|ngc|gcode|cnc)$/i.test(f.name)){ rd.onload=ev=>openProgram(f.name,ev.target.result); rd.readAsText(f); }
+  else if(/\.(tap|nc|ngc|gcode|cnc)$/i.test(f.name)){ rd.onload=ev=>openProgramBytes(f.name,ev.target.result); rd.readAsArrayBuffer(f); }
   else if(/\.crv(3d)?$/i.test(f.name)){ rd.onload=ev=>importCRV(f.name,ev.target.result); rd.readAsArrayBuffer(f); }
   else { rd.onload=ev=>importText(f.name,ev.target.result); rd.readAsText(f); } }
 // Open: native picker when available (keeps the handle so Save writes back); falls back to the <input type=file>.
@@ -1650,7 +1730,7 @@ function applyJobInputs(){ const g=id=>document.getElementById(id);
   const nw=g('nestW'),nh=g('nestH'); if(nw)nw.value=job.w; if(nh)nh.value=job.h; }
 function autosaveNow(){ try{ localStorage.setItem(AUTOSAVE_KEY, projectJSON('autosave')); }catch(e){} }
 function scheduleAutosave(){ if(autosaveTimer)clearTimeout(autosaveTimer); autosaveTimer=setTimeout(autosaveNow, 1500); }
-function exportDXF(){ if(!doc.shapes.length)return; download('design.dxf', CADCORE.toDXF(doc.shapes)); }
+function exportDXF(){ if(!doc.shapes.length)return; const base=(doc.sourceName||'design').replace(/\.[^.]+$/,''); download(base+(doc.sourceName?'-edited':'')+'.dxf', CADCORE.toDXF(doc.shapes,{layers:doc.layers})); setMsg('Exported DXF with '+doc.layers.size+' layers; arcs kept as arcs where possible, within 0.005"'); }
 // DXF with outside profiles on OUTSIDE_PROFILE and everything contained within a part on INSIDE_CUT
 function exportDXFSplit(){ const sh=doc.shapes.filter(s=>layerVisible(s.layer)); if(!sh.length)return setMsg('Nothing to export');
   const c=CUTPREP.splitLayers(sh).counts; download('design-split.dxf', CUTPREP.toDXFLayered(sh));
@@ -2470,6 +2550,10 @@ function wire(){
   on('btnCheckVec',opCheckVectors);
   on('restoreYes',()=>dismissRestore(true)); on('restoreNo',()=>dismissRestore(false));
   on('btnAlignL',()=>opAlign('left')); on('btnAlignR',()=>opAlign('right')); on('btnAlignT',()=>opAlign('top')); on('btnAlignB',()=>opAlign('bottom')); on('btnAlignHC',()=>opAlign('hcenter')); on('btnAlignVC',()=>opAlign('vcenter'));
+  document.querySelectorAll('[data-gc]').forEach(b=>b.addEventListener('click',()=>gcRun(b.dataset.gc)));
+  on('gcX',()=>{ document.getElementById('gcModal').style.display='none'; }); on('gcClose',()=>{ document.getElementById('gcModal').style.display='none'; });
+  on('gcUndo',gcUndo); on('gcRevert',gcRevert); on('gcApplyText',gcApplyText); on('gcSave',gcSaveAs);
+  on('reportX',()=>{ document.getElementById('reportModal').style.display='none'; });
   on('btnSaveProj',saveProject); on('btnExpDXF',exportDXF); on('btnExpSVG',exportSVG);
   on('btnJobSet',setJob); on('btnFitJob',fitJob);
   on('btnUnits',()=>setUnits(uk()===1?'mm':'in'));

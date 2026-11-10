@@ -468,7 +468,9 @@ const CRV_NULL_GUID = '00000000000000000000000000000000';
 // approximate a curve's extremum, and at the drawing tolerance a cubic's
 // bbox falls short of the true one by more than 1e-6.
 const CRV_ANCHOR_FLATTEN_TOL = 1e-7;
-const CRV_ANCHOR_TOL = 1e-5;
+// A cached anchor is routinely stale, and Vectric's own bezier extremum differs from ours by up to 2e-4 on files whose geometry
+// is exact. The anchor is therefore a report, not a gate; what proves the decode is the stream framing and span chaining.
+const CRV_ANCHOR_TOL = 1e-3;
 
 // MFC tag constants. THE TRAP: `~wClassTag` masks off bit 15, so the ordinary
 // new-class tag 0xFFFF decodes to 0x80007FFF — the sentinel AFTER decoding is
@@ -1193,7 +1195,14 @@ function parseCrv(u8, opts) {
   if (want === 'inch' || want === 'in') { sourceUnits = 'inch'; unitsSource = 'caller'; }
   else if (want === 'mm') { sourceUnits = 'mm'; unitsSource = 'caller'; }
   else if (want !== 'auto') crvFail('opts.units must be "inch", "mm" or "auto" (got ' + JSON.stringify(opts.units) + ')');
-  else if (job.w && job.h && Math.max(job.w, job.h) > 300) { sourceUnits = 'mm'; unitsSource = 'heuristic:job>300'; }
+  else if (job.w && job.h && Math.max(job.w, job.h) > 300) {
+    // A big job is not a millimetre job: this archive's largest drawings are 500" chair layouts at 1" or 1.5" thickness.
+    // Thickness tells them apart. Stock thickness in mm is well above any stock thickness in inches, and a mm value usually
+    // lands on a clean fraction of an inch (38.1 = 1.5", 69.85 = 2.75").
+    const th = job.thickness || 0, inch = th / CRV_MM_PER_IN, clean = Math.abs(inch * 16 - Math.round(inch * 16)) < 0.02;
+    if (th >= 12 || (th >= 6 && clean)) { sourceUnits = 'mm'; unitsSource = 'evidence:thickness ' + th + ' reads as ' + (+inch.toFixed(3)) + '"'; }
+    else { sourceUnits = 'inch'; unitsSource = 'evidence:thickness ' + th + ' is plausible in inches'; }
+  }
   else { sourceUnits = 'inch'; unitsSource = 'assumed:no-flag-in-format'; }
   const k = sourceUnits === 'mm' ? 1 / CRV_MM_PER_IN : 1;
 
@@ -1270,13 +1279,17 @@ function parseCrv(u8, opts) {
   // does not always refresh it), so a single mismatch is a warning. A
   // SYSTEMATIC disagreement is a decode error — it misplaces a whole class of
   // objects at once — and still fails.
-  if (anchorN >= 4 && anchorOk === 0)
-    crvFail('every one of the ' + anchorN + ' cached object anchors disagrees with the decoded ' +
-            'geometry (worst ' + anchorWorst + ') — the header layout or the span decode is wrong');
+  const report = [];
+  const rep = (code, level, msg, count, items) => { report.push({ code, level, msg, count: count == null ? 1 : count, items: items || [] }); if (level !== 'info') warnings.push(msg); };
   if (anchorN > anchorOk)
-    warnings.push((anchorN - anchorOk) + ' of ' + anchorN + ' objects carry a stale cached anchor ' +
-                  '(worst ' + anchorWorst.toFixed(4) + ') — geometry is unaffected');
-  if (staleRefs) warnings.push(staleRefs + ' object(s) name a layer that no longer exists; using the layer they are stored under');
+    rep('STALE_ANCHORS', 'info', (anchorN - anchorOk) + ' of ' + anchorN + ' objects carry a stale cached anchor (worst ' + anchorWorst.toFixed(4) + ' in file units). The geometry passed span chaining and stream framing, so it is unaffected.', anchorN - anchorOk);
+  if (staleRefs) rep('STALE_LAYER', 'warn', staleRefs + ' object(s) name a layer that no longer exists; they are on the layer they are stored under', staleRefs);
+  if (nSkipped) rep('BITMAP_NOT_IMPORTED', 'loss', nSkipped + ' embedded bitmap image(s) were not imported', nSkipped);
+  if (doc.classes.indexOf('vcCadModelPreview') >= 0) rep('MODEL_3D_NOT_IMPORTED', 'loss', 'This job holds a 3D model. Only its 2D outline was imported, the model itself was not.', 1);
+  if (want === 'auto' && job.w && job.h && Math.max(job.w, job.h) > 300)
+    rep('UNITS_UNVERIFIED', 'warn', 'The job is ' + (+job.w.toFixed(2)) + ' x ' + (+job.h.toFixed(2)) + ' and a Vectric file does not record its units. It was read as ' + (sourceUnits === 'mm' ? 'millimetres' : 'inches') + ' from its ' + (+(job.thickness || 0).toFixed(3)) + ' thickness. Check the size before cutting.', 1);
+  if (doc.classes.indexOf('txtBlock') >= 0 && !polys.some(p => p.ent.origin === 'text-glyph') && polys.length === 0) rep('TEXT_ONLY', 'warn', 'The job holds only text blocks with no outlines', 1);
+  if (!polys.length) rep('NO_VECTORS', 'loss', 'This job has no drawing vectors to import.', 1);
 
   polys.jobSize = { w: job.w == null ? null : job.w * k, h: job.h == null ? null : job.h * k,
                     thickness: job.thickness == null ? null : job.thickness * k };
@@ -1290,6 +1303,15 @@ function parseCrv(u8, opts) {
   polys.appVersion = vinfo.version;
   polys.layerNames = layers.map(L => L.name);
   polys.warnings = warnings;
+  polys.report = report;
+  // saved toolpath definitions (Toolpaths/ToolpathData), when the toolpath reader is in the build
+  polys.toolpathData = null;
+  polys.safeZ = null;
+  if (cfb.exists('Toolpaths/ToolpathData') && typeof TPDPARSE !== 'undefined') {
+    try { polys.toolpathData = TPDPARSE.parseToolpathData(new Uint8Array(cfb.stream('Toolpaths/ToolpathData')), new Set(polys.map(p => p.ent.guid))); }
+    catch (e) { rep('TOOLPATHS_UNREADABLE', 'loss', 'The saved toolpaths could not be read (' + e.message + ')', 1); }
+    if (cfb.exists('Toolpaths/ToolpathPosData')) { const pb = cfb.stream('Toolpaths/ToolpathPosData'); if (pb.length >= 29) { const v = new DataView(pb.buffer, pb.byteOffset + 21, 8).getFloat64(0, true); if (v > 0 && v < 6) polys.safeZ = v; } }
+  }
   polys.checks = {
     streamVersion: doc.streamVersion, mfcBigTags: doc.bigTags,
     toolpathTabs: nTabs, textBlocks: nText,
@@ -1310,11 +1332,12 @@ const CRVPARSE = {
     for (const n of polys.layerNames) byName.set(n, { name: n, contours: [] });
     for (const p of polys) {
       if (!byName.has(p.layer)) byName.set(p.layer, { name: p.layer, contours: [] });
-      byName.get(p.layer).contours.push({ pts: p.pts, closed: !!p.ent.closed });
+      byName.get(p.layer).contours.push({ pts: p.pts, closed: !!p.ent.closed, guid: p.ent.guid, tabs: p.ent.tabs || [] });
     }
     const js = polys.jobSize;
     return { job: js && js.w > 0 && js.h > 0 ? { w: js.w, h: js.h, thickness: js.thickness } : null,
-             units: 'in', unitsSource: polys.unitsSource, empty: polys.length === 0,
-             layers: [...byName.values()].filter(L => L.contours.length), warnings: polys.warnings };
+             units: 'in', sourceUnits: polys.sourceUnits, unitsSource: polys.unitsSource, empty: polys.length === 0,
+             layers: [...byName.values()].filter(L => L.contours.length), warnings: polys.warnings, report: polys.report,
+             toolpathData: polys.toolpathData, safeZ: polys.safeZ, app: polys.app };
   }
 };

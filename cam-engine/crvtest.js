@@ -211,7 +211,7 @@ function studioContext() {
       appendChild(c) { this.children.push(c); return c; }, insertBefore(c) { this.children.push(c); return c; },
       removeChild() {}, remove() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent() {},
       setAttribute() {}, getAttribute() { return null; }, focus() {}, click() {}, closest() { return null; },
-      contains() { return false; }, querySelector() { return mkEl('input'); }, querySelectorAll() { return []; },
+      contains() { return false; }, querySelector() { return mkEl('input'); }, querySelectorAll() { return [mkEl('button'), mkEl('button'), mkEl('button')]; },
       getBoundingClientRect() { return { left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600 }; },
       getContext() {
         return new Proxy({ canvas: { width: 800, height: 600 } }, { get: (t, k) => {
@@ -237,6 +237,9 @@ function studioContext() {
     document, console, Math, JSON, Date, setTimeout, clearTimeout, setInterval: () => 0, clearInterval() {},
     requestAnimationFrame: () => 0, TextDecoder, TextEncoder, parseFloat, parseInt, isNaN, isFinite,
     localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
+    // studio_app.js wraps every length field's native `value` property, so the stub needs the real thing's shape.
+    MutationObserver: function () { this.observe = () => {}; this.disconnect = () => {}; },
+    HTMLInputElement: (() => { function H() {} Object.defineProperty(H.prototype, 'value', { get() { return this._v === undefined ? '' : this._v; }, set(v) { this._v = v; }, configurable: true }); return H; })(),
     navigator: { userAgent: 'node' }, location: { href: 'file:///studio' }, performance: { now: () => Date.now() },
     Blob: function () {}, URL: { createObjectURL: () => 'blob:', revokeObjectURL() {} }, FileReader: function () {},
     Image: function () {}, alert() {}, prompt: () => null, confirm: () => true,
@@ -246,15 +249,16 @@ function studioContext() {
   };
   ctx.window = ctx; ctx.self = ctx; ctx.globalThis = ctx;
   vm.createContext(ctx);
-  const order = ['package/clipper.js', 'package/opentype.js', 'camcore.js', 'cadcore.js', 'dxfparse.js',
-                 'pdfparse.js', 'crvparse.js', 'bitmaptrace.js', 'clipart.js', 'studio_app.js'];
+  const order = ['package/clipper.js', 'package/opentype.js', 'camcore.js', 'cadcore.js', 'cutprep.js', 'dxfparse.js',
+                 'pdfparse.js', 'tpdparse.js', 'crvparse.js', 'crvtoolpaths.js', 'bitmaptrace.js', 'clipart.js', 'gcodesim.js', 'tapedit.js', 'assembly.js', 'studio_app.js'];
   for (const f of order) vm.runInContext(fs.readFileSync(path.join(__dirname, f), 'utf8'), ctx, { filename: f });
   return ctx;
 }
 const eIn = (c, expr) => vm.runInContext(expr, c);
 const layerKeys = c => JSON.parse(eIn(c, 'JSON.stringify([...doc.layers.keys()])'));
 const shapeLayers = c => JSON.parse(eIn(c, '(()=>{const o={};for(const s of doc.shapes)o[s.layer]=(o[s.layer]||0)+1;return JSON.stringify(o)})()'));
-const panelRows = c => eIn(c, '(()=>{const el=document.getElementById("layerList");return el&&el.children?el.children.length:-1})()');
+// a layer row, as distinct from the "+ Add layer" button and the other controls the panel appends after the rows
+const panelRows = c => eIn(c, '(()=>{const el=document.getElementById("layerList");return el&&el.children?el.children.filter(r=>/^lyr/.test(r.className||"")).length:-1})()');
 const panelText = c => eIn(c, '(()=>{const el=document.getElementById("layerList");return el&&el.children?el.children.map(r=>r.innerHTML).join("|"):""})()');
 
 let studio = null;
@@ -297,6 +301,31 @@ if (studio) {
   ok('dxf import: the Layers panel lists every layer, by name',
      panelRows(studio) === kDxf.length && /Layer 1/.test(panelText(studio)) && /outlines/.test(panelText(studio)),
      panelRows(studio) + ' rows vs ' + kDxf.length + ' layers · ' + panelText(studio));
+}
+
+// --- reliability: the report channel, toolpaths, thickness and units evidence ---
+const ctxTP = {}; vm.createContext(ctxTP);
+for (const f of ['tpdparse.js', 'crvparse.js', 'crvtoolpaths.js']) vm.runInContext(fs.readFileSync(path.join(__dirname, f), 'utf8'), ctxTP, { filename: f });
+const tp2 = vm.runInContext('CRVPARSE', ctxTP).toShapes(bytes('sample-tabs.crv3d'), { tol: 0.002 });
+const tr = vm.runInContext('CRVTP', ctxTP).toStudioOps(tp2.toolpathData, { guids: tp2.layers.flatMap(L => L.contours.map(c => c.guid)), safeZ: tp2.safeZ });
+ok('toolpaths: the saved Profile comes through', tr.ops.length === 1 && tr.ops[0].name === 'Profile 2' && tr.ops[0].p.op === 'profile', JSON.stringify(tr.ops.map(o => o.name)));
+ok('toolpaths: tool and depth are the file\'s', tr.ops[0].p.toolNum === 7 && tr.ops[0].p.cutDepth > 0 && tr.ops[0].guids.length === 1, JSON.stringify(tr.ops[0].p).slice(0, 200));
+ok('toShapes carries job thickness', tp2.job && tp2.job.thickness > 0, JSON.stringify(tp2.job));
+ok('toShapes names the contour guids', tp2.layers[0].contours[0].guid && tp2.layers[0].contours[0].guid.length === 32, tp2.layers[0].contours[0].guid);
+const tr3 = vm.runInContext('CRVTP', ctxTP).toStudioOps({ toolpaths: [{ name: 'X', type: 'Fancy', params: {}, tools: [{ toolNum: 1, dia: 0.25, passDepth: 0.1, stepover: 0.1, feed: 10, plunge: 5, rpm: 1000 }], selection: ['aa'] }, { name: 'Y', type: 'Drill', params: { _dpdCutDepth: 0.5 }, tools: [{ toolNum: 1, dia: 0.25, passDepth: 0.1, stepover: 0.1, feed: 10, plunge: 5, rpm: 1000 }], selection: ['missing'] }] }, { guids: ['aa'] });
+ok('toolpaths: an unsupported kind is named as lost', tr3.ops.length === 0 && tr3.report.some(r => r.code === 'TOOLPATH_NOT_CONVERTED' && r.level === 'loss' && r.items[0].indexOf('X') === 0), JSON.stringify(tr3.report));
+ok('toolpaths: a selection with no vectors is named as lost', tr3.report.some(r => r.code === 'TOOLPATH_NO_VECTORS' && r.items[0] === 'Y'), JSON.stringify(tr3.report));
+const clean = parseCrv(bytes('sample.crv'), {});
+ok('a clean file has an empty report', Array.isArray(clean.report) && clean.report.filter(r => r.level !== 'info').length === 0, JSON.stringify(clean.report));
+ok('a bitmap is reported as not imported', parseCrv(bytes('sample-bitmap.crv3d'), {}).report.some(r => r.code === 'BITMAP_NOT_IMPORTED' && r.level === 'loss'));
+ok('a 3D model is reported as not imported', parseCrv(bytes('sample-model.crv3d'), {}).report.some(r => r.code === 'MODEL_3D_NOT_IMPORTED' && r.level === 'loss'));
+if (studio) {
+  const buf2 = fs.readFileSync(path.join(__dirname, 'sample-tabs.crv3d')); studio.__ab2 = buf2.buffer.slice(buf2.byteOffset, buf2.byteOffset + buf2.byteLength);
+  eIn(studio, 'doc.shapes=[];opsQueue=[];doc.layers=new Map([["0",{visible:true,color:"#1b2b3f"}]]);');
+  eIn(studio, 'importCRV("sample-tabs.crv3d", __ab2)');
+  ok('studio: the toolpath lands in the list', eIn(studio, 'opsQueue.length') === 1 && eIn(studio, 'opsQueue[0].ids.length') === 1);
+  ok('studio: material thickness is applied', Math.abs(eIn(studio, 'job.thickness') - tp2.job.thickness) < 1e-9);
+  ok('studio: the toolpath selection is real shape ids', eIn(studio, 'doc.shapes.some(s=>s.id===opsQueue[0].ids[0])'));
 }
 
 console.log(`\n${pass}/${pass + fail} crv checks passed`);

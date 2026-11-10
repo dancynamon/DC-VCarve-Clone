@@ -194,6 +194,9 @@ input.calc.bad{border-color:#d33 !important;background:#fff0f0 !important;color:
 .mfield input[type=checkbox]{width:auto}
 .mfield input{width:130px;background:var(--bg-input);border:1px solid var(--btn-bd);color:var(--ink);border-radius:4px;padding:5px 7px;font-family:inherit;font-size:12px}
 .mfield input:focus{outline:none;border-color:var(--accent-bd)}
+.gcrow{display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:4px 0;font-size:12px}.gcrow input{font:12px monospace}.gcrow b{min-width:72px}.gcnote{font-size:11px;color:var(--ink-dim)}
+.gcreport{font-size:12px;margin-bottom:6px;min-height:40px}.gcreport table{border-collapse:collapse;width:100%}.gcreport td,.gcreport th{padding:1px 6px;text-align:left;border-bottom:1px solid var(--bd-soft)}.gcreport .bad{color:#b3261e;font-weight:600}.gcreport .good{color:#1a7f4b;font-weight:600}
+.rpt{font-size:12px;padding:6px 8px;border-left:4px solid var(--bd);margin-bottom:6px}.rpt.loss{border-left-color:#b3261e}.rpt.warn{border-left-color:#c9971d}.rpt.info{border-left-color:#3a7bd5}.rpt small{display:block;color:var(--ink-dim)}
 .modal-foot{display:flex;justify-content:flex-end;gap:8px;padding:10px 14px;border-top:1px solid var(--bd-soft)}
 .modal-foot .tb.primary{background:linear-gradient(var(--accent-bright),#178a54);border-color:var(--accent-bd);color:#fff}
 .modal-foot .tb.primary:hover{background:linear-gradient(#23a86a,#15804d)}
@@ -316,7 +319,7 @@ body.dark .qrow.picked{background:#3a2a1c}
     <div class="menu" data-menu="file">File<div class="mdrop">
       <button data-act="new">New</button><button data-act="open">Open / Import…<span class="k">Ctrl+O</span></button><div class="msep"></div>
       <button data-act="save">Save<span class="k">Ctrl+S</span></button><button data-act="saveas">Save As…<span class="k">Ctrl+Shift+S</span></button><div class="msep"></div>
-      <button data-act="expdxf">Export DXF</button><button data-act="expdxfsplit">Export DXF (split inside/outside)</button><button data-act="expsvg">Export SVG</button>
+      <button data-act="gcedit">Edit Open G-code…</button><button data-act="report">Last Import Report…</button><div class="msep"></div><button data-act="expdxf">Export DXF</button><button data-act="expdxfsplit">Export DXF (split inside/outside)</button><button data-act="expsvg">Export SVG</button>
       <div class="msep"></div><button data-act="asmopen">Open Assembly (JSON + DXFs)…</button><button data-act="asmfolder">Open Assembly Folder…</button><button data-act="asmsave">Save Assembly JSON</button><div class="msep"></div><button data-act="trace">Import Bitmap / Trace…</button></div></div>
     <div class="menu" data-menu="edit">Edit<div class="mdrop">
       <button data-act="undo">Undo<span class="k">Ctrl+Z</span></button><button data-act="redo">Redo<span class="k">Ctrl+Y</span></button><div class="msep"></div>
@@ -700,10 +703,41 @@ body.dark .qrow.picked{background:#3a2a1c}
     <span><span class="v" id="zoomlbl"></span></span>
     <span id="msg" class="v"></span>
     <button class="tb" id="btnUnits" title="Units: inches / millimetres (the drawing is unchanged)" style="margin-left:auto;font-size:10px;padding:1px 7px">in</button><button class="tb" id="btnTheme" title="Switch to dark mode" style="font-size:10px;padding:1px 7px">☾ Dark</button>
-    <span class="ver" id="appVer" title="Build version">v0.4.0 · build 261102.1632</span>
+    <span class="ver" id="appVer" title="Build version">v0.4.0 · build 261109.2251</span>
   </div>
 </div>
 <div id="tip"></div>
+<div class="modal-bg" id="reportModal">
+  <div class="modal" style="left:50%;top:60px;transform:translateX(-50%);max-width:640px;width:min(92vw,640px)">
+    <div class="modal-h"><span class="mt" id="reportTitle">Import report</span><button class="mx" id="reportX" title="Close">×</button></div>
+    <div class="modal-body" id="reportBody" style="max-height:60vh;overflow:auto"></div>
+    <div class="modal-foot" id="reportFoot"><button class="tb primary" id="reportOk">OK</button></div>
+  </div>
+</div>
+<div class="modal-bg" id="gcModal">
+  <div class="modal" style="left:50%;top:32px;transform:translateX(-50%);max-width:1040px;width:min(96vw,1040px)">
+    <div class="modal-h"><span class="mt" id="gcTitle">Edit G-code</span><button class="mx" id="gcX" title="Close">×</button></div>
+    <div class="modal-body" style="display:grid;grid-template-columns:300px 1fr;gap:12px;max-height:78vh;overflow:auto">
+      <div class="gcops">
+        <div class="gcrow"><b>Move in XY</b> X<input id="gcDx" value="0" size="5"> Y<input id="gcDy" value="0" size="5"> <button class="tb" data-gc="translate">Apply</button></div>
+        <div class="gcrow"><b>Feed</b> <input id="gcFeed" value="100" size="4">% <select id="gcFeedWhich"><option value="all">all</option><option value="cut">cut only</option><option value="plunge">plunge only</option></select> <select id="gcFeedTool"><option value="">all tools</option></select> <button class="tb" data-gc="feed">Apply</button></div>
+        <div class="gcrow"><b>Spindle</b> <input id="gcSpeed" value="100" size="4">% <button class="tb" data-gc="speed">Apply</button></div>
+        <div class="gcrow"><b>Safe Z</b> raise retracts to Z<input id="gcSafe" value="" size="5"> <button class="tb" data-gc="safe">Apply</button></div>
+        <div class="gcrow"><b>Depth</b> shift all cuts by <input id="gcDz" value="0" size="5"> <button class="tb" data-gc="dz">Apply</button></div>
+        <div class="gcrow"><b>Final pass</b> deepest level to Z<input id="gcFinal" value="" size="5"> <button class="tb" data-gc="final">Apply</button></div>
+        <div class="gcrow"><b>Remove tool</b> <select id="gcTool"></select> <button class="tb" data-gc="rmtool">Remove</button></div>
+        <div class="gcrow gcnote">The edit is checked against a fresh simulation. If it cannot be proved right, nothing changes.</div>
+        <div class="gcrow"><button class="tb" id="gcUndo">Undo last edit</button> <button class="tb" id="gcRevert">Revert to opened file</button></div>
+      </div>
+      <div style="min-width:0">
+        <div id="gcReport" class="gcreport"></div>
+        <textarea id="gcText" spellcheck="false" style="width:100%;height:280px;font:11px/1.35 monospace;white-space:pre;overflow:auto"></textarea>
+        <div class="gcrow"><button class="tb" id="gcApplyText">Apply text edits</button> <span class="gcnote">Hand edits are not blocked, but they are simulated and anything unsafe is called out.</span></div>
+      </div>
+    </div>
+    <div class="modal-foot"><span class="gcnote" id="gcSaveNote" style="margin-right:auto"></span><button class="tb" id="gcClose">Close</button><button class="tb primary" id="gcSave">Save As…</button></div>
+  </div>
+</div>
 <div class="modal-bg" id="shapeModal">
   <div class="modal">
     <div class="modal-h"><span class="mt" id="modalTitle">Edit shape</span><button class="mx" id="modalX" title="Close">×</button></div>
@@ -10133,7 +10167,8 @@ function dxfPolysToShapes(dxfPolys) {
   for (const p of dxfPolys) {
     if (p.type === 'TEXT' || p.type === 'DIMENSION') continue;
     if (!p.pts || p.pts.length < 2) continue;
-    const closed = p.type === 'CIRCLE' || p.type === 'ELLIPSE' || (p.ent && p.ent.closed);
+    // ELLIPSE says for itself: a full one is closed, a partial one (an arc of an ellipse) stays open
+    const closed = p.closed != null ? p.closed : p.type === 'CIRCLE' || (p.ent && p.ent.closed);
     out.push(mkPoly(p.pts, !!closed, p.layer || '0'));
   }
   return out;
@@ -10149,21 +10184,79 @@ function defaultLayerColor(name) { const n = String(name || '').toUpperCase();
 // Register every layer used by imported DXF polys in a layers Map (name -> {visible,color}). Colour = the first
 // entity ACI colour found on that layer, else the name default. Existing layers are left untouched.
 // Returns the layer names used, in first-seen order.
-function registerDxfLayers(layers, polys) { const used = [], aci = new Map();
+function registerDxfLayers(layers, polys, layerTable) { const used = [], aci = new Map();
   for (const p of polys) { const l = p.layer || '0'; if (!aci.has(l)) { used.push(l); aci.set(l, null); }
     if (aci.get(l) == null && p.ent && p.ent.color != null) aci.set(l, aciToHex(p.ent.color)); }
-  for (const l of used) if (!layers.has(l)) layers.set(l, { visible: true, color: aci.get(l) || defaultLayerColor(l) });
+  for (const l of used) { if (layers.has(l)) continue; const t = layerTable && layerTable[l];
+    layers.set(l, { visible: !(t && (t.off || t.frozen)), color: (t && aciToHex(t.color)) || aci.get(l) || defaultLayerColor(l) }); }
   return used; }
 
 // ---------- export ----------
-function toDXF(shapes) {
-  const L = ['0','SECTION','2','ENTITIES'];
-  for (const s of shapes) for (const loop of flatten(s)) {
-    L.push('0','LWPOLYLINE','8', s.layer||'0','90', String(loop.pts.length),'70', loop.closed?'1':'0');
-    for (const p of loop.pts) { L.push('10', p.x.toFixed(5),'20', p.y.toFixed(5)); }
+// A loop as DXF vertices with bulges: runs of points on one circle become a single true arc, so a re-import (and the machine)
+// sees arcs rather than chords. Only runs that look like a tessellated curve qualify: the points lie on the circle, their chords
+// are even, and the chord sag is what an import tessellation produces (DXF_ARC_MAX_SAG). Anything else stays as straight lines.
+const DXF_ARC_FIT_TOL = 0.0002, DXF_ARC_MAX_SAG = 0.0045, DXF_ARC_MIN_PTS = 4;
+function dxfCircle3(a, b, c) {
+  const d = 2 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y));
+  if (Math.abs(d) < 1e-12) return null;
+  const sa = a.x * a.x + a.y * a.y, sb = b.x * b.x + b.y * b.y, sc = c.x * c.x + c.y * c.y;
+  const cx = (sa * (b.y - c.y) + sb * (c.y - a.y) + sc * (a.y - b.y)) / d, cy = (sa * (c.x - b.x) + sb * (a.x - c.x) + sc * (b.x - a.x)) / d;
+  return { cx, cy, r: Math.hypot(a.x - cx, a.y - cy) };
+}
+// signed sweep of pts[i..j] about a circle; null if it is not one consistent direction or the run is not arc-like
+function dxfRunArc(pts, i, j) {
+  if (j - i + 1 < DXF_ARC_MIN_PTS) return null;
+  const c = dxfCircle3(pts[i], pts[(i + j) >> 1], pts[j]); if (!c || c.r > 1e5 || c.r < 1e-4) return null;
+  let sweep = 0, sign = 0, maxC = 0, minC = Infinity;
+  for (let k = i; k <= j; k++) { if (Math.abs(Math.hypot(pts[k].x - c.cx, pts[k].y - c.cy) - c.r) > DXF_ARC_FIT_TOL) return null;
+    if (k > i) { const a0 = Math.atan2(pts[k - 1].y - c.cy, pts[k - 1].x - c.cx), a1 = Math.atan2(pts[k].y - c.cy, pts[k].x - c.cx); let d = a1 - a0; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
+      if (Math.abs(d) < 1e-9) return null; const s = d > 0 ? 1 : -1; if (sign && s !== sign) return null; sign = s; sweep += d;
+      const ch = Math.hypot(pts[k].x - pts[k - 1].x, pts[k].y - pts[k - 1].y); if (ch > maxC) maxC = ch; if (ch < minC) minC = ch;
+      if (c.r * (1 - Math.cos(d / 2)) > DXF_ARC_MAX_SAG) return null; } }
+  if (maxC > minC * 1.7 + 1e-9) return null;
+  if (Math.abs(sweep) >= 2 * Math.PI - 1e-6) return null;
+  return { c, sweep };
+}
+function dxfLoopVertices(ptsIn, closed) {
+  const pts = ptsIn.slice();
+  if (closed && pts.length > 2 && Math.hypot(pts[0].x - pts[pts.length - 1].x, pts[0].y - pts[pts.length - 1].y) < 1e-9) pts.pop();
+  const n = pts.length;
+  // a whole circle is one CIRCLE entity
+  if (closed && n >= 8) { const c = dxfCircle3(pts[0], pts[n >> 2], pts[n >> 1]);
+    if (c && pts.every(p => Math.abs(Math.hypot(p.x - c.cx, p.y - c.cy) - c.r) <= DXF_ARC_FIT_TOL) && c.r * (1 - Math.cos(Math.PI / n)) <= DXF_ARC_MAX_SAG) return { circle: c }; }
+  const seq = closed ? pts.concat([pts[0]]) : pts, verts = [];
+  for (let i = 0; i < seq.length - 1;) {
+    let best = null, bestJ = i + 1;
+    for (let j = Math.min(seq.length - 1, i + 3); j < seq.length; j++) { const a = dxfRunArc(seq, i, j); if (a) { best = a; bestJ = j; } else if (best) break; }
+    verts.push({ x: seq[i].x, y: seq[i].y, bulge: best ? Math.tan(best.sweep / 4) : 0 });
+    i = bestJ;
   }
-  L.push('0','ENDSEC','0','EOF');
-  return L.join('\r\n');
+  if (!closed) verts.push({ x: seq[seq.length - 1].x, y: seq[seq.length - 1].y, bulge: 0 });
+  return { verts };
+}
+const ACI_NEAR = [[1, 255, 0, 0], [2, 224, 192, 0], [3, 0, 160, 0], [4, 0, 176, 176], [5, 0, 0, 255], [6, 192, 0, 192], [7, 27, 43, 63], [8, 128, 128, 128], [9, 176, 176, 176]];
+function hexToAci(hex) { const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(hex || '')); if (!m) return 7; const r = parseInt(m[1], 16), g = parseInt(m[2], 16), b = parseInt(m[3], 16);
+  let best = 7, bd = Infinity; for (const [a, R, G, B] of ACI_NEAR) { const d = (r - R) * (r - R) + (g - G) * (g - G) + (b - B) * (b - B); if (d < bd) { bd = d; best = a; } } return best; }
+// DXF for re-import or VCarve: a LAYER table (colours from `opts.layers`, the studio's Map of name -> {color}), true arcs where the
+// vector is one, six decimals, inches declared. Curves that are not arcs stay as line segments, so a re-import is within the fit
+// tolerances above: 0.0045" at most off the source curve, and normally 0.0002".
+function toDXF(shapes, opts) {
+  opts = opts || {};
+  const ent = [], used = new Set(), f = v => v.toFixed(6);
+  for (const s of shapes) for (const loop of flatten(s)) {
+    const layer = s.layer || '0'; used.add(layer);
+    const fit = dxfLoopVertices(loop.pts, !!loop.closed);
+    if (fit.circle) { ent.push('0', 'CIRCLE', '8', layer, '10', f(fit.circle.cx), '20', f(fit.circle.cy), '40', f(fit.circle.r)); continue; }
+    ent.push('0', 'LWPOLYLINE', '8', layer, '90', String(fit.verts.length), '70', loop.closed ? '1' : '0');
+    for (const v of fit.verts) { ent.push('10', f(v.x), '20', f(v.y)); if (v.bulge) ent.push('42', f(v.bulge)); }
+  }
+  if (opts.layers) for (const k of opts.layers.keys()) used.add(k);
+  const color = n => { const l = opts.layers && opts.layers.get(n); return l ? hexToAci(l.color) : 7; };
+  const head = ['0', 'SECTION', '2', 'HEADER', '9', '$INSUNITS', '70', '1', '0', 'ENDSEC'];
+  const tbl = ['0', 'SECTION', '2', 'TABLES', '0', 'TABLE', '2', 'LAYER', '70', String(used.size)];
+  for (const n of used) tbl.push('0', 'LAYER', '2', n, '70', '0', '62', String(color(n)), '6', 'CONTINUOUS');
+  tbl.push('0', 'ENDTAB', '0', 'ENDSEC');
+  return head.concat(tbl, ['0', 'SECTION', '2', 'ENTITIES'], ent, ['0', 'ENDSEC', '0', 'EOF']).join('\r\n');
 }
 function toSVG(shapes) {
   const b = bboxAll(shapes); const W = (b.maxX-b.minX)||1, H = (b.maxY-b.minY)||1;
@@ -10962,7 +11055,7 @@ return {
   translate, rotate, scale, mirror,
   offsetShapes, booleanOp,
   nestShapes, placeShape,
-  svgToShapes, svgPathToShapes, dxfPolysToShapes, toDXF, toSVG, saveFilename,
+  svgToShapes, svgPathToShapes, dxfPolysToShapes, toDXF, toSVG, saveFilename, dxfLoopVertices, hexToAci,
   textShapes, outlineTextShapes, FONT, measureText, clone, shapesToContoursInput,
   mkDimension, dimensionGeometry, dimValue, fmtDimValue, syncDimension, DIM_STYLES, DIM_DEFAULTS,
   primParams, applyPrimParams, fitShapeTo, fitPrimTo,
@@ -11252,6 +11345,7 @@ return { LAYER_OUTSIDE, LAYER_INSIDE, LAYER_OPEN, classifyLoops, splitLayers, to
 
 // ---- BLOCK/INSERT support: affine matrices [a,b,c,d,e,f] mapping (x,y)->(a*x+c*y+e, b*x+d*y+f) ----
 const DXF_IDENTITY = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+const DXF_MIRROR_X = { a: -1, b: 0, c: 0, d: 1, e: 0, f: 0 };   // extrusion (0,0,-1): drawn on the back of the XY plane
 function dxfMatMul(A, B) {   // A after B: apply(matMul(A,B), p) === apply(A, apply(B, p))
   return {
     a: A.a * B.a + A.c * B.b, b: A.b * B.a + A.d * B.b,
@@ -11261,7 +11355,7 @@ function dxfMatMul(A, B) {   // A after B: apply(matMul(A,B), p) === apply(A, ap
 }
 function dxfApplyMat(M, px, py) { return { x: M.a * px + M.c * py + M.e, y: M.b * px + M.d * py + M.f }; }
 function dxfInsertMatrix(ins, base) {   // T(ins.x,ins.y) * R(rot) * S(sx,sy) * T(-base)
-  const sx = ins.sx == null ? 1 : ins.sx, sy = ins.sy == null ? (ins.sx == null ? 1 : ins.sx) : ins.sy;
+  const sx = ins.sx == null ? 1 : ins.sx, sy = ins.sy == null ? 1 : ins.sy;
   const rot = (ins.rot || 0) * Math.PI / 180, c = Math.cos(rot), s = Math.sin(rot);
   const bx = base ? base.x || 0 : 0, by = base ? base.y || 0 : 0;
   const Tb = { a: 1, b: 0, c: 0, d: 1, e: -bx, f: -by };
@@ -11274,26 +11368,39 @@ function dxfInsertMatrix(ins, base) {   // T(ins.x,ins.y) * R(rot) * S(sx,sy) * 
 function dxfTransformEntity(ent, M) {
   const e = Object.assign({}, ent);
   const sx = Math.hypot(M.a, M.b), sy = Math.hypot(M.c, M.d), rotDeg = Math.atan2(M.b, M.a) * 180 / Math.PI;
+  const det = M.a * M.d - M.b * M.c, mirrored = det < 0;
+  const similar = Math.abs(sx - sy) <= 1e-6 * Math.max(1, sx) && Math.abs(M.a * M.c + M.b * M.d) <= 1e-6 * Math.max(1, sx * sy);
   const P = (x, y) => dxfApplyMat(M, x, y), lin = (x, y) => dxfApplyMat({ a: M.a, b: M.b, c: M.c, d: M.d, e: 0, f: 0 }, x, y);
+  const asPoly = (raw, closed) => ({ type: 'LWPOLYLINE', layer: ent.layer || '0', color: ent.color, closed: closed,
+    vertices: raw.map(p => { const q = dxfApplyMat(M, p.x, p.y); return { x: q.x, y: q.y, bulge: 0 }; }) });
   switch (ent.type) {
     case 'LINE': { const a = P(ent.x1, ent.y1), b = P(ent.x2, ent.y2); e.x1 = a.x; e.y1 = a.y; e.x2 = b.x; e.y2 = b.y; break; }
+    case 'POINT': { const c = P(ent.x, ent.y); e.x = c.x; e.y = c.y; break; }
     case 'CIRCLE': {
-      if (Math.abs(sx - sy) > 1e-6) {
-        // Non-uniform scale: tessellate in block space then transform each point so the ellipse is correct
-        const raw = circlePts(ent.cx, ent.cy, ent.r); raw.pop();       // drop duplicate closing point
-        return { type: 'LWPOLYLINE', layer: ent.layer || '0', closed: true,
-                 vertices: raw.map(p => { const q = dxfApplyMat(M, p.x, p.y); return { x: q.x, y: q.y, bulge: 0 }; }) };
-      }
+      if (!similar) { const raw = circlePts(ent.cx, ent.cy, ent.r); raw.pop(); return asPoly(raw, true); }   // an ellipse: tessellate in block space
       const c = P(ent.cx, ent.cy); e.cx = c.x; e.cy = c.y; e.r = ent.r * sx; break; }
     case 'ARC': {
-      if (Math.abs(sx - sy) > 1e-6) {
-        const raw = arcPts(ent.cx, ent.cy, ent.r, ent.startAngle || 0, ent.endAngle || 360);
-        return { type: 'LWPOLYLINE', layer: ent.layer || '0', closed: false,
-                 vertices: raw.map(p => { const q = dxfApplyMat(M, p.x, p.y); return { x: q.x, y: q.y, bulge: 0 }; }) };
+      if (!similar) return asPoly(arcPts(ent.cx, ent.cy, ent.r, ent.startAngle || 0, ent.endAngle || 360), false);
+      const c = P(ent.cx, ent.cy); e.cx = c.x; e.cy = c.y; e.r = ent.r * sx;
+      const pt = d => { const r = d * Math.PI / 180, q = lin(Math.cos(r), Math.sin(r)); return Math.atan2(q.y, q.x) * 180 / Math.PI; };
+      // a mirror turns a counter-clockwise arc clockwise, so its two ends swap roles
+      const s0 = pt(ent.startAngle || 0), s1 = pt(ent.endAngle == null ? 360 : ent.endAngle);
+      e.startAngle = mirrored ? s1 : s0; e.endAngle = mirrored ? s0 : s1;
+      break; }
+    case 'ELLIPSE': {
+      if (!similar || mirrored) {
+        const raw = ellipsePts(ent), full = Math.abs(raw[0].x - raw[raw.length - 1].x) < 1e-9 && Math.abs(raw[0].y - raw[raw.length - 1].y) < 1e-9;
+        if (full) raw.pop();
+        return asPoly(raw, full);
       }
-      const c = P(ent.cx, ent.cy); e.cx = c.x; e.cy = c.y; e.r = ent.r * sx; e.startAngle = (ent.startAngle || 0) + rotDeg; e.endAngle = (ent.endAngle || 0) + rotDeg; break; }
-    case 'ELLIPSE': { const c = P(ent.cx, ent.cy); e.cx = c.x; e.cy = c.y; const m = lin(ent.majorX || 0, ent.majorY || 0); e.majorX = m.x; e.majorY = m.y; e.ratio = ent.ratio; break; }
-    case 'LWPOLYLINE': case 'POLYLINE': { e.vertices = (ent.vertices || []).map(v => { const p = P(v.x, v.y); return { x: p.x, y: p.y, bulge: v.bulge || 0 }; }); break; }
+      const c = P(ent.cx, ent.cy); e.cx = c.x; e.cy = c.y; const m = lin(ent.majorX || 0, ent.majorY || 0); e.majorX = m.x; e.majorY = m.y; e.ratio = ent.ratio; break; }
+    case 'LWPOLYLINE': case 'POLYLINE': {
+      if (!similar && (ent.vertices || []).some(v => v.bulge)) {   // bulges do not survive a non-uniform scale: flatten first
+        const raw = dxfPolyVerticesToPts(ent);
+        if (ent.closed && raw.length > 1) raw.pop();
+        return asPoly(raw, !!ent.closed);
+      }
+      e.vertices = (ent.vertices || []).map(v => { const p = P(v.x, v.y); return { x: p.x, y: p.y, bulge: (mirrored ? -1 : 1) * (v.bulge || 0) }; }); break; }
     case 'TEXT': case 'MTEXT': { const c = P(ent.x, ent.y); e.x = c.x; e.y = c.y; e.height = (ent.height || 0) * sy; e.rotation = (ent.rotation || 0) + rotDeg; break; }
     case 'SPLINE': { if (ent.controls) e.controls = ent.controls.map(p => { const q = P(p.x, p.y); return { x: q.x, y: q.y }; }); if (ent.fit) e.fit = ent.fit.map(p => { const q = P(p.x, p.y); return { x: q.x, y: q.y }; }); break; }
     case 'DIMENSION': { const c = P(ent.x, ent.y); e.x = c.x; e.y = c.y; break; }
@@ -11307,7 +11414,10 @@ function dxfApplyPair(cur, code, v) {
     return;
   }
   if (code === 8) cur.layer = v; else if (code === 62) cur.color = parseInt(v, 10);
+  else if (code === 67) cur.space = parseInt(v, 10);
+  else if (code === 210) cur.ex = parseFloat(v); else if (code === 220) cur.ey = parseFloat(v); else if (code === 230) cur.ez = parseFloat(v);
   switch (cur.type) {
+    case 'POINT': if (code === 10) cur.x = parseFloat(v); else if (code === 20) cur.y = parseFloat(v); break;
     case 'LINE':
       if (code === 10) cur.x1 = parseFloat(v); else if (code === 20) cur.y1 = parseFloat(v); else if (code === 11) cur.x2 = parseFloat(v); else if (code === 21) cur.y2 = parseFloat(v); break;
     case 'CIRCLE':
@@ -11322,7 +11432,7 @@ function dxfApplyPair(cur, code, v) {
       else if (code === 42) { if (cur.vertices.length) cur.vertices[cur.vertices.length - 1].bulge = parseFloat(v); }
       else if (code === 70) cur.closed = (parseInt(v, 10) & 1) === 1; break;
     case 'POLYLINE':
-      if (code === 70) cur.closed = (parseInt(v, 10) & 1) === 1; break;
+      if (code === 70) { const f = parseInt(v, 10); cur.closed = (f & 1) === 1; cur.flags = f; } break;
     case 'SPLINE':
       if (code === 71) cur.degree = parseInt(v, 10); else if (code === 72) cur.numKnots = parseInt(v, 10); else if (code === 73) cur.numControl = parseInt(v, 10); else if (code === 74) cur.numFit = parseInt(v, 10); else if (code === 70) cur.flags = parseInt(v, 10);
       else if (code === 40) (cur.knots = cur.knots || []).push(parseFloat(v)); else if (code === 41) (cur.weights = cur.weights || []).push(parseFloat(v));
@@ -11335,7 +11445,8 @@ function dxfApplyPair(cur, code, v) {
     case 'DIMENSION':
       if (code === 10) cur.x = parseFloat(v); else if (code === 20) cur.y = parseFloat(v); else if (code === 1) cur.text = v; break;
     case 'INSERT':
-      if (code === 2) cur.name = v; else if (code === 10) cur.x = parseFloat(v); else if (code === 20) cur.y = parseFloat(v); else if (code === 41) cur.sx = parseFloat(v); else if (code === 42) cur.sy = parseFloat(v); else if (code === 50) cur.rot = parseFloat(v); break;
+      if (code === 2) cur.name = v; else if (code === 10) cur.x = parseFloat(v); else if (code === 20) cur.y = parseFloat(v); else if (code === 41) cur.sx = parseFloat(v); else if (code === 42) cur.sy = parseFloat(v); else if (code === 50) cur.rot = parseFloat(v);
+      else if (code === 70) cur.cols = parseInt(v, 10); else if (code === 71) cur.rows = parseInt(v, 10); else if (code === 44) cur.colSp = parseFloat(v); else if (code === 45) cur.rowSp = parseFloat(v); break;
   }
 }
 // parse the BLOCKS section into { name: {base:{x,y}, entities:[...]} } (entities may include nested INSERTs)
@@ -11374,21 +11485,66 @@ function dxfParseBlocks(pairs) {
   }
   return blocks;
 }
-// recursively expand an INSERT into transformed primitive entities (cycle-guarded)
-function dxfExpandInsert(ins, parentM, blocks, seen, out) {
+// Entity types that make cut geometry here, and what we do with the rest.
+const DXF_HANDLED = { LINE: 1, ARC: 1, CIRCLE: 1, ELLIPSE: 1, LWPOLYLINE: 1, POLYLINE: 1, SPLINE: 1 };
+const DXF_UNITS = { 1: ['inches', 1], 2: ['feet', 12], 3: ['miles', 63360], 4: ['millimetres', 1 / 25.4], 5: ['centimetres', 1 / 2.54], 6: ['metres', 1000 / 25.4], 7: ['kilometres', 1e6 / 25.4], 8: ['microinches', 1e-6], 9: ['mils', 1e-3], 10: ['yards', 36] };
+function dxfReporter() {
+  const m = new Map();
+  const add = (code, level, msg, n, detail) => { const e = m.get(code); if (e) { e.count += n || 1; if (detail && e.items.length < 8 && e.items.indexOf(detail) < 0) e.items.push(detail); } else m.set(code, { code, level, msg, count: n || 1, items: detail ? [detail] : [] }); };
+  return { add, list: () => [...m.values()] };
+}
+function dxfEntityVerdict(ent, rep, where) {   // true = keep. Everything dropped says so.
+  if (ent.space === 1) { if (ent.type !== 'VIEWPORT') rep.add('PAPER_SPACE', 'warn', 'on the paper-space layout were not imported (model space only)', 1); return false; }
+  if (ent.ex != null || ent.ey != null || ent.ez != null) {
+    const ex = ent.ex || 0, ey = ent.ey || 0, ez = ent.ez == null ? 1 : ent.ez;
+    if (Math.abs(ex) > 1e-9 || Math.abs(ey) > 1e-9) { rep.add('TILTED', 'loss', 'lie on a tilted plane and were not imported', 1); return false; }
+    if (ez < 0) ent._flipOCS = true;
+  }
+  if (ent.type === 'POLYLINE' && ent.flags != null && (ent.flags & (16 | 64))) { rep.add('POLYLINE_MESH', 'loss', 'POLYLINE 3D meshes were not imported', 1); return false; }
+  if (DXF_HANDLED[ent.type]) return true;
+  if (ent.type === 'INSERT') return true;
+  if (ent.type === 'VIEWPORT') return false;
+  if (ent.type === 'TEXT' || ent.type === 'MTEXT') { rep.add('DROPPED_TEXT', 'loss', 'text entities were not imported (use a font tool or convert the text to outlines)', 1, (ent.text || '').trim().slice(0, 40)); return false; }
+  if (ent.type === 'DIMENSION') { rep.add('DROPPED_DIMENSION', 'loss', 'dimensions were not imported', 1); return false; }
+  rep.add('DROPPED_' + ent.type, 'loss', ent.type + ' entities were not imported', 1, where);
+  return false;
+}
+// OCS with extrusion (0,0,-1): the entity is drawn on the back of the XY plane, i.e. mirrored in X. LINE, ELLIPSE and SPLINE
+// are stored in world coordinates so they need no transform; an ELLIPSE's parameter direction still flips with its normal.
+function dxfApplyOCS(ent) {
+  if (!ent._flipOCS) return ent;
+  if (ent.type === 'ELLIPSE') { ent.flipMinor = true; delete ent._flipOCS; return ent; }
+  if (ent.type === 'LINE' || ent.type === 'SPLINE') { delete ent._flipOCS; return ent; }
+  const out = dxfTransformEntity(ent, DXF_MIRROR_X); delete out._flipOCS; return out;
+}
+// recursively expand an INSERT into transformed primitive entities (cycle-guarded). rep is optional so the old call shape still works.
+function dxfExpandInsert(ins, parentM, blocks, seen, out, rep) {
   const blk = blocks[ins.name];
-  if (!blk || seen.indexOf(ins.name) >= 0) return;   // unknown block or cycle -> skip
+  if (!blk) { if (rep) rep.add('MISSING_BLOCK', 'loss', 'INSERTs name a block that is not in the file and were not imported', 1, ins.name); return; }
+  if (seen.indexOf(ins.name) >= 0) { if (rep) rep.add('BLOCK_CYCLE', 'loss', 'INSERTs refer to themselves and were skipped', 1, ins.name); return; }
   const seen2 = seen.concat([ins.name]);
-  const M = dxfMatMul(parentM, dxfInsertMatrix(ins, blk.base));
-  for (const be of blk.entities) {
-    if (be.type === 'INSERT') dxfExpandInsert(be, M, blocks, seen2, out);
-    else out.push(dxfTransformEntity(be, M));
+  const cols = Math.max(1, ins.cols || 1), rows = Math.max(1, ins.rows || 1);
+  const rot = (ins.rot || 0) * Math.PI / 180, c = Math.cos(rot), s = Math.sin(rot);
+  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+    const ox = i * (ins.colSp || 0), oy = j * (ins.rowSp || 0);    // MINSERT: the array runs along the block's own rotated axes
+    const M = dxfMatMul(parentM, dxfInsertMatrix(Object.assign({}, ins, { x: (ins.x || 0) + ox * c - oy * s, y: (ins.y || 0) + ox * s + oy * c }), blk.base));
+    for (const raw of blk.entities) {
+      if (!dxfEntityVerdict(raw, rep || dxfReporter(), 'in block ' + ins.name)) continue;
+      if (raw.type === 'INSERT') { dxfExpandInsert(raw, raw._flipOCS ? dxfMatMul(M, DXF_MIRROR_X) : M, blocks, seen2, out, rep); continue; }
+      out.push(dxfTransformEntity(dxfApplyOCS(Object.assign({}, raw)), M));
+    }
   }
 }
 
 // DXF files are pairs of (group_code, value) on alternating lines.
+// Returns the entity array with extras: .report [{code,level:'info'|'warn'|'loss',msg,count,items}], .warnings (strings),
+// .units {name,factor,source}, .layerTable {name:{color,off,frozen}}. Coordinates come back in INCHES. Throws on a file
+// that cannot be a DXF at all, with a message fit to show the user.
 function parseDxf(text) {
-  const lines = text.replace(/\r\n/g, '\n').split('\n');
+  if (text == null || !String(text).length) throw new Error('This DXF is empty (0 bytes), so there is nothing to open. Re-export it from the drawing program.');
+  text = String(text);
+  if (text.slice(0, 18) === 'AutoCAD Binary DXF') throw new Error('This is a binary DXF, which this importer does not read. Save it from AutoCAD as an ASCII DXF.');
+  const lines = text.split(/\r\n|\n|\r/);
   const pairs = [];
   for (let i = 0; i + 1 < lines.length; i += 2) {
     const codeStr = (lines[i] || '').trim();
@@ -11398,17 +11554,33 @@ function parseDxf(text) {
     pairs.push([code, lines[i + 1] !== undefined ? lines[i + 1] : '']);
   }
 
+  const rep = dxfReporter();
+  const T = s => (s == null ? '' : s).trim();
+  // HEADER variables and the LAYER table, so units and layer colours are not guessed
+  const header = {}, layerTable = {};
+  for (let i = 0; i + 2 < pairs.length; i++) if (pairs[i][0] === 0 && T(pairs[i][1]) === 'SECTION' && pairs[i + 1][0] === 2 && T(pairs[i + 1][1]) === 'HEADER') {
+    let cur = null;
+    for (let k = i + 2; k < pairs.length; k++) { if (pairs[k][0] === 0 && T(pairs[k][1]) === 'ENDSEC') break; if (pairs[k][0] === 9) cur = T(pairs[k][1]); else if (cur) (header[cur] = header[cur] || {})[pairs[k][0]] = T(pairs[k][1]); }
+    break;
+  }
+  for (let i = 0; i < pairs.length; i++) if (pairs[i][0] === 0 && T(pairs[i][1]) === 'LAYER' && (!pairs[i - 1] || pairs[i - 1][0] !== 2)) {
+    const L = {}; let name = null;
+    for (let k = i + 1; k < pairs.length && pairs[k][0] !== 0; k++) { const c = pairs[k][0], v = T(pairs[k][1]); if (c === 2) name = v; else if (c === 62) L.color = parseInt(v, 10); else if (c === 70) L.flags = parseInt(v, 10); }
+    if (name != null) layerTable[name] = { color: Math.abs(L.color == null ? 7 : L.color), off: (L.color || 0) < 0, frozen: !!(L.flags & 1) };
+  }
+
   const blocks = dxfParseBlocks(pairs);   // {} when there is no BLOCKS section -> ENTITIES parsing unchanged
 
   // Locate ENTITIES section (handle files with no clear section markers too)
-  let start = 0;
+  let start = 0, sawEntities = false;
   for (let i = 0; i + 2 < pairs.length; i++) {
     if (pairs[i][0] === 0 && (pairs[i][1] || '').trim() === 'SECTION' &&
         pairs[i+1][0] === 2 && (pairs[i+1][1] || '').trim() === 'ENTITIES') {
-      start = i + 2;
+      start = i + 2; sawEntities = true;
       break;
     }
   }
+  if (!sawEntities && !pairs.length) throw new Error('This file is not a DXF (it does not contain group-code pairs).');
 
   const ents = [];
   let cur = null;
@@ -11416,14 +11588,17 @@ function parseDxf(text) {
 
   function closeCurrent() {
     if (!cur) return;
-    if (cur._isVertex && parentPoly) {
-      parentPoly.vertices.push({ x: cur.x || 0, y: cur.y || 0, bulge: cur.bulge || 0 });
-    } else if (cur.type === 'INSERT') {
-      dxfExpandInsert(cur, DXF_IDENTITY, blocks, [], ents);   // bake block geometry into ents
-    } else {
-      ents.push(cur);
-      if (cur.type === 'POLYLINE') { cur.vertices = cur.vertices || []; parentPoly = cur; }
+    if (cur._isVertex) {
+      if (parentPoly) parentPoly.vertices.push({ x: cur.x || 0, y: cur.y || 0, bulge: cur.bulge || 0 });
+      cur = null; return;
     }
+    const keep = dxfEntityVerdict(cur, rep, 'at top level');
+    if (cur.type === 'POLYLINE') cur.vertices = cur.vertices || [];
+    if (keep) {
+      if (cur.type === 'INSERT') dxfExpandInsert(cur, cur._flipOCS ? DXF_MIRROR_X : DXF_IDENTITY, blocks, [], ents, rep);
+      else ents.push(cur);    // OCS is applied below, once a POLYLINE has its vertices
+    }
+    parentPoly = cur.type === 'POLYLINE' ? cur : parentPoly;
     cur = null;
   }
 
@@ -11440,98 +11615,38 @@ function parseDxf(text) {
       continue;
     }
     if (!cur) continue;
-
-    // VERTEX (sub-entity of POLYLINE)
-    if (cur._isVertex) {
-      if (code === 10) cur.x = parseFloat(v);
-      else if (code === 20) cur.y = parseFloat(v);
-      else if (code === 42) cur.bulge = parseFloat(v);
-      continue;
-    }
-
-    if (code === 8) cur.layer = v;
-    else if (code === 62) cur.color = parseInt(v, 10);
-
-    switch (cur.type) {
-      case 'LINE':
-        if (code === 10) cur.x1 = parseFloat(v);
-        else if (code === 20) cur.y1 = parseFloat(v);
-        else if (code === 11) cur.x2 = parseFloat(v);
-        else if (code === 21) cur.y2 = parseFloat(v);
-        break;
-      case 'CIRCLE':
-        if (code === 10) cur.cx = parseFloat(v);
-        else if (code === 20) cur.cy = parseFloat(v);
-        else if (code === 40) cur.r = parseFloat(v);
-        break;
-      case 'ARC':
-        if (code === 10) cur.cx = parseFloat(v);
-        else if (code === 20) cur.cy = parseFloat(v);
-        else if (code === 40) cur.r = parseFloat(v);
-        else if (code === 50) cur.startAngle = parseFloat(v);
-        else if (code === 51) cur.endAngle = parseFloat(v);
-        break;
-      case 'ELLIPSE':
-        if (code === 10) cur.cx = parseFloat(v);
-        else if (code === 20) cur.cy = parseFloat(v);
-        else if (code === 11) cur.majorX = parseFloat(v);
-        else if (code === 21) cur.majorY = parseFloat(v);
-        else if (code === 40) cur.ratio = parseFloat(v);
-        else if (code === 41) cur.startParam = parseFloat(v);
-        else if (code === 42) cur.endParam = parseFloat(v);
-        break;
-      case 'LWPOLYLINE':
-        if (code === 10) cur.vertices.push({ x: parseFloat(v), y: 0, bulge: 0 });
-        else if (code === 20) {
-          if (cur.vertices.length) cur.vertices[cur.vertices.length-1].y = parseFloat(v);
-        } else if (code === 42) {
-          if (cur.vertices.length) cur.vertices[cur.vertices.length-1].bulge = parseFloat(v);
-        } else if (code === 70) cur.closed = (parseInt(v, 10) & 1) === 1;
-        break;
-      case 'POLYLINE':
-        if (code === 70) cur.closed = (parseInt(v, 10) & 1) === 1;
-        break;
-      case 'SPLINE':
-        if (code === 71) cur.degree = parseInt(v, 10);
-        else if (code === 72) cur.numKnots = parseInt(v, 10);
-        else if (code === 73) cur.numControl = parseInt(v, 10);
-        else if (code === 74) cur.numFit = parseInt(v, 10);
-        else if (code === 70) cur.flags = parseInt(v, 10);
-        else if (code === 40) (cur.knots = cur.knots || []).push(parseFloat(v));
-        else if (code === 41) (cur.weights = cur.weights || []).push(parseFloat(v));
-        else if (code === 10) (cur.controls = cur.controls || []).push({ x: parseFloat(v), y: 0 });
-        else if (code === 20) {
-          const cps = cur.controls; if (cps && cps.length) cps[cps.length-1].y = parseFloat(v);
-        } else if (code === 11) (cur.fit = cur.fit || []).push({ x: parseFloat(v), y: 0 });
-        else if (code === 21) {
-          const fps = cur.fit; if (fps && fps.length) fps[fps.length-1].y = parseFloat(v);
-        }
-        break;
-      case 'TEXT':
-      case 'MTEXT':
-        if (code === 10) cur.x = parseFloat(v);
-        else if (code === 20) cur.y = parseFloat(v);
-        else if (code === 40) cur.height = parseFloat(v);
-        else if (code === 1) cur.text = (cur.text || '') + v;
-        else if (code === 3) cur.text = (cur.text || '') + v; // MTEXT continuation
-        else if (code === 50) cur.rotation = parseFloat(v);
-        break;
-      case 'DIMENSION':
-        if (code === 10) cur.x = parseFloat(v);
-        else if (code === 20) cur.y = parseFloat(v);
-        else if (code === 1) cur.text = v;
-        break;
-      case 'INSERT':
-        if (code === 2) cur.name = v;
-        else if (code === 10) cur.x = parseFloat(v);
-        else if (code === 20) cur.y = parseFloat(v);
-        else if (code === 41) cur.sx = parseFloat(v);
-        else if (code === 42) cur.sy = parseFloat(v);
-        else if (code === 50) cur.rot = parseFloat(v);
-        break;
-    }
+    dxfApplyPair(cur, code, v);
   }
   closeCurrent();
+
+  // entities that carry an OCS flip (POLYLINE waits for its vertices)
+  for (let i = 0; i < ents.length; i++) if (ents[i]._flipOCS) ents[i] = dxfApplyOCS(ents[i]);
+
+  // ---- units ----
+  const iu = header.$INSUNITS ? parseInt(header.$INSUNITS[70], 10) : null;
+  let units = { name: 'inches', factor: 1, source: 'assumed: file does not say' };
+  if (iu != null && iu !== 0) {
+    if (DXF_UNITS[iu]) units = { name: DXF_UNITS[iu][0], factor: DXF_UNITS[iu][1], source: '$INSUNITS=' + iu };
+    else rep.add('UNKNOWN_UNITS', 'warn', '$INSUNITS=' + iu + ' is not a unit this importer knows; the file was read as inches', 1);
+  }
+  if (units.factor !== 1) {
+    rep.add('UNITS_SCALED', 'warn', 'The file is drawn in ' + units.name + ' ($INSUNITS=' + iu + '); it was scaled to inches', 1);
+    const M = { a: units.factor, b: 0, c: 0, d: units.factor, e: 0, f: 0 };
+    for (let i = 0; i < ents.length; i++) ents[i] = dxfTransformEntity(ents[i], M);
+  } else if (units.source.indexOf('assumed') === 0) {
+    rep.add('UNITS_ASSUMED', 'info', 'The file does not state its units; it was read as inches', 1);
+  }
+
+  // ---- what the curves could and could not honour ----
+  for (const e of ents) if (e.type === 'SPLINE') {
+    e.closed = !!(e.flags & 1);
+    if (!dxfSplineUsable(e) && !(e.fit && e.fit.length >= 2)) rep.add('SPLINE_UNREADABLE', 'loss', 'SPLINE entities have no usable control or fit points and were not imported', 1);
+    else if (!dxfSplineUsable(e)) rep.add('SPLINE_FIT_ONLY', 'warn', 'SPLINE entities only give fit points, so the curve between them is an approximation', 1);
+  }
+  ents.report = rep.list();
+  ents.warnings = ents.report.map(r => r.count + ' ' + r.msg);
+  ents.units = units;
+  ents.layerTable = layerTable;
   return ents;
 }
 
@@ -11614,7 +11729,7 @@ function ellipsePts(ent, steps) {
     const t = sa + span * (i / steps);
     // Local ellipse point
     const lx = major * Math.cos(t);
-    const ly = minor * Math.sin(t);
+    const ly = (ent.flipMinor ? -1 : 1) * minor * Math.sin(t);
     // Rotate by ellipse orientation
     const px = cx + lx * Math.cos(rot) - ly * Math.sin(rot);
     const py = cy + lx * Math.sin(rot) + ly * Math.cos(rot);
@@ -11623,26 +11738,52 @@ function ellipsePts(ent, steps) {
   return pts;
 }
 
-// Approximate B-spline by interpolating fit points if present, otherwise
-// using Catmull-Rom over control points (visual approximation, not exact).
+// A spline's control net is only usable when its knot vector matches: n knots = n controls + degree + 1.
+function dxfSplineUsable(ent) {
+  const p = ent.degree == null ? 3 : ent.degree, c = ent.controls, k = ent.knots;
+  return !!(c && c.length >= p + 1 && k && k.length === c.length + p + 1 && p >= 1);
+}
+// Point on the (rational) B-spline at parameter u: de Boor. Knots are not assumed to start at 0 or be clamped.
+function dxfDeBoor(p, U, P, W, u) {
+  const n = P.length - 1;
+  let k = p; while (k < n && !(u >= U[k] && u < U[k + 1])) k++;
+  const d = []; for (let j = 0; j <= p; j++) { const i = k - p + j, w = W ? W[i] : 1; d.push([P[i].x * w, P[i].y * w, w]); }
+  for (let r = 1; r <= p; r++) for (let j = p; j >= r; j--) {
+    const i = k - p + j, den = U[i + p - r + 1] - U[i], a = den > 0 ? (u - U[i]) / den : 0;
+    for (let c = 0; c < 3; c++) d[j][c] = (1 - a) * d[j - 1][c] + a * d[j][c];
+  }
+  return { x: d[p][0] / d[p][2], y: d[p][1] / d[p][2] };
+}
+// True curve, flattened adaptively to within DXF_SPLINE_TOL (per knot span, so a cusp at a knot is kept).
+const DXF_SPLINE_TOL = 0.002;
+function dxfSplineTrue(ent) {
+  const p = ent.degree == null ? 3 : ent.degree, U = ent.knots, P = ent.controls;
+  const W = ent.weights && ent.weights.length === P.length ? ent.weights : null;
+  const lo = U[p], hi = U[P.length], out = [];
+  if (!(hi > lo)) return null;
+  const ev = u => dxfDeBoor(p, U, P, W, u === hi ? hi - (hi - lo) * 1e-12 : u);
+  const emit = (u0, q0, u1, q1, depth) => {
+    const um = (u0 + u1) / 2, qm = ev(um), dx = q1.x - q0.x, dy = q1.y - q0.y, L = Math.hypot(dx, dy);
+    const err = L > 1e-12 ? Math.abs((qm.x - q0.x) * dy - (qm.y - q0.y) * dx) / L : Math.hypot(qm.x - q0.x, qm.y - q0.y);
+    if (depth >= 14 || (depth >= 3 && err <= DXF_SPLINE_TOL)) { out.push(q1); return; }
+    emit(u0, q0, um, qm, depth + 1); emit(um, qm, u1, q1, depth + 1);
+  };
+  const kts = []; for (let i = p; i <= P.length; i++) if (!kts.length || U[i] > kts[kts.length - 1] + 1e-12) kts.push(U[i]);
+  let prev = ev(kts[0]); out.push(prev);
+  for (let i = 0; i + 1 < kts.length; i++) { const q = ev(kts[i + 1]); emit(kts[i], prev, kts[i + 1], q, 0); prev = q; }
+  return out;
+}
 function splinePts(ent) {
-  const pts = ent.fit && ent.fit.length >= 2 ? ent.fit
-            : ent.controls && ent.controls.length >= 2 ? ent.controls
-            : [];
+  if (dxfSplineUsable(ent)) { const t = dxfSplineTrue(ent); if (t && t.length >= 2) return t; }
+  // Only fit points exist: interpolate them (reported as an approximation by parseDxf).
+  const pts = ent.fit && ent.fit.length >= 2 ? ent.fit : [];
   if (pts.length < 2) return pts;
   if (pts.length === 2) return pts;
-  // Catmull-Rom interpolation
-  const out = [];
-  const n = pts.length;
-  const samples = 16;
+  const out = [], n = pts.length, samples = 16;
   for (let i = 0; i < n - 1; i++) {
-    const p0 = pts[Math.max(0, i - 1)];
-    const p1 = pts[i];
-    const p2 = pts[i + 1];
-    const p3 = pts[Math.min(n - 1, i + 2)];
+    const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(n - 1, i + 2)];
     for (let s = 0; s < samples; s++) {
-      const t = s / samples;
-      const t2 = t * t, t3 = t2 * t;
+      const t = s / samples, t2 = t * t, t3 = t2 * t;
       out.push({
         x: 0.5 * ((2 * p1.x) + (-p0.x + p2.x) * t + (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 + (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3),
         y: 0.5 * ((2 * p1.y) + (-p0.y + p2.y) * t + (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 + (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3),
@@ -11651,6 +11792,21 @@ function splinePts(ent) {
   }
   out.push(pts[n - 1]);
   return out;
+}
+
+function dxfPolyVerticesToPts(ent) {
+  const verts = ent.vertices || [], pts = [];
+  if (verts.length < 2) return pts;
+  for (let i = 0; i < verts.length - 1; i++) {
+    const seg = bulgeArcPts(verts[i], verts[i + 1], verts[i].bulge || 0);
+    if (i === 0) pts.push(seg[0]);
+    for (let k = 1; k < seg.length; k++) pts.push(seg[k]);
+  }
+  if (ent.closed) {
+    const seg = bulgeArcPts(verts[verts.length - 1], verts[0], verts[verts.length - 1].bulge || 0);
+    for (let k = 1; k < seg.length; k++) pts.push(seg[k]);
+  }
+  return pts;
 }
 
 function entityToPolys(ent) {
@@ -11672,26 +11828,15 @@ function entityToPolys(ent) {
     case 'ARC':
       push(arcPts(ent.cx, ent.cy, ent.r, ent.startAngle, ent.endAngle), 'ARC');
       break;
-    case 'ELLIPSE':
-      push(ellipsePts(ent), 'ELLIPSE');
-      break;
+    case 'ELLIPSE': {
+      const e0 = ent.startParam == null ? 0 : ent.startParam, e1 = ent.endParam == null ? 2 * Math.PI : ent.endParam;
+      let span = e1 - e0; if (span <= 0) span += 2 * Math.PI;
+      push(ellipsePts(ent), 'ELLIPSE', { closed: span >= 2 * Math.PI - 1e-6 });   // a partial ellipse is an open vector
+      break; }
     case 'LWPOLYLINE':
-    case 'POLYLINE': {
-      const verts = ent.vertices || [];
-      if (verts.length < 2) break;
-      const pts = [];
-      for (let i = 0; i < verts.length - 1; i++) {
-        const seg = bulgeArcPts(verts[i], verts[i+1], verts[i].bulge || 0);
-        if (i === 0) pts.push(seg[0]);
-        for (let k = 1; k < seg.length; k++) pts.push(seg[k]);
-      }
-      if (ent.closed) {
-        const seg = bulgeArcPts(verts[verts.length-1], verts[0], verts[verts.length-1].bulge || 0);
-        for (let k = 1; k < seg.length; k++) pts.push(seg[k]);
-      }
-      push(pts, ent.type);
+    case 'POLYLINE':
+      push(dxfPolyVerticesToPts(ent), ent.type);
       break;
-    }
     case 'SPLINE':
       push(splinePts(ent), 'SPLINE');
       break;
@@ -16507,45 +16652,118 @@ void main() {
 const RAPID = 0, PLUNGE = 1, CUT = 2;
 const ARC_CHORD = 0.02;       // in — arc chord length when splitting G2/G3 for playback and carving
 
+// One source line as words, with comments understood the way WinCNC reads them: [ ... ] and ( ... ) are comments, and
+// so is anything after ';'. Returns {words:[{L,v,ls,vs,ve}], bare:[letters with no number], junk:text|null, unclosed}.
+// ls/vs/ve are the offsets of the letter and of the number in the raw line, so an editor can replace just the number.
+// Junk (a stray number, 'F80.0.0') is reported and never guessed at: the caller decides what to do with that line.
+const NUM_RE = /[-+]?(?:\d+\.?\d*|\.\d+)/y;
+function tokenizeLine(raw) {
+  const words = [], bare = []; let junk = null, unclosed = false, i = 0;
+  const n = raw.length;
+  const skip = c => c === ' ' || c === '\t' || c === '\f' || c === '\x1a';
+  if (raw.trim()[0] === '%') return { words, bare, junk: null, unclosed: false };
+  while (i < n) {
+    const c = raw[i];
+    if (skip(c)) { i++; continue; }
+    if (c === '[' || c === '(') {
+      const e = raw.indexOf(c === '[' ? ']' : ')', i);
+      if (e < 0) { unclosed = true; i = n; } else i = e + 1;
+      continue;
+    }
+    if (c === ';') break;
+    if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) {
+      let j = i + 1;
+      while (j < n && skip(raw[j])) j++;
+      NUM_RE.lastIndex = j;
+      const m = NUM_RE.exec(raw);
+      if (m) {
+        const ve = j + m[0].length;
+        if (raw[ve] === '.') { if (junk == null) junk = raw.slice(i, i + 24); i = ve + 1; continue; }    // 'F80.0.0': two decimal points
+        words.push({ L: c.toUpperCase(), v: +m[0], ls: i, vs: j, ve: ve });
+        i = ve; continue;
+      }
+      bare.push(c.toUpperCase()); i++; continue;
+    }
+    if (junk == null) junk = raw.slice(i, i + 24);
+    i++;
+  }
+  return { words, bare, junk, unclosed };
+}
+// G codes that change nothing the simulator models; any other unknown G is reported.
+const G_HARMLESS = new Set([17, 40, 49, 54, 64, 80, 94]);
+const ISSUE_CAP = 200, WARN_CAP = 50;
+
 // opts.aToY: inches of Y per degree of A, for a rotary program (A axis = the unwrapped Y).
 function parseGcode(text, opts) {
   const aToY = opts && opts.aToY > 0 ? opts.aToY : 0;
-  const src = String(text || '').split(/\r?\n/);
+  const src = String(text || '').split(/\r\n|\n|\r/);
   const out = { x0: [], y0: [], z0: [], x1: [], y1: [], z1: [], kind: [], tool: [], feed: [], rpm: [], line: [], pause: [] };
   let x = 0, y = 0, z = null, mode = 0, f = 0, s = 0, t = 0, spin = false, abs = true, dwell = 0, pending = 0, firstZ = null, unit = 1, metric = false;
-  const tools = [], warnings = [];
+  const tools = [], warnings = [], issues = [], issueCounts = {};
+  // issues: what the simulator could not take at face value. Each names its line; level 'loss' means the backplot
+  // is not what the machine would do on that line, so the file is not safe to edit or trust without looking.
+  const issue = (code, level, ln, msg, raw) => {
+    issueCounts[code] = (issueCounts[code] || 0) + 1;
+    if (issues.length < ISSUE_CAP) issues.push({ code, level, line: ln, msg, raw: raw === undefined ? undefined : String(raw).slice(0, 80) });
+    if (warnings.length < WARN_CAP) warnings.push(msg);
+  };
   const push = (ax, ay, az, bx, by, bz, k, ln) => {
     out.x0.push(ax); out.y0.push(ay); out.z0.push(az); out.x1.push(bx); out.y1.push(by); out.z1.push(bz);
     out.kind.push(k); out.tool.push(t); out.feed.push(f); out.rpm.push(spin ? s : 0); out.line.push(ln); out.pause.push(pending); pending = 0;
   };
   for (let n = 0; n < src.length; n++) {
-    const c = src[n].replace(/\(.*?\)|;.*$/g, '').toUpperCase();
-    if (!c.trim() || c.trim()[0] === '%') continue;
+    const raw = src[n], ln = n + 1;
+    if (!raw.trim()) continue;
+    const tk = tokenizeLine(raw);
+    if (tk.unclosed) issue('UNCLOSED_COMMENT', 'warn', ln, 'Line ' + ln + ': a comment bracket is never closed; the rest of the line was treated as a comment', raw);
     const w = {}, G = [], M = [];
-    const re = /([A-Z])\s*([-+]?\d*\.?\d+)/g; let m;
-    while ((m = re.exec(c))) { const v = +m[2]; if (m[1] === 'G') G.push(v); else if (m[1] === 'M') M.push(v); else w[m[1]] = v; }
+    for (const k of tk.words) { if (k.L === 'G') G.push(k.v); else if (k.L === 'M') M.push(k.v); else w[k.L] = k.v; }
+    const isG53 = G.indexOf(53) >= 0;
+    const badBare = tk.bare.filter(b => !(isG53 && 'XYZ'.indexOf(b) >= 0));
+    if (tk.junk != null || badBare.length) { issue('JUNK_TEXT', 'loss', ln, 'Line ' + ln + ' could not be read and was not simulated: "' + raw.trim().slice(0, 60) + '"', raw); continue; }
+    if (!tk.words.length && !tk.bare.length) continue;   // a comment line
     if (G.indexOf(4) >= 0) { const d = (w.X != null ? w.X : (w.P != null ? w.P : 0)); dwell += d; pending += d; continue; }   // WinCNC 'G4 X<sec>'
+    if (isG53) { issue('G53', 'warn', ln, 'Line ' + ln + ': G53 machine-coordinate move is not simulated (the backplot holds position there)', raw); continue; }
+    if (w.L != null) issue('WORD_L', 'warn', ln, 'Line ' + ln + ': WinCNC L word (L' + w.L + ') is not simulated', raw);
     if (G.indexOf(21) >= 0) { unit = 1 / 25.4; metric = true; }   // millimetres: everything here runs in inches
     if (G.indexOf(20) >= 0) unit = 1;
     // rotary: A degrees are the unwrapped Y; a bare Y word is the machine's own Y (e.g. the park move), not the part
     if (aToY) { if (w.A != null) w.Y = w.A * aToY / unit; else delete w.Y; }
-    for (const c of 'XYZIJF') if (w[c] != null) w[c] *= unit;
+    for (const c of 'XYZIJFR') if (w[c] != null) w[c] *= unit;
     if (G.indexOf(90) >= 0) abs = true;
-    if (G.indexOf(91) >= 0) { abs = false; warnings.push('G91 incremental moves at line ' + (n + 1)); }
+    if (G.indexOf(91) >= 0) { abs = false; issue('G91', 'warn', ln, 'G91 incremental moves at line ' + ln, raw); }
+    for (const g of G) if (g !== 0 && g !== 1 && g !== 2 && g !== 3 && g !== 20 && g !== 21 && g !== 90 && g !== 91 && !G_HARMLESS.has(g)) issue('G' + g, 'loss', ln, 'Line ' + ln + ': G' + g + ' is not simulated; the backplot may not match the machine after this line', raw);
     if (w.T != null) { t = Math.round(w.T); if (tools.indexOf(t) < 0) tools.push(t); }
     if (w.S != null) s = w.S;
     if (M.indexOf(3) >= 0 || M.indexOf(4) >= 0) spin = true;
     if (M.indexOf(5) >= 0) spin = false;
     if (w.F != null) f = w.F;
     for (const g of G) if (g === 0 || g === 1 || g === 2 || g === 3) mode = g;
-    if (w.X == null && w.Y == null && w.Z == null) continue;
+    const isArc = mode === 2 || mode === 3;
+    const hasCentre = w.I != null || w.J != null || w.R != null;
+    const fullCircle = isArc && w.X == null && w.Y == null && w.Z == null && (w.I != null || w.J != null);   // WinCNC 'G2 I2': a whole circle from where it stands
+    if (w.X == null && w.Y == null && w.Z == null && !fullCircle) continue;
     const nx = w.X != null ? (abs ? w.X : x + w.X) : x;
     const ny = w.Y != null ? (abs ? w.Y : y + w.Y) : y;
     const nz = w.Z != null ? (abs ? w.Z : (z || 0) + w.Z) : (z == null ? 0 : z);
-    if (z == null) { z = nz; firstZ = nz; if (w.X == null && w.Y == null) continue; }
-    const ln = n + 1;
-    if ((mode === 2 || mode === 3) && (w.I != null || w.J != null)) {
-      const cx = x + (w.I || 0), cy = y + (w.J || 0), r = Math.hypot(x - cx, y - cy);
+    if (z == null) { z = nz; firstZ = nz; if (w.X == null && w.Y == null && !fullCircle) continue; }
+    if (isArc && !hasCentre) {
+      issue('ARC_WITHOUT_CENTER', 'loss', ln, 'Line ' + ln + ': G' + mode + ' arc has no I, J or R; drawn as a straight line, but the controller may do something else', raw);
+    }
+    let cx = null, cy = null, r = 0;
+    if (isArc && (w.I != null || w.J != null)) {
+      cx = x + (w.I || 0); cy = y + (w.J || 0); r = Math.hypot(x - cx, y - cy);
+      if (Math.abs(r - Math.hypot(nx - cx, ny - cy)) > 0.002)
+        issue('ARC_RADIUS_MISMATCH', 'warn', ln, 'Line ' + ln + ': arc end point is ' + Math.abs(r - Math.hypot(nx - cx, ny - cy)).toFixed(4) + '" off the circle its I/J describe', raw);
+    } else if (isArc && w.R != null) {
+      const dx = nx - x, dy = ny - y, d = Math.hypot(dx, dy), R = Math.abs(w.R);
+      if (d < 1e-9 || d > 2 * R + 1e-6) issue('ARC_R_IMPOSSIBLE', 'loss', ln, 'Line ' + ln + ': R arc cannot reach its end point; drawn as a straight line', raw);
+      else { // R>0 = the short way round; G2 centre sits to the right of the chord, G3 to the left, flipped for R<0
+        const h = Math.sqrt(Math.max(0, R * R - d * d / 4)), side = (mode === 3 ? 1 : -1) * (w.R > 0 ? 1 : -1);
+        cx = (x + nx) / 2 - side * h * dy / d; cy = (y + ny) / 2 + side * h * dx / d; r = R;
+      }
+    }
+    if (cx != null) {
       let a0 = Math.atan2(y - cy, x - cx), a1 = Math.atan2(ny - cy, nx - cx);
       if (mode === 2) { while (a1 >= a0) a1 -= 2 * Math.PI; } else { while (a1 <= a0) a1 += 2 * Math.PI; }
       if (Math.abs(nx - x) < 1e-9 && Math.abs(ny - y) < 1e-9) a1 = a0 + (mode === 2 ? -2 : 2) * Math.PI;   // full circle
@@ -16561,10 +16779,11 @@ function parseGcode(text, opts) {
     }
     x = nx; y = ny; z = nz;
   }
+  if (!out.kind.length && !issues.some(i => i.level === 'loss')) issue('NO_MOTION', 'loss', 1, 'The program contains no moves', '');
   const N = out.kind.length, F = a => Float64Array.from(a);
   const prog = { n: N, x0: F(out.x0), y0: F(out.y0), z0: F(out.z0), x1: F(out.x1), y1: F(out.y1), z1: F(out.z1),
     kind: Uint8Array.from(out.kind), tool: Int32Array.from(out.tool), feed: Float32Array.from(out.feed), rpm: Float32Array.from(out.rpm),
-    line: Int32Array.from(out.line), pause: Float32Array.from(out.pause), tools: tools, dwell: dwell, metric: metric, src: src, warnings: warnings, firstZ: firstZ };
+    line: Int32Array.from(out.line), pause: Float32Array.from(out.pause), tools: tools, dwell: dwell, metric: metric, src: src, warnings: warnings, issues: issues, issueCounts: issueCounts, firstZ: firstZ };
   prog.bounds = boundsOf(prog);
   return prog;
 }
@@ -16692,8 +16911,418 @@ function toolForNumber(lib, t, overrides) {
   return { type: 'flat', radius: 0.125, angle: 90 };
 }
 
-return { RAPID: RAPID, PLUNGE: PLUNGE, CUT: CUT, parseGcode: parseGcode, boundsOf: boundsOf, timeline: timeline, locate: locate, pointAt: pointAt,
+return { RAPID: RAPID, PLUNGE: PLUNGE, CUT: CUT, parseGcode: parseGcode, tokenizeLine: tokenizeLine, boundsOf: boundsOf, timeline: timeline, locate: locate, pointAt: pointAt,
   Carver: Carver, toolForNumber: toolForNumber, floorsFromOtherSide: floorsFromOtherSide };
+});
+
+</script>
+<script>
+/* tapedit.js — edit a posted G-code program without retyping it. Pure (no DOM), unit-tested in tapedittest.js.
+ *
+ * Rules every edit obeys:
+ *  - Only the numbers an edit is about change. Every other line, comment, space and line ending survives byte for byte.
+ *  - Modal state is honoured: G90/G91, G20/G21, the active motion mode, the active tool.
+ *  - Every edit re-simulates the program afterwards and checks the result against what the edit promised, line by line.
+ *    A mismatch is a refusal, not a warning.
+ *  - A program that cannot be understood is refused, naming the line. Nothing is guessed.
+ *  - A retract is never lowered. Depth and feed changes are bounded by the same limits the post uses.
+ *
+ * Text is a "binary string": one char per byte (latin1), so unedited bytes survive any encoding.
+ */
+(function (root, factory) {
+  const mod = factory(typeof module !== 'undefined' && module.exports ? require('./gcodesim.js') : root.GCSIM);
+  if (typeof module !== 'undefined' && module.exports) module.exports = mod;
+  root.TAPEDIT = mod;
+})(typeof self !== 'undefined' ? self : this, function (GCSIM) {
+'use strict';
+
+const OLE = [0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1];
+const LIMITS = { maxFeed: 1000, maxRpm: 24000, maxClearZ: 6 };   // same defaults as camcore's post-time speed check
+const EPS = 1e-4;
+
+class TapRefusal extends Error {
+  constructor(code, line, msg) { super(line ? 'Line ' + line + ': ' + msg : msg); this.code = code; this.line = line || null; this.refused = true; }
+}
+const refuse = (code, line, msg) => { throw new TapRefusal(code, line, msg); };
+
+// ---- bytes <-> text ------------------------------------------------------------------------------------------
+// Decide what a file holding G-code bytes is before anything tries to run it. {ok:true,text} or {ok:false,code,msg}.
+function readBytes(u8, name) {
+  const label = name || 'This file';
+  if (!u8 || !u8.length) return { ok: false, code: 'EMPTY_FILE', msg: label + ' is empty (0 bytes), so there is nothing to open.' };
+  if (OLE.every((b, i) => u8[i] === b)) return { ok: false, code: 'NOT_GCODE_VECTRIC', msg: label + ' is not G-code. It is a Vectric job file (a binary .crv or .crv3d) saved with a G-code extension. Rename it to .crv3d and open that, or re-post the toolpath from VCarve.' };
+  const head = u8.subarray(0, Math.min(4096, u8.length));
+  if (head.indexOf(0) >= 0) return { ok: false, code: 'NOT_GCODE_BINARY', msg: label + ' is a binary file, not G-code. Nothing was opened.' };
+  let text = '';
+  for (let i = 0; i < u8.length; i += 8192) text += String.fromCharCode.apply(null, u8.subarray(i, i + 8192));
+  return { ok: true, text };
+}
+function textToBytes(text) { const u = new Uint8Array(text.length); for (let i = 0; i < text.length; i++) u[i] = text.charCodeAt(i) & 255; return u; }
+
+function splitLines(text) {
+  const out = [], re = /\r\n|\n|\r/g; let m, p = 0;
+  while ((m = re.exec(text))) { out.push({ text: text.slice(p, m.index), eol: m[0] }); p = m.index + m[0].length; }
+  if (p < text.length || !out.length) out.push({ text: text.slice(p), eol: '' });
+  return out;
+}
+const joinLines = L => L.map(l => l.text + l.eol).join('');
+
+// ---- understanding a program ---------------------------------------------------------------------------------
+const G_OK = new Set([0, 1, 2, 3, 4, 17, 20, 21, 40, 49, 53, 54, 64, 80, 90, 91, 94]);
+const WORD_OK = new Set('GMXYZIJRFSTNP'.split(''));
+
+function analyse(text) {
+  const lines = splitLines(text), info = [], blockers = [];
+  const st = { mode: 0, abs: true, unit: 1, t: 0, x: 0, y: 0, z: null, f: 0, s: 0, fLine: 0, sLine: 0, sec: -1 };
+  const sections = [];
+  const block = (code, n, why) => blockers.push({ code, line: n + 1, why, raw: lines[n].text.trim().slice(0, 60) });
+  lines.forEach((l, n) => {
+    const tk = GCSIM.tokenizeLine(l.text), I = { n, tk, words: {}, G: [], M: [], motion: false, tool: st.t };
+    info.push(I);
+    if (!l.text.trim()) return;
+    for (const w of tk.words) { if (w.L === 'G') I.G.push(w.v); else if (w.L === 'M') I.M.push(w.v); else I.words[w.L] = w; }
+    const isG53 = I.G.indexOf(53) >= 0;
+    if (tk.unclosed) block('UNCLOSED_COMMENT', n, 'a comment bracket is never closed');
+    if (tk.junk != null || tk.bare.some(b => !(isG53 && 'XYZ'.indexOf(b) >= 0))) { block('JUNK_TEXT', n, 'this text cannot be read as G-code'); return; }
+    for (const k of Object.keys(I.words)) if (!WORD_OK.has(k) && !(k === 'C' && I.M.length)) block('WORD_' + k, n, 'the ' + k + ' word is not understood');
+    for (const g of I.G) if (!G_OK.has(g)) block('G' + g, n, 'G' + g + ' is not understood');
+    I.isG53 = isG53;
+    if (I.G.indexOf(4) >= 0) { I.dwell = true; return; }
+    if (isG53) return;
+    if (I.G.indexOf(21) >= 0) st.unit = 1 / 25.4;
+    if (I.G.indexOf(20) >= 0) st.unit = 1;
+    if (I.G.indexOf(90) >= 0) st.abs = true;
+    if (I.G.indexOf(91) >= 0) st.abs = false;
+    I.unit = st.unit; I.abs = st.abs;
+    const w = I.words;
+    if (w.T) { st.t = Math.round(w.T.v); st.sec++; sections.push({ tool: st.t, tLine: n, first: n, end: n }); I.tool = st.t; }
+    if (w.S) { st.s = w.S.v; st.sLine = n; }
+    if (w.F) { st.f = w.F.v; st.fLine = n; }
+    for (const g of I.G) if (g >= 0 && g <= 3) st.mode = g;
+    I.mode = st.mode; I.fLine = st.fLine; I.sec = st.sec;
+    const arc = st.mode === 2 || st.mode === 3;
+    if (arc && (w.X || w.Y || w.Z) && !w.I && !w.J && !w.R) block('ARC_WITHOUT_CENTER', n, 'this arc has no I, J or R');
+    if (!w.X && !w.Y && !w.Z && !(arc && (w.I || w.J))) return;
+    I.motion = true;
+    I.feedMove = st.mode !== 0;
+    const u = st.unit;
+    const nx = w.X ? (st.abs ? w.X.v * u : st.x + w.X.v * u) : st.x;
+    const ny = w.Y ? (st.abs ? w.Y.v * u : st.y + w.Y.v * u) : st.y;
+    const nz = w.Z ? (st.abs ? w.Z.v * u : (st.z || 0) + w.Z.v * u) : (st.z == null ? 0 : st.z);
+    I.plunge = st.mode === 1 && st.z != null && nz < st.z - 1e-9 && Math.abs(nx - st.x) < 1e-9 && Math.abs(ny - st.y) < 1e-9;
+    I.endZ = nz;
+    st.x = nx; st.y = ny; st.z = nz;
+  });
+  // Where each tool's section starts (the M5/M51 block in front of its T word) and ends.
+  const isToolBlockLine = I => !I.motion && !I.dwell && (I.M.length > 0 || !lines[I.n].text.trim()) && !I.G.length && !I.tk.words.some(w => w.L !== 'M');
+  for (let k = 0; k < sections.length; k++) {
+    let s = sections[k].tLine; const lower = k ? sections[k - 1].tLine : -1;
+    while (s - 1 > lower && isToolBlockLine(info[s - 1])) s--;
+    while (s < sections[k].tLine && !lines[s].text.trim()) s++;    // a blank line in front of the block belongs to what came before
+    sections[k].first = s;
+  }
+  let lastFeed = -1; info.forEach(I => { if (I.motion && I.feedMove) lastFeed = I.n; });
+  for (let k = 0; k < sections.length; k++) sections[k].end = k + 1 < sections.length ? sections[k + 1].first - 1 : Math.max(lastFeed, sections[k].tLine);
+  return { lines, info, blockers, sections, lastFeed };
+}
+
+function requireUnderstood(m, what) {
+  if (m.blockers.length) {
+    const b = m.blockers[0];
+    refuse(b.code, b.line, 'cannot ' + what + ': ' + b.why + ' ("' + b.raw + '")' + (m.blockers.length > 1 ? ' (and ' + (m.blockers.length - 1) + ' more line' + (m.blockers.length > 2 ? 's' : '') + ' like it)' : ''));
+  }
+}
+
+// ---- word rewriting --------------------------------------------------------------------------------------------
+function decimalsOf(s) { const i = s.indexOf('.'); return i < 0 ? 0 : s.length - i - 1; }
+function fmtLike(orig, v, minDec) { const d = Math.min(8, Math.max(decimalsOf(orig), minDec || 0)); const t = v.toFixed(d); return Number(t) === 0 ? (0).toFixed(d) : t; }
+function decimalsOfDelta(v) { const s = String(Math.abs(v)); if (/e/i.test(s)) return 6; return Math.min(6, decimalsOf(s)); }
+
+function applyEdits(m, edits) {   // edits: [{n, word, text}] -> new text, change list. One word per edit.
+  const byLine = new Map();
+  for (const e of edits) { if (!byLine.has(e.n)) byLine.set(e.n, []); byLine.get(e.n).push(e); }
+  const changes = [];
+  const out = m.lines.map((l, n) => {
+    const es = byLine.get(n); if (!es) return l;
+    let t = l.text;
+    for (const e of es.slice().sort((a, b) => b.word.vs - a.word.vs)) t = t.slice(0, e.word.vs) + e.text + t.slice(e.word.ve);
+    if (t === l.text) return l;
+    changes.push({ line: n + 1, before: l.text, after: t });
+    return { text: t, eol: l.eol };
+  });
+  return { text: joinLines(out), changes };
+}
+
+// ---- what the sim says -------------------------------------------------------------------------------------------
+// One end state per source line, so two simulations can be compared whatever the move counts.
+function lineEnds(p) {
+  const M = new Map();
+  for (let i = 0; i < p.n; i++) M.set(p.line[i], { x: p.x1[i], y: p.y1[i], z: p.z1[i], feed: p.feed[i], tool: p.tool[i], rpm: p.rpm[i], kind: p.kind[i] });
+  return M;
+}
+function stats(text) {
+  const p = GCSIM.parseGcode(text), tl = GCSIM.timeline(p, 300), b = p.bounds;
+  let minRetract = Infinity, maxZ = -Infinity, feedMin = Infinity, feedMax = 0, rpmMin = Infinity, rpmMax = 0;
+  for (let i = 0; i < p.n; i++) {
+    if (p.kind[i] === GCSIM.RAPID && p.z1[i] > 0 && p.z1[i] < minRetract) minRetract = p.z1[i];
+    if (p.z1[i] > maxZ) maxZ = p.z1[i];
+    if (p.kind[i] !== GCSIM.RAPID) { if (p.feed[i] < feedMin) feedMin = p.feed[i]; if (p.feed[i] > feedMax) feedMax = p.feed[i]; if (p.rpm[i] > 0) { if (p.rpm[i] < rpmMin) rpmMin = p.rpm[i]; if (p.rpm[i] > rpmMax) rpmMax = p.rpm[i]; } }
+  }
+  const hasCut = b.cutX0 <= b.cutX1;
+  return { prog: p, moves: p.n, tools: p.tools.slice(), deepest: p.n ? b.z0 : null, top: isFinite(maxZ) ? maxZ : null, minRetract: isFinite(minRetract) ? minRetract : null,
+    cut: hasCut ? { x0: b.cutX0, y0: b.cutY0, x1: b.cutX1, y1: b.cutY1 } : null,
+    feed: feedMax > 0 ? [feedMin, feedMax] : null, rpm: rpmMax > 0 ? [rpmMin, rpmMax] : null,
+    cutLen: tl.cutLen, plungeLen: tl.plungeLen, rapidLen: tl.rapidLen, minutes: tl.total, issues: p.issues };
+}
+function report(before, after, changes) {
+  const A = stats(before), B = stats(after), f = v => v == null ? 'none' : (+v.toFixed(4)).toString(), box = c => c ? f(c.x0) + ', ' + f(c.y0) + ' to ' + f(c.x1) + ', ' + f(c.y1) : 'none';
+  const rows = [
+    ['Moves', A.moves, B.moves], ['Tools', A.tools.map(t => 'T' + t).join(' ') || 'none', B.tools.map(t => 'T' + t).join(' ') || 'none'],
+    ['Cut area (X, Y)', box(A.cut), box(B.cut)], ['Deepest Z', f(A.deepest), f(B.deepest)], ['Lowest retract Z', f(A.minRetract), f(B.minRetract)],
+    ['Feed range', A.feed ? A.feed.map(f).join(' to ') : 'none', B.feed ? B.feed.map(f).join(' to ') : 'none'],
+    ['Spindle RPM', A.rpm ? A.rpm.map(f).join(' to ') : 'none', B.rpm ? B.rpm.map(f).join(' to ') : 'none'],
+    ['Cut length (in)', A.cutLen.toFixed(2), B.cutLen.toFixed(2)], ['Run time (min)', A.minutes.toFixed(2), B.minutes.toFixed(2)],
+    ['Lines changed', '', changes.length]
+  ];
+  return { before: A, after: B, changes, rows };
+}
+
+// Compare the re-simulation with what the edit promised. expect(oldEnd, line) -> {x,y,z,feed,rpm} in inches (only keys given are checked).
+function verifyEnds(m, before, afterText, expect, lineMap, what) {
+  const oldP = GCSIM.parseGcode(before), newP = GCSIM.parseGcode(afterText);
+  const oldE = lineEnds(oldP), newE = lineEnds(newP);
+  for (const [ln, a] of oldE) {
+    const newLn = lineMap ? lineMap(ln) : ln;
+    if (newLn == null) continue;
+    const want = expect(a, ln);
+    let b = newE.get(newLn);
+    if (!b) {   // a line can stop being a move when the machine is already where it points (a retract to the height it is already at)
+      let pos = null;
+      for (let i = 0; i < newP.n && newP.line[i] < newLn; i++) pos = { x: newP.x1[i], y: newP.y1[i], z: newP.z1[i] };
+      if (!pos || (want.x != null && Math.abs(pos.x - want.x) > EPS) || (want.y != null && Math.abs(pos.y - want.y) > EPS) || (want.z != null && Math.abs(pos.z - want.z) > EPS))
+        refuse('VERIFY_FAILED', ln, what + ': the re-simulation lost the move on this line, so the edit was not applied.');
+      continue;
+    }
+    for (const k of (a.kind === GCSIM.RAPID ? ['x', 'y', 'z'] : ['x', 'y', 'z', 'feed', 'tool', 'rpm'])) if (want[k] != null && Math.abs(b[k] - want[k]) > EPS * Math.max(1, Math.abs(want[k])))
+      refuse('VERIFY_FAILED', ln, what + ': the re-simulation shows ' + k + ' = ' + b[k] + ', expected ' + want[k] + ', so the edit was not applied.');
+  }
+}
+
+function sameLineCheck(m, editedText, changes) {
+  const L = splitLines(editedText);
+  if (L.length !== m.lines.length) refuse('VERIFY_FAILED', null, 'the edit changed the number of lines.');
+  const set = new Set(changes.map(c => c.line - 1));
+  L.forEach((l, n) => { if (!set.has(n) && (l.text !== m.lines[n].text || l.eol !== m.lines[n].eol)) refuse('VERIFY_FAILED', n + 1, 'a line outside the edit changed.'); });
+}
+
+function finite(v, name) { if (typeof v !== 'number' || !isFinite(v)) refuse('BAD_INPUT', null, name + ' must be a number.'); }
+
+// ---- edits ---------------------------------------------------------------------------------------------------------
+// Move the program in XY. The park move after the last cut stays where it is (the machine's Y115 is not part of the job),
+// unless opts.movePark. dx, dy in inches. Incremental lines are left alone: they move with whatever they start from.
+function translate(text, opts) {
+  const dx = opts.dx || 0, dy = opts.dy || 0; finite(dx, 'X offset'); finite(dy, 'Y offset');
+  const m = analyse(text); requireUnderstood(m, 'translate this program');
+  if (!dx && !dy) refuse('BAD_INPUT', null, 'the offset is zero.');
+  const edits = [], park = []; let absXY = 0;
+  for (const I of m.info) {
+    if (!I.motion || I.isG53) continue;
+    if (I.words.A) refuse('ROTARY', I.n + 1, 'cannot translate a rotary program (this line has an A axis).');
+    if (!I.abs) continue;
+    if ((I.words.X || I.words.Y) && !opts.movePark && !I.feedMove && I.n > m.lastFeed) { park.push(I.n + 1); continue; }
+    if (I.words.X) { absXY++; if (dx) edits.push({ n: I.n, word: I.words.X, text: fmtLike(text.slice(0, 0) + m.lines[I.n].text.slice(I.words.X.vs, I.words.X.ve), I.words.X.v + dx / I.unit, decimalsOfDelta(dx / I.unit)) }); }
+    if (I.words.Y) { absXY++; if (dy) edits.push({ n: I.n, word: I.words.Y, text: fmtLike(m.lines[I.n].text.slice(I.words.Y.vs, I.words.Y.ve), I.words.Y.v + dy / I.unit, decimalsOfDelta(dy / I.unit)) }); }
+  }
+  if (!absXY) refuse('NO_ABSOLUTE_XY', null, 'cannot translate: the program never sets an absolute X or Y position.');
+  const r = applyEdits(m, edits);
+  sameLineCheck(m, r.text, r.changes);
+  const parkSet = new Set(park);
+  verifyEnds(m, text, r.text, (a, ln) => parkSet.has(ln) ? { x: a.x, y: a.y, z: a.z } : { x: a.x + dx, y: a.y + dy, z: a.z, feed: a.feed, tool: a.tool, rpm: a.rpm }, null, 'translate');
+  return { text: r.text, changes: r.changes, report: report(text, r.text, r.changes), notes: park.length ? ['Park move on line ' + park.join(', ') + ' was left where it is.'] : [] };
+}
+
+function inScope(m, I, tool) { return tool == null || I.tool === tool; }
+
+// Multiply F. opts.which: 'all' | 'cut' | 'plunge'. opts.tool limits it to one tool's sections.
+function scaleFeed(text, opts) {
+  const factor = opts.factor; finite(factor, 'Feed factor');
+  if (!(factor > 0)) refuse('BAD_INPUT', null, 'the feed factor must be above zero.');
+  const which = opts.which || 'all', tool = opts.tool == null ? null : opts.tool, maxFeed = opts.maxFeed || LIMITS.maxFeed;
+  const m = analyse(text); requireUnderstood(m, 'scale feeds');
+  const edits = [], changedF = new Set();
+  for (const I of m.info) {
+    if (!I.words.F || !inScope(m, I, tool)) continue;
+    const isPlunge = !!I.plunge;
+    if (which === 'cut' && isPlunge) continue;
+    if (which === 'plunge' && !isPlunge) continue;
+    const nv = I.words.F.v * factor;
+    if (nv * I.unit > maxFeed) refuse('OVER_LIMIT', I.n + 1, 'feed would be ' + (nv * I.unit).toFixed(1) + ' in/min, over the ' + maxFeed + ' in/min limit.');
+    changedF.add(I.n);
+    edits.push({ n: I.n, word: I.words.F, text: fmtLike(m.lines[I.n].text.slice(I.words.F.vs, I.words.F.ve), nv, 1) });
+  }
+  if (!edits.length) refuse('NOTHING_TO_DO', null, 'no matching F words were found' + (tool != null ? ' for T' + tool : '') + '.');
+  if (tool != null) for (const I of m.info) {
+    if (!I.motion || !I.feedMove || I.tool !== tool) continue;
+    if (!changedF.has(I.fLine) && !(which === 'plunge' && !I.plunge) && !(which === 'cut' && I.plunge)) refuse('INHERITED_FEED', I.n + 1, 'T' + tool + ' uses the feed set on line ' + (I.fLine + 1) + ', outside its own section, so scaling only this tool would be a guess.');
+  }
+  const r = applyEdits(m, edits);
+  sameLineCheck(m, r.text, r.changes);
+  const fByLine = new Map(m.info.filter(I => I.motion).map(I => [I.n + 1, I.fLine]));
+  verifyEnds(m, text, r.text, (a, ln) => ({ x: a.x, y: a.y, z: a.z, feed: changedF.has(fByLine.get(ln)) ? a.feed * factor : a.feed, tool: a.tool, rpm: a.rpm }), null, 'feed scale');
+  return { text: r.text, changes: r.changes, report: report(text, r.text, r.changes), notes: [] };
+}
+
+function scaleSpeed(text, opts) {
+  const factor = opts.factor; finite(factor, 'Speed factor');
+  if (!(factor > 0)) refuse('BAD_INPUT', null, 'the speed factor must be above zero.');
+  const tool = opts.tool == null ? null : opts.tool, maxRpm = opts.maxRpm || LIMITS.maxRpm;
+  const m = analyse(text); requireUnderstood(m, 'scale spindle speeds');
+  const edits = [], changedS = new Set();
+  for (const I of m.info) {
+    if (!I.words.S || !inScope(m, I, tool)) continue;
+    const nv = I.words.S.v * factor;
+    if (nv > maxRpm) refuse('OVER_LIMIT', I.n + 1, 'spindle speed would be ' + nv.toFixed(0) + ' rpm, over the ' + maxRpm + ' rpm limit.');
+    changedS.add(I.n);
+    edits.push({ n: I.n, word: I.words.S, text: fmtLike(m.lines[I.n].text.slice(I.words.S.vs, I.words.S.ve), Math.round(nv), 0) });
+  }
+  if (!edits.length) refuse('NOTHING_TO_DO', null, 'no matching S words were found.');
+  const r = applyEdits(m, edits);
+  sameLineCheck(m, r.text, r.changes);
+  verifyEnds(m, text, r.text, a => ({ x: a.x, y: a.y, z: a.z, feed: a.feed, tool: a.tool }), null, 'speed scale');
+  return { text: r.text, changes: r.changes, report: report(text, r.text, r.changes), notes: [] };
+}
+
+function zWords(m, what) {   // every Z word on a real move; refuses incremental Z, which an absolute edit cannot express
+  const out = [];
+  for (const I of m.info) {
+    if (!I.motion || I.isG53 || !I.words.Z) continue;
+    if (!I.abs) refuse('INCREMENTAL_Z', I.n + 1, 'cannot ' + what + ': this line moves Z in G91 incremental mode.');
+    out.push(I);
+  }
+  return out;
+}
+function checkDepthLimit(val, opts, n) { if (opts.maxDepth != null && val < -opts.maxDepth - 1e-9) refuse('TOO_DEEP', n + 1, 'the cut would reach Z' + val.toFixed(4) + ', deeper than the ' + opts.maxDepth + '" limit.'); }
+
+// Shift every below-surface Z by dz (negative = deeper). Retracts and the surface are untouched.
+function shiftCutDepth(text, opts) {
+  const dz = opts.dz; finite(dz, 'Depth change');
+  if (!dz) refuse('BAD_INPUT', null, 'the depth change is zero.');
+  const m = analyse(text); requireUnderstood(m, 'change the cut depth');
+  const edits = [];
+  for (const I of zWords(m, 'change the cut depth')) {
+    const zIn = I.words.Z.v * I.unit;
+    if (zIn >= 0) continue;
+    const nz = zIn + dz;
+    if (nz >= -1e-6) refuse('WOULD_NOT_CUT', I.n + 1, 'this cut at Z' + zIn.toFixed(4) + ' would rise to the surface or above.');
+    checkDepthLimit(nz, opts, I.n);
+    edits.push({ n: I.n, word: I.words.Z, text: fmtLike(m.lines[I.n].text.slice(I.words.Z.vs, I.words.Z.ve), nz / I.unit, decimalsOfDelta(dz / I.unit)) });
+  }
+  if (!edits.length) refuse('NOTHING_TO_DO', null, 'the program has no cuts below the surface.');
+  const r = applyEdits(m, edits);
+  sameLineCheck(m, r.text, r.changes);
+  verifyEnds(m, text, r.text, a => ({ x: a.x, y: a.y, z: a.z < 0 ? a.z + dz : a.z, feed: a.feed, tool: a.tool, rpm: a.rpm }), null, 'cut depth');
+  return { text: r.text, changes: r.changes, report: report(text, r.text, r.changes), notes: [] };
+}
+
+// Change only the deepest Z level (the final pass) to Z = opts.z.
+function setFinalDepth(text, opts) {
+  const z = opts.z; finite(z, 'Final depth');
+  if (!(z < 0)) refuse('BAD_INPUT', null, 'the final depth must be below the surface (negative Z).');
+  const m = analyse(text); requireUnderstood(m, 'change the final depth');
+  const list = zWords(m, 'change the final depth').filter(I => I.words.Z.v * I.unit < 0);
+  if (!list.length) refuse('NOTHING_TO_DO', null, 'the program has no cuts below the surface.');
+  let deepest = Infinity, next = -Infinity;
+  for (const I of list) deepest = Math.min(deepest, I.words.Z.v * I.unit);
+  for (const I of list) { const v = I.words.Z.v * I.unit; if (v > deepest + EPS && v > next) next = v; }
+  if (next > -Infinity && next < 0 && z >= next - EPS) refuse('PASS_ORDER', null, 'Z' + z.toFixed(4) + ' is not below the previous pass at Z' + next.toFixed(4) + '; use the depth shift instead.');
+  const edits = [];
+  for (const I of list) {
+    if (Math.abs(I.words.Z.v * I.unit - deepest) > EPS) continue;
+    checkDepthLimit(z, opts, I.n);
+    edits.push({ n: I.n, word: I.words.Z, text: fmtLike(m.lines[I.n].text.slice(I.words.Z.vs, I.words.Z.ve), z / I.unit, decimalsOfDelta(z / I.unit)) });
+  }
+  const r = applyEdits(m, edits);
+  sameLineCheck(m, r.text, r.changes);
+  verifyEnds(m, text, r.text, a => ({ x: a.x, y: a.y, z: Math.abs(a.z - deepest) <= EPS ? z : a.z, feed: a.feed, tool: a.tool, rpm: a.rpm }), null, 'final depth');
+  return { text: r.text, changes: r.changes, report: report(text, r.text, r.changes), notes: [] };
+}
+
+// Raise every rapid retract that sits below Z = opts.z up to it. Only ever raises.
+function raiseSafeHeight(text, opts) {
+  const z = opts.z; finite(z, 'Safe Z');
+  const maxZ = opts.maxClearZ || LIMITS.maxClearZ;
+  if (!(z > 0)) refuse('BAD_INPUT', null, 'safe Z must be above the surface.');
+  if (z > maxZ) refuse('OVER_LIMIT', null, 'safe Z ' + z + ' is over the ' + maxZ + '" limit.');
+  const m = analyse(text); requireUnderstood(m, 'change the safe height');
+  const edits = []; let lowest = Infinity;
+  for (const I of zWords(m, 'change the safe height')) {
+    if (I.mode !== 0) continue;
+    const v = I.words.Z.v * I.unit;
+    if (v <= 0) continue;
+    if (v < lowest) lowest = v;
+    if (v < z - 1e-9) edits.push({ n: I.n, word: I.words.Z, text: fmtLike(m.lines[I.n].text.slice(I.words.Z.vs, I.words.Z.ve), z / I.unit, decimalsOfDelta(z / I.unit)) });
+  }
+  if (!isFinite(lowest)) refuse('NOTHING_TO_DO', null, 'the program has no rapid retracts above the surface.');
+  if (!edits.length) refuse('WOULD_LOWER', null, 'every retract is already at or above Z' + z + ' (lowest is Z' + lowest.toFixed(4) + '). This tool only raises retracts; lowering one needs a re-post.');
+  const r = applyEdits(m, edits);
+  sameLineCheck(m, r.text, r.changes);
+  verifyEnds(m, text, r.text, a => ({ x: a.x, y: a.y, feed: a.feed, tool: a.tool, rpm: a.rpm, z: a.kind === GCSIM.RAPID && a.z > 0 && a.z < z - 1e-9 ? z : a.z }), null, 'safe height');
+  const after = GCSIM.parseGcode(r.text);
+  for (let i = 0; i < after.n; i++) if (after.kind[i] === GCSIM.RAPID && (Math.abs(after.x1[i] - after.x0[i]) > 1e-9 || Math.abs(after.y1[i] - after.y0[i]) > 1e-9) && after.z0[i] < 0)
+    refuse('RAPID_IN_STOCK', after.line[i], 'a rapid XY move would run below the surface.');
+  return { text: r.text, changes: r.changes, report: report(text, r.text, r.changes), notes: [] };
+}
+
+// Remove every section cut with opts.tool. The surrounding program keeps working on its own M5/T/S/M3 blocks.
+function removeTool(text, opts) {
+  const tool = opts.tool; finite(tool, 'Tool number');
+  const m = analyse(text); requireUnderstood(m, 'remove a tool section');
+  if (m.info.some(I => I.motion && !I.abs)) refuse('INCREMENTAL', (m.info.find(I => I.motion && !I.abs) || {}).n + 1, 'cannot remove a tool section from a program that uses G91 incremental moves.');
+  const secs = m.sections.filter(s => s.tool === tool);
+  if (!secs.length) refuse('NOTHING_TO_DO', null, 'T' + tool + ' is not in this program.');
+  const keptTools = m.sections.filter(s => s.tool !== tool);
+  if (!keptTools.length) refuse('WOULD_BE_EMPTY', null, 'T' + tool + ' is the only tool; removing it would leave nothing to cut.');
+  const removed = new Set(), notes = [];
+  for (const s of secs) {
+    let keepZ = null;
+    if (s === m.sections[0]) for (let n = s.tLine + 1; n <= s.end; n++) {   // the first block's Z2 is the program's only retract before the next tool's first move
+      const I = m.info[n];
+      if (I.motion && (I.words.X || I.words.Y)) break;
+      if (I.motion && I.words.Z && !I.words.X && !I.words.Y && I.mode === 0 && I.endZ > 0) { keepZ = n; break; }
+    }
+    for (let n = s.first; n <= s.end; n++) if (n !== keepZ) removed.add(n);
+    if (keepZ != null) notes.push('Kept the retract on line ' + (keepZ + 1) + ' (' + m.lines[keepZ].text.trim() + ') so the next tool does not start from an unknown height.');
+  }
+  const out = [], changes = [], map = new Map(); let k = 0;
+  m.lines.forEach((l, n) => { if (removed.has(n)) { changes.push({ line: n + 1, before: l.text, after: null }); return; } out.push(l); map.set(n + 1, ++k); });
+  const newText = joinLines(out);
+  // a kept line must still do what it says; an axis it does not name legitimately inherits a different position after the gap
+  verifyEnds(m, text, newText, (a, ln) => { const w = m.info[ln - 1].words; return { x: w.X ? a.x : null, y: w.Y ? a.y : null, z: w.Z ? a.z : null, feed: a.feed, tool: a.tool, rpm: a.rpm }; }, ln => map.has(ln) ? map.get(ln) : null, 'tool removal');
+  const after = GCSIM.parseGcode(newText);
+  if (!after.n) refuse('WOULD_BE_EMPTY', null, 'nothing would be left to cut.');
+  for (let i = 0; i < after.n; i++) if (after.kind[i] === GCSIM.RAPID && (Math.abs(after.x1[i] - after.x0[i]) > 1e-9 || Math.abs(after.y1[i] - after.y0[i]) > 1e-9) && (after.z0[i] < 0 || after.z1[i] < 0))
+    refuse('RAPID_IN_STOCK', after.line[i], 'removing T' + tool + ' would leave a rapid XY move below the surface.');
+  return { text: newText, changes, report: report(text, newText, changes), notes };
+}
+
+// Hand edit: nothing is refused, but the new text is simulated, every problem named, and any lowered retract or deeper
+// cut called out so it cannot pass unnoticed.
+function textEdit(before, after) {
+  const A = splitLines(before), B = splitLines(after), changes = [];
+  let i = 0; while (i < A.length && i < B.length && A[i].text === B[i].text) i++;
+  let ea = A.length - 1, eb = B.length - 1;
+  while (ea >= i && eb >= i && A[ea].text === B[eb].text) { ea--; eb--; }
+  for (let k = i; k <= Math.max(ea, eb); k++) if (k <= ea || k <= eb) changes.push({ line: k + 1, before: k <= ea ? A[k].text : null, after: k <= eb ? B[k].text : null });
+  const rep = report(before, after, changes), notes = [];
+  const a = rep.before, b = rep.after;
+  if (a.minRetract != null && b.minRetract != null && b.minRetract < a.minRetract - 1e-9) notes.push('WARNING: the lowest retract went from Z' + a.minRetract.toFixed(4) + ' to Z' + b.minRetract.toFixed(4) + '.');
+  if (a.deepest != null && b.deepest != null && b.deepest < a.deepest - 1e-9) notes.push('WARNING: the program now cuts deeper, Z' + a.deepest.toFixed(4) + ' to Z' + b.deepest.toFixed(4) + '.');
+  const prog = b.prog;
+  for (let k = 0; k < prog.n; k++) if (prog.kind[k] === GCSIM.RAPID && (Math.abs(prog.x1[k] - prog.x0[k]) > 1e-9 || Math.abs(prog.y1[k] - prog.y0[k]) > 1e-9) && prog.z0[k] < 0) { notes.push('WARNING: line ' + prog.line[k] + ' rapids in XY below the surface.'); break; }
+  return { text: after, changes, report: rep, notes };
+}
+
+return { TapRefusal, readBytes, textToBytes, splitLines, analyse, stats, report, translate, scaleFeed, scaleSpeed, shiftCutDepth, setFinalDepth, raiseSafeHeight, removeTool, textEdit, LIMITS };
 });
 
 </script>
@@ -18289,6 +18918,127 @@ return { layerRule, isLayerJob, DAN_STYLE, jobFromLayers, selectByRule, opResult
 
 </script>
 <script>
+// tpdparse.js — read the TOOLPATH DEFINITIONS VCarve saves inside a .crv/.crv3d (stream Toolpaths/ToolpathData),
+// so a job's recipe comes from the CRV itself instead of from a Vectric-posted .tap.
+//
+// What the stream holds, per toolpath (reverse-engineered 2026-10-03 against Fish 36x24.crv3d and checked
+// against its posted .tap):
+//   header      <class tag | class ref> u32 version(5) GUID16 CString name
+//   tool record <mcEndMillTool | mcVBitTool | mcDrillTool | ...> fields at fixed offsets from the record body:
+//               +21 f64 diameter, +29 f64 pass depth, +37 f64 stepover (absolute), +45 f64 feed, +53 f64 plunge,
+//               +61 u32 rate units(4), +65 u32 spindle rpm, +69 u32 tool number, +73 u32 name length, +77 ASCII tool name
+//   selection   veEntityGroup: u32 ver, u32 0, u32 count, count x GUID16 = vector objects in 2dDataV2
+//   parameters  utParameter list, self-describing: CString name, u32 type, value
+//               (type 0 = f64 after 4 pad bytes, 1 = i32, 2 = bool u8, 3 = CString)
+//   It ALSO holds Vectric's computed path (point lists). We never read that: the recipe only.
+// Everything is anchored on structure we can verify; anything that does not parse is reported, not guessed.
+
+(function (root) {
+'use strict';
+function u32(b, o) { return b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24) >>> 0; }
+function f64(b, o) { return new DataView(b.buffer, b.byteOffset + o, 8).getFloat64(0, true); }
+function i32(b, o) { return new DataView(b.buffer, b.byteOffset + o, 4).getInt32(0, true); }
+function hex(b, o, n) { let s = ''; for (let i = 0; i < n; i++) s += (b[o + i] < 16 ? '0' : '') + b[o + i].toString(16); return s; }
+function cstr(b, o) {   // MFC CStringW at o: FF FE FF <u8 len> UTF-16LE
+  if (!(b[o] === 0xff && b[o + 1] === 0xfe && b[o + 2] === 0xff)) return null;
+  const n = b[o + 3]; let s = '';
+  for (let i = 0; i < n; i++) s += String.fromCharCode(b[o + 4 + 2 * i] | (b[o + 5 + 2 * i] << 8));
+  return { s, end: o + 4 + 2 * n };
+}
+function allCStrings(b) {
+  const out = [];
+  for (let i = 0; i + 3 < b.length; i++) if (b[i] === 0xff && b[i + 1] === 0xfe && b[i + 2] === 0xff) { const c = cstr(b, i); out.push({ o: i, s: c.s, end: c.end }); i = c.end - 1; }
+  return out;
+}
+const round6 = v => Math.round(v * 1e6) / 1e6;
+
+function parseParams(b, strs) {
+  const out = [];
+  for (const c of strs) {
+    if (!/^[_A-Za-z]\w*$/.test(c.s)) continue;
+    const e = c.end; if (e + 5 > b.length) continue;
+    const t = u32(b, e);
+    let v, ok = true;
+    if (t === 0) v = round6(f64(b, e + 4));
+    else if (t === 1) v = i32(b, e + 4);
+    else if (t === 2) v = !!b[e + 4];
+    else if (t === 3) { const s = cstr(b, e + 4); v = s ? s.s : null; ok = !!s; }
+    else ok = false;
+    if (ok) out.push({ o: c.o, name: c.s, value: v });
+  }
+  return out;
+}
+// tool records: find "<u32 rpm><u32 toolnum><u32 len><ascii name>" and read the fixed fields before it
+function parseTools(b) {
+  const out = [];
+  for (let n = 77; n + 8 < b.length; n++) {
+    const len = u32(b, n); if (len < 4 || len > 64) continue;
+    let ok = true; for (let k = 0; k < len; k++) { const ch = b[n + 4 + k]; if ((ch < 32 || ch > 126) && !(ch === 0 && k === len - 1)) { ok = false; break; } }   // NUL-terminated, NUL counted
+    if (!ok) continue;
+    const j = n - 73, rpm = u32(b, j + 65), num = u32(b, j + 69), dia = f64(b, j + 21);
+    if (!(rpm >= 1000 && rpm <= 40000 && num >= 0 && num <= 99 && dia > 0.001 && dia < 4)) continue;
+    let name = ''; for (let k = 0; k < len; k++) if (b[n + 4 + k]) name += String.fromCharCode(b[n + 4 + k]);
+    out.push({ o: j, name, toolNum: num, rpm, dia: round6(dia), passDepth: round6(f64(b, j + 29)), stepover: round6(f64(b, j + 37)),
+               feed: round6(f64(b, j + 45)), plunge: round6(f64(b, j + 53)) });
+    n += 4 + len;
+  }
+  return out;
+}
+// selections: runs of GUIDs that name vector objects in 2dDataV2, preceded by their u32 count. Matching
+// against the CRV's own object GUIDs makes this independent of MFC class-ref numbering.
+function parseSelections(b, vectorGuids) {
+  const out = []; if (!vectorGuids || !vectorGuids.size) return out;
+  for (let i = 4; i + 16 <= b.length; i++) {
+    if (!vectorGuids.has(hex(b, i, 16))) continue;
+    const cnt = u32(b, i - 4); const g = [];
+    for (let k = 0; k < cnt && i + 16 * (k + 1) <= b.length; k++) { const h = hex(b, i + 16 * k, 16); if (!vectorGuids.has(h)) break; g.push(h); }
+    if (g.length === cnt && cnt > 0) { out.push({ o: i - 4, guids: g }); i += 16 * cnt - 1; }
+  }
+  return out;
+}
+
+function parseToolpathData(b, vectorGuids) {
+  const strs = allCStrings(b), params = parseParams(b, strs), tools = parseTools(b);
+  const tpNames = new Set(params.filter(p => /ToolpathName$/.test(p.name)).map(p => p.value));
+  // headers: <class tag "...Toolpath" | class ref 0x80nn> u32 version GUID16 CString name. Detected by STRUCTURE, not by
+  // name, because composite children carry suffixed names ("T9T3 Pocket [Clear]") that no parameter repeats.
+  const isToolpathTag = o => { let k = o - 1, nm = ''; while (k > 0 && b[k] >= 32 && b[k] < 127 && nm.length < 40) { nm = String.fromCharCode(b[k]) + nm; k--; } return /Toolpath$/.test(nm); };
+  const headers = strs.filter(c => { const v = u32(b, c.o - 20); if (!(v >= 1 && v <= 40)) return false;
+      const ref = b[c.o - 21] === 0x80 && b[c.o - 22] > 0; return (ref || isToolpathTag(c.o - 20)) && c.s.length > 0 && !/^_/.test(c.s); })
+    .map(c => ({ o: c.o, name: c.s, base: c.s.replace(/\s*\[[^\]]*\]\s*$/, ''), part: (/\[([^\]]*)\]\s*$/.exec(c.s) || [])[1] || null, guid: hex(b, c.o - 16, 16) }));
+  // selections: veEntityGroup by name, plus class-ref'd groups found as "u32 ver(2) u32 0 u32 n GUIDs" right after a header's tool/params
+  const sels = parseSelections(b, vectorGuids);
+  const tps = [];
+  headers.forEach((h, k) => {
+    const end = k + 1 < headers.length ? headers[k + 1].o : b.length;
+    const P = {}; for (const p of params) if (p.o > h.o && p.o < end) P[p.name] = p.value;
+    const T = []; for (const t of tools.filter(t => t.o > h.o && t.o < end)) if (!T.some(x => x.toolNum === t.toolNum && x.dia === t.dia && x.feed === t.feed)) T.push(t);
+    const S = sels.filter(s => s.o > h.o && s.o < end);
+    tps.push({ name: h.base, part: h.part, guid: h.guid, o: h.o, end, type: P.ToolpathType || null, params: P, tools: T, selection: S.length ? S[0].guids : null });
+  });
+  // composite toolpaths repeat their name on a child header: fold the child into the parent
+  const merged = [];
+  for (const t of tps) {
+    const prev = merged[merged.length - 1];
+    if (prev && prev.name === t.name) {
+      if (t.part) (prev.parts = prev.parts || []).push({ part: t.part, tools: t.tools, params: t.params, selection: t.selection });
+      Object.assign(prev.params, t.params);
+      for (const x of t.tools) if (!prev.tools.some(y => y.toolNum === x.toolNum && y.dia === x.dia && y.feed === x.feed)) prev.tools.push(x);
+      if (t.selection) prev.selection = [...new Set([...(prev.selection || []), ...t.selection])];
+      prev.end = t.end; prev.children = (prev.children || 1) + 1;
+    }
+    else merged.push(t);
+  }
+  return { toolpaths: merged, counts: { params: params.length, tools: tools.length, headers: headers.length, selections: sels.length } };
+}
+
+const api = { parseToolpathData, parseParams, parseTools, allCStrings };
+if (typeof module !== 'undefined' && module.exports) module.exports = api;
+root.TPDPARSE = api;
+})(typeof self !== 'undefined' ? self : this);
+
+</script>
+<script>
 // crvparse.js — native importer for Vectric VCarve / Aspire .crv and .crv3d files.
 //
 // Browser-flat script (concatenated by build.js): no module.exports, no IIFE.
@@ -18759,7 +19509,9 @@ const CRV_NULL_GUID = '00000000000000000000000000000000';
 // approximate a curve's extremum, and at the drawing tolerance a cubic's
 // bbox falls short of the true one by more than 1e-6.
 const CRV_ANCHOR_FLATTEN_TOL = 1e-7;
-const CRV_ANCHOR_TOL = 1e-5;
+// A cached anchor is routinely stale, and Vectric's own bezier extremum differs from ours by up to 2e-4 on files whose geometry
+// is exact. The anchor is therefore a report, not a gate; what proves the decode is the stream framing and span chaining.
+const CRV_ANCHOR_TOL = 1e-3;
 
 // MFC tag constants. THE TRAP: `~wClassTag` masks off bit 15, so the ordinary
 // new-class tag 0xFFFF decodes to 0x80007FFF — the sentinel AFTER decoding is
@@ -19484,7 +20236,14 @@ function parseCrv(u8, opts) {
   if (want === 'inch' || want === 'in') { sourceUnits = 'inch'; unitsSource = 'caller'; }
   else if (want === 'mm') { sourceUnits = 'mm'; unitsSource = 'caller'; }
   else if (want !== 'auto') crvFail('opts.units must be "inch", "mm" or "auto" (got ' + JSON.stringify(opts.units) + ')');
-  else if (job.w && job.h && Math.max(job.w, job.h) > 300) { sourceUnits = 'mm'; unitsSource = 'heuristic:job>300'; }
+  else if (job.w && job.h && Math.max(job.w, job.h) > 300) {
+    // A big job is not a millimetre job: this archive's largest drawings are 500" chair layouts at 1" or 1.5" thickness.
+    // Thickness tells them apart. Stock thickness in mm is well above any stock thickness in inches, and a mm value usually
+    // lands on a clean fraction of an inch (38.1 = 1.5", 69.85 = 2.75").
+    const th = job.thickness || 0, inch = th / CRV_MM_PER_IN, clean = Math.abs(inch * 16 - Math.round(inch * 16)) < 0.02;
+    if (th >= 12 || (th >= 6 && clean)) { sourceUnits = 'mm'; unitsSource = 'evidence:thickness ' + th + ' reads as ' + (+inch.toFixed(3)) + '"'; }
+    else { sourceUnits = 'inch'; unitsSource = 'evidence:thickness ' + th + ' is plausible in inches'; }
+  }
   else { sourceUnits = 'inch'; unitsSource = 'assumed:no-flag-in-format'; }
   const k = sourceUnits === 'mm' ? 1 / CRV_MM_PER_IN : 1;
 
@@ -19561,13 +20320,17 @@ function parseCrv(u8, opts) {
   // does not always refresh it), so a single mismatch is a warning. A
   // SYSTEMATIC disagreement is a decode error — it misplaces a whole class of
   // objects at once — and still fails.
-  if (anchorN >= 4 && anchorOk === 0)
-    crvFail('every one of the ' + anchorN + ' cached object anchors disagrees with the decoded ' +
-            'geometry (worst ' + anchorWorst + ') — the header layout or the span decode is wrong');
+  const report = [];
+  const rep = (code, level, msg, count, items) => { report.push({ code, level, msg, count: count == null ? 1 : count, items: items || [] }); if (level !== 'info') warnings.push(msg); };
   if (anchorN > anchorOk)
-    warnings.push((anchorN - anchorOk) + ' of ' + anchorN + ' objects carry a stale cached anchor ' +
-                  '(worst ' + anchorWorst.toFixed(4) + ') — geometry is unaffected');
-  if (staleRefs) warnings.push(staleRefs + ' object(s) name a layer that no longer exists; using the layer they are stored under');
+    rep('STALE_ANCHORS', 'info', (anchorN - anchorOk) + ' of ' + anchorN + ' objects carry a stale cached anchor (worst ' + anchorWorst.toFixed(4) + ' in file units). The geometry passed span chaining and stream framing, so it is unaffected.', anchorN - anchorOk);
+  if (staleRefs) rep('STALE_LAYER', 'warn', staleRefs + ' object(s) name a layer that no longer exists; they are on the layer they are stored under', staleRefs);
+  if (nSkipped) rep('BITMAP_NOT_IMPORTED', 'loss', nSkipped + ' embedded bitmap image(s) were not imported', nSkipped);
+  if (doc.classes.indexOf('vcCadModelPreview') >= 0) rep('MODEL_3D_NOT_IMPORTED', 'loss', 'This job holds a 3D model. Only its 2D outline was imported, the model itself was not.', 1);
+  if (want === 'auto' && job.w && job.h && Math.max(job.w, job.h) > 300)
+    rep('UNITS_UNVERIFIED', 'warn', 'The job is ' + (+job.w.toFixed(2)) + ' x ' + (+job.h.toFixed(2)) + ' and a Vectric file does not record its units. It was read as ' + (sourceUnits === 'mm' ? 'millimetres' : 'inches') + ' from its ' + (+(job.thickness || 0).toFixed(3)) + ' thickness. Check the size before cutting.', 1);
+  if (doc.classes.indexOf('txtBlock') >= 0 && !polys.some(p => p.ent.origin === 'text-glyph') && polys.length === 0) rep('TEXT_ONLY', 'warn', 'The job holds only text blocks with no outlines', 1);
+  if (!polys.length) rep('NO_VECTORS', 'loss', 'This job has no drawing vectors to import.', 1);
 
   polys.jobSize = { w: job.w == null ? null : job.w * k, h: job.h == null ? null : job.h * k,
                     thickness: job.thickness == null ? null : job.thickness * k };
@@ -19581,6 +20344,15 @@ function parseCrv(u8, opts) {
   polys.appVersion = vinfo.version;
   polys.layerNames = layers.map(L => L.name);
   polys.warnings = warnings;
+  polys.report = report;
+  // saved toolpath definitions (Toolpaths/ToolpathData), when the toolpath reader is in the build
+  polys.toolpathData = null;
+  polys.safeZ = null;
+  if (cfb.exists('Toolpaths/ToolpathData') && typeof TPDPARSE !== 'undefined') {
+    try { polys.toolpathData = TPDPARSE.parseToolpathData(new Uint8Array(cfb.stream('Toolpaths/ToolpathData')), new Set(polys.map(p => p.ent.guid))); }
+    catch (e) { rep('TOOLPATHS_UNREADABLE', 'loss', 'The saved toolpaths could not be read (' + e.message + ')', 1); }
+    if (cfb.exists('Toolpaths/ToolpathPosData')) { const pb = cfb.stream('Toolpaths/ToolpathPosData'); if (pb.length >= 29) { const v = new DataView(pb.buffer, pb.byteOffset + 21, 8).getFloat64(0, true); if (v > 0 && v < 6) polys.safeZ = v; } }
+  }
   polys.checks = {
     streamVersion: doc.streamVersion, mfcBigTags: doc.bigTags,
     toolpathTabs: nTabs, textBlocks: nText,
@@ -19601,14 +20373,112 @@ const CRVPARSE = {
     for (const n of polys.layerNames) byName.set(n, { name: n, contours: [] });
     for (const p of polys) {
       if (!byName.has(p.layer)) byName.set(p.layer, { name: p.layer, contours: [] });
-      byName.get(p.layer).contours.push({ pts: p.pts, closed: !!p.ent.closed });
+      byName.get(p.layer).contours.push({ pts: p.pts, closed: !!p.ent.closed, guid: p.ent.guid, tabs: p.ent.tabs || [] });
     }
     const js = polys.jobSize;
     return { job: js && js.w > 0 && js.h > 0 ? { w: js.w, h: js.h, thickness: js.thickness } : null,
-             units: 'in', unitsSource: polys.unitsSource, empty: polys.length === 0,
-             layers: [...byName.values()].filter(L => L.contours.length), warnings: polys.warnings };
+             units: 'in', sourceUnits: polys.sourceUnits, unitsSource: polys.unitsSource, empty: polys.length === 0,
+             layers: [...byName.values()].filter(L => L.contours.length), warnings: polys.warnings, report: polys.report,
+             toolpathData: polys.toolpathData, safeZ: polys.safeZ, app: polys.app };
   }
 };
+
+</script>
+<script>
+// crvtoolpaths.js — turn the toolpath definitions saved in a .crv/.crv3d (tpdparse.js) into the studio's toolpath list.
+// Browser + node. toOp() is the mapping crv2tap.js has always used (it is shared, so the CLI and the studio agree); toStudioOps()
+// wraps it for the toolpath panel and accounts for everything that cannot be carried over.
+(function (root, factory) {
+  const mod = factory();
+  if (typeof module !== 'undefined' && module.exports) module.exports = mod;
+  root.CRVTP = mod;
+})(typeof self !== 'undefined' ? self : this, function () {
+'use strict';
+const depthList = s => (s || '').split(';').map(x => x.trim()).filter(Boolean).map(Number);
+
+// one VCarve toolpath -> one repost op
+function toOp(tp, warnings) {
+  const P = tp.params, t = tp.tools[0];
+  if (!t) { warnings.push(`${tp.name}: no tool record`); return null; }
+  if (tp.type === 'Drill') {
+    const d = { op: 'drill', toolNum: t.toolNum, toolDia: t.dia, rpm: t.rpm, feed: t.feed, plunge: t.plunge, cutDepth: P._dpdCutDepth, label: tp.name };
+    if (P._dpdPeckDrill) d.peck = t.passDepth;                   // VCarve pecks by the tool's pass depth
+    if (P._dpdUseDwell && P._dpdDwellTime) warnings.push(`${tp.name}: dwell ${P._dpdDwellTime}s not emitted yet`);
+    if (P._dpdRetractGap) warnings.push(`${tp.name}: peck retract gap ${P._dpdRetractGap} not mapped yet`);
+    return d;
+  }
+  const pre = /^Pocket|^AreaClear/.test(tp.type) ? '_pkpd' : '_ppd';
+  // pockets with "use area clearance tool": Tool_1 = the finishing (small) tool, Tool_2 = the clearance (big) tool
+  const depths = depthList(P._mctddDepthValues ?? (tp.type === 'AreaClearToolpath' ? (P._mctddDepthValues_Tool_2 ?? P._mctddDepthValues_Tool_1) : P._mctddDepthValues_Tool_1));
+  const cutDepth = P[pre + 'CutDepth'];
+  const base = { toolNum: t.toolNum, toolDia: t.dia, rpm: t.rpm, feed: t.feed, plunge: t.plunge, cutDepth,
+                 passDepth: depths.length ? depths[0] : t.passDepth, depths: depths.length ? depths : undefined, label: tp.name };
+  // CutDirection: 1 = conventional, 0 = climb (VCarve order of the radio buttons) — CONFIRM on blind test BT-09
+  const climb = P[pre + 'CutDirection'] === 0;
+  const allowance = P[pre + 'Allowance'] || 0;
+  if (tp.type === 'Pocket' || tp.type === 'AreaClearToolpath') {
+    if (P._pkpdDoRaster) warnings.push(`${tp.name}: raster pocket not supported yet`);
+    const op = Object.assign(base, { op: 'pocket', climb, stepover: t.stepover / t.dia });
+    // "Use area clearance tool": VCarve saves the big-tool clear as an AreaClearToolpath "[Clear]" and the small tool
+    // as the Pocket of the same name, which then only machines what the big tool could not reach
+    if (tp.type === 'Pocket' && tp.restOf) { op.restOf = tp.restOf; op.finishWall = true; }   // small tool: wall + what the big tool left
+    return op;
+  }
+  const m = /^Profile (Outside|Inside|On)$/.exec(tp.type || '');
+  if (m) {
+    const op = Object.assign(base, { op: 'profile', side: m[1].toLowerCase(), climb });
+    if (allowance) op.toolDia = t.dia + 2 * allowance;          // allowance = leave stock; widen the offset
+    if (P._ppdUseTabs) op.tabs = { count: P.tabsNumTabs || 1, length: P._ppdTabLength, height: P._ppdTabThickness };
+    if (P._mcldDoLeadIn || P._mcldLeadType) warnings.push(`${tp.name}: lead-in params present (type ${P._mcldLeadType}, len ${P._mcldLeadLength}) — mapping unconfirmed`);
+    if (P._mcrdDoRamping) warnings.push(`${tp.name}: ramping not mapped yet`);
+    return op;
+  }
+  warnings.push(`${tp.name}: toolpath type "${tp.type}" not supported yet`);
+  return null;
+}
+
+// Studio toolpath parameters for a mapped op. Fields the panel needs but Vectric does not specify take the panel's own defaults.
+function studioParams(op, safeZ) {
+  const p = Object.assign({ op: op.op, toolNum: op.toolNum, toolDia: op.toolDia, side: op.side || 'outside', climb: !!op.climb,
+    cutDepth: Math.abs(op.cutDepth || 0.25), passDepth: Math.abs(op.passDepth || op.cutDepth || 0.25), feed: op.feed, plunge: op.plunge, rpm: op.rpm,
+    topZ: 0, clearZ: safeZ != null ? safeZ : 0.25, stepover: op.stepover != null ? op.stepover : 0.4, pocketStyle: 'offset', rampEntry: false, finishDia: 0, finishNum: 2, peck: op.peck || 0,
+    bitAngle: 90, vstep: 0.02, flatDepth: 0, clearDia: 0, clearNum: 2, leadType: 'none', leadLen: 0.25, rampLen: 0, style: 'pocket', part: 'both', clearance: 0, clearanceOn: 'female',
+    pocketDepth: 0.125, maleDepth: 0.125, startDepth: 0, maleMargin: 0.25, mirrorMale: true, chWidth: 0.125, chOffset: 0, qeSharp: 150, fluteTool: 'ball', flRamp: 'both', flRampLen: 0, flSmooth: false,
+    prMax: 0, moAlign: 'center', moStep: 0.1, tabs: op.tabs || { count: 0, length: 0.4, height: 0.1 } }, op.depths ? { depths: op.depths } : {});
+  return p;
+}
+
+// -> { ops:[{name,p,guids}], report:[{code,level,msg,count,items}] }. Nothing is dropped without being named.
+function toStudioOps(tpd, opts) {
+  opts = opts || {};
+  const present = new Set(opts.guids || []), ops = [], notConverted = [], noSelection = [], notes = [], rest = [];
+  const clearDia = {};
+  for (const tp of (tpd && tpd.toolpaths) || []) {
+    const hadArea = tp.type === 'AreaClearToolpath';
+    if (hadArea && tp.tools[0]) clearDia[tp.name] = tp.tools[0].dia;
+    else if (tp.type === 'Pocket' && clearDia[tp.name]) tp.restOf = clearDia[tp.name];
+    const w = [];
+    let op = null; try { op = toOp(tp, w); } catch (e) { w.push(`${tp.name}: ${e.message}`); }
+    if (!op) { notConverted.push((tp.name || '(unnamed)') + (tp.type ? ' [' + tp.type + ']' : '')); continue; }
+    const guids = (tp.selection || []).filter(g => present.has(g));
+    if (!guids.length) { noSelection.push(tp.name); continue; }
+    if (op.restOf) { rest.push(tp.name); delete op.restOf; delete op.finishWall; }
+    const p = studioParams(op, opts.safeZ);
+    if (tp.params && tp.params._pkpdDoRaster) p.pocketStyle = 'raster';
+    for (const m of w) notes.push(m);
+    if (op.tabs) notes.push(`${tp.name}: ${op.tabs.count} tab(s) kept by count and size; their positions were not carried and are spaced evenly`);
+    ops.push({ name: tp.name, p, guids });
+  }
+  const report = [];
+  if (notConverted.length) report.push({ code: 'TOOLPATH_NOT_CONVERTED', level: 'loss', msg: notConverted.length + ' saved toolpath(s) are of a kind this app cannot rebuild and were not imported', count: notConverted.length, items: notConverted.slice(0, 8) });
+  if (noSelection.length) report.push({ code: 'TOOLPATH_NO_VECTORS', level: 'loss', msg: noSelection.length + ' saved toolpath(s) were not imported because their vectors are not in the drawing (deleted in VCarve, or on a layer that was not saved)', count: noSelection.length, items: noSelection.slice(0, 8) });
+  if (rest.length) report.push({ code: 'TOOLPATH_REST_AS_FULL', level: 'warn', msg: rest.length + ' small-tool pocket(s) came in as a full pass of that tool (VCarve only cut what the big tool left), so they will take longer', count: rest.length, items: rest.slice(0, 8) });
+  if (notes.length) report.push({ code: 'TOOLPATH_SETTINGS_NOT_CARRIED', level: 'warn', msg: notes.length + ' toolpath setting(s) could not be carried over exactly; review before posting', count: notes.length, items: notes.slice(0, 8) });
+  return { ops, report };
+}
+
+return { toOp, toStudioOps, studioParams };
+});
 
 </script>
 <script>
@@ -20025,7 +20895,7 @@ function updateMatSummary(){
 // ---- menu bar ----
 const MENU_ACTIONS={
   'new':()=>document.getElementById('btnNew').click(),
-  'open':()=>openProjectDialog(),
+  'open':()=>openProjectDialog(), 'gcedit':()=>openGcodeEditor(), 'report':()=>{ if(lastReport) showFileReport(lastReport.name,lastReport.items,lastReport.opts); else setMsg('No import report yet'); },
   'save':()=>saveProject(), 'saveas':()=>saveProjectAs(),
   'job':()=>showForm('job','drawing'), 'rotate':()=>openRotateModal(),
   'selall':()=>{ sel=new Set(doc.shapes.filter(s=>layerVisible(s.layer)).map(s=>s.id)); render(); syncPanels(); },
@@ -20877,10 +21747,15 @@ function opJoin(){ const sh=selectedShapes().filter(s=>s.type==='path'); if(sh.l
 
 // ---- import / export ----
 function importText(name, text){
-  if(/\.dxf$/i.test(name)){ const ents=parseDxf(text); const polys=[]; for(const e of ents){ for(const p of entityToPolys(e)) polys.push(p); } const shapes=CADCORE.dxfPolysToShapes(polys);
-    pushHistory(); CADCORE.registerDxfLayers(doc.layers, polys.filter(p=>p.type!=='TEXT'&&p.type!=='DIMENSION')); addShapes(shapes); fitAll(); buildLayers();
+  if(/\.dxf$/i.test(name)){ let ents;
+    try{ ents=parseDxf(text); }catch(err){ showFileReport(name,[{code:'OPEN_FAILED',level:'loss',msg:err.message,count:1}],{failed:true}); setMsg('Could not open '+name+': '+err.message); return; }
+    const polys=[]; for(const e of ents){ for(const p of entityToPolys(e)) polys.push(p); } const shapes=CADCORE.dxfPolysToShapes(polys);
+    if(!shapes.length){ showFileReport(name,(ents.report||[]).concat([{code:'NO_VECTORS',level:'loss',msg:'The file opened but holds no vectors this app can use.',count:1}]),{failed:true}); setMsg('No usable vectors in '+name+' — see the import report'); return; }
+    pushHistory(); CADCORE.registerDxfLayers(doc.layers, polys.filter(p=>p.type!=='TEXT'&&p.type!=='DIMENSION'), ents.layerTable); addShapes(shapes); fitAll(); buildLayers(); doc.sourceName=name;
     const K=new Set(shapes.map(s=>s.layer)).size; syncPanels(); render();
-    setMsg('Imported '+shapes.length+' vector'+(shapes.length!==1?'s':'')+' on '+K+' layer'+(K!==1?'s':'')+' from '+name);
+    const items=ents.report||[], bad=items.filter(r=>r.level==='loss').length;
+    setMsg('Imported '+shapes.length+' vector'+(shapes.length!==1?'s':'')+' on '+K+' layer'+(K!==1?'s':'')+' from '+name+(ents.units&&ents.units.factor!==1?' · scaled from '+ents.units.name:'')+(bad?' · WARNING: some of this file did not import, see the report':''));
+    showFileReport(name,items,{});
     if(typeof asmApplyLayerDefaults==='function') asmApplyLayerDefaults(name, shapes);   // OUTSIDE_PROFILE / DRILL_.._THRU / POCKET_..DEEP -> sheet size, thickness, toolpaths
     return; }
   else if(/\.svg$/i.test(name)){ const shapes=CADCORE.svgToShapes(text); pushHistory(); addShapes(shapes); fitAll(); }
@@ -20906,30 +21781,60 @@ function importPDF(name, buf){
 // VCarve .crv / Aspire .crv3d — OLE2 container, MFC CArchive vector data. Decoded by crvparse.js (the JS port of
 // crvlib.py, see cam-engine/README.md); build.js bundles it when the file is present. The parser refuses rather than
 // guesses, so a thrown error here is reported verbatim — never patched around.
-function importCRV(name, buf){
+function importCRV(name, buf, opts){
   if(typeof CRVPARSE==='undefined'){ setMsg('Cannot open '+name+': the .crv reader (cam-engine/crvparse.js) is not in this build — add it and run npm run build'); return; }
-  let res; try{ res=CRVPARSE.toShapes(new Uint8Array(buf), { tol:0.002 }); }
-  catch(err){ setMsg('CRV parse failed: '+err.message+' · '+name); return; }
-  // res: { job:{w,h}|null, units:'in'|'mm'|null, unitsSource, layers:[{name, color?, contours:[{pts:[{x,y}], closed}]}] }
-  const layers=(res&&res.layers)||[]; const shapes=[];
+  let res; try{ res=CRVPARSE.toShapes(new Uint8Array(buf), { tol:0.002, units:(opts&&opts.units)||'auto' }); }
+  catch(err){ const m=err.notCrvFile?(name+' is not a Vectric file (the contents do not match its .crv/.crv3d extension). '+err.message):err.message;
+    showFileReport(name,[{code:'OPEN_FAILED',level:'loss',msg:m,count:1}],{failed:true}); setMsg('Could not open '+name+': '+m); return; }
+  // res: { job:{w,h,thickness}|null, unitsSource, layers:[{name, color?, contours:[{pts:[{x,y}], closed, guid, tabs}]}], report, toolpathData, safeZ }
+  const layers=(res&&res.layers)||[]; const shapes=[]; const byGuid=new Map();
   for(const L of layers){ const lname=(L.name||'0').trim()||'0';
-    if(!doc.layers.has(lname)) doc.layers.set(lname,{visible:true,color:L.color||'#1b2b3f'});
-    for(const c of (L.contours||[])){ if(!c.pts||c.pts.length<2) continue; shapes.push(CADCORE.mkPoly(c.pts, !!c.closed, lname)); } }
-  if(!shapes.length){ setMsg('No vectors in '+name+(res&&res.empty?' — the file was saved with its vectors deleted':'')); syncPanels(); return; }
+    if(!doc.layers.has(lname)) doc.layers.set(lname,{visible:true,color:L.color||nextLayerColor()});
+    for(const c of (L.contours||[])){ if(!c.pts||c.pts.length<2) continue; const sh=CADCORE.mkPoly(c.pts, !!c.closed, lname); shapes.push(sh); if(c.guid){ if(!byGuid.has(c.guid)) byGuid.set(c.guid,[]); byGuid.get(c.guid).push(sh.id); } } }
+  const items=(res.report||[]).slice();
+  if(!shapes.length){ setMsg('No vectors in '+name+(res&&res.empty?' — the file was saved with its vectors deleted':'')); showFileReport(name,items,{failed:true}); syncPanels(); return; }
   pushHistory();
-  if(res.job&&res.job.w>0&&res.job.h>0){ job.w=res.job.w; job.h=res.job.h; applyJobInputs(); updateMatSummary(); }
-  addShapes(shapes); fitAll(); syncPanels(); render();
-  let m='Imported '+shapes.length+' vector'+(shapes.length!==1?'s':'')+' on '+layers.length+' layer'+(layers.length!==1?'s':'')+' from '+name;
-  if(res.job) m+=' · job '+(+res.job.w.toFixed(3))+' × '+(+res.job.h.toFixed(3));
-  if(res.units==='mm') m+='  ·  WARNING: job size reads as millimetres ('+(res.unitsSource||'heuristic')+') — the format carries no units flag; check the size before cutting.';
+  if(res.job&&res.job.w>0&&res.job.h>0){ job.w=res.job.w; job.h=res.job.h; if(res.job.thickness>0) job.thickness=res.job.thickness; applyJobInputs(); updateMatSummary(); }
+  addShapes(shapes); doc.sourceName=name;
+  // the saved toolpaths, rebuilt as editable toolpaths on the imported vectors
+  let tpN=0;
+  if(res.toolpathData&&typeof CRVTP!=='undefined'){ const tr=CRVTP.toStudioOps(res.toolpathData,{guids:[...byGuid.keys()],safeZ:res.safeZ});
+    for(const o of tr.ops){ const ids=o.guids.flatMap(g=>byGuid.get(g)||[]); const nq=normalizeOp({p:o.p,ids,name:o.name,label:'',visible:true}); opsQueue.push(nq); tpN++; }
+    items.push(...tr.report); if(tpN) buildQueueList(); }
+  else if(res.toolpathData===null&&typeof CRVTP==='undefined') items.push({code:'TOOLPATHS_NOT_IMPORTED',level:'loss',msg:'This build cannot read saved toolpaths.',count:1});
+  items.push({code:'ORIGINAL_UNCHANGED',level:'info',msg:'The original '+name+' is unchanged. Saving writes an .aqcam (or Export DXF / Save Toolpaths for .tap); this app cannot write .crv or .crv3d files.',count:1});
+  fitAll(); syncPanels(); render();
+  projectFile.handle=null; setProjectName(name.replace(/\.crv3?d?$/i,'')+'.aqcam');
+  let m='Imported '+shapes.length+' vector'+(shapes.length!==1?'s':'')+' on '+layers.length+' layer'+(layers.length!==1?'s':'')+(tpN?' and '+tpN+' toolpath'+(tpN!==1?'s':''):'')+' from '+name;
+  if(res.job) m+=' · job '+(+res.job.w.toFixed(3))+' × '+(+res.job.h.toFixed(3))+(res.job.thickness?' × '+(+res.job.thickness.toFixed(3)):'');
+  if(items.some(r=>r.level==='loss')) m+=' · WARNING: some of this file did not import, see the report';
   setMsg(m);
+  const flip=res.sourceUnits==='mm'?'inch':'mm';
+  showFileReport(name,items,items.some(r=>r.code==='UNITS_UNVERIFIED')?{action:{label:'Reopen as '+(flip==='mm'?'millimetres':'inches'),fn:()=>{ doc.shapes=doc.shapes.filter(s=>shapes.indexOf(s)<0); opsQueue=opsQueue.filter(q=>!q.ids||!q.ids.some(id=>shapes.some(s=>s.id===id))); importCRV(name,buf,{units:flip}); }}}:{});
 }
+// a layer colour no other layer is using
+function nextLayerColor(){ const used=new Set([...doc.layers.values()].map(l=>l.color)); const pal=(typeof LAYER_COLORS!=='undefined'?LAYER_COLORS:['#1b2b3f']); for(const c of pal) if(!used.has(c)) return c; return '#'+Math.floor(Math.random()*0xFFFFFF).toString(16).padStart(6,'0'); }
+// ---- what came through and what did not -------------------------------------------------------------------------------
+let lastReport=null;
+function showFileReport(name, items, opts){ items=(items||[]).filter(Boolean); opts=opts||{}; lastReport={name,items,opts};
+  const shown=items.filter(r=>r.level!=='info'||opts.failed); const body=document.getElementById('reportBody'), bg=document.getElementById('reportModal');
+  if(!body||!bg) return;
+  const title=document.getElementById('reportTitle'); if(title) title.textContent=(opts.failed?'Could not open ':'Import report: ')+name;
+  body.innerHTML=''; const all=shown.concat(items.filter(r=>r.level==='info'&&!opts.failed));
+  if(!shown.length) return;   // nothing lost, nothing worth interrupting for
+  for(const r of all){ const d=document.createElement('div'); d.className='rpt '+r.level; const tag=r.level==='loss'?'NOT IMPORTED':r.level==='warn'?'CHECK':'NOTE';
+    d.innerHTML='<b>'+tag+'</b> '+esc(r.msg)+(r.count>1&&!/^\d/.test(r.msg)?' ('+r.count+')':'')+(r.items&&r.items.length?'<small>'+r.items.map(esc).join(', ')+(r.count>r.items.length?', …':'')+'</small>':''); body.appendChild(d); }
+  const foot=document.getElementById('reportFoot'); foot.innerHTML='<button class="tb primary" id="reportOk">OK</button>';
+  if(opts.action){ const b=document.createElement('button'); b.className='tb'; b.textContent=opts.action.label; b.onclick=()=>{ bg.style.display='none'; opts.action.fn(); }; foot.insertBefore(b,foot.firstChild); }
+  document.getElementById('reportOk').onclick=()=>{ bg.style.display='none'; };
+  bg.style.display='block'; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 // Saving a file has two routes. Opened from disk, a plain download link works and always has.
 // Published as an Artifact, the viewer sandbox makes that link inert — the host has to hand the file
 // over — so when the host is present we go through it, and every export in the app benefits because
 // they all come through here. Locally nothing changes: window.claude does not exist, so we take the
 // link path exactly as before.
-function downloadViaLink(name, text, type){
+function downloadViaLink(name, text, type){   // text may be a string or a Uint8Array (G-code keeps its exact bytes)
   const b=new Blob([text],{type:type||'text/plain'}); const a=document.createElement('a');
   a.href=URL.createObjectURL(b); a.download=name; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);
@@ -21175,10 +22080,55 @@ function pbUI(){
     const T=PB.T; runSim(); pbSet(T); });
 }
 // Open a posted program (.tap / .nc / .gcode): it plays in the 3D view and backplots in the 2D view.
-function openProgram(name, text){
-  PB.file={ name, text }; lastGcode=text; toolpaths=toolpathSegs(text); drillMarks=null;
-  setView('preview'); if(PB.prog&&PB.prog.warnings.length) setMsg('Opened '+name+' · WARN: '+PB.prog.warnings[0]);
+function openProgram(name, text, keepEditor){
+  PB.file={ name, text, original:(PB.file&&keepEditor)?PB.file.original:text, history:(PB.file&&keepEditor)?PB.file.history:[] }; lastGcode=text; toolpaths=toolpathSegs(text); drillMarks=null;
+  setView('preview');
+  const iss=(PB.prog&&PB.prog.issues)||[];
+  if(iss.length){ setMsg('Opened '+name+' · WARNING: '+iss[0].msg);
+    if(!keepEditor) showFileReport(name, iss.slice(0,40).map(i=>({code:i.code,level:i.level,msg:i.msg,count:1})), {}); }
 }
+// G-code arrives as bytes so a comment in any encoding and every line ending survive an edit untouched.
+function openProgramBytes(name, buf){ const r=TAPEDIT.readBytes(new Uint8Array(buf), name);
+  if(!r.ok){ showFileReport(name,[{code:r.code,level:'loss',msg:r.msg,count:1}],{failed:true}); setMsg('Could not open '+name+': '+r.msg); return; }
+  openProgram(name, r.text); }
+// ---- G-code editor ----------------------------------------------------------------------------------------------------
+function gcNum(id){ const v=String(document.getElementById(id).value).trim(); return v===''?NaN:parseFloat(v); }
+function openGcodeEditor(){ if(!PB.file){ setMsg('Open a .tap or G-code file first (File → Open)'); return; }
+  document.getElementById('gcTitle').textContent='Edit G-code: '+PB.file.name;
+  gcSyncTools(); document.getElementById('gcText').value=PB.file.text; gcShowCheck(); document.getElementById('gcSaveNote').textContent='Save As writes a new file. '+PB.file.name+' is not changed unless you choose to overwrite it.';
+  document.getElementById('gcModal').style.display='block'; }
+function gcSyncTools(){ const ts=(PB.prog&&PB.prog.tools)||[]; const fill=(id,first)=>{ const s=document.getElementById(id); s.innerHTML=first; for(const t of ts){ const o=document.createElement('option'); o.value=t; o.textContent='T'+t; s.appendChild(o); } };
+  fill('gcTool',''); fill('gcFeedTool','<option value="">all tools</option>'); }
+function gcShowCheck(){ const m=TAPEDIT.analyse(PB.file.text); const el=document.getElementById('gcReport');
+  if(m.blockers.length){ const b=m.blockers[0]; el.innerHTML='<div class="bad">Edits are refused for this program. Line '+b.line+': '+esc(b.why)+' ('+esc(b.raw)+')'+(m.blockers.length>1?' and '+(m.blockers.length-1)+' more line(s).':'.')+'</div><div>You can still hand-edit the text to fix it.</div>'; }
+  else el.innerHTML='<div class="good">This program can be edited.</div>'; }
+function gcRun(kind){ if(!PB.file)return; const t=PB.file.text; let r;
+  try{ if(kind==='translate') r=TAPEDIT.translate(t,{dx:gcNum('gcDx')||0,dy:gcNum('gcDy')||0});
+    else if(kind==='feed'){ const tl=document.getElementById('gcFeedTool').value; r=TAPEDIT.scaleFeed(t,{factor:gcNum('gcFeed')/100,which:document.getElementById('gcFeedWhich').value,tool:tl===''?undefined:+tl}); }
+    else if(kind==='speed') r=TAPEDIT.scaleSpeed(t,{factor:gcNum('gcSpeed')/100});
+    else if(kind==='safe') r=TAPEDIT.raiseSafeHeight(t,{z:gcNum('gcSafe')});
+    else if(kind==='dz') r=TAPEDIT.shiftCutDepth(t,{dz:gcNum('gcDz'),maxDepth:gcMaxDepth()});
+    else if(kind==='final') r=TAPEDIT.setFinalDepth(t,{z:gcNum('gcFinal'),maxDepth:gcMaxDepth()});
+    else if(kind==='rmtool') r=TAPEDIT.removeTool(t,{tool:+document.getElementById('gcTool').value});
+  }catch(err){ gcShowRefusal(err); return; }
+  gcCommit(r); }
+function gcMaxDepth(){ const j=job.thickness; return j>0?j:undefined; }
+function gcShowRefusal(err){ document.getElementById('gcReport').innerHTML='<div class="bad">Refused, nothing was changed. '+esc(err.message)+'</div>'; setMsg('G-code edit refused: '+err.message); }
+function gcCommit(r){ PB.file.history.push(PB.file.text); openProgram(PB.file.name, r.text, true); gcSyncTools(); document.getElementById('gcText').value=r.text; gcShowResult(r); }
+function gcShowResult(r){ const rows=r.report.rows.map(a=>'<tr><th>'+esc(a[0])+'</th><td>'+esc(a[1])+'</td><td>'+esc(a[2])+'</td></tr>').join('');
+  const iss=r.report.after.issues||[];
+  document.getElementById('gcReport').innerHTML='<table><tr><th></th><th>Before</th><th>After</th></tr>'+rows+'</table>'+(r.notes||[]).map(n=>'<div class="'+(/^WARNING/.test(n)?'bad':'')+'">'+esc(n)+'</div>').join('')+(iss.length?'<div class="bad">After this edit, '+iss.length+' line(s) need attention: '+iss.slice(0,8).map(i=>esc(i.msg)).join(' · ')+'</div>':'');
+  setMsg('G-code edited: '+r.changes.length+' line(s) changed · re-simulated'); }
+function gcApplyText(){ if(!PB.file)return; const after=document.getElementById('gcText').value; if(after===PB.file.text){ setMsg('The text has not changed'); return; } let r; try{ r=TAPEDIT.textEdit(PB.file.text, after); }catch(err){ gcShowRefusal(err); return; } gcCommit(r); }
+function gcUndo(){ if(!PB.file||!PB.file.history.length){ setMsg('Nothing to undo'); return; } const t=PB.file.history.pop(); openProgram(PB.file.name,t,true); document.getElementById('gcText').value=t; gcSyncTools(); gcShowCheck(); setMsg('Undid the last G-code edit'); }
+function gcRevert(){ if(!PB.file)return; PB.file.history=[]; openProgram(PB.file.name,PB.file.original,true); document.getElementById('gcText').value=PB.file.original; gcSyncTools(); gcShowCheck(); setMsg('Back to the opened file'); }
+async function gcSaveAs(){ if(!PB.file)return; const base=PB.file.name.replace(/\.[^.]+$/,''), ext=(PB.file.name.match(/\.[^.]+$/)||['.tap'])[0], bytes=TAPEDIT.textToBytes(PB.file.text);
+  const def=base+'-edited'+ext;
+  if(window.showSaveFilePicker){ try{ const h=await window.showSaveFilePicker({suggestedName:def,types:[{description:'G-code program',accept:{'text/plain':['.tap','.nc','.ngc','.gcode','.cnc']}}]}); const w=await h.createWritable(); await w.write(bytes); await w.close(); setMsg('Saved '+h.name+' ('+bytes.length+' bytes)'); return; }catch(err){ if(err&&err.name==='AbortError')return; setMsg('Save failed ('+err.message+'), downloading instead'); } }
+  const n=prompt('Save G-code as (file name):',def); if(!n){ setMsg('Save cancelled'); return; }
+  if(window.claude&&typeof window.claude.use==='function'){ download(n,PB.file.text,'text/plain'); return; }
+  downloadViaLink(n,bytes,'text/plain'); setMsg('Saved '+n+' to your Downloads folder'); }
+
 function closeProgram(){ PB.file=null; toolpaths=null; if(viewMode==='preview') runSim(); else render(); setMsg('Closed the program — the 3D view shows the visible toolpaths'); }
 // Shade the heightfield into an offscreen canvas: wood-tone depth ramp + directional hillshade for a carved look.
 function shadeHeightfield(field, r){
@@ -21228,7 +22178,7 @@ function handleOpenedFile(f, handle){ const rd=new FileReader();
   else if(/\.aqtpl$/i.test(f.name)){ rd.onload=ev=>importTplText(ev.target.result); rd.readAsText(f); }
   else if(/\.aqclip$/i.test(f.name)){ rd.onload=ev=>importClipText(ev.target.result); rd.readAsText(f); }
   else if(/\.pdf$/i.test(f.name)){ rd.onload=ev=>importPDF(f.name,ev.target.result); rd.readAsArrayBuffer(f); }
-  else if(/\.(tap|nc|ngc|gcode|cnc)$/i.test(f.name)){ rd.onload=ev=>openProgram(f.name,ev.target.result); rd.readAsText(f); }
+  else if(/\.(tap|nc|ngc|gcode|cnc)$/i.test(f.name)){ rd.onload=ev=>openProgramBytes(f.name,ev.target.result); rd.readAsArrayBuffer(f); }
   else if(/\.crv(3d)?$/i.test(f.name)){ rd.onload=ev=>importCRV(f.name,ev.target.result); rd.readAsArrayBuffer(f); }
   else { rd.onload=ev=>importText(f.name,ev.target.result); rd.readAsText(f); } }
 // Open: native picker when available (keeps the handle so Save writes back); falls back to the <input type=file>.
@@ -21264,7 +22214,7 @@ function applyJobInputs(){ const g=id=>document.getElementById(id);
   const nw=g('nestW'),nh=g('nestH'); if(nw)nw.value=job.w; if(nh)nh.value=job.h; }
 function autosaveNow(){ try{ localStorage.setItem(AUTOSAVE_KEY, projectJSON('autosave')); }catch(e){} }
 function scheduleAutosave(){ if(autosaveTimer)clearTimeout(autosaveTimer); autosaveTimer=setTimeout(autosaveNow, 1500); }
-function exportDXF(){ if(!doc.shapes.length)return; download('design.dxf', CADCORE.toDXF(doc.shapes)); }
+function exportDXF(){ if(!doc.shapes.length)return; const base=(doc.sourceName||'design').replace(/\.[^.]+$/,''); download(base+(doc.sourceName?'-edited':'')+'.dxf', CADCORE.toDXF(doc.shapes,{layers:doc.layers})); setMsg('Exported DXF with '+doc.layers.size+' layers; arcs kept as arcs where possible, within 0.005"'); }
 // DXF with outside profiles on OUTSIDE_PROFILE and everything contained within a part on INSIDE_CUT
 function exportDXFSplit(){ const sh=doc.shapes.filter(s=>layerVisible(s.layer)); if(!sh.length)return setMsg('Nothing to export');
   const c=CUTPREP.splitLayers(sh).counts; download('design-split.dxf', CUTPREP.toDXFLayered(sh));
@@ -22084,6 +23034,10 @@ function wire(){
   on('btnCheckVec',opCheckVectors);
   on('restoreYes',()=>dismissRestore(true)); on('restoreNo',()=>dismissRestore(false));
   on('btnAlignL',()=>opAlign('left')); on('btnAlignR',()=>opAlign('right')); on('btnAlignT',()=>opAlign('top')); on('btnAlignB',()=>opAlign('bottom')); on('btnAlignHC',()=>opAlign('hcenter')); on('btnAlignVC',()=>opAlign('vcenter'));
+  document.querySelectorAll('[data-gc]').forEach(b=>b.addEventListener('click',()=>gcRun(b.dataset.gc)));
+  on('gcX',()=>{ document.getElementById('gcModal').style.display='none'; }); on('gcClose',()=>{ document.getElementById('gcModal').style.display='none'; });
+  on('gcUndo',gcUndo); on('gcRevert',gcRevert); on('gcApplyText',gcApplyText); on('gcSave',gcSaveAs);
+  on('reportX',()=>{ document.getElementById('reportModal').style.display='none'; });
   on('btnSaveProj',saveProject); on('btnExpDXF',exportDXF); on('btnExpSVG',exportSVG);
   on('btnJobSet',setJob); on('btnFitJob',fitJob);
   on('btnUnits',()=>setUnits(uk()===1?'mm':'in'));
