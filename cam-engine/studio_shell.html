@@ -339,6 +339,7 @@ body.dark .qrow.picked{background:#3a2a1c}
       <button data-act="v2d">2D View</button><button data-act="v3d">3D View</button><button data-act="vasm">2D + 3D Assembly</button><div class="msep"></div>
       <button data-act="fit">Zoom to Fit</button><button data-act="fitjob">Zoom to Job</button><div class="msep"></div>
       <button data-act="rulers"><span class="chk">✓</span>Rulers</button><button data-act="dark"><span class="chk"></span>Dark Mode</button></div></div>
+    <div class="menu" data-menu="settings">Settings<div class="mdrop"><button data-act="settings">Units and File Import…</button></div></div>
     <div class="menu" data-menu="help">Help<div class="mdrop">
       <div class="hs"><input type="text" id="helpSearch" placeholder="Search menus, tools, forms…  (Ctrl+K)" autocomplete="off"></div>
       <div class="hres" id="helpResults"></div>
@@ -714,6 +715,20 @@ body.dark .qrow.picked{background:#3a2a1c}
     <div class="modal-foot" id="reportFoot"><button class="tb primary" id="reportOk">OK</button></div>
   </div>
 </div>
+<div class="modal-bg" id="settingsModal">
+  <div class="modal" style="left:50%;top:80px;transform:translateX(-50%);max-width:520px;width:min(92vw,520px)">
+    <div class="modal-h"><span class="mt">Settings: units and file import</span><button class="mx" id="settingsX" title="Close">×</button></div>
+    <div class="modal-body">
+      <div class="gcrow"><b style="min-width:150px">Display units</b><select id="setDisplayUnits"><option value="in">Inches</option><option value="mm">Millimetres</option></select></div>
+      <div class="gcrow gcnote">How lengths are shown and typed. The drawing is not rescaled.</div>
+      <div class="gcrow"><b style="min-width:150px">Units of opened files</b><select id="setImportUnits"><option value="auto">Automatic (read from the file)</option><option value="inch">Always inches</option><option value="mm">Always millimetres</option></select></div>
+      <div class="gcrow gcnote">For .crv, .crv3d and .dxf files you open from now on. Files already open do not change. A choice that differs from the file is flagged in the import report every time. G-code keeps its own units.</div>
+      <label class="gcrow" style="margin-top:8px"><input type="checkbox" id="setStrictAnchors"><b>Anchor check</b></label>
+      <div class="gcrow gcnote">On: refuse a Vectric file when every saved object anchor disagrees with the drawing, with an Open Anyway button. Off: open it and add a note to the report. Some good files have all their anchors out of date, so off is the default.</div>
+    </div>
+    <div class="modal-foot"><button class="tb primary" id="settingsOk">Done</button></div>
+  </div>
+</div>
 <div class="modal-bg" id="gcModal">
   <div class="modal" style="left:50%;top:32px;transform:translateX(-50%);max-width:1040px;width:min(96vw,1040px)">
     <div class="modal-h"><span class="mt" id="gcTitle">Edit G-code</span><button class="mx" id="gcX" title="Close">×</button></div>
@@ -735,7 +750,7 @@ body.dark .qrow.picked{background:#3a2a1c}
         <div class="gcrow"><button class="tb" id="gcApplyText">Apply text edits</button> <span class="gcnote">Hand edits are not blocked, but they are simulated and anything unsafe is called out.</span></div>
       </div>
     </div>
-    <div class="modal-foot"><span class="gcnote" id="gcSaveNote" style="margin-right:auto"></span><button class="tb" id="gcClose">Close</button><button class="tb primary" id="gcSave">Save As…</button></div>
+    <div class="modal-foot"><span class="gcnote" id="gcSaveNote" style="margin-right:auto"></span><button class="tb" id="gcClose">Close</button><button class="tb" id="gcSaveAs">Save As…</button><button class="tb primary" id="gcSave">Save</button></div>
   </div>
 </div>
 <div class="modal-bg" id="shapeModal">

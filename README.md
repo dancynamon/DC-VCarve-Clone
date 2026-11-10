@@ -5,7 +5,7 @@ Single self-contained HTML — no install, offline, posts G-code for ShopSabre (
 
 ## Quick start
 ```
-npm test     # 1390 checks across 19 suites
+npm test     # 1432 checks across 19 suites
 npm run build # regenerates cadcam-studio.html from cam-engine/ sources
 open cadcam-studio.html
 ```
@@ -14,7 +14,7 @@ https://claude.ai/code/artifact/0166593e-5811-4dd2-a714-4a16f6342f5e
 
 ## Layout (matched to Vectric Aspire)
 Rebuilt from screenshots of Dan's own Aspire install (`docs/vcarve-reference/`):
-- **Menu bar:** File · Edit · Toolpaths · View · Help, with working drop-downs.
+- **Menu bar:** File · Edit · Toolpaths · View · Settings · Help, with working drop-downs.
 - **Left dock "Drawing"** — File Operations, 2D View Control, Create Vectors, Transform Objects,
   Edit Objects, Align Objects, Offset and Layout; a **Job Dimensions** readout at the bottom, and
   **Drawing / Clipart / Layers** tabs along the bottom edge.
@@ -144,15 +144,20 @@ again). A file that opens but loses something says what it lost, with counts and
 - **.tap / G-code:** File → Open, then **File → Edit Open G-code…** to move a program in XY, scale feeds or spindle speed, raise
   safe height, shift the cut depth, change the final pass, remove a tool section, or edit the text by hand. Every edit re-simulates
   the program and checks it line by line against what the edit promised; if it can't be proved right it is refused and the line is
-  named. Unedited lines stay byte-identical and Save As always writes a new file. Hand edits are not blocked, but a lowered retract
+  named. Unedited lines stay byte-identical. Save writes back to the file you opened and Save As writes a new one. Hand edits are not blocked, but a lowered retract
   or a deeper cut is called out. A retract is never lowered by a structured edit.
 - **.dxf:** $INSUNITS is honoured, curves are true NURBS, INSERTs are expanded including mirrored ones and arrays. Export DXF keeps
   arcs as arcs and writes the LAYER table; save then reopen reproduces the geometry to within 0.005" (measured worst case on
   the 166 archive DXFs: 0.0041"), with every layer kept.
+  Save writes back to the opened DXF only when a rewrite would keep everything in it. If the import lost or converted anything, or the
+  job has toolpaths, Save asks where to save instead, so the original is never overwritten with less.
 - **.crv / .crv3d:** vectors, layers, material size and thickness, and saved toolpaths import as editable objects. This app cannot
   write Vectric files: **the original is left unchanged**, and saving writes `.aqcam`, DXF or `.tap`. A Vectric file has no units
   flag; jobs over 300 are judged from their thickness and flagged, with a one-click reopen in the other units. Outside/Inside
   profiles on open vectors are not imported, because the file does not say which side they were cut on.
+- **Settings → Units and File Import:** display units; units of opened `.crv`, `.crv3d` and `.dxf` files (automatic, always inches, always
+  millimetres, flagged whenever it differs from the file); and the Vectric anchor check (off by default, on refuses a file whose saved
+  anchors all disagree with its drawing, with an Open Anyway button).
 
 ## Dry-running a job
 `node cam-engine/aircut.js in.tap out.tap [--clearance 0.25] [--band 0.30]` rewrites a posted program

@@ -198,7 +198,8 @@ function dxfExpandInsert(ins, parentM, blocks, seen, out, rep) {
 // Returns the entity array with extras: .report [{code,level:'info'|'warn'|'loss',msg,count,items}], .warnings (strings),
 // .units {name,factor,source}, .layerTable {name:{color,off,frozen}}. Coordinates come back in INCHES. Throws on a file
 // that cannot be a DXF at all, with a message fit to show the user.
-function parseDxf(text) {
+// opts.units 'inch' or 'mm' overrides what the file states; the default 'auto' honours $INSUNITS.
+function parseDxf(text, opts) {
   if (text == null || !String(text).length) throw new Error('This DXF is empty (0 bytes), so there is nothing to open. Re-export it from the drawing program.');
   text = String(text);
   if (text.slice(0, 18) === 'AutoCAD Binary DXF') throw new Error('This is a binary DXF, which this importer does not read. Save it from AutoCAD as an ASCII DXF.');
@@ -281,14 +282,20 @@ function parseDxf(text) {
   for (let i = 0; i < ents.length; i++) if (ents[i]._flipOCS) ents[i] = dxfApplyOCS(ents[i]);
 
   // ---- units ----
+  const wantUnits = (opts && opts.units === 'inch') ? 'inch' : (opts && opts.units === 'mm') ? 'mm' : 'auto';
   const iu = header.$INSUNITS ? parseInt(header.$INSUNITS[70], 10) : null;
   let units = { name: 'inches', factor: 1, source: 'assumed: file does not say' };
   if (iu != null && iu !== 0) {
     if (DXF_UNITS[iu]) units = { name: DXF_UNITS[iu][0], factor: DXF_UNITS[iu][1], source: '$INSUNITS=' + iu };
-    else rep.add('UNKNOWN_UNITS', 'warn', '$INSUNITS=' + iu + ' is not a unit this importer knows; the file was read as inches', 1);
+    else if (wantUnits === 'auto') rep.add('UNKNOWN_UNITS', 'warn', '$INSUNITS=' + iu + ' is not a unit this importer knows; the file was read as inches', 1);
+  }
+  if (wantUnits !== 'auto') {
+    const chosen = wantUnits === 'mm' ? { name: 'millimetres', factor: 1 / 25.4, source: 'setting' } : { name: 'inches', factor: 1, source: 'setting' };
+    rep.add('UNITS_CHOSEN', chosen.name === units.name ? 'info' : 'warn', 'This file was read as ' + chosen.name + ' because the units were set by hand. ' + (units.source.indexOf('assumed') === 0 ? 'The file does not state its units.' : 'The file says it is in ' + units.name + '.') + ' Check the size before cutting.', 1);
+    units = chosen;
   }
   if (units.factor !== 1) {
-    rep.add('UNITS_SCALED', 'warn', 'The file is drawn in ' + units.name + ' ($INSUNITS=' + iu + '); it was scaled to inches', 1);
+    if (units.source !== 'setting') rep.add('UNITS_SCALED', 'warn', 'The file is drawn in ' + units.name + ' ($INSUNITS=' + iu + '); it was scaled to inches', 1);
     const M = { a: units.factor, b: 0, c: 0, d: units.factor, e: 0, f: 0 };
     for (let i = 0; i < ents.length; i++) ents[i] = dxfTransformEntity(ents[i], M);
   } else if (units.source.indexOf('assumed') === 0) {

@@ -1192,10 +1192,9 @@ function parseCrv(u8, opts) {
   // caller can warn when the answer was a guess.
   let sourceUnits, unitsSource;
   const want = (opts.units || 'auto').toLowerCase();
-  if (want === 'inch' || want === 'in') { sourceUnits = 'inch'; unitsSource = 'caller'; }
-  else if (want === 'mm') { sourceUnits = 'mm'; unitsSource = 'caller'; }
-  else if (want !== 'auto') crvFail('opts.units must be "inch", "mm" or "auto" (got ' + JSON.stringify(opts.units) + ')');
-  else if (job.w && job.h && Math.max(job.w, job.h) > 300) {
+  if (['auto', 'inch', 'in', 'mm'].indexOf(want) < 0) crvFail('opts.units must be "inch", "mm" or "auto" (got ' + JSON.stringify(opts.units) + ')');
+  // The automatic reading always runs, so a units choice made by hand can be reported against what the file suggests.
+  if (job.w && job.h && Math.max(job.w, job.h) > 300) {
     // A big job is not a millimetre job: this archive's largest drawings are 500" chair layouts at 1" or 1.5" thickness.
     // Thickness tells them apart. Stock thickness in mm is well above any stock thickness in inches, and a mm value usually
     // lands on a clean fraction of an inch (38.1 = 1.5", 69.85 = 2.75").
@@ -1204,6 +1203,8 @@ function parseCrv(u8, opts) {
     else { sourceUnits = 'inch'; unitsSource = 'evidence:thickness ' + th + ' is plausible in inches'; }
   }
   else { sourceUnits = 'inch'; unitsSource = 'assumed:no-flag-in-format'; }
+  const autoUnits = sourceUnits;
+  if (want !== 'auto') { sourceUnits = want === 'mm' ? 'mm' : 'inch'; unitsSource = 'caller'; }
   const k = sourceUnits === 'mm' ? 1 / CRV_MM_PER_IN : 1;
 
   // The flattening tolerance is given in inches; convert it to the file's own
@@ -1281,6 +1282,13 @@ function parseCrv(u8, opts) {
   // objects at once — and still fails.
   const report = [];
   const rep = (code, level, msg, count, items) => { report.push({ code, level, msg, count: count == null ? 1 : count, items: items || [] }); if (level !== 'info') warnings.push(msg); };
+  // The strict check is the caller's choice: real files can have every anchor stale, so by default this is only a note.
+  if (opts.strictAnchors && anchorN >= 4 && anchorOk === 0) {
+    const e = new Error('CRV: every one of the ' + anchorN + ' saved object anchors disagrees with the decoded drawing (worst ' + anchorWorst.toFixed(4) + ' in file units). The anchor check is on in Settings, so this file was refused.');
+    e.anchorMismatch = true; throw e;
+  }
+  if (want !== 'auto')
+    rep('UNITS_CHOSEN', sourceUnits === autoUnits ? 'info' : 'warn', 'This file was read as ' + (sourceUnits === 'mm' ? 'millimetres' : 'inches') + ' because the units were set by hand. The automatic reading would have used ' + (autoUnits === 'mm' ? 'millimetres' : 'inches') + '. A Vectric file does not record its units, so check the size before cutting.', 1);
   if (anchorN > anchorOk)
     rep('STALE_ANCHORS', 'info', (anchorN - anchorOk) + ' of ' + anchorN + ' objects carry a stale cached anchor (worst ' + anchorWorst.toFixed(4) + ' in file units). The geometry passed span chaining and stream framing, so it is unaffected.', anchorN - anchorOk);
   if (staleRefs) rep('STALE_LAYER', 'warn', staleRefs + ' object(s) name a layer that no longer exists; they are on the layer they are stored under', staleRefs);

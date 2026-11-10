@@ -412,7 +412,7 @@ function updateMatSummary(){
 const MENU_ACTIONS={
   'new':()=>document.getElementById('btnNew').click(),
   'open':()=>openProjectDialog(), 'gcedit':()=>openGcodeEditor(), 'report':()=>{ if(lastReport) showFileReport(lastReport.name,lastReport.items,lastReport.opts); else setMsg('No import report yet'); },
-  'save':()=>saveProject(), 'saveas':()=>saveProjectAs(),
+  'save':()=>fileSave(), 'saveas':()=>fileSaveAs(), 'settings':()=>openSettings(),
   'job':()=>showForm('job','drawing'), 'rotate':()=>openRotateModal(),
   'selall':()=>{ sel=new Set(doc.shapes.filter(s=>layerVisible(s.layer)).map(s=>s.id)); render(); syncPanels(); },
   'editdims':()=>{ const s=selectedShapes()[0]; if(s) openShapeModal(s); else setMsg('Select one shape first'); },
@@ -874,7 +874,7 @@ function newJob(){
   pushHistory();
   doc.shapes=[]; doc.other=[]; doc.layers=new Map([['0',{visible:true,color:'#1b2b3f'}]]); activeLayer='0';
   sel.clear(); opsQueue=[]; editingIdx=null; toolpaths=null; drillMarks=null; pendingRestore=null;
-  projectFile.handle=null; setProjectName('design.aqcam');
+  setSaveTarget(null,'design.aqcam','aqcam');
   if(typeof asmReset==='function') asmReset();   // a new job is a new single sheet
   buildQueueList(); syncPanels(); fitJob(); setView('2d'); showForm('job','drawing'); autosaveNow();
   setMsg('New job — design cleared (Undo restores it)');
@@ -1262,14 +1262,16 @@ function opJoin(){ const sh=selectedShapes().filter(s=>s.type==='path'); if(sh.l
   doc.shapes=doc.shapes.filter(s=>!sel.has(s.id)); const news=cs.map(c=>CADCORE.mkPoly(c.pts,c.closed,activeLayer)); addShapes(news); sel=new Set(news.map(n=>n.id)); render(); syncPanels(); }
 
 // ---- import / export ----
-function importText(name, text){
-  if(/\.dxf$/i.test(name)){ let ents;
-    try{ ents=parseDxf(text); }catch(err){ showFileReport(name,[{code:'OPEN_FAILED',level:'loss',msg:err.message,count:1}],{failed:true}); setMsg('Could not open '+name+': '+err.message); return; }
+function importText(name, text, handle){
+  if(/\.dxf$/i.test(name)){ let ents; const fresh=!doc.shapes.length&&!(doc.other&&doc.other.length);
+    try{ ents=parseDxf(text,{units:SETTINGS.importUnits}); }catch(err){ showFileReport(name,[{code:'OPEN_FAILED',level:'loss',msg:err.message,count:1}],{failed:true}); setMsg('Could not open '+name+': '+err.message); return; }
     const polys=[]; for(const e of ents){ for(const p of entityToPolys(e)) polys.push(p); } const shapes=CADCORE.dxfPolysToShapes(polys);
     if(!shapes.length){ showFileReport(name,(ents.report||[]).concat([{code:'NO_VECTORS',level:'loss',msg:'The file opened but holds no vectors this app can use.',count:1}]),{failed:true}); setMsg('No usable vectors in '+name+' — see the import report'); return; }
     pushHistory(); CADCORE.registerDxfLayers(doc.layers, polys.filter(p=>p.type!=='TEXT'&&p.type!=='DIMENSION'), ents.layerTable); addShapes(shapes); fitAll(); buildLayers(); doc.sourceName=name;
     const K=new Set(shapes.map(s=>s.layer)).size; syncPanels(); render();
     const items=ents.report||[], bad=items.filter(r=>r.level==='loss').length;
+    // Only a DXF that became the whole document can be saved back over itself, and only if a rewrite would carry everything it held.
+    if(fresh) setSaveTarget(handle,name,'dxf',(ents.units&&(ents.units.factor!==1||ents.units.source==='setting'))?name+' was converted from other units, so it is not overwritten.':items.some(r=>r.level!=='info')?name+' holds things a saved DXF would not keep (see the import report), so it is not overwritten.':null);
     setMsg('Imported '+shapes.length+' vector'+(shapes.length!==1?'s':'')+' on '+K+' layer'+(K!==1?'s':'')+' from '+name+(ents.units&&ents.units.factor!==1?' · scaled from '+ents.units.name:'')+(bad?' · WARNING: some of this file did not import, see the report':''));
     showFileReport(name,items,{});
     if(typeof asmApplyLayerDefaults==='function') asmApplyLayerDefaults(name, shapes);   // OUTSIDE_PROFILE / DRILL_.._THRU / POCKET_..DEEP -> sheet size, thickness, toolpaths
@@ -1299,9 +1301,10 @@ function importPDF(name, buf){
 // guesses, so a thrown error here is reported verbatim — never patched around.
 function importCRV(name, buf, opts){
   if(typeof CRVPARSE==='undefined'){ setMsg('Cannot open '+name+': the .crv reader (cam-engine/crvparse.js) is not in this build — add it and run npm run build'); return; }
-  let res; try{ res=CRVPARSE.toShapes(new Uint8Array(buf), { tol:0.002, units:(opts&&opts.units)||'auto' }); }
+  opts=opts||{};
+  let res; try{ res=CRVPARSE.toShapes(new Uint8Array(buf), { tol:0.002, units:opts.units||SETTINGS.importUnits, strictAnchors:SETTINGS.strictAnchors&&!opts.skipAnchorCheck }); }
   catch(err){ const m=err.notCrvFile?(name+' is not a Vectric file (the contents do not match its .crv/.crv3d extension). '+err.message):err.message;
-    showFileReport(name,[{code:'OPEN_FAILED',level:'loss',msg:m,count:1}],{failed:true}); setMsg('Could not open '+name+': '+m); return; }
+    showFileReport(name,[{code:err.anchorMismatch?'ANCHOR_MISMATCH':'OPEN_FAILED',level:'loss',msg:m,count:1}],err.anchorMismatch?{failed:true,action:{label:'Open Anyway',fn:()=>importCRV(name,buf,Object.assign({},opts,{skipAnchorCheck:true}))}}:{failed:true}); setMsg('Could not open '+name+': '+m); return; }
   // res: { job:{w,h,thickness}|null, unitsSource, layers:[{name, color?, contours:[{pts:[{x,y}], closed, guid, tabs}]}], report, toolpathData, safeZ }
   const layers=(res&&res.layers)||[]; const shapes=[]; const byGuid=new Map();
   for(const L of layers){ const lname=(L.name||'0').trim()||'0';
@@ -1321,13 +1324,13 @@ function importCRV(name, buf, opts){
   else if(res.toolpathData===null&&typeof CRVTP==='undefined') items.push({code:'TOOLPATHS_NOT_IMPORTED',level:'loss',msg:'This build cannot read saved toolpaths.',count:1});
   items.push({code:'ORIGINAL_UNCHANGED',level:'info',msg:'The original '+name+' is unchanged. Saving writes an .aqcam (or Export DXF / Save Toolpaths for .tap); this app cannot write .crv or .crv3d files.',count:1});
   fitAll(); syncPanels(); render();
-  projectFile.handle=null; setProjectName(name.replace(/\.crv3?d?$/i,'')+'.aqcam');
+  setSaveTarget(null,name.replace(/\.crv3?d?$/i,'')+'.aqcam','aqcam');
   let m='Imported '+shapes.length+' vector'+(shapes.length!==1?'s':'')+' on '+layers.length+' layer'+(layers.length!==1?'s':'')+(tpN?' and '+tpN+' toolpath'+(tpN!==1?'s':''):'')+' from '+name;
   if(res.job) m+=' · job '+(+res.job.w.toFixed(3))+' × '+(+res.job.h.toFixed(3))+(res.job.thickness?' × '+(+res.job.thickness.toFixed(3)):'');
   if(items.some(r=>r.level==='loss')) m+=' · WARNING: some of this file did not import, see the report';
   setMsg(m);
   const flip=res.sourceUnits==='mm'?'inch':'mm';
-  showFileReport(name,items,items.some(r=>r.code==='UNITS_UNVERIFIED')?{action:{label:'Reopen as '+(flip==='mm'?'millimetres':'inches'),fn:()=>{ doc.shapes=doc.shapes.filter(s=>shapes.indexOf(s)<0); opsQueue=opsQueue.filter(q=>!q.ids||!q.ids.some(id=>shapes.some(s=>s.id===id))); importCRV(name,buf,{units:flip}); }}}:{});
+  showFileReport(name,items,items.some(r=>r.code==='UNITS_UNVERIFIED'||(r.code==='UNITS_CHOSEN'&&r.level==='warn'))?{action:{label:'Reopen as '+(flip==='mm'?'millimetres':'inches'),fn:()=>{ doc.shapes=doc.shapes.filter(s=>shapes.indexOf(s)<0); opsQueue=opsQueue.filter(q=>!q.ids||!q.ids.some(id=>shapes.some(s=>s.id===id))); importCRV(name,buf,{units:flip}); }}}:{});
 }
 // a layer colour no other layer is using
 function nextLayerColor(){ const used=new Set([...doc.layers.values()].map(l=>l.color)); const pal=(typeof LAYER_COLORS!=='undefined'?LAYER_COLORS:['#1b2b3f']); for(const c of pal) if(!used.has(c)) return c; return '#'+Math.floor(Math.random()*0xFFFFFF).toString(16).padStart(6,'0'); }
@@ -1598,22 +1601,33 @@ function pbUI(){
 }
 // Open a posted program (.tap / .nc / .gcode): it plays in the 3D view and backplots in the 2D view.
 function openProgram(name, text, keepEditor){
-  PB.file={ name, text, original:(PB.file&&keepEditor)?PB.file.original:text, history:(PB.file&&keepEditor)?PB.file.history:[] }; lastGcode=text; toolpaths=toolpathSegs(text); drillMarks=null;
+  const keep=PB.file&&keepEditor;
+  PB.file={ name, text, original:keep?PB.file.original:text, history:keep?PB.file.history:[], handle:keep?PB.file.handle:null, saved:keep?PB.file.saved:text }; lastGcode=text; toolpaths=toolpathSegs(text); drillMarks=null;
   setView('preview');
   const iss=(PB.prog&&PB.prog.issues)||[];
   if(iss.length){ setMsg('Opened '+name+' · WARNING: '+iss[0].msg);
     if(!keepEditor) showFileReport(name, iss.slice(0,40).map(i=>({code:i.code,level:i.level,msg:i.msg,count:1})), {}); }
 }
 // G-code arrives as bytes so a comment in any encoding and every line ending survive an edit untouched.
-function openProgramBytes(name, buf){ const r=TAPEDIT.readBytes(new Uint8Array(buf), name);
+function openProgramBytes(name, buf, handle){ const r=TAPEDIT.readBytes(new Uint8Array(buf), name);
   if(!r.ok){ showFileReport(name,[{code:r.code,level:'loss',msg:r.msg,count:1}],{failed:true}); setMsg('Could not open '+name+': '+r.msg); return; }
-  openProgram(name, r.text); }
+  openProgram(name, r.text); PB.file.handle=handle||null; }
 // ---- G-code editor ----------------------------------------------------------------------------------------------------
 function gcNum(id){ const v=String(document.getElementById(id).value).trim(); return v===''?NaN:parseFloat(v); }
 function openGcodeEditor(){ if(!PB.file){ setMsg('Open a .tap or G-code file first (File → Open)'); return; }
   document.getElementById('gcTitle').textContent='Edit G-code: '+PB.file.name;
-  gcSyncTools(); document.getElementById('gcText').value=PB.file.text; gcShowCheck(); document.getElementById('gcSaveNote').textContent='Save As writes a new file. '+PB.file.name+' is not changed unless you choose to overwrite it.';
+  gcSyncTools(); document.getElementById('gcText').value=PB.file.text; gcShowCheck(); gcSaveNote();
   document.getElementById('gcModal').style.display='block'; }
+function gcSaveNote(){ document.getElementById('gcSaveNote').textContent=PB.file.handle?'Save overwrites '+PB.file.name+'. Save As writes a new file.':'Save asks where to put the file, because this browser did not give write access to '+PB.file.name+'.'; }
+function gcModalOpen(){ return document.getElementById('gcModal').style.display==='block'; }
+// Compared with line endings normalised, because a text box always reports LF.
+function gcTextPending(){ const nl=s=>s.replace(/\r\n?/g,'\n'); if(!gcModalOpen()||nl(document.getElementById('gcText').value)===nl(PB.file.text)) return false; const m='The text box has edits that have not been applied. Click Apply text edits first, or Undo them, then save.'; document.getElementById('gcReport').innerHTML='<div class="bad">'+esc(m)+'</div>'; setMsg(m); return true; }
+function gcSavedMsg(bytes){ setMsg('Saved '+PB.file.name+' ('+bytes.length+' bytes)'); gcSaveNote(); document.getElementById('gcTitle').textContent='Edit G-code: '+PB.file.name; }
+async function gcSave(){ if(!PB.file) return false; if(gcTextPending()) return false; if(!PB.file.handle) return gcSaveAs();
+  if(PB.file.text===PB.file.saved){ setMsg('No changes to save in '+PB.file.name); return true; }
+  const bytes=TAPEDIT.textToBytes(PB.file.text);
+  try{ await writeHandle(PB.file.handle,bytes); PB.file.saved=PB.file.text; gcSavedMsg(bytes); return true; }
+  catch(err){ setMsg('Could not write '+PB.file.name+' ('+err.message+'). Choose where to save it.'); PB.file.handle=null; return gcSaveAs(); } }
 function gcSyncTools(){ const ts=(PB.prog&&PB.prog.tools)||[]; const fill=(id,first)=>{ const s=document.getElementById(id); s.innerHTML=first; for(const t of ts){ const o=document.createElement('option'); o.value=t; o.textContent='T'+t; s.appendChild(o); } };
   fill('gcTool',''); fill('gcFeedTool','<option value="">all tools</option>'); }
 function gcShowCheck(){ const m=TAPEDIT.analyse(PB.file.text); const el=document.getElementById('gcReport');
@@ -1640,9 +1654,9 @@ function gcShowResult(r){ const rows=r.report.rows.map(a=>'<tr><th>'+esc(a[0])+'
 function gcApplyText(){ if(!PB.file)return; const after=document.getElementById('gcText').value; if(after===PB.file.text){ setMsg('The text has not changed'); return; } let r; try{ r=TAPEDIT.textEdit(PB.file.text, after); }catch(err){ gcShowRefusal(err); return; } gcCommit(r); }
 function gcUndo(){ if(!PB.file||!PB.file.history.length){ setMsg('Nothing to undo'); return; } const t=PB.file.history.pop(); openProgram(PB.file.name,t,true); document.getElementById('gcText').value=t; gcSyncTools(); gcShowCheck(); setMsg('Undid the last G-code edit'); }
 function gcRevert(){ if(!PB.file)return; PB.file.history=[]; openProgram(PB.file.name,PB.file.original,true); document.getElementById('gcText').value=PB.file.original; gcSyncTools(); gcShowCheck(); setMsg('Back to the opened file'); }
-async function gcSaveAs(){ if(!PB.file)return; const base=PB.file.name.replace(/\.[^.]+$/,''), ext=(PB.file.name.match(/\.[^.]+$/)||['.tap'])[0], bytes=TAPEDIT.textToBytes(PB.file.text);
+async function gcSaveAs(){ if(!PB.file||gcTextPending())return; const base=PB.file.name.replace(/\.[^.]+$/,''), ext=(PB.file.name.match(/\.[^.]+$/)||['.tap'])[0], bytes=TAPEDIT.textToBytes(PB.file.text);
   const def=base+'-edited'+ext;
-  if(window.showSaveFilePicker){ try{ const h=await window.showSaveFilePicker({suggestedName:def,types:[{description:'G-code program',accept:{'text/plain':['.tap','.nc','.ngc','.gcode','.cnc']}}]}); const w=await h.createWritable(); await w.write(bytes); await w.close(); setMsg('Saved '+h.name+' ('+bytes.length+' bytes)'); return; }catch(err){ if(err&&err.name==='AbortError')return; setMsg('Save failed ('+err.message+'), downloading instead'); } }
+  if(window.showSaveFilePicker){ try{ const h=await window.showSaveFilePicker({suggestedName:def,types:[{description:'G-code program',accept:{'text/plain':['.tap','.nc','.ngc','.gcode','.cnc']}}]}); await writeHandle(h,bytes); PB.file.handle=h; PB.file.name=h.name; PB.file.saved=PB.file.text; gcSavedMsg(bytes); return; }catch(err){ if(err&&err.name==='AbortError')return; setMsg('Save failed ('+err.message+'), downloading instead'); } }
   const n=prompt('Save G-code as (file name):',def); if(!n){ setMsg('Save cancelled'); return; }
   if(window.claude&&typeof window.claude.use==='function'){ download(n,PB.file.text,'text/plain'); return; }
   downloadViaLink(n,bytes,'text/plain'); setMsg('Saved '+n+' to your Downloads folder'); }
@@ -1673,37 +1687,68 @@ function shadeHeightfield(field, r){
 // ---- Save / Save As ----
 // Chrome/Edge: File System Access API — "Save As" opens a real save dialog (pick folder + name) and remembers the file
 // handle, so "Save" afterwards writes straight back to that file. Other browsers: ask for a name, then download.
-let projectFile = { handle:null, name:'design.aqcam' };
-const FS_TYPES=[{ description:'Aquamentor CAD/CAM job', accept:{ 'application/json':['.aqcam'] } }];
+// A design saves as .aqcam or .dxf; projectFile.why, when set, is the reason Save must not overwrite the opened file.
+let projectFile = { handle:null, name:'design.aqcam', format:'aqcam', why:null };
+const FS_TYPE={ aqcam:{ description:'Aquamentor CAD/CAM job', accept:{ 'application/json':['.aqcam'] } }, dxf:{ description:'DXF drawing (vectors and layers only)', accept:{ 'image/vnd.dxf':['.dxf'] } } };
+function setSaveTarget(handle,name,format,why){ projectFile.handle=handle||null; projectFile.format=format||'aqcam'; projectFile.why=why||null; setProjectName(name); }
+function formatOfName(n){ return /\.dxf$/i.test(n)?'dxf':'aqcam'; }
+function designText(fmt){ return fmt==='dxf'?CADCORE.toDXF(doc.shapes,{layers:doc.layers}):projectJSON(projectFile.name.replace(/\.(aqcam|dxf)$/i,'')); }
+function savedSummary(fmt){ return fmt==='dxf'?doc.shapes.length+' vectors, '+doc.layers.size+' layers, curves within 0.005"'+(opsQueue.length?'. Its '+opsQueue.length+' toolpaths are not stored in a DXF':''):doc.shapes.length+' shapes, '+opsQueue.length+' toolpaths'; }
+// The G-code program is what Save means while its editor is open, or when it is all that is open.
+function programIsCurrent(){ return !!PB.file&&(gcModalOpen()||!doc.shapes.length); }
+function fileSave(){ return programIsCurrent()?gcSave():saveProject(); }
+function fileSaveAs(){ return programIsCurrent()?gcSaveAs():saveProjectAs(); }
+// ---- Settings ----
+const SETTINGS_KEY='aqcam.settings';
+const SETTINGS=(function(){ const d={importUnits:'auto',strictAnchors:false}; try{ const s=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'); if(['auto','inch','mm'].indexOf(s.importUnits)>=0) d.importUnits=s.importUnits; d.strictAnchors=s.strictAnchors===true; }catch(e){} return d; })();
+function persistSettings(){ try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(SETTINGS)); }catch(e){} }
+function openSettings(){ closeMenus(); const g=id=>document.getElementById(id); g('setDisplayUnits').value=job.units==='mm'?'mm':'in'; g('setImportUnits').value=SETTINGS.importUnits; g('setStrictAnchors').checked=SETTINGS.strictAnchors; g('settingsModal').style.display='block'; }
+function wireSettings(){ const g=id=>document.getElementById(id), close=()=>{ g('settingsModal').style.display='none'; }; g('settingsX').onclick=close; g('settingsOk').onclick=close;
+  g('setDisplayUnits').onchange=e=>setUnits(e.target.value);
+  g('setImportUnits').onchange=e=>{ SETTINGS.importUnits=e.target.value; persistSettings(); setMsg('Units of opened files: '+e.target.selectedOptions[0].textContent+'. Applies to the next file you open.'); };
+  g('setStrictAnchors').onchange=e=>{ SETTINGS.strictAnchors=e.target.checked; persistSettings(); setMsg('Anchor check '+(e.target.checked?'on':'off')+'. Applies to the next file you open.'); }; }
 function setProjectName(name){ if(name) projectFile.name=name; document.title=projectFile.name.replace(/\.aqcam$/i,'')+' — Aquamentor CAD/CAM'; }
-async function writeHandle(handle, text){ const w=await handle.createWritable(); await w.write(text); await w.close(); }
-function ensureExt(n){ n=(n||'').trim(); if(!n) return ''; return /\.aqcam$/i.test(n)?n:n+'.aqcam'; }
-async function saveProjectAs(){ const text=projectJSON(projectFile.name.replace(/\.aqcam$/i,''));
+// A handle from the Open dialog or a drop starts read-only, so this is where the browser asks once for permission to change the file.
+async function writeHandle(handle, data){
+  if(handle.queryPermission&&await handle.queryPermission({mode:'readwrite'})!=='granted'&&handle.requestPermission&&await handle.requestPermission({mode:'readwrite'})!=='granted') throw new Error('permission to change the file was not given');
+  const w=await handle.createWritable(); await w.write(data); await w.close(); }
+function ensureExt(n,fmt){ n=(n||'').trim(); if(!n) return ''; return /\.(aqcam|dxf)$/i.test(n)?n:n+'.'+(fmt||'aqcam'); }
+// opts.format overrides the format offered first; opts.why is shown when a plain Save was sent here instead of overwriting.
+async function saveProjectAs(opts){ opts=(opts&&!opts.target&&!opts.type)?opts:{};   // a button's click event is not options
+  const fmt=opts.format||projectFile.format||'aqcam', base=projectFile.name.replace(/\.(aqcam|dxf)$/i,''), suggested=base+(fmt==='dxf'&&opts.why?'-edited':'')+'.'+fmt;
+  if(opts.why) setMsg(opts.why+' Choose where to save.');
   if(window.showSaveFilePicker){
-    try{ const h=await window.showSaveFilePicker({ suggestedName:projectFile.name, types:FS_TYPES }); await writeHandle(h,text); projectFile.handle=h; setProjectName(h.name);
-      setMsg('Saved as '+h.name+' ('+doc.shapes.length+' shapes, '+opsQueue.length+' toolpaths) — Ctrl+S now saves back to this file'); return true; }
+    try{ const h=await window.showSaveFilePicker({ suggestedName:suggested, types:fmt==='dxf'?[FS_TYPE.dxf,FS_TYPE.aqcam]:[FS_TYPE.aqcam,FS_TYPE.dxf] });
+      const f=formatOfName(h.name); if(f==='dxf'&&!doc.shapes.length){ setMsg('Nothing to save: a DXF needs at least one vector'); return false; }
+      await writeHandle(h,designText(f)); setSaveTarget(h,h.name,f);
+      setMsg('Saved as '+h.name+' ('+savedSummary(f)+') — Ctrl+S now saves back to this file'); return true; }
     catch(err){ if(err&&err.name==='AbortError'){ setMsg('Save as cancelled'); return false; } setMsg('Save failed: '+err.message+' — downloading instead'); }
   }
-  const n=ensureExt(prompt('Save job as (file name):', projectFile.name)); if(!n){ setMsg('Save as cancelled'); return false; }
-  setProjectName(n); download(n, text, 'application/json'); setMsg('Saved '+n+' to your Downloads folder ('+doc.shapes.length+' shapes, '+opsQueue.length+' toolpaths)'); return true; }
-async function saveProject(){ if(!projectFile.handle) return saveProjectAs();
-  try{ await writeHandle(projectFile.handle, projectJSON(projectFile.name.replace(/\.aqcam$/i,''))); setMsg('Saved '+projectFile.name+' ('+doc.shapes.length+' shapes, '+opsQueue.length+' toolpaths)'); return true; }
+  const n=ensureExt(prompt((opts.why?opts.why+'\n':'')+'Save job as (file name, ending .aqcam or .dxf):', suggested),fmt); if(!n){ setMsg('Save as cancelled'); return false; }
+  const f=formatOfName(n); if(f==='dxf'&&!doc.shapes.length){ setMsg('Nothing to save: a DXF needs at least one vector'); return false; }
+  const text=designText(f); setSaveTarget(null,n,f); download(n, text, f==='dxf'?'image/vnd.dxf':'application/json'); setMsg('Saved '+n+' to your Downloads folder ('+savedSummary(f)+')'); return true; }
+async function saveProject(){
+  if(projectFile.format==='dxf'){ if(!doc.shapes.length){ setMsg('Nothing to save: this DXF has no vectors left, so it was not overwritten'); return false; }
+    if(opsQueue.length) return saveProjectAs({format:'aqcam',why:'This job has '+opsQueue.length+' toolpath(s) and a DXF cannot store them, so '+projectFile.name+' was not overwritten.'}); }
+  if(projectFile.why) return saveProjectAs({why:projectFile.why});
+  if(!projectFile.handle) return saveProjectAs();
+  try{ await writeHandle(projectFile.handle, designText(projectFile.format)); setMsg('Saved '+projectFile.name+' ('+savedSummary(projectFile.format)+')'); return true; }
   catch(err){ setMsg('Save to '+projectFile.name+' failed ('+err.message+') — choose a location'); projectFile.handle=null; return saveProjectAs(); } }
 // One dispatcher for every way a file arrives (picker, <input type=file>, drag-drop). `handle` = FS Access handle when known.
 function handleOpenedFile(f, handle){ const rd=new FileReader();
   if(/\.(png|jpe?g|gif|bmp|webp)$/i.test(f.name)){ importBitmap(f.name, f); return; }
-  if(/\.aqcam$/i.test(f.name)){ rd.onload=ev=>{ if(openProject(ev.target.result, f.name)){ projectFile.handle=handle||null; setProjectName(f.name); } }; rd.readAsText(f); }
+  if(/\.aqcam$/i.test(f.name)){ rd.onload=ev=>{ if(openProject(ev.target.result, f.name)) setSaveTarget(handle,f.name,'aqcam'); }; rd.readAsText(f); }
   else if(/\.aqtpl$/i.test(f.name)){ rd.onload=ev=>importTplText(ev.target.result); rd.readAsText(f); }
   else if(/\.aqclip$/i.test(f.name)){ rd.onload=ev=>importClipText(ev.target.result); rd.readAsText(f); }
   else if(/\.pdf$/i.test(f.name)){ rd.onload=ev=>importPDF(f.name,ev.target.result); rd.readAsArrayBuffer(f); }
-  else if(/\.(tap|nc|ngc|gcode|cnc)$/i.test(f.name)){ rd.onload=ev=>openProgramBytes(f.name,ev.target.result); rd.readAsArrayBuffer(f); }
+  else if(/\.(tap|nc|ngc|gcode|cnc)$/i.test(f.name)){ rd.onload=ev=>openProgramBytes(f.name,ev.target.result,handle); rd.readAsArrayBuffer(f); }
   else if(/\.crv(3d)?$/i.test(f.name)){ rd.onload=ev=>importCRV(f.name,ev.target.result); rd.readAsArrayBuffer(f); }
-  else { rd.onload=ev=>importText(f.name,ev.target.result); rd.readAsText(f); } }
+  else { rd.onload=ev=>importText(f.name,ev.target.result,handle); rd.readAsText(f); } }
 // Open: native picker when available (keeps the handle so Save writes back); falls back to the <input type=file>.
 async function openProjectDialog(){ const fi=document.getElementById('fileInput'); if(!window.showOpenFilePicker){ fi.click(); return; }
   let hs; try{ hs=await window.showOpenFilePicker({ multiple:false, types:[{ description:'Job, template, clipart, VCarve/Aspire .crv/.crv3d, G-code program, vector or bitmap', accept:{ 'application/json':['.aqcam','.aqtpl','.aqclip'], 'application/octet-stream':['.crv','.crv3d'], 'image/vnd.dxf':['.dxf'], 'image/svg+xml':['.svg'], 'application/pdf':['.pdf'], 'text/plain':['.tap','.nc','.ngc','.gcode','.cnc'], 'image/*':['.png','.jpg','.jpeg','.gif','.bmp','.webp'] } }] }); }
   catch(err){ if(!(err&&err.name==='AbortError')) fi.click(); return; }
-  const h=hs[0]; handleOpenedFile(await h.getFile(), /\.aqcam$/i.test(h.name)?h:null); }
+  const h=hs[0]; handleOpenedFile(await h.getFile(), h); }
 function applyProject(proj, srcName){
   Object.assign(job,{ type:proj.job.type||'flat', diameter:proj.job.diameter||4, sides:proj.job.sides===2?2:1, flip:proj.job.flip==='v'?'v':'h', workSide:'top' });
   if(job.sides===2){ doc.shapes=proj.shapes.filter(s=>s.side!=='bottom'); doc.other=proj.shapes.filter(s=>s.side==='bottom'); } else { doc.shapes=proj.shapes; doc.other=[]; }
@@ -2475,8 +2520,8 @@ function initCalcFields(){
   window.addEventListener('keydown',e=>set(e,true)); window.addEventListener('keyup',e=>set(e,false));
   window.addEventListener('blur',()=>{ held.snap=held.free=false; }); })();
 window.addEventListener('keydown', e=>{
+  if((e.ctrlKey||e.metaKey)&&(e.key==='s'||e.key==='S')){ e.preventDefault(); if(e.shiftKey) fileSaveAs(); else fileSave(); return; }
   if(/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))return;
-  if((e.ctrlKey||e.metaKey)&&(e.key==='s'||e.key==='S')){ e.preventDefault(); if(e.shiftKey) saveProjectAs(); else saveProject(); return; }
   if((e.ctrlKey||e.metaKey)&&(e.key==='o'||e.key==='O')){ e.preventDefault(); openProjectDialog(); return; }
   if((e.ctrlKey||e.metaKey)&&(e.key==='k'||e.key==='K')){ e.preventDefault(); openHelpSearch(); return; }
   if((e.ctrlKey||e.metaKey)&&(e.key==='c'||e.key==='C')&&!e.shiftKey){ e.preventDefault(); opCopy(); return; }
@@ -2555,9 +2600,9 @@ function wire(){
   on('btnAlignL',()=>opAlign('left')); on('btnAlignR',()=>opAlign('right')); on('btnAlignT',()=>opAlign('top')); on('btnAlignB',()=>opAlign('bottom')); on('btnAlignHC',()=>opAlign('hcenter')); on('btnAlignVC',()=>opAlign('vcenter'));
   document.querySelectorAll('[data-gc]').forEach(b=>b.addEventListener('click',()=>gcRun(b.dataset.gc)));
   on('gcX',()=>{ document.getElementById('gcModal').style.display='none'; }); on('gcClose',()=>{ document.getElementById('gcModal').style.display='none'; });
-  on('gcUndo',gcUndo); on('gcRevert',gcRevert); on('gcApplyText',gcApplyText); on('gcSave',gcSaveAs);
+  on('gcUndo',gcUndo); on('gcRevert',gcRevert); on('gcApplyText',gcApplyText); on('gcSave',gcSave); on('gcSaveAs',gcSaveAs); wireSettings();
   on('reportX',()=>{ document.getElementById('reportModal').style.display='none'; });
-  on('btnSaveProj',saveProject); on('btnExpDXF',exportDXF); on('btnExpSVG',exportSVG);
+  on('btnSaveProj',fileSave); on('btnExpDXF',exportDXF); on('btnExpSVG',exportSVG);
   on('btnJobSet',setJob); on('btnFitJob',fitJob);
   on('btnUnits',()=>setUnits(uk()===1?'mm':'in'));
   ['jobType','jobSides','jobDia'].forEach(id=>{ const e=document.getElementById(id); if(e) e.addEventListener('change',jobFormSync); });
@@ -2625,7 +2670,7 @@ function wire(){
     nm.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); hideNewModal(); newJob(); } else if(e.key==='Escape'){ e.preventDefault(); hideNewModal(); } }); }
   const fi=document.getElementById('fileInput'); document.getElementById('btnImport').onclick=openProjectDialog;
   fi.onchange=e=>{ const f=e.target.files[0]; if(!f)return; handleOpenedFile(f,null); fi.value=''; };
-  on('btnSaveAs',saveProjectAs); setProjectName();
+  on('btnSaveAs',fileSaveAs); setProjectName();
   on('btnRotate',openRotateModal);
   const rs=document.getElementById('rotSnap'); if(rs)rs.onchange=e=>{ grid.rotSnap=Math.max(0.1,parseFloat(e.target.value)||5); };
   // rotate dialog
@@ -2661,7 +2706,9 @@ function wire(){
   document.body.addEventListener('dragover',e=>e.preventDefault());
   document.body.addEventListener('drop',e=>{ e.preventDefault(); const f=e.dataTransfer.files[0]; if(!f)return;
     if(/\.(ttf|otf|woff)$/i.test(f.name)){ loadFontFile(f); return; }
-    handleOpenedFile(f,null); });
+    // The handle lets Save write back to a dropped file; it has to be requested before this event ends.
+    const it=[...(e.dataTransfer.items||[])].find(i=>i.kind==='file'), hp=it&&it.getAsFileSystemHandle?it.getAsFileSystemHandle():null;
+    Promise.resolve(hp).catch(()=>null).then(h=>handleOpenedFile(f,h&&h.kind==='file'?h:null)); });
   window.addEventListener('resize',resize);
   // autosave every 30s (backstop for the on-change debounce) + restore prompt on load
   setInterval(autosaveNow, 30000);

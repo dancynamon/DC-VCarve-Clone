@@ -28,6 +28,19 @@ try { ctx.parseDxf('AutoCAD Binary DXF\r\n\x1a\0'); ok('binary DXF throws', fals
   ok('no units stated reads as inches, noted', near(none.shapes[0].pts[1].x, 5) && none.ents.report.some(x => x.code === 'UNITS_ASSUMED' && x.level === 'info'));
   const inch = importDxf(header(1).concat(['0', 'SECTION', '2', 'ENTITIES'], line(0, 0, 5, 0), ['0', 'ENDSEC', '0', 'EOF']).join('\n'));
   ok('inches are clean', inch.ents.report.length === 0, JSON.stringify(inch.ents.report));
+  // ---- units chosen in Settings ----
+  const body = u => header(u).concat(['0', 'SECTION', '2', 'ENTITIES'], line(0, 0, 25.4, 0), ['0', 'ENDSEC', '0', 'EOF']).join('\n');
+  const opened = (t, units) => { const e = ctx.parseDxf(t, { units }), p = []; for (const q of e) for (const x of ctx.entityToPolys(q)) p.push(x); return { e, s: C.dxfPolysToShapes(p) }; };
+  const a = opened(body(1), 'mm');
+  ok('setting mm scales a file that says inches', near(a.s[0].pts[1].x, 1), a.s[0].pts[1].x);
+  ok('setting mm against the file is flagged', a.e.report.some(x => x.code === 'UNITS_CHOSEN' && x.level === 'warn') && a.e.units.source === 'setting', JSON.stringify(a.e.report));
+  const b = opened(body(4), 'inch');
+  ok('setting inches leaves a file that says mm unscaled', near(b.s[0].pts[1].x, 25.4), b.s[0].pts[1].x);
+  ok('setting inches against the file is flagged', b.e.report.some(x => x.code === 'UNITS_CHOSEN' && x.level === 'warn') && !b.e.report.some(x => x.code === 'UNITS_SCALED'), JSON.stringify(b.e.report));
+  const c = opened(body(4), 'mm');
+  ok('setting that agrees with the file stays a note', near(c.s[0].pts[1].x, 1) && c.e.report.filter(x => x.level !== 'info').length === 0, JSON.stringify(c.e.report));
+  const d = opened(body(4), 'auto');
+  ok('auto honours $INSUNITS', near(d.s[0].pts[1].x, 1) && d.e.report.some(x => x.code === 'UNITS_SCALED'));
 }
 // ---- real splines ----
 {

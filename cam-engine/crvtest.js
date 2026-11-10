@@ -337,5 +337,103 @@ if (studio) {
   ok('studio: the toolpath selection is real shape ids', eIn(studio, 'doc.shapes.some(s=>s.id===opsQueue[0].ids[0])'));
 }
 
-console.log(`\n${pass}/${pass + fail} crv checks passed`);
-process.exit(fail ? 1 : 0);
+// --- Settings: units chosen by hand and the anchor check ---
+{
+  const inchRead = parseCrv(bytes('sample-tabs.crv3d'), { units: 'inch' }), mmRead = parseCrv(bytes('sample-tabs.crv3d'), { units: 'mm' });
+  const xOf = r => r.reduce((m, p) => Math.max(m, ...p.pts.map(q => q.x)), -Infinity);
+  ok('units: choosing mm divides the drawing by 25.4', Math.abs(xOf(mmRead) * 25.4 - xOf(inchRead)) < 1e-6, xOf(mmRead) + ' vs ' + xOf(inchRead));
+  ok('units: a choice against the automatic reading is flagged', mmRead.report.some(r => r.code === 'UNITS_CHOSEN' && r.level === 'warn'), JSON.stringify(mmRead.report));
+  ok('units: a choice that agrees is only a note', inchRead.report.some(r => r.code === 'UNITS_CHOSEN' && r.level === 'info'), JSON.stringify(inchRead.report));
+  ok('units: automatic adds no choice note', !parseCrv(bytes('sample-tabs.crv3d'), {}).report.some(r => r.code === 'UNITS_CHOSEN'));
+}
+// A fixture with every saved anchor moved 5" off its drawing: each anchor is found by its value and overwritten in place.
+function staleAnchors(file) {
+  const out = bytes(file), dv = new DataView(out.buffer, out.byteOffset, out.byteLength), boxes = new Map();
+  for (const p of parseCrv(bytes(file), {})) { const g = p.ent.guid, b = boxes.get(g) || [Infinity, Infinity, -Infinity, -Infinity]; for (const q of p.pts) { b[0] = Math.min(b[0], q.x); b[1] = Math.min(b[1], q.y); b[2] = Math.max(b[2], q.x); b[3] = Math.max(b[3], q.y); } boxes.set(g, b); }
+  const centres = [...boxes.values()].map(b => [(b[0] + b[2]) / 2, (b[1] + b[3]) / 2]); let n = 0;
+  for (let i = 0; i + 16 <= out.length; i++) { const x = dv.getFloat64(i, true); if (!isFinite(x) || Math.abs(x) > 1e5) continue; const y = dv.getFloat64(i + 8, true); if (centres.some(c => Math.abs(c[0] - x) < 0.01 && Math.abs(c[1] - y) < 0.01)) { dv.setFloat64(i, x + 5, true); n++; i += 15; } }
+  return { out, n };
+}
+const stale = staleAnchors('sample-points.crv3d');
+ok('anchors: the test fixture was really altered', stale.n >= 4, stale.n);
+ok('anchors: with the check off, the file opens and it is noted', parseCrv(stale.out, {}).report.some(r => r.code === 'STALE_ANCHORS' && r.level === 'info'));
+let anchorErr = null; try { parseCrv(stale.out, { strictAnchors: true }); } catch (e) { anchorErr = e; }
+ok('anchors: with the check on, the file is refused and says why', anchorErr && anchorErr.anchorMismatch === true && /anchor/.test(anchorErr.message), anchorErr && anchorErr.message);
+ok('anchors: with the check on, a good file still opens', parseCrv(bytes('sample-points.crv3d'), { strictAnchors: true }).length > 0);
+
+// --- Save and Save As: what gets overwritten and what does not ---
+async function saveChecks() {
+  if (!studio) return;
+  const mkHandle = name => ({ name, kind: 'file', writes: [], data: null, async createWritable() { const h = this; return { async write(d) { h.data = d; h.writes.push(d); }, async close() {} }; } });
+  const dxfT = (extra, u) => ['0', 'SECTION', '2', 'HEADER', '9', '$INSUNITS', '70', String(u || 1), '0', 'ENDSEC', '0', 'SECTION', '2', 'ENTITIES', '0', 'LINE', '8', 'L1', '10', '0', '20', '0', '11', '4', '21', '0'].concat(extra || [], ['0', 'ENDSEC', '0', 'EOF']).join('\n');
+  const textEnt = ['0', 'TEXT', '8', 'L1', '10', '1', '20', '1', '40', '1', '1', 'HELLO'];
+  const reset = () => eIn(studio, 'newJob();PB.file=null;document.getElementById("gcModal").style.display="none";SETTINGS.importUnits="auto";SETTINGS.strictAnchors=false;');
+  let picked = null, pickH = null; studio.showSaveFilePicker = async o => { picked = o; return pickH; };
+  const open = (name, text, h) => { studio.__t = text; studio.__h = h; eIn(studio, 'importText(' + JSON.stringify(name) + ',__t,__h)'); };
+  const save = () => eIn(studio, 'fileSave()'), saveAs = () => eIn(studio, 'fileSaveAs()');
+
+  reset(); let h = mkHandle('a.dxf'); open('a.dxf', dxfT(), h); await save();
+  ok('save: a clean DXF writes back to itself', h.writes.length === 1 && eIn(studio, 'projectFile.format') === 'dxf', h.writes.length);
+  { const e = vm.runInContext('(t=>parseDxf(t))', studio)(h.data); ok('save: what was written reopens as the same line', e.length === 1 && e[0].layer === 'L1', JSON.stringify(e).slice(0, 200)); }
+
+  reset(); h = mkHandle('b.dxf'); open('b.dxf', dxfT(textEnt), h); pickH = mkHandle('b-edited.dxf'); picked = null; await save();
+  ok('save: a DXF that lost text on import is never overwritten', h.writes.length === 0 && picked && picked.suggestedName === 'b-edited.dxf' && pickH.writes.length === 1, picked && picked.suggestedName);
+
+  reset(); h = mkHandle('c.dxf'); open('c.dxf', dxfT([], 4), h); pickH = mkHandle('c2.dxf'); picked = null; await save();
+  ok('save: a DXF converted from mm is never overwritten', h.writes.length === 0 && !!picked);
+
+  reset(); h = mkHandle('d.dxf'); open('d.dxf', dxfT(), h); eIn(studio, 'opsQueue.push({p:{},ids:[],name:"x"})'); pickH = mkHandle('d.aqcam'); picked = null; await save();
+  ok('save: toolpaths divert a DXF save to .aqcam', h.writes.length === 0 && picked && /\.aqcam$/.test(picked.suggestedName) && eIn(studio, 'projectFile.format') === 'aqcam', picked && picked.suggestedName);
+
+  reset(); h = mkHandle('e.dxf'); open('e.dxf', dxfT(), h); eIn(studio, 'doc.shapes=[]'); picked = null; await save();
+  ok('save: an emptied DXF does not wipe the file', h.writes.length === 0 && !picked);
+
+  reset(); eIn(studio, 'doc.shapes=[CADCORE.mkPoly([{x:0,y:0},{x:1,y:1}],false,"0")]'); const job1 = mkHandle('job.aqcam'); eIn(studio, 'setSaveTarget'); studio.__j = job1; eIn(studio, 'setSaveTarget(__j,"job.aqcam","aqcam")');
+  h = mkHandle('f.dxf'); open('f.dxf', dxfT(), h); await save();
+  ok('save: a DXF merged into a job saves the job, not the DXF', h.writes.length === 0 && job1.writes.length === 1, h.writes.length + '/' + job1.writes.length);
+
+  reset(); eIn(studio, 'doc.shapes=[CADCORE.mkPoly([{x:0,y:0},{x:1,y:1}],false,"0")]'); pickH = mkHandle('out.dxf'); picked = null; await saveAs();
+  ok('save as: the name chosen sets the format', eIn(studio, 'projectFile.format') === 'dxf' && /LINE|POLYLINE/.test(pickH.data) && picked.types.length === 2, String(pickH.data).slice(0, 60));
+  await save(); ok('save as: Save then goes to the new file', pickH.writes.length === 2, pickH.writes.length);
+
+  const denied = mkHandle('g.dxf'); denied.queryPermission = async () => 'prompt'; denied.requestPermission = async () => 'denied';
+  reset(); open('g.dxf', dxfT(), denied); pickH = mkHandle('g2.dxf'); picked = null; await save();
+  ok('save: refused permission falls back to Save As', denied.writes.length === 0 && !!picked && pickH.writes.length === 1);
+
+  // G-code: bytes exact, the handle survives an edit, unapplied hand edits are not lost
+  reset(); const tapH = mkHandle('p.tap'); studio.__h = tapH;
+  const tap = 'G0 Z0.5\r\nG0 X1 Y1\r\nG1 Z-0.1 F20\r\nG1 X2 F60 [caf\xe9]\r\nG0 Z0.5\r\n'; studio.__b = Uint8Array.from(Buffer.from(tap, 'latin1')).buffer;
+  eIn(studio, 'openProgramBytes("p.tap",__b,__h)');
+  await save(); ok('save: an unedited program is not rewritten', tapH.writes.length === 0, tapH.writes.length);
+  eIn(studio, 'gcCommit(TAPEDIT.translate(PB.file.text,{dx:1,dy:0}));document.getElementById("gcModal").style.display="block";document.getElementById("gcText").value=PB.file.text.replace(/\\r\\n/g,"\\n")');   // a real text box reports LF
+  ok('save: a CRLF program in the text box is not mistaken for unapplied edits', eIn(studio, 'gcTextPending()') === false);
+  await save();
+  const want = eIn(studio, 'TAPEDIT.textToBytes(PB.file.text)');
+  ok('save: an edited program writes back to the opened file', tapH.writes.length === 1 && Buffer.from(tapH.data).equals(Buffer.from(want)), tapH.writes.length);
+  ok('save: edited bytes keep CRLF and the comment byte', Buffer.from(tapH.data).toString('latin1').includes('[caf\xe9]\r\n'));
+  eIn(studio, 'document.getElementById("gcModal").style.display="block";document.getElementById("gcText").value=PB.file.text+"G0 X9\\n"');
+  await save(); ok('save: hand edits that were not applied block the save', tapH.writes.length === 1, tapH.writes.length);
+  eIn(studio, 'document.getElementById("gcText").value=PB.file.text'); pickH = mkHandle('p2.tap'); picked = null; await saveAs();
+  ok('save as: G-code writes the new file and Save follows it', pickH.writes.length === 1 && eIn(studio, 'PB.file.name') === 'p2.tap' && /-edited\.tap$/.test(picked.suggestedName), picked && picked.suggestedName);
+  eIn(studio, 'document.getElementById("gcModal").style.display="none";doc.shapes=[CADCORE.mkPoly([{x:0,y:0},{x:1,y:1}],false,"0")]');
+  ok('save: with a drawing open and the editor closed, Save means the drawing', eIn(studio, 'programIsCurrent()') === false);
+
+  // Settings reach the importers
+  reset(); const ab3 = fs.readFileSync(path.join(__dirname, 'sample-tabs.crv3d')); studio.__ab3 = ab3.buffer.slice(ab3.byteOffset, ab3.byteOffset + ab3.byteLength);
+  eIn(studio, 'importCRV("s.crv3d",__ab3)'); const w0 = eIn(studio, 'job.w');
+  reset(); eIn(studio, 'SETTINGS.importUnits="mm";importCRV("s.crv3d",__ab3)');
+  ok('settings: units apply to a Vectric open', Math.abs(eIn(studio, 'job.w') * 25.4 - w0) < 1e-6 && eIn(studio, 'lastReport.items.some(r=>r.code==="UNITS_CHOSEN")'), eIn(studio, 'job.w') + ' vs ' + w0);
+  ok('settings: the report offers the other units', eIn(studio, '!!lastReport.opts.action'));
+  reset(); eIn(studio, 'SETTINGS.importUnits="mm"'); open('m.dxf', dxfT(), mkHandle('m.dxf'));
+  ok('settings: units apply to a DXF open, which is then not overwritten', Math.abs(eIn(studio, 'CADCORE.bbox(doc.shapes[0]).maxX') - 4 / 25.4) < 1e-6 && !!eIn(studio, 'projectFile.why'));
+  reset(); eIn(studio, 'SETTINGS.strictAnchors=true'); studio.__st = stale.out.buffer.slice(stale.out.byteOffset, stale.out.byteOffset + stale.out.byteLength);
+  eIn(studio, 'importCRV("st.crv3d",__st)');
+  ok('settings: anchor check on refuses in the studio', eIn(studio, 'doc.shapes.length') === 0 && eIn(studio, 'lastReport.items[0].code') === 'ANCHOR_MISMATCH');
+  eIn(studio, 'lastReport.opts.action.fn()');
+  ok('settings: Open Anyway opens it', eIn(studio, 'doc.shapes.length') > 0);
+  reset();
+}
+saveChecks().catch(e => ok('save checks ran', false, e.stack)).then(() => {
+  console.log(`\n${pass}/${pass + fail} crv checks passed`);
+  process.exit(fail ? 1 : 0);
+});
