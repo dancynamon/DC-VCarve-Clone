@@ -24,7 +24,23 @@ html,body{height:100%}
   --panel:#dbe5f1;      /* Aspire command-panel blue-grey */
 }
 body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','SF Mono',monospace;font-size:12px;overflow:hidden}
-.app{display:grid;grid-template-rows:24px 1fr 22px;grid-template-columns:246px 1fr 292px;height:100vh;grid-template-areas:"menu menu menu" "ldock stage rdock" "status status status"}
+/* --ui scales all the chrome (View > Larger Interface); dock widths are in unscaled px and set by dragging their edges */
+:root{--ui:1;--ldock-w:290px;--rdock-w:310px;--ic-ink:#2b3a4d}
+body.dark{--ic-ink:#dbe4ee}
+.app{display:grid;grid-template-rows:calc(24px*var(--ui)) minmax(0,1fr) calc(24px*var(--ui));grid-template-columns:calc(var(--ldock-w)*var(--ui)) minmax(0,1fr) calc(var(--rdock-w)*var(--ui));height:100vh;grid-template-areas:"menu menu menu" "ldock stage rdock" "status status status"}
+.menubar,.ldock,.rdock,.status,.viewtabs,.simctrl,.restorebar,.playbar,.pbnow,.pbsrc,.pbtoolsbox,.glhint,.asmbar,.asmplay,.asmstat,.asmhint,.modal>*,.ctxmenu>*{zoom:var(--ui)}
+.modal-bg .modal{min-width:calc(280px*var(--ui));max-width:calc(340px*var(--ui))}
+.modal-bg .modal.keys-modal{max-width:calc(380px*var(--ui))}
+body #tip{font-size:calc(11px*var(--ui))}
+/* drag strips straddling each dock's inner edge */
+.dockgrip{position:absolute;top:calc(24px*var(--ui));bottom:calc(24px*var(--ui));width:10px;z-index:40;cursor:ew-resize;touch-action:none}
+.dockgrip.l{left:calc(var(--ldock-w)*var(--ui) - 5px)}
+.dockgrip.r{right:calc(var(--rdock-w)*var(--ui) - 5px)}
+.dockgrip::before{content:'';position:absolute;top:0;bottom:0;left:3.5px;width:3px;background:var(--accent-bd);opacity:0;transition:opacity .12s}
+.dockgrip::after{content:'';position:absolute;top:50%;left:1.5px;width:7px;height:44px;margin-top:-22px;border-radius:4px;background:var(--accent-bd);opacity:0;transition:opacity .12s}
+.dockgrip:hover::before,.dockgrip:hover::after,.dockgrip.drag::before,.dockgrip.drag::after{opacity:1}
+body.dockdrag,body.dockdrag *{cursor:ew-resize !important;user-select:none}
+body.dockdrag #tip{display:none}
 .menubar{grid-area:menu;display:flex;align-items:stretch;background:var(--bg-chrome);border-bottom:1px solid var(--bd);font-size:11px}
 .menubar .brand{display:flex;align-items:center;padding:0 10px;font-weight:700;color:var(--accent);letter-spacing:.5px;font-size:10px}
 .menu{position:relative;display:flex;align-items:center;padding:0 9px;cursor:default;color:var(--ink);user-select:none}
@@ -40,8 +56,9 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .dockhead{flex:none;display:flex;align-items:center;justify-content:space-between;padding:4px 8px;font-size:11.5px;color:var(--ink);background:linear-gradient(#f3f7fb,#e6edf5);border-bottom:1px solid var(--bd-soft)}
 .dockhead .pin{color:var(--ink-dim);font-size:10px}
 .dockbody{flex:1;overflow-y:auto;padding:6px}
-.rtop{flex:none;max-height:56%;overflow-y:auto;padding:6px;border-bottom:1px solid var(--bd)}
-.tplist{flex:1;overflow-y:auto;padding:6px}
+/* the commands take the room they need; the toolpath list always keeps about a quarter of the dock */
+.rtop{flex:0 1 auto;min-height:0;overflow-y:auto;padding:6px;border-bottom:1px solid var(--bd)}
+.tplist{flex:1 0 24%;min-height:0;overflow-y:auto;padding:6px}
 .rfoot{flex:none;display:flex;gap:10px;align-items:center;padding:4px 8px;border-top:1px solid var(--bd-soft);background:linear-gradient(#f3f7fb,#e6edf5);font-size:10px;color:var(--ink-dim)}
 .jobdims{flex:none;padding:6px 9px;font-size:10px;color:var(--ink-dim);line-height:1.5;border-top:1px solid var(--bd-soft)}
 .jobdims b{color:var(--ink);font-weight:400}
@@ -50,8 +67,22 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .dtab:last-child{border-right:none}
 .dtab:hover{color:var(--ink)}
 .dtab.active{color:var(--accent);font-weight:700;background:var(--bg-card);border-top-color:var(--accent-bd)}
-.secgrp{margin-bottom:8px}
-.secgrp>h3{font-size:11px;font-weight:700;color:var(--ink);padding:0 0 4px 1px;letter-spacing:.2px;text-transform:none;background:none;border:none;cursor:default;display:block}
+.secgrp{margin-bottom:6px}
+/* section bars fold on click; the caret is CSS so the heading's text stays just its name */
+.secgrp>h3,.selpanel>h3{display:flex;align-items:center;gap:6px;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:12px;font-weight:700;color:var(--ink);padding:4px 6px;margin-bottom:4px;letter-spacing:.1px;text-transform:none;background:var(--bg-head);border:1px solid var(--bd-soft);border-radius:5px;cursor:pointer;user-select:none}
+.secgrp>h3:hover,.selpanel>h3:hover{border-color:var(--btn-bd);color:var(--accent)}
+.secgrp>h3::before,.selpanel>h3::before{content:'';flex:none;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5.5px solid var(--ink-dim);transition:transform .12s}
+.secgrp.collapsed>h3::before,.selpanel.collapsed>h3::before{transform:rotate(-90deg)}
+.secgrp.collapsed>:not(h3){display:none}
+.secgrp.collapsed>h3{margin-bottom:0}
+.optrow{display:flex;flex-wrap:wrap;align-items:center;gap:5px 10px;width:100%;margin-top:5px;padding:0 2px}
+.matrow{display:flex;gap:8px;align-items:center;width:100%}
+.matrow .iconbtn{flex:none;width:72px}
+.matinfo{flex:1;min-width:0}
+/* the Selection card stays in view at the bottom of the dock however far the tools are scrolled */
+.selpanel{position:sticky;bottom:-6px;z-index:2;margin-bottom:0;max-height:45vh;overflow-y:auto;box-shadow:0 -3px 10px rgba(20,40,70,.14)}
+.selpanel>h3{margin-bottom:0;border-radius:0;border-width:0 0 1px;letter-spacing:.1px;position:sticky;top:0;z-index:1}
+.selpanel.collapsed .body{display:none}
 
 
 .ctab{flex:1;background:none;border:none;border-right:1px solid var(--bd-soft);border-bottom:2px solid transparent;color:var(--ink-dim);font-family:inherit;font-size:10.5px;letter-spacing:.3px;padding:7px 2px;cursor:pointer}
@@ -66,15 +97,15 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .dpane,.rpane{display:none}
 .dpane.active,.rpane.active{display:block}
 /* icon grids inside a section, VCarve-style */
-.iconrow{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;width:100%;margin-bottom:2px}
-.tool{height:42px;width:auto;background:linear-gradient(#ffffff,#eef3f8);border:1px solid var(--btn-bd);border-radius:5px;color:#3a4756;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 1px rgba(20,40,70,.05);font-family:inherit;font-size:14px;line-height:1;padding:0}
-.tool b{font-size:14px;font-weight:400}
-.tool svg{display:block;pointer-events:none}
-.tb.iconbtn{width:40px;height:36px;padding:0;display:inline-flex;align-items:center;justify-content:center}
-.tb.iconbtn svg{display:block;pointer-events:none}
-.tool .tlabel{display:none}
-.tool:hover{background:linear-gradient(#f0f6fc,#dbe7f4);color:#1d2733;border-color:#9fb1c6}
-.tool.active{background:var(--accent-soft);border-color:var(--accent-bd);color:var(--accent)}
+/* auto-fill: a wider dock fits more tiles per row instead of just stretching them */
+.iconrow{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:4px;width:100%}
+.tb{background:linear-gradient(#ffffff,#eef3f8);border:1px solid var(--btn-bd);border-radius:4px;color:var(--ink);font-family:inherit;font-size:11px;padding:4px 10px;cursor:pointer}
+.tb:hover{background:linear-gradient(#f0f6fc,#dbe7f4);border-color:#9fb1c6}
+.tool,.tb.iconbtn{min-height:62px;background:linear-gradient(#ffffff,#eef3f8);border:1px solid var(--btn-bd);border-radius:6px;color:var(--ink);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:3px;box-shadow:0 1px 1px rgba(20,40,70,.05);padding:5px 2px 4px;line-height:1}
+.tool svg,.tb.iconbtn svg{display:block;flex:none;pointer-events:none}
+.tlabel{display:block;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:11px;font-weight:500;line-height:1.1;text-align:center;pointer-events:none}
+.tool:hover,.tb.iconbtn:hover{background:linear-gradient(#f0f6fc,#dbe7f4);color:#1d2733;border-color:#9fb1c6}
+.tool.active{background:var(--accent-soft);border-color:var(--accent-bd);box-shadow:inset 0 0 0 1px var(--accent-bd);color:var(--accent)}
 /* form-in-panel: a tool's options take over the dock, like VCarve */
 .tform{display:none}
 .tform.active{display:block}
@@ -84,7 +115,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .tfbody .grp:first-child{border-top:none;padding-top:0;margin-top:0}
 .formfoot{display:flex;gap:6px;justify-content:flex-end;border:1px solid var(--bd);border-top:none;border-radius:0 0 6px 6px;background:var(--bg-head);padding:7px 9px}
 .formfoot .tb.primary{background:linear-gradient(var(--accent-bright),#178a54);border-color:var(--accent-bd);color:#fff}
-.formhint{width:100%;font-size:10px;color:var(--ink-dim);line-height:1.35}
+.formhint{width:100%;font-size:11px;color:var(--ink-dim);line-height:1.35}
 .stage{grid-area:stage;position:relative;overflow:hidden}
 .stage.split #cv,.stage.split #hud{width:50%}
 .asmpane{position:absolute;top:0;bottom:0;right:0;width:50%;display:none;border-left:2px solid var(--bd);background:#edf1f6}
@@ -157,8 +188,8 @@ body.dark .asmpane{background:#1c212b}
 .sectn.collapsed h3 .caret{transform:rotate(-90deg)}
 .sectn.collapsed .body{display:none}
 .sectn .body{padding:8px 9px;display:flex;flex-wrap:wrap;gap:5px}
-.ldock .tb,.rdock .tb,.tfbody .tb{font-size:10px;padding:4px 7px}
-.ldock label,.rdock label{display:flex;align-items:center;gap:3px;font-size:9.5px;color:var(--ink-dim);text-transform:uppercase}
+.ldock .tb:not(.iconbtn),.rdock .tb:not(.iconbtn),.tfbody .tb:not(.iconbtn){font-size:11px;padding:4px 8px}
+.ldock label,.rdock label{display:flex;align-items:center;gap:3px;font-size:10.5px;color:var(--ink-dim);text-transform:none}
 .ldock input.calc,.rdock input.calc,.ldock input[type=number],.ldock input[type=text],.ldock select,.rdock input[type=number],.rdock input[type=text],.rdock select{background:var(--bg-input);border:1px solid var(--btn-bd);color:var(--ink);border-radius:3px;padding:3px 4px;font-family:inherit;font-size:11px}
 .ldock input:focus,.rdock input:focus,.ldock select:focus,.rdock select:focus{outline:none;border-color:var(--accent-bd)}
 .pos{display:flex;gap:8px;align-items:flex-start;margin:4px 0 2px}
@@ -227,9 +258,9 @@ body.dark{--bg-chrome:#1c2129;--bg-card:#232a34;--bg-head:#2a323e;--bg-input:#16
 body.dark .tb{background:linear-gradient(#2c3541,#222a34);color:#dbe4ee;box-shadow:none}
 body.dark .tb:hover{background:linear-gradient(#34404e,#28323d);border-color:#5a6b80;color:#fff}
 body.dark .tb:active{background:#1c2430}
-body.dark .tool,body.dark .agrid .ab{background:linear-gradient(#2c3541,#222a34);color:#dbe4ee;box-shadow:none}
-body.dark .tool:hover,body.dark .agrid .ab:hover{background:linear-gradient(#34404e,#28323d);color:#fff;border-color:#5a6b80}
-body.dark .tool.active{background:var(--accent-soft);color:var(--accent)}
+body.dark .tool,body.dark .tb.iconbtn,body.dark .agrid .ab{background:linear-gradient(#2c3541,#222a34);color:#dbe4ee;box-shadow:none}
+body.dark .tool:hover,body.dark .tb.iconbtn:hover,body.dark .agrid .ab:hover{background:linear-gradient(#34404e,#28323d);color:#fff;border-color:#5a6b80}
+body.dark .tool.active{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent-bd);color:var(--accent)}
 body.dark .agrid .ab::after{background:#5a6b80}
 body.dark .dockhead,body.dark .rfoot,body.dark .status{background:linear-gradient(#232a34,#1c2129)}
 body.dark .prow,body.dark .qrow,body.dark .keys-table td{color:#c3cfdc}
@@ -301,6 +332,15 @@ body.dark .qrow.picked{background:#3a2a1c}
 .cam-hint.warn{color:#b06a00}
 .status{grid-area:status;display:flex;align-items:center;gap:16px;padding:0 12px;background:linear-gradient(#e7ecf3,#dde4ed);border-top:1px solid var(--bd);font-size:10.5px;color:var(--ink-dim)}
 .status .v{color:var(--val)}
+.status{white-space:nowrap;overflow:hidden}
+#msg{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.status>*{flex:none}
+.status>#msg{flex:0 1 auto}
+.uisize{display:inline-flex}
+.uisize .tb{font-size:10px;padding:1px 6px;border-radius:0;margin-left:-1px}
+.uisize .tb:first-child{border-radius:3px 0 0 3px;margin-left:0}
+.uisize .tb:last-child{border-radius:0 3px 3px 0}
+#uiPct{min-width:42px}
 #btnCamGen{border-color:var(--accent-bd);color:#fff;background:linear-gradient(var(--accent-bright),#178a54)}
 #btnCamGen:hover{background:linear-gradient(#23a86a,#15804d);color:#fff}
 
@@ -335,7 +375,8 @@ body.dark .qrow.picked{background:#3a2a1c}
     <div class="menu" data-menu="view">View<div class="mdrop">
       <button data-act="v2d">2D View</button><button data-act="v3d">3D View</button><button data-act="vasm">2D + 3D Assembly</button><div class="msep"></div>
       <button data-act="fit">Zoom to Fit</button><button data-act="fitjob">Zoom to Job</button><div class="msep"></div>
-      <button data-act="rulers"><span class="chk">✓</span>Rulers</button><button data-act="dark"><span class="chk"></span>Dark Mode</button></div></div>
+      <button data-act="rulers"><span class="chk">✓</span>Rulers</button><button data-act="dark"><span class="chk"></span>Dark Mode</button><div class="msep"></div>
+      <button data-act="uiup">Larger Interface</button><button data-act="uidown">Smaller Interface</button><button data-act="uireset">Reset Interface Size and Panels</button></div></div>
     <div class="menu" data-menu="help">Help<div class="mdrop">
       <div class="hs"><input type="text" id="helpSearch" placeholder="Search menus, tools, forms…  (Ctrl+K)" autocomplete="off"></div>
       <div class="hres" id="helpResults"></div>
@@ -351,47 +392,16 @@ body.dark .qrow.picked{background:#3a2a1c}
     <button class="tb" id="btnKeys" style="display:none"></button><button class="tb" id="btnSelfTest" style="display:none"></button>
   </div>
 
+  <div class="dockgrip l" id="gripL" data-tip="Drag to resize this panel. Double-click to reset."></div>
+  <div class="dockgrip r" id="gripR" data-tip="Drag to resize this panel. Double-click to reset."></div>
   <div class="ldock">
     <div class="dockhead"><span id="ldockTitle">Drawing</span><span class="pin">▣</span></div>
     <div class="dockbody">
-      <div class="dpane active" id="paneDrawing"><div class="secgrp"><h3>File Operations</h3>
-          <button class="tb" id="btnNew" data-tip="New job: clear all vectors, layers and toolpaths">New</button>
-          <button class="tb" id="btnImport" data-tip="Open an .aqcam project / .aqtpl template / .aqclip clipart, a VCarve or Aspire .crv / .crv3d, or import DXF, SVG, vector PDF or a bitmap">Open / Import</button>
-          <button class="tb" id="btnSaveProj" data-tip="Save this job (Ctrl+S) &#8212; writes back to the opened file in Chrome/Edge">Save</button>
-          <button class="tb" id="btnSaveAs" data-tip="Save As&#8230; (Ctrl+Shift+S) &#8212; pick a folder and file name">Save As&#8230;</button>
-          <button class="tb" id="btnTrace" data-tip="Trace the imported bitmap into cuttable vectors">Trace Bitmap&#8230;</button>
-          <button class="tb" id="btnExpDXF" data-tip="Export design as DXF">Export DXF</button>
-          <button class="tb" id="btnExpSVG" data-tip="Export design as SVG">Export SVG</button>
-        </div><div class="secgrp"><h3>2D View Control</h3><button class="tb" id="btnFit" data-tip="Fit view to all (F)">Fit</button><button class="tb" id="btnFitJob" data-tip="Zoom to the material">Fit job</button><label><input type="checkbox" id="chkGrid" checked>Grid</label><label>step<input type="number" id="gridStep" value="0.5" step="0.25" min="0.0625" style="width:48px"></label><label data-tip="Always snap to the grid. Off: the cursor is free to 0.0001&quot; and holding S snaps to the grid"><input type="checkbox" id="chkSnap">Grid-snap</label><label><input type="checkbox" id="chkObjSnap" checked>Obj-snap</label><label data-tip="Shift while dragging a rotate grip snaps the angle to this increment">Rot &#176;<input type="number" id="rotSnap" value="5" step="1" min="0.1" style="width:40px"></label></div><div class="secgrp"><h3>Create Vectors</h3><div class="iconrow"><button class="tool" data-tool="line" data-tip="Line &#8212; click start, click end (L)" title="Line (L)"><b>&#9585;</b><span class="tlabel">Line</span></button><button class="tool" data-tool="polyline" data-tip="Polyline &#8212; click points, Enter to finish (P)" title="Polyline (P)"><b>&#10187;</b><span class="tlabel">Polyline</span></button><button class="tool" data-tool="bezier" data-tip="Curve &#8212; click anchors, drag to pull handles (B)" title="Curve (B)"><b>&#8767;</b><span class="tlabel">Curve</span></button><button class="tool" data-tool="rect" data-tip="Rectangle &#8212; drag opposite corners (R)" title="Rectangle (R)"><b>&#9645;</b><span class="tlabel">Rect</span></button><button class="tool" data-tool="rrect" data-tip="Rounded rectangle &#8212; corner radius in the tool form" title="Rounded rectangle"><b>&#9634;</b><span class="tlabel">Round</span></button><button class="tool" data-tool="circle" data-tip="Circle &#8212; centre then radius (C)" title="Circle (C)"><b>&#9711;</b><span class="tlabel">Circle</span></button></div><div class="iconrow"><button class="tool" data-tool="ellipse" data-tip="Ellipse &#8212; drag the bounding box (E)" title="Ellipse (E)"><b>&#11053;</b><span class="tlabel">Ellipse</span></button><button class="tool" data-tool="arc" data-tip="Arc &#8212; centre, start, end (A)" title="Arc (A)"><b>&#9692;</b><span class="tlabel">Arc</span></button><button class="tool" data-tool="polygon" data-tip="Polygon &#8212; sides in the tool form (G)" title="Polygon (G)"><b>&#11040;</b><span class="tlabel">Polygon</span></button><button class="tool" data-tool="star" data-tip="Star &#8212; points in the tool form" title="Star"><b>&#9733;</b><span class="tlabel">Star</span></button><button class="tool" data-tool="text" data-tip="Draw Text &#8212; single-stroke or TTF outline (T)" title="Text (T)"><b>T</b><span class="tlabel">Text</span></button><button class="tool" data-tool="dim" data-tip="Dimension &#8212; a drawn annotation, never machined (D)" title="Dimension (D)"><b>&#8676;</b><span class="tlabel">Dim</span></button></div><div class="iconrow"><button class="tool" data-tool="measure" data-tip="Measure distance / dx,dy / angle (M)" title="Measure (M)"><b>&#8596;</b><span class="tlabel">Measure</span></button><button class="tool" data-tool="pan" data-tip="Pan the view &#8212; drag (or &#8984;/Alt-drag with any tool)" title="Pan"><b>&#9995;</b><span class="tlabel">Pan</span></button></div></div><div class="secgrp"><h3>Transform Objects</h3><div class="iconrow"><button class="tool" data-tool="select" data-tip="Select / move / scale / rotate (V)" title="Select (V)"><b>&#9636;</b><span class="tlabel">Select</span></button></div>
-          
-          <button class="tb" id="btnMirrorH" data-tip="Mirror horizontally">Mirror H</button>
-          <button class="tb" id="btnMirrorV" data-tip="Mirror vertically">Mirror V</button>
-          <button class="tb" id="btnRotate" data-tip="Rotate selection by an exact angle, CW or CCW, about any of 9 pivot points (corners included)">Rotate&#8230;</button>
-          <button class="tb" id="btnRot90" data-tip="Rotate 90 degrees">Rotate 90&#176;</button>
-          <button class="tb" id="btnDup" data-tip="Duplicate selected">Duplicate</button>
-          
-          
-          
-          
-          
-        </div><div class="secgrp"><h3>Edit Objects</h3><div class="iconrow"><button class="tool" data-tool="node" data-tip="Node edit &#8212; drag points, dbl-click add/remove (N)" title="Node edit (N)"><b>&#11049;</b><span class="tlabel">Nodes</span></button><button class="tool" data-tool="fillet" data-tip="Fillet &#8212; click a corner to round it" title="Fillet"><b>&#9693;</b><span class="tlabel">Fillet</span></button><button class="tool" data-tool="trim" data-tip="Trim &#8212; click the dangling part of an open vector" title="Trim"><b>&#9986;</b><span class="tlabel">Trim</span></button><button class="tool" data-tool="extend" data-tip="Extend &#8212; stretch an open vector to the next one ahead" title="Extend"><b>&#8866;</b><span class="tlabel">Extend</span></button></div>
-          
-          <button class="tb" id="btnGroup" data-tip="Group the selection (Cmd/Ctrl+G) &#8212; picks, moves and copies as one">Group</button><button class="tb" id="btnUngroup" data-tip="Ungroup (Cmd/Ctrl+Shift+G)">Ungroup</button>
-          <button class="tb" id="btnJoin" data-tip="Join touching vectors into contours">Join</button>
-          <button class="tb" id="btnUnion" data-tip="Weld &#8212; merge into one (union)">Weld &#8746;</button>
-          <button class="tb" id="btnDiff" data-tip="Subtract later shapes from first">Subtract</button>
-          <button class="tb" id="btnInt" data-tip="Keep only overlap (intersect)">Intersect</button>
-          <button class="tb" id="btnDelete" data-tip="Delete selected (Del)">Delete</button>
-          <button class="tb" id="btnFitCurves" data-tip="Fit Curves &#8212; rebuild jagged vectors from lines and true arcs">Fit Curves&#8230;</button>
-          <button class="tb" id="btnCheckVec" data-tip="Find open, duplicate or self-intersecting vectors and select them">Vector Validator</button>
-        </div><div class="secgrp"><h3>Align Objects</h3><button class="tb" id="btnAlignL">Left</button><button class="tb" id="btnAlignHC">H-Ctr</button><button class="tb" id="btnAlignR">Right</button><button class="tb" id="btnAlignT">Top</button><button class="tb" id="btnAlignVC">V-Ctr</button><button class="tb" id="btnAlignB">Bottom</button></div><div class="secgrp"><h3>Offset and Layout</h3><button class="tb" id="btnOffset" data-tip="Offset selected by a distance">Offset</button><button class="tb" id="btnArray" data-tip="Grid array (rows x cols)">Array Copy</button><button class="tb" id="btnNestForm" data-tip="Pack shapes onto sheets to minimise waste">Nesting…</button></div><div class="sectn"><h3>Selection</h3><div class="body" id="props"><div class="muted">No selection</div></div></div>
+      <div class="dpane active" id="paneDrawing"><div class="secgrp"><h3>File</h3><div class="iconrow"><button class="tb iconbtn" id="btnNew" data-tip="New job: clear all vectors, layers and toolpaths" data-icon="new">New</button><button class="tb iconbtn" id="btnImport" data-tip="Open an .aqcam project / .aqtpl template / .aqclip clipart, a VCarve or Aspire .crv / .crv3d, or import DXF, SVG, vector PDF or a bitmap" data-icon="open">Open</button><button class="tb iconbtn" id="btnSaveProj" data-tip="Save this job (Ctrl+S) &#8212; writes back to the opened file in Chrome/Edge" data-icon="save">Save</button><button class="tb iconbtn" id="btnSaveAs" data-tip="Save As&#8230; (Ctrl+Shift+S) &#8212; pick a folder and file name" data-icon="saveas">Save As</button><button class="tb iconbtn" id="btnTrace" data-tip="Trace the imported bitmap into cuttable vectors" data-icon="tracebmp">Trace Image</button><button class="tb iconbtn" id="btnExpDXF" data-tip="Export design as DXF" data-icon="expdxf">Export DXF</button><button class="tb iconbtn" id="btnExpSVG" data-tip="Export design as SVG" data-icon="expsvg">Export SVG</button></div></div><div class="secgrp"><h3>Select &amp; View</h3><div class="iconrow"><button class="tool" data-tool="select" data-tip="Select / move / scale / rotate (V)" title="Select (V)"><span class="tlabel">Select</span></button><button class="tool" data-tool="pan" data-tip="Pan the view &#8212; drag (or &#8984;/Alt-drag with any tool)" title="Pan"><span class="tlabel">Pan</span></button><button class="tool" data-tool="measure" data-tip="Measure distance / dx,dy / angle (M)" title="Measure (M)"><span class="tlabel">Measure</span></button><button class="tb iconbtn" id="btnFit" data-tip="Fit view to all (F)" data-icon="fit">Fit All</button><button class="tb iconbtn" id="btnFitJob" data-tip="Zoom to the material" data-icon="fitjob">Fit Job</button></div><div class="optrow"><label><input type="checkbox" id="chkGrid" checked>Grid</label><label>step<input type="number" id="gridStep" value="0.5" step="0.25" min="0.0625" style="width:48px"></label><label data-tip="Always snap to the grid. Off: the cursor is free to 0.0001&quot; and holding S snaps to the grid"><input type="checkbox" id="chkSnap">Grid-snap</label><label><input type="checkbox" id="chkObjSnap" checked>Obj-snap</label><label data-tip="Shift while dragging a rotate grip snaps the angle to this increment">Rot &#176;<input type="number" id="rotSnap" value="5" step="1" min="0.1" style="width:40px"></label></div></div><div class="secgrp"><h3>Draw Shapes</h3><div class="iconrow"><button class="tool" data-tool="rect" data-tip="Rectangle &#8212; drag opposite corners (R)" title="Rectangle (R)"><span class="tlabel">Rectangle</span></button><button class="tool" data-tool="rrect" data-tip="Rounded rectangle &#8212; corner radius in the tool form" title="Rounded rectangle"><span class="tlabel">Rounded</span></button><button class="tool" data-tool="circle" data-tip="Circle &#8212; centre then radius (C)" title="Circle (C)"><span class="tlabel">Circle</span></button><button class="tool" data-tool="ellipse" data-tip="Ellipse &#8212; drag the bounding box (E)" title="Ellipse (E)"><span class="tlabel">Ellipse</span></button><button class="tool" data-tool="polygon" data-tip="Polygon &#8212; sides in the tool form (G)" title="Polygon (G)"><span class="tlabel">Polygon</span></button><button class="tool" data-tool="star" data-tip="Star &#8212; points in the tool form" title="Star"><span class="tlabel">Star</span></button></div></div><div class="secgrp"><h3>Draw Lines &amp; Text</h3><div class="iconrow"><button class="tool" data-tool="line" data-tip="Line &#8212; click start, click end (L)" title="Line (L)"><span class="tlabel">Line</span></button><button class="tool" data-tool="polyline" data-tip="Polyline &#8212; click points, Enter to finish (P)" title="Polyline (P)"><span class="tlabel">Polyline</span></button><button class="tool" data-tool="bezier" data-tip="Curve &#8212; click anchors, drag to pull handles (B)" title="Curve (B)"><span class="tlabel">Curve</span></button><button class="tool" data-tool="arc" data-tip="Arc &#8212; centre, start, end (A)" title="Arc (A)"><span class="tlabel">Arc</span></button><button class="tool" data-tool="text" data-tip="Draw Text &#8212; single-stroke or TTF outline (T)" title="Text (T)"><span class="tlabel">Text</span></button><button class="tool" data-tool="dim" data-tip="Dimension &#8212; a drawn annotation, never machined (D)" title="Dimension (D)"><span class="tlabel">Dimension</span></button></div></div><div class="secgrp"><h3>Move, Copy &amp; Layout</h3><div class="iconrow"><button class="tb iconbtn" id="btnMirrorH" data-tip="Mirror horizontally" data-icon="mirrorh">Mirror H</button><button class="tb iconbtn" id="btnMirrorV" data-tip="Mirror vertically" data-icon="mirrorv">Mirror V</button><button class="tb iconbtn" id="btnRotate" data-tip="Rotate selection by an exact angle, CW or CCW, about any of 9 pivot points (corners included)" data-icon="rotate">Rotate</button><button class="tb iconbtn" id="btnRot90" data-tip="Rotate 90 degrees" data-icon="rot90">Rotate 90</button><button class="tb iconbtn" id="btnDup" data-tip="Duplicate selected" data-icon="duplicate">Duplicate</button><button class="tb iconbtn" id="btnArray" data-tip="Grid array (rows x cols)" data-icon="array">Array</button><button class="tb iconbtn" id="btnNestForm" data-tip="Pack shapes onto sheets to minimise waste" data-icon="nest">Nesting</button></div></div><div class="secgrp"><h3>Edit Shapes</h3><div class="iconrow"><button class="tool" data-tool="node" data-tip="Node edit &#8212; drag points, dbl-click add/remove (N)" title="Node edit (N)"><span class="tlabel">Nodes</span></button><button class="tool" data-tool="fillet" data-tip="Fillet &#8212; click a corner to round it" title="Fillet"><span class="tlabel">Fillet</span></button><button class="tool" data-tool="trim" data-tip="Trim &#8212; click the dangling part of an open vector" title="Trim"><span class="tlabel">Trim</span></button><button class="tool" data-tool="extend" data-tip="Extend &#8212; stretch an open vector to the next one ahead" title="Extend"><span class="tlabel">Extend</span></button><button class="tb iconbtn" id="btnJoin" data-tip="Join touching vectors into contours" data-icon="join">Join</button><button class="tb iconbtn" id="btnOffset" data-tip="Offset selected by a distance" data-icon="offset">Offset</button><button class="tb iconbtn" id="btnFitCurves" data-tip="Fit Curves &#8212; rebuild jagged vectors from lines and true arcs" data-icon="fitcurves">Fit Curves</button><button class="tb iconbtn" id="btnCheckVec" data-tip="Find open, duplicate or self-intersecting vectors and select them" data-icon="validate">Validate</button><button class="tb iconbtn" id="btnDelete" data-tip="Delete selected (Del)" data-icon="del">Delete</button></div></div><div class="secgrp"><h3>Combine</h3><div class="iconrow"><button class="tb iconbtn" id="btnGroup" data-tip="Group the selection (Cmd/Ctrl+G) &#8212; picks, moves and copies as one" data-icon="group">Group</button><button class="tb iconbtn" id="btnUngroup" data-tip="Ungroup (Cmd/Ctrl+Shift+G)" data-icon="ungroup">Ungroup</button><button class="tb iconbtn" id="btnUnion" data-tip="Weld &#8212; merge into one (union)" data-icon="weld">Weld</button><button class="tb iconbtn" id="btnDiff" data-tip="Subtract later shapes from first" data-icon="subtract">Subtract</button><button class="tb iconbtn" id="btnInt" data-tip="Keep only overlap (intersect)" data-icon="intersect">Intersect</button></div></div><div class="secgrp"><h3>Align</h3><div class="iconrow"><button class="tb iconbtn" id="btnAlignL" data-icon="alignL" data-tip="Align left edges">Left</button><button class="tb iconbtn" id="btnAlignHC" data-icon="alignHC" data-tip="Center horizontally">Center</button><button class="tb iconbtn" id="btnAlignR" data-icon="alignR" data-tip="Align right edges">Right</button><button class="tb iconbtn" id="btnAlignT" data-icon="alignT" data-tip="Align top edges">Top</button><button class="tb iconbtn" id="btnAlignVC" data-icon="alignVC" data-tip="Center vertically">Middle</button><button class="tb iconbtn" id="btnAlignB" data-icon="alignB" data-tip="Align bottom edges">Bottom</button></div></div><div class="sectn selpanel"><h3>Selection</h3><div class="body" id="props"><div class="muted">No selection</div></div></div>
       </div>
       <div class="dpane" id="paneClipart"><div class="sectn"><h3>Clipart Library</h3><div class="body">
           <label data-tip="Filter the library by category">Cat<select id="clipCat" style="max-width:118px"></select></label>
-          <button class="tb" id="btnClipAdd" data-tip="Add the selected closed vectors to the clipart library">+ Selection</button>
-          <button class="tb" id="btnClipDel" data-tip="Delete the highlighted custom shape (built-ins can't be deleted)">Del</button>
-          <button class="tb" id="btnClipExport" data-tip="Export your custom clipart as an .aqclip file">&#10515;</button>
-          <button class="tb" id="btnClipImport" data-tip="Import an .aqclip clipart file">&#10514;</button>
+          <div class="iconrow"><button class="tb iconbtn" id="btnClipAdd" data-tip="Add the selected closed vectors to the clipart library" data-icon="clipadd">Add Selection</button><button class="tb iconbtn" id="btnClipDel" data-tip="Delete the highlighted custom shape (built-ins can't be deleted)" data-icon="del">Delete</button><button class="tb iconbtn" id="btnClipExport" data-tip="Export your custom clipart as an .aqclip file" data-icon="export">Export</button><button class="tb iconbtn" id="btnClipImport" data-tip="Import an .aqclip clipart file" data-icon="import">Import</button></div>
           <input type="file" id="clipInput" accept=".aqclip,.json" style="display:none">
           <div class="clipgrid" id="clipGrid"></div>
           <div class="formhint">Click a shape, then drag a box on the canvas to place it (a single click drops it 2&quot; wide).</div>
@@ -568,43 +578,15 @@ body.dark .qrow.picked{background:#3a2a1c}
     <div class="rtop">
       <div class="rpane active" id="paneOps">
         <div class="secgrp"><h3>Material Setup</h3>
-          <button class="tb" id="btnJobForm" data-tip="Set material size, thickness and the XY datum">Set …</button>
-          <div class="formhint" id="matSummary">—</div>
-          <div class="formhint" id="matDatum">XY Datum</div>
+          <div class="matrow"><button class="tb iconbtn" id="btnJobForm" data-tip="Set material size, thickness and the XY datum" data-icon="setup">Job Setup</button><div class="matinfo"><div class="formhint" id="matSummary">&#8212;</div><div class="formhint" id="matDatum">XY Datum</div></div></div>
           <div class="side-only" style="display:none;width:100%;margin-top:4px"><span class="muted" style="font-size:10px">Working side</span>
             <div style="display:flex;gap:3px;margin-top:2px"><button class="tb sidebtn" data-side="top" data-tip="Draw and toolpath the top side">Top</button><button class="tb sidebtn" data-side="bottom" data-tip="Draw and toolpath the bottom side (after the flip)">Bottom</button></div></div>
         </div>
-        <div class="secgrp"><h3>Toolpath Operations</h3>
-          <div class="iconrow" style="grid-template-columns:repeat(5,1fr)">
-            <button class="tool opbtn" data-op="profile" data-tip="Profile Toolpath" title="Profile"><b>&#9723;</b></button>
-            <button class="tool opbtn" data-op="pocket" data-tip="Pocket Toolpath" title="Pocket"><b>&#9635;</b></button>
-            <button class="tool opbtn" data-op="drill" data-tip="Drilling Toolpath" title="Drill"><b>&#9678;</b></button>
-            <button class="tool opbtn" data-op="vcarve" data-tip="V-Carve / Engraving Toolpath" title="V-Carve"><b>&#9660;</b></button>
-            <button class="tool opbtn" data-op="inlay" data-tip="Inlay Toolpath" title="Inlay"><b>&#9707;</b></button>
-          </div>
-          <div class="iconrow" style="grid-template-columns:repeat(5,1fr)">
-            <button class="tool opbtn" data-op="chamfer" data-tip="Chamfer Toolpath &#8212; V-bit bevel along an edge" title="Chamfer"><b>&#9698;</b></button>
-            <button class="tool opbtn" data-op="engrave" data-tip="Quick Engrave &#8212; V-bit along vectors, sharp corners" title="Quick Engrave"><b>&#10002;</b></button>
-            <button class="tool opbtn" data-op="fluting" data-tip="Fluting Toolpath &#8212; ramped grooves" title="Fluting"><b>&#8741;</b></button>
-            <button class="tool opbtn" data-op="prism" data-tip="Prism Carving &#8212; raised bevelled shapes" title="Prism"><b>&#9650;</b></button>
-            <button class="tool opbtn" data-op="moulding" data-tip="Moulding Toolpath &#8212; sweep a profile along a rail" title="Moulding"><b>&#8766;</b></button>
-          </div>
-          <div class="iconrow" style="grid-template-columns:repeat(5,1fr)">
-            <button class="tb" id="btnTplApply" data-tip="Apply the selected toolpath template">Tpl ▶</button>
-            <button class="tb" id="btnTplSave" data-tip="Save the toolpath list as a template">Tpl +</button>
-            <button class="tb" id="btnRecalcAll" data-tip="Recompute the backplot for every visible toolpath">Preview</button>
-            <button class="tb" id="btnPostJob" data-tip="Post all toolpaths as one .tap">Save ⤓</button>
-            
-          </div>
-          <label data-tip="A saved machining recipe — toolpath settings with no geometry" style="width:100%;margin-top:4px">Template<select id="tplLib" style="flex:1;min-width:0"></select></label>
-          <div style="display:flex;gap:3px;margin-top:3px;width:100%"><button class="tb" id="btnTplDel" data-tip="Delete the selected template">Del</button><button class="tb" id="btnTplExport" data-tip="Export the selected template as an .aqtpl file">&#10515;</button><button class="tb" id="btnTplImport" data-tip="Import an .aqtpl template file">&#10514;</button></div>
-          </label>
-          <div style="display:flex;gap:4px;margin-top:3px">
-            
-            
-            
-          </div>
-        </div>
+        <div class="secgrp"><h3>Cut &amp; Clear</h3><div class="iconrow"><button class="tool opbtn" data-op="profile" data-tip="Profile Toolpath" title="Profile"><span class="tlabel">Profile</span></button><button class="tool opbtn" data-op="pocket" data-tip="Pocket Toolpath" title="Pocket"><span class="tlabel">Pocket</span></button><button class="tool opbtn" data-op="drill" data-tip="Drilling Toolpath" title="Drill"><span class="tlabel">Drill</span></button><button class="tool opbtn" data-op="chamfer" data-tip="Chamfer Toolpath &#8212; V-bit bevel along an edge" title="Chamfer"><span class="tlabel">Chamfer</span></button></div></div>
+        <div class="secgrp"><h3>V-Bit Carving</h3><div class="iconrow"><button class="tool opbtn" data-op="vcarve" data-tip="V-Carve / Engraving Toolpath" title="V-Carve"><span class="tlabel">V-Carve</span></button><button class="tool opbtn" data-op="engrave" data-tip="Quick Engrave &#8212; V-bit along vectors, sharp corners" title="Quick Engrave"><span class="tlabel">Engrave</span></button><button class="tool opbtn" data-op="inlay" data-tip="Inlay Toolpath" title="Inlay"><span class="tlabel">Inlay</span></button></div></div>
+        <div class="secgrp"><h3>Decorative</h3><div class="iconrow"><button class="tool opbtn" data-op="fluting" data-tip="Fluting Toolpath &#8212; ramped grooves" title="Fluting"><span class="tlabel">Fluting</span></button><button class="tool opbtn" data-op="prism" data-tip="Prism Carving &#8212; raised bevelled shapes" title="Prism"><span class="tlabel">Prism</span></button><button class="tool opbtn" data-op="moulding" data-tip="Moulding Toolpath &#8212; sweep a profile along a rail" title="Moulding"><span class="tlabel">Moulding</span></button></div></div>
+        <div class="secgrp"><h3>Preview &amp; Output</h3><div class="iconrow"><button class="tb iconbtn" id="btnRecalcAll" data-tip="Recompute the backplot for every visible toolpath" data-icon="preview">Preview</button><button class="tb iconbtn" id="btnPostJob" data-tip="Post all toolpaths as one .tap" data-icon="post">Save Toolpaths</button></div></div>
+        <div class="secgrp"><h3>Templates</h3><div class="iconrow"><button class="tb iconbtn" id="btnTplApply" data-tip="Apply the selected toolpath template" data-icon="tplapply">Apply</button><button class="tb iconbtn" id="btnTplSave" data-tip="Save the toolpath list as a template" data-icon="tplsave">Save New</button><button class="tb iconbtn" id="btnTplDel" data-tip="Delete the selected template" data-icon="tpldel">Delete</button><button class="tb iconbtn" id="btnTplExport" data-tip="Export the selected template as an .aqtpl file" data-icon="export">Export</button><button class="tb iconbtn" id="btnTplImport" data-tip="Import an .aqtpl template file" data-icon="import">Import</button></div><div class="optrow"><label data-tip="A saved machining recipe — toolpath settings with no geometry" style="width:100%;margin-top:4px">Template<select id="tplLib" style="flex:1;min-width:0"></select></label></div></div>
       </div>
       <div class="rpane" id="paneCamForm"><div class="tform" data-form="cam"><h4 id="camFormTitle">Profile Toolpath</h4><div class="tfbody">
           <div class="grp">Cutting depths</div>
@@ -698,7 +680,8 @@ body.dark .qrow.picked{background:#3a2a1c}
     <span>Pos <span class="v" id="coords">0, 0 in</span></span>
     <span><span class="v" id="zoomlbl"></span></span>
     <span id="msg" class="v"></span>
-    <button class="tb" id="btnUnits" title="Units: inches / millimetres (the drawing is unchanged)" style="margin-left:auto;font-size:10px;padding:1px 7px">in</button><button class="tb" id="btnTheme" title="Switch to dark mode" style="font-size:10px;padding:1px 7px">☾ Dark</button>
+    <span class="uisize" style="margin-left:auto"><button class="tb" id="btnUiDown" data-tip="Make the menus, panels and buttons smaller">A&#8722;</button><button class="tb" id="uiPct" data-tip="Interface size. Click to reset to the default">100%</button><button class="tb" id="btnUiUp" data-tip="Make the menus, panels and buttons larger">A+</button></span>
+    <button class="tb" id="btnUnits" title="Units: inches / millimetres (the drawing is unchanged)" style="font-size:10px;padding:1px 7px">in</button><button class="tb" id="btnTheme" title="Switch to dark mode" style="font-size:10px;padding:1px 7px">☾ Dark</button>
     <span class="ver" id="appVer" title="Build version">v<!--VER--></span>
   </div>
 </div>

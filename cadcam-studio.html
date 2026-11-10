@@ -24,7 +24,23 @@ html,body{height:100%}
   --panel:#dbe5f1;      /* Aspire command-panel blue-grey */
 }
 body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','SF Mono',monospace;font-size:12px;overflow:hidden}
-.app{display:grid;grid-template-rows:24px 1fr 22px;grid-template-columns:246px 1fr 292px;height:100vh;grid-template-areas:"menu menu menu" "ldock stage rdock" "status status status"}
+/* --ui scales all the chrome (View > Larger Interface); dock widths are in unscaled px and set by dragging their edges */
+:root{--ui:1;--ldock-w:290px;--rdock-w:310px;--ic-ink:#2b3a4d}
+body.dark{--ic-ink:#dbe4ee}
+.app{display:grid;grid-template-rows:calc(24px*var(--ui)) minmax(0,1fr) calc(24px*var(--ui));grid-template-columns:calc(var(--ldock-w)*var(--ui)) minmax(0,1fr) calc(var(--rdock-w)*var(--ui));height:100vh;grid-template-areas:"menu menu menu" "ldock stage rdock" "status status status"}
+.menubar,.ldock,.rdock,.status,.viewtabs,.simctrl,.restorebar,.playbar,.pbnow,.pbsrc,.pbtoolsbox,.glhint,.asmbar,.asmplay,.asmstat,.asmhint,.modal>*,.ctxmenu>*{zoom:var(--ui)}
+.modal-bg .modal{min-width:calc(280px*var(--ui));max-width:calc(340px*var(--ui))}
+.modal-bg .modal.keys-modal{max-width:calc(380px*var(--ui))}
+body #tip{font-size:calc(11px*var(--ui))}
+/* drag strips straddling each dock's inner edge */
+.dockgrip{position:absolute;top:calc(24px*var(--ui));bottom:calc(24px*var(--ui));width:10px;z-index:40;cursor:ew-resize;touch-action:none}
+.dockgrip.l{left:calc(var(--ldock-w)*var(--ui) - 5px)}
+.dockgrip.r{right:calc(var(--rdock-w)*var(--ui) - 5px)}
+.dockgrip::before{content:'';position:absolute;top:0;bottom:0;left:3.5px;width:3px;background:var(--accent-bd);opacity:0;transition:opacity .12s}
+.dockgrip::after{content:'';position:absolute;top:50%;left:1.5px;width:7px;height:44px;margin-top:-22px;border-radius:4px;background:var(--accent-bd);opacity:0;transition:opacity .12s}
+.dockgrip:hover::before,.dockgrip:hover::after,.dockgrip.drag::before,.dockgrip.drag::after{opacity:1}
+body.dockdrag,body.dockdrag *{cursor:ew-resize !important;user-select:none}
+body.dockdrag #tip{display:none}
 .menubar{grid-area:menu;display:flex;align-items:stretch;background:var(--bg-chrome);border-bottom:1px solid var(--bd);font-size:11px}
 .menubar .brand{display:flex;align-items:center;padding:0 10px;font-weight:700;color:var(--accent);letter-spacing:.5px;font-size:10px}
 .menu{position:relative;display:flex;align-items:center;padding:0 9px;cursor:default;color:var(--ink);user-select:none}
@@ -40,8 +56,9 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .dockhead{flex:none;display:flex;align-items:center;justify-content:space-between;padding:4px 8px;font-size:11.5px;color:var(--ink);background:linear-gradient(#f3f7fb,#e6edf5);border-bottom:1px solid var(--bd-soft)}
 .dockhead .pin{color:var(--ink-dim);font-size:10px}
 .dockbody{flex:1;overflow-y:auto;padding:6px}
-.rtop{flex:none;max-height:56%;overflow-y:auto;padding:6px;border-bottom:1px solid var(--bd)}
-.tplist{flex:1;overflow-y:auto;padding:6px}
+/* the commands take the room they need; the toolpath list always keeps about a quarter of the dock */
+.rtop{flex:0 1 auto;min-height:0;overflow-y:auto;padding:6px;border-bottom:1px solid var(--bd)}
+.tplist{flex:1 0 24%;min-height:0;overflow-y:auto;padding:6px}
 .rfoot{flex:none;display:flex;gap:10px;align-items:center;padding:4px 8px;border-top:1px solid var(--bd-soft);background:linear-gradient(#f3f7fb,#e6edf5);font-size:10px;color:var(--ink-dim)}
 .jobdims{flex:none;padding:6px 9px;font-size:10px;color:var(--ink-dim);line-height:1.5;border-top:1px solid var(--bd-soft)}
 .jobdims b{color:var(--ink);font-weight:400}
@@ -50,8 +67,22 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .dtab:last-child{border-right:none}
 .dtab:hover{color:var(--ink)}
 .dtab.active{color:var(--accent);font-weight:700;background:var(--bg-card);border-top-color:var(--accent-bd)}
-.secgrp{margin-bottom:8px}
-.secgrp>h3{font-size:11px;font-weight:700;color:var(--ink);padding:0 0 4px 1px;letter-spacing:.2px;text-transform:none;background:none;border:none;cursor:default;display:block}
+.secgrp{margin-bottom:6px}
+/* section bars fold on click; the caret is CSS so the heading's text stays just its name */
+.secgrp>h3,.selpanel>h3{display:flex;align-items:center;gap:6px;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:12px;font-weight:700;color:var(--ink);padding:4px 6px;margin-bottom:4px;letter-spacing:.1px;text-transform:none;background:var(--bg-head);border:1px solid var(--bd-soft);border-radius:5px;cursor:pointer;user-select:none}
+.secgrp>h3:hover,.selpanel>h3:hover{border-color:var(--btn-bd);color:var(--accent)}
+.secgrp>h3::before,.selpanel>h3::before{content:'';flex:none;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5.5px solid var(--ink-dim);transition:transform .12s}
+.secgrp.collapsed>h3::before,.selpanel.collapsed>h3::before{transform:rotate(-90deg)}
+.secgrp.collapsed>:not(h3){display:none}
+.secgrp.collapsed>h3{margin-bottom:0}
+.optrow{display:flex;flex-wrap:wrap;align-items:center;gap:5px 10px;width:100%;margin-top:5px;padding:0 2px}
+.matrow{display:flex;gap:8px;align-items:center;width:100%}
+.matrow .iconbtn{flex:none;width:72px}
+.matinfo{flex:1;min-width:0}
+/* the Selection card stays in view at the bottom of the dock however far the tools are scrolled */
+.selpanel{position:sticky;bottom:-6px;z-index:2;margin-bottom:0;max-height:45vh;overflow-y:auto;box-shadow:0 -3px 10px rgba(20,40,70,.14)}
+.selpanel>h3{margin-bottom:0;border-radius:0;border-width:0 0 1px;letter-spacing:.1px;position:sticky;top:0;z-index:1}
+.selpanel.collapsed .body{display:none}
 
 
 .ctab{flex:1;background:none;border:none;border-right:1px solid var(--bd-soft);border-bottom:2px solid transparent;color:var(--ink-dim);font-family:inherit;font-size:10.5px;letter-spacing:.3px;padding:7px 2px;cursor:pointer}
@@ -66,15 +97,15 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .dpane,.rpane{display:none}
 .dpane.active,.rpane.active{display:block}
 /* icon grids inside a section, VCarve-style */
-.iconrow{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;width:100%;margin-bottom:2px}
-.tool{height:42px;width:auto;background:linear-gradient(#ffffff,#eef3f8);border:1px solid var(--btn-bd);border-radius:5px;color:#3a4756;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 1px rgba(20,40,70,.05);font-family:inherit;font-size:14px;line-height:1;padding:0}
-.tool b{font-size:14px;font-weight:400}
-.tool svg{display:block;pointer-events:none}
-.tb.iconbtn{width:40px;height:36px;padding:0;display:inline-flex;align-items:center;justify-content:center}
-.tb.iconbtn svg{display:block;pointer-events:none}
-.tool .tlabel{display:none}
-.tool:hover{background:linear-gradient(#f0f6fc,#dbe7f4);color:#1d2733;border-color:#9fb1c6}
-.tool.active{background:var(--accent-soft);border-color:var(--accent-bd);color:var(--accent)}
+/* auto-fill: a wider dock fits more tiles per row instead of just stretching them */
+.iconrow{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:4px;width:100%}
+.tb{background:linear-gradient(#ffffff,#eef3f8);border:1px solid var(--btn-bd);border-radius:4px;color:var(--ink);font-family:inherit;font-size:11px;padding:4px 10px;cursor:pointer}
+.tb:hover{background:linear-gradient(#f0f6fc,#dbe7f4);border-color:#9fb1c6}
+.tool,.tb.iconbtn{min-height:62px;background:linear-gradient(#ffffff,#eef3f8);border:1px solid var(--btn-bd);border-radius:6px;color:var(--ink);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:3px;box-shadow:0 1px 1px rgba(20,40,70,.05);padding:5px 2px 4px;line-height:1}
+.tool svg,.tb.iconbtn svg{display:block;flex:none;pointer-events:none}
+.tlabel{display:block;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:11px;font-weight:500;line-height:1.1;text-align:center;pointer-events:none}
+.tool:hover,.tb.iconbtn:hover{background:linear-gradient(#f0f6fc,#dbe7f4);color:#1d2733;border-color:#9fb1c6}
+.tool.active{background:var(--accent-soft);border-color:var(--accent-bd);box-shadow:inset 0 0 0 1px var(--accent-bd);color:var(--accent)}
 /* form-in-panel: a tool's options take over the dock, like VCarve */
 .tform{display:none}
 .tform.active{display:block}
@@ -84,7 +115,7 @@ body{background:var(--bg-chrome);color:var(--ink);font-family:'JetBrains Mono','
 .tfbody .grp:first-child{border-top:none;padding-top:0;margin-top:0}
 .formfoot{display:flex;gap:6px;justify-content:flex-end;border:1px solid var(--bd);border-top:none;border-radius:0 0 6px 6px;background:var(--bg-head);padding:7px 9px}
 .formfoot .tb.primary{background:linear-gradient(var(--accent-bright),#178a54);border-color:var(--accent-bd);color:#fff}
-.formhint{width:100%;font-size:10px;color:var(--ink-dim);line-height:1.35}
+.formhint{width:100%;font-size:11px;color:var(--ink-dim);line-height:1.35}
 .stage{grid-area:stage;position:relative;overflow:hidden}
 .stage.split #cv,.stage.split #hud{width:50%}
 .asmpane{position:absolute;top:0;bottom:0;right:0;width:50%;display:none;border-left:2px solid var(--bd);background:#edf1f6}
@@ -157,8 +188,8 @@ body.dark .asmpane{background:#1c212b}
 .sectn.collapsed h3 .caret{transform:rotate(-90deg)}
 .sectn.collapsed .body{display:none}
 .sectn .body{padding:8px 9px;display:flex;flex-wrap:wrap;gap:5px}
-.ldock .tb,.rdock .tb,.tfbody .tb{font-size:10px;padding:4px 7px}
-.ldock label,.rdock label{display:flex;align-items:center;gap:3px;font-size:9.5px;color:var(--ink-dim);text-transform:uppercase}
+.ldock .tb:not(.iconbtn),.rdock .tb:not(.iconbtn),.tfbody .tb:not(.iconbtn){font-size:11px;padding:4px 8px}
+.ldock label,.rdock label{display:flex;align-items:center;gap:3px;font-size:10.5px;color:var(--ink-dim);text-transform:none}
 .ldock input.calc,.rdock input.calc,.ldock input[type=number],.ldock input[type=text],.ldock select,.rdock input[type=number],.rdock input[type=text],.rdock select{background:var(--bg-input);border:1px solid var(--btn-bd);color:var(--ink);border-radius:3px;padding:3px 4px;font-family:inherit;font-size:11px}
 .ldock input:focus,.rdock input:focus,.ldock select:focus,.rdock select:focus{outline:none;border-color:var(--accent-bd)}
 .pos{display:flex;gap:8px;align-items:flex-start;margin:4px 0 2px}
@@ -227,9 +258,9 @@ body.dark{--bg-chrome:#1c2129;--bg-card:#232a34;--bg-head:#2a323e;--bg-input:#16
 body.dark .tb{background:linear-gradient(#2c3541,#222a34);color:#dbe4ee;box-shadow:none}
 body.dark .tb:hover{background:linear-gradient(#34404e,#28323d);border-color:#5a6b80;color:#fff}
 body.dark .tb:active{background:#1c2430}
-body.dark .tool,body.dark .agrid .ab{background:linear-gradient(#2c3541,#222a34);color:#dbe4ee;box-shadow:none}
-body.dark .tool:hover,body.dark .agrid .ab:hover{background:linear-gradient(#34404e,#28323d);color:#fff;border-color:#5a6b80}
-body.dark .tool.active{background:var(--accent-soft);color:var(--accent)}
+body.dark .tool,body.dark .tb.iconbtn,body.dark .agrid .ab{background:linear-gradient(#2c3541,#222a34);color:#dbe4ee;box-shadow:none}
+body.dark .tool:hover,body.dark .tb.iconbtn:hover,body.dark .agrid .ab:hover{background:linear-gradient(#34404e,#28323d);color:#fff;border-color:#5a6b80}
+body.dark .tool.active{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent-bd);color:var(--accent)}
 body.dark .agrid .ab::after{background:#5a6b80}
 body.dark .dockhead,body.dark .rfoot,body.dark .status{background:linear-gradient(#232a34,#1c2129)}
 body.dark .prow,body.dark .qrow,body.dark .keys-table td{color:#c3cfdc}
@@ -301,6 +332,15 @@ body.dark .qrow.picked{background:#3a2a1c}
 .cam-hint.warn{color:#b06a00}
 .status{grid-area:status;display:flex;align-items:center;gap:16px;padding:0 12px;background:linear-gradient(#e7ecf3,#dde4ed);border-top:1px solid var(--bd);font-size:10.5px;color:var(--ink-dim)}
 .status .v{color:var(--val)}
+.status{white-space:nowrap;overflow:hidden}
+#msg{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.status>*{flex:none}
+.status>#msg{flex:0 1 auto}
+.uisize{display:inline-flex}
+.uisize .tb{font-size:10px;padding:1px 6px;border-radius:0;margin-left:-1px}
+.uisize .tb:first-child{border-radius:3px 0 0 3px;margin-left:0}
+.uisize .tb:last-child{border-radius:0 3px 3px 0}
+#uiPct{min-width:42px}
 #btnCamGen{border-color:var(--accent-bd);color:#fff;background:linear-gradient(var(--accent-bright),#178a54)}
 #btnCamGen:hover{background:linear-gradient(#23a86a,#15804d);color:#fff}
 
@@ -335,7 +375,8 @@ body.dark .qrow.picked{background:#3a2a1c}
     <div class="menu" data-menu="view">View<div class="mdrop">
       <button data-act="v2d">2D View</button><button data-act="v3d">3D View</button><button data-act="vasm">2D + 3D Assembly</button><div class="msep"></div>
       <button data-act="fit">Zoom to Fit</button><button data-act="fitjob">Zoom to Job</button><div class="msep"></div>
-      <button data-act="rulers"><span class="chk">✓</span>Rulers</button><button data-act="dark"><span class="chk"></span>Dark Mode</button></div></div>
+      <button data-act="rulers"><span class="chk">✓</span>Rulers</button><button data-act="dark"><span class="chk"></span>Dark Mode</button><div class="msep"></div>
+      <button data-act="uiup">Larger Interface</button><button data-act="uidown">Smaller Interface</button><button data-act="uireset">Reset Interface Size and Panels</button></div></div>
     <div class="menu" data-menu="help">Help<div class="mdrop">
       <div class="hs"><input type="text" id="helpSearch" placeholder="Search menus, tools, forms…  (Ctrl+K)" autocomplete="off"></div>
       <div class="hres" id="helpResults"></div>
@@ -351,47 +392,16 @@ body.dark .qrow.picked{background:#3a2a1c}
     <button class="tb" id="btnKeys" style="display:none"></button><button class="tb" id="btnSelfTest" style="display:none"></button>
   </div>
 
+  <div class="dockgrip l" id="gripL" data-tip="Drag to resize this panel. Double-click to reset."></div>
+  <div class="dockgrip r" id="gripR" data-tip="Drag to resize this panel. Double-click to reset."></div>
   <div class="ldock">
     <div class="dockhead"><span id="ldockTitle">Drawing</span><span class="pin">▣</span></div>
     <div class="dockbody">
-      <div class="dpane active" id="paneDrawing"><div class="secgrp"><h3>File Operations</h3>
-          <button class="tb" id="btnNew" data-tip="New job: clear all vectors, layers and toolpaths">New</button>
-          <button class="tb" id="btnImport" data-tip="Open an .aqcam project / .aqtpl template / .aqclip clipart, a VCarve or Aspire .crv / .crv3d, or import DXF, SVG, vector PDF or a bitmap">Open / Import</button>
-          <button class="tb" id="btnSaveProj" data-tip="Save this job (Ctrl+S) &#8212; writes back to the opened file in Chrome/Edge">Save</button>
-          <button class="tb" id="btnSaveAs" data-tip="Save As&#8230; (Ctrl+Shift+S) &#8212; pick a folder and file name">Save As&#8230;</button>
-          <button class="tb" id="btnTrace" data-tip="Trace the imported bitmap into cuttable vectors">Trace Bitmap&#8230;</button>
-          <button class="tb" id="btnExpDXF" data-tip="Export design as DXF">Export DXF</button>
-          <button class="tb" id="btnExpSVG" data-tip="Export design as SVG">Export SVG</button>
-        </div><div class="secgrp"><h3>2D View Control</h3><button class="tb" id="btnFit" data-tip="Fit view to all (F)">Fit</button><button class="tb" id="btnFitJob" data-tip="Zoom to the material">Fit job</button><label><input type="checkbox" id="chkGrid" checked>Grid</label><label>step<input type="number" id="gridStep" value="0.5" step="0.25" min="0.0625" style="width:48px"></label><label data-tip="Always snap to the grid. Off: the cursor is free to 0.0001&quot; and holding S snaps to the grid"><input type="checkbox" id="chkSnap">Grid-snap</label><label><input type="checkbox" id="chkObjSnap" checked>Obj-snap</label><label data-tip="Shift while dragging a rotate grip snaps the angle to this increment">Rot &#176;<input type="number" id="rotSnap" value="5" step="1" min="0.1" style="width:40px"></label></div><div class="secgrp"><h3>Create Vectors</h3><div class="iconrow"><button class="tool" data-tool="line" data-tip="Line &#8212; click start, click end (L)" title="Line (L)"><b>&#9585;</b><span class="tlabel">Line</span></button><button class="tool" data-tool="polyline" data-tip="Polyline &#8212; click points, Enter to finish (P)" title="Polyline (P)"><b>&#10187;</b><span class="tlabel">Polyline</span></button><button class="tool" data-tool="bezier" data-tip="Curve &#8212; click anchors, drag to pull handles (B)" title="Curve (B)"><b>&#8767;</b><span class="tlabel">Curve</span></button><button class="tool" data-tool="rect" data-tip="Rectangle &#8212; drag opposite corners (R)" title="Rectangle (R)"><b>&#9645;</b><span class="tlabel">Rect</span></button><button class="tool" data-tool="rrect" data-tip="Rounded rectangle &#8212; corner radius in the tool form" title="Rounded rectangle"><b>&#9634;</b><span class="tlabel">Round</span></button><button class="tool" data-tool="circle" data-tip="Circle &#8212; centre then radius (C)" title="Circle (C)"><b>&#9711;</b><span class="tlabel">Circle</span></button></div><div class="iconrow"><button class="tool" data-tool="ellipse" data-tip="Ellipse &#8212; drag the bounding box (E)" title="Ellipse (E)"><b>&#11053;</b><span class="tlabel">Ellipse</span></button><button class="tool" data-tool="arc" data-tip="Arc &#8212; centre, start, end (A)" title="Arc (A)"><b>&#9692;</b><span class="tlabel">Arc</span></button><button class="tool" data-tool="polygon" data-tip="Polygon &#8212; sides in the tool form (G)" title="Polygon (G)"><b>&#11040;</b><span class="tlabel">Polygon</span></button><button class="tool" data-tool="star" data-tip="Star &#8212; points in the tool form" title="Star"><b>&#9733;</b><span class="tlabel">Star</span></button><button class="tool" data-tool="text" data-tip="Draw Text &#8212; single-stroke or TTF outline (T)" title="Text (T)"><b>T</b><span class="tlabel">Text</span></button><button class="tool" data-tool="dim" data-tip="Dimension &#8212; a drawn annotation, never machined (D)" title="Dimension (D)"><b>&#8676;</b><span class="tlabel">Dim</span></button></div><div class="iconrow"><button class="tool" data-tool="measure" data-tip="Measure distance / dx,dy / angle (M)" title="Measure (M)"><b>&#8596;</b><span class="tlabel">Measure</span></button><button class="tool" data-tool="pan" data-tip="Pan the view &#8212; drag (or &#8984;/Alt-drag with any tool)" title="Pan"><b>&#9995;</b><span class="tlabel">Pan</span></button></div></div><div class="secgrp"><h3>Transform Objects</h3><div class="iconrow"><button class="tool" data-tool="select" data-tip="Select / move / scale / rotate (V)" title="Select (V)"><b>&#9636;</b><span class="tlabel">Select</span></button></div>
-          
-          <button class="tb" id="btnMirrorH" data-tip="Mirror horizontally">Mirror H</button>
-          <button class="tb" id="btnMirrorV" data-tip="Mirror vertically">Mirror V</button>
-          <button class="tb" id="btnRotate" data-tip="Rotate selection by an exact angle, CW or CCW, about any of 9 pivot points (corners included)">Rotate&#8230;</button>
-          <button class="tb" id="btnRot90" data-tip="Rotate 90 degrees">Rotate 90&#176;</button>
-          <button class="tb" id="btnDup" data-tip="Duplicate selected">Duplicate</button>
-          
-          
-          
-          
-          
-        </div><div class="secgrp"><h3>Edit Objects</h3><div class="iconrow"><button class="tool" data-tool="node" data-tip="Node edit &#8212; drag points, dbl-click add/remove (N)" title="Node edit (N)"><b>&#11049;</b><span class="tlabel">Nodes</span></button><button class="tool" data-tool="fillet" data-tip="Fillet &#8212; click a corner to round it" title="Fillet"><b>&#9693;</b><span class="tlabel">Fillet</span></button><button class="tool" data-tool="trim" data-tip="Trim &#8212; click the dangling part of an open vector" title="Trim"><b>&#9986;</b><span class="tlabel">Trim</span></button><button class="tool" data-tool="extend" data-tip="Extend &#8212; stretch an open vector to the next one ahead" title="Extend"><b>&#8866;</b><span class="tlabel">Extend</span></button></div>
-          
-          <button class="tb" id="btnGroup" data-tip="Group the selection (Cmd/Ctrl+G) &#8212; picks, moves and copies as one">Group</button><button class="tb" id="btnUngroup" data-tip="Ungroup (Cmd/Ctrl+Shift+G)">Ungroup</button>
-          <button class="tb" id="btnJoin" data-tip="Join touching vectors into contours">Join</button>
-          <button class="tb" id="btnUnion" data-tip="Weld &#8212; merge into one (union)">Weld &#8746;</button>
-          <button class="tb" id="btnDiff" data-tip="Subtract later shapes from first">Subtract</button>
-          <button class="tb" id="btnInt" data-tip="Keep only overlap (intersect)">Intersect</button>
-          <button class="tb" id="btnDelete" data-tip="Delete selected (Del)">Delete</button>
-          <button class="tb" id="btnFitCurves" data-tip="Fit Curves &#8212; rebuild jagged vectors from lines and true arcs">Fit Curves&#8230;</button>
-          <button class="tb" id="btnCheckVec" data-tip="Find open, duplicate or self-intersecting vectors and select them">Vector Validator</button>
-        </div><div class="secgrp"><h3>Align Objects</h3><button class="tb" id="btnAlignL">Left</button><button class="tb" id="btnAlignHC">H-Ctr</button><button class="tb" id="btnAlignR">Right</button><button class="tb" id="btnAlignT">Top</button><button class="tb" id="btnAlignVC">V-Ctr</button><button class="tb" id="btnAlignB">Bottom</button></div><div class="secgrp"><h3>Offset and Layout</h3><button class="tb" id="btnOffset" data-tip="Offset selected by a distance">Offset</button><button class="tb" id="btnArray" data-tip="Grid array (rows x cols)">Array Copy</button><button class="tb" id="btnNestForm" data-tip="Pack shapes onto sheets to minimise waste">Nesting…</button></div><div class="sectn"><h3>Selection</h3><div class="body" id="props"><div class="muted">No selection</div></div></div>
+      <div class="dpane active" id="paneDrawing"><div class="secgrp"><h3>File</h3><div class="iconrow"><button class="tb iconbtn" id="btnNew" data-tip="New job: clear all vectors, layers and toolpaths" data-icon="new">New</button><button class="tb iconbtn" id="btnImport" data-tip="Open an .aqcam project / .aqtpl template / .aqclip clipart, a VCarve or Aspire .crv / .crv3d, or import DXF, SVG, vector PDF or a bitmap" data-icon="open">Open</button><button class="tb iconbtn" id="btnSaveProj" data-tip="Save this job (Ctrl+S) &#8212; writes back to the opened file in Chrome/Edge" data-icon="save">Save</button><button class="tb iconbtn" id="btnSaveAs" data-tip="Save As&#8230; (Ctrl+Shift+S) &#8212; pick a folder and file name" data-icon="saveas">Save As</button><button class="tb iconbtn" id="btnTrace" data-tip="Trace the imported bitmap into cuttable vectors" data-icon="tracebmp">Trace Image</button><button class="tb iconbtn" id="btnExpDXF" data-tip="Export design as DXF" data-icon="expdxf">Export DXF</button><button class="tb iconbtn" id="btnExpSVG" data-tip="Export design as SVG" data-icon="expsvg">Export SVG</button></div></div><div class="secgrp"><h3>Select &amp; View</h3><div class="iconrow"><button class="tool" data-tool="select" data-tip="Select / move / scale / rotate (V)" title="Select (V)"><span class="tlabel">Select</span></button><button class="tool" data-tool="pan" data-tip="Pan the view &#8212; drag (or &#8984;/Alt-drag with any tool)" title="Pan"><span class="tlabel">Pan</span></button><button class="tool" data-tool="measure" data-tip="Measure distance / dx,dy / angle (M)" title="Measure (M)"><span class="tlabel">Measure</span></button><button class="tb iconbtn" id="btnFit" data-tip="Fit view to all (F)" data-icon="fit">Fit All</button><button class="tb iconbtn" id="btnFitJob" data-tip="Zoom to the material" data-icon="fitjob">Fit Job</button></div><div class="optrow"><label><input type="checkbox" id="chkGrid" checked>Grid</label><label>step<input type="number" id="gridStep" value="0.5" step="0.25" min="0.0625" style="width:48px"></label><label data-tip="Always snap to the grid. Off: the cursor is free to 0.0001&quot; and holding S snaps to the grid"><input type="checkbox" id="chkSnap">Grid-snap</label><label><input type="checkbox" id="chkObjSnap" checked>Obj-snap</label><label data-tip="Shift while dragging a rotate grip snaps the angle to this increment">Rot &#176;<input type="number" id="rotSnap" value="5" step="1" min="0.1" style="width:40px"></label></div></div><div class="secgrp"><h3>Draw Shapes</h3><div class="iconrow"><button class="tool" data-tool="rect" data-tip="Rectangle &#8212; drag opposite corners (R)" title="Rectangle (R)"><span class="tlabel">Rectangle</span></button><button class="tool" data-tool="rrect" data-tip="Rounded rectangle &#8212; corner radius in the tool form" title="Rounded rectangle"><span class="tlabel">Rounded</span></button><button class="tool" data-tool="circle" data-tip="Circle &#8212; centre then radius (C)" title="Circle (C)"><span class="tlabel">Circle</span></button><button class="tool" data-tool="ellipse" data-tip="Ellipse &#8212; drag the bounding box (E)" title="Ellipse (E)"><span class="tlabel">Ellipse</span></button><button class="tool" data-tool="polygon" data-tip="Polygon &#8212; sides in the tool form (G)" title="Polygon (G)"><span class="tlabel">Polygon</span></button><button class="tool" data-tool="star" data-tip="Star &#8212; points in the tool form" title="Star"><span class="tlabel">Star</span></button></div></div><div class="secgrp"><h3>Draw Lines &amp; Text</h3><div class="iconrow"><button class="tool" data-tool="line" data-tip="Line &#8212; click start, click end (L)" title="Line (L)"><span class="tlabel">Line</span></button><button class="tool" data-tool="polyline" data-tip="Polyline &#8212; click points, Enter to finish (P)" title="Polyline (P)"><span class="tlabel">Polyline</span></button><button class="tool" data-tool="bezier" data-tip="Curve &#8212; click anchors, drag to pull handles (B)" title="Curve (B)"><span class="tlabel">Curve</span></button><button class="tool" data-tool="arc" data-tip="Arc &#8212; centre, start, end (A)" title="Arc (A)"><span class="tlabel">Arc</span></button><button class="tool" data-tool="text" data-tip="Draw Text &#8212; single-stroke or TTF outline (T)" title="Text (T)"><span class="tlabel">Text</span></button><button class="tool" data-tool="dim" data-tip="Dimension &#8212; a drawn annotation, never machined (D)" title="Dimension (D)"><span class="tlabel">Dimension</span></button></div></div><div class="secgrp"><h3>Move, Copy &amp; Layout</h3><div class="iconrow"><button class="tb iconbtn" id="btnMirrorH" data-tip="Mirror horizontally" data-icon="mirrorh">Mirror H</button><button class="tb iconbtn" id="btnMirrorV" data-tip="Mirror vertically" data-icon="mirrorv">Mirror V</button><button class="tb iconbtn" id="btnRotate" data-tip="Rotate selection by an exact angle, CW or CCW, about any of 9 pivot points (corners included)" data-icon="rotate">Rotate</button><button class="tb iconbtn" id="btnRot90" data-tip="Rotate 90 degrees" data-icon="rot90">Rotate 90</button><button class="tb iconbtn" id="btnDup" data-tip="Duplicate selected" data-icon="duplicate">Duplicate</button><button class="tb iconbtn" id="btnArray" data-tip="Grid array (rows x cols)" data-icon="array">Array</button><button class="tb iconbtn" id="btnNestForm" data-tip="Pack shapes onto sheets to minimise waste" data-icon="nest">Nesting</button></div></div><div class="secgrp"><h3>Edit Shapes</h3><div class="iconrow"><button class="tool" data-tool="node" data-tip="Node edit &#8212; drag points, dbl-click add/remove (N)" title="Node edit (N)"><span class="tlabel">Nodes</span></button><button class="tool" data-tool="fillet" data-tip="Fillet &#8212; click a corner to round it" title="Fillet"><span class="tlabel">Fillet</span></button><button class="tool" data-tool="trim" data-tip="Trim &#8212; click the dangling part of an open vector" title="Trim"><span class="tlabel">Trim</span></button><button class="tool" data-tool="extend" data-tip="Extend &#8212; stretch an open vector to the next one ahead" title="Extend"><span class="tlabel">Extend</span></button><button class="tb iconbtn" id="btnJoin" data-tip="Join touching vectors into contours" data-icon="join">Join</button><button class="tb iconbtn" id="btnOffset" data-tip="Offset selected by a distance" data-icon="offset">Offset</button><button class="tb iconbtn" id="btnFitCurves" data-tip="Fit Curves &#8212; rebuild jagged vectors from lines and true arcs" data-icon="fitcurves">Fit Curves</button><button class="tb iconbtn" id="btnCheckVec" data-tip="Find open, duplicate or self-intersecting vectors and select them" data-icon="validate">Validate</button><button class="tb iconbtn" id="btnDelete" data-tip="Delete selected (Del)" data-icon="del">Delete</button></div></div><div class="secgrp"><h3>Combine</h3><div class="iconrow"><button class="tb iconbtn" id="btnGroup" data-tip="Group the selection (Cmd/Ctrl+G) &#8212; picks, moves and copies as one" data-icon="group">Group</button><button class="tb iconbtn" id="btnUngroup" data-tip="Ungroup (Cmd/Ctrl+Shift+G)" data-icon="ungroup">Ungroup</button><button class="tb iconbtn" id="btnUnion" data-tip="Weld &#8212; merge into one (union)" data-icon="weld">Weld</button><button class="tb iconbtn" id="btnDiff" data-tip="Subtract later shapes from first" data-icon="subtract">Subtract</button><button class="tb iconbtn" id="btnInt" data-tip="Keep only overlap (intersect)" data-icon="intersect">Intersect</button></div></div><div class="secgrp"><h3>Align</h3><div class="iconrow"><button class="tb iconbtn" id="btnAlignL" data-icon="alignL" data-tip="Align left edges">Left</button><button class="tb iconbtn" id="btnAlignHC" data-icon="alignHC" data-tip="Center horizontally">Center</button><button class="tb iconbtn" id="btnAlignR" data-icon="alignR" data-tip="Align right edges">Right</button><button class="tb iconbtn" id="btnAlignT" data-icon="alignT" data-tip="Align top edges">Top</button><button class="tb iconbtn" id="btnAlignVC" data-icon="alignVC" data-tip="Center vertically">Middle</button><button class="tb iconbtn" id="btnAlignB" data-icon="alignB" data-tip="Align bottom edges">Bottom</button></div></div><div class="sectn selpanel"><h3>Selection</h3><div class="body" id="props"><div class="muted">No selection</div></div></div>
       </div>
       <div class="dpane" id="paneClipart"><div class="sectn"><h3>Clipart Library</h3><div class="body">
           <label data-tip="Filter the library by category">Cat<select id="clipCat" style="max-width:118px"></select></label>
-          <button class="tb" id="btnClipAdd" data-tip="Add the selected closed vectors to the clipart library">+ Selection</button>
-          <button class="tb" id="btnClipDel" data-tip="Delete the highlighted custom shape (built-ins can't be deleted)">Del</button>
-          <button class="tb" id="btnClipExport" data-tip="Export your custom clipart as an .aqclip file">&#10515;</button>
-          <button class="tb" id="btnClipImport" data-tip="Import an .aqclip clipart file">&#10514;</button>
+          <div class="iconrow"><button class="tb iconbtn" id="btnClipAdd" data-tip="Add the selected closed vectors to the clipart library" data-icon="clipadd">Add Selection</button><button class="tb iconbtn" id="btnClipDel" data-tip="Delete the highlighted custom shape (built-ins can't be deleted)" data-icon="del">Delete</button><button class="tb iconbtn" id="btnClipExport" data-tip="Export your custom clipart as an .aqclip file" data-icon="export">Export</button><button class="tb iconbtn" id="btnClipImport" data-tip="Import an .aqclip clipart file" data-icon="import">Import</button></div>
           <input type="file" id="clipInput" accept=".aqclip,.json" style="display:none">
           <div class="clipgrid" id="clipGrid"></div>
           <div class="formhint">Click a shape, then drag a box on the canvas to place it (a single click drops it 2&quot; wide).</div>
@@ -568,43 +578,15 @@ body.dark .qrow.picked{background:#3a2a1c}
     <div class="rtop">
       <div class="rpane active" id="paneOps">
         <div class="secgrp"><h3>Material Setup</h3>
-          <button class="tb" id="btnJobForm" data-tip="Set material size, thickness and the XY datum">Set …</button>
-          <div class="formhint" id="matSummary">—</div>
-          <div class="formhint" id="matDatum">XY Datum</div>
+          <div class="matrow"><button class="tb iconbtn" id="btnJobForm" data-tip="Set material size, thickness and the XY datum" data-icon="setup">Job Setup</button><div class="matinfo"><div class="formhint" id="matSummary">&#8212;</div><div class="formhint" id="matDatum">XY Datum</div></div></div>
           <div class="side-only" style="display:none;width:100%;margin-top:4px"><span class="muted" style="font-size:10px">Working side</span>
             <div style="display:flex;gap:3px;margin-top:2px"><button class="tb sidebtn" data-side="top" data-tip="Draw and toolpath the top side">Top</button><button class="tb sidebtn" data-side="bottom" data-tip="Draw and toolpath the bottom side (after the flip)">Bottom</button></div></div>
         </div>
-        <div class="secgrp"><h3>Toolpath Operations</h3>
-          <div class="iconrow" style="grid-template-columns:repeat(5,1fr)">
-            <button class="tool opbtn" data-op="profile" data-tip="Profile Toolpath" title="Profile"><b>&#9723;</b></button>
-            <button class="tool opbtn" data-op="pocket" data-tip="Pocket Toolpath" title="Pocket"><b>&#9635;</b></button>
-            <button class="tool opbtn" data-op="drill" data-tip="Drilling Toolpath" title="Drill"><b>&#9678;</b></button>
-            <button class="tool opbtn" data-op="vcarve" data-tip="V-Carve / Engraving Toolpath" title="V-Carve"><b>&#9660;</b></button>
-            <button class="tool opbtn" data-op="inlay" data-tip="Inlay Toolpath" title="Inlay"><b>&#9707;</b></button>
-          </div>
-          <div class="iconrow" style="grid-template-columns:repeat(5,1fr)">
-            <button class="tool opbtn" data-op="chamfer" data-tip="Chamfer Toolpath &#8212; V-bit bevel along an edge" title="Chamfer"><b>&#9698;</b></button>
-            <button class="tool opbtn" data-op="engrave" data-tip="Quick Engrave &#8212; V-bit along vectors, sharp corners" title="Quick Engrave"><b>&#10002;</b></button>
-            <button class="tool opbtn" data-op="fluting" data-tip="Fluting Toolpath &#8212; ramped grooves" title="Fluting"><b>&#8741;</b></button>
-            <button class="tool opbtn" data-op="prism" data-tip="Prism Carving &#8212; raised bevelled shapes" title="Prism"><b>&#9650;</b></button>
-            <button class="tool opbtn" data-op="moulding" data-tip="Moulding Toolpath &#8212; sweep a profile along a rail" title="Moulding"><b>&#8766;</b></button>
-          </div>
-          <div class="iconrow" style="grid-template-columns:repeat(5,1fr)">
-            <button class="tb" id="btnTplApply" data-tip="Apply the selected toolpath template">Tpl ▶</button>
-            <button class="tb" id="btnTplSave" data-tip="Save the toolpath list as a template">Tpl +</button>
-            <button class="tb" id="btnRecalcAll" data-tip="Recompute the backplot for every visible toolpath">Preview</button>
-            <button class="tb" id="btnPostJob" data-tip="Post all toolpaths as one .tap">Save ⤓</button>
-            
-          </div>
-          <label data-tip="A saved machining recipe — toolpath settings with no geometry" style="width:100%;margin-top:4px">Template<select id="tplLib" style="flex:1;min-width:0"></select></label>
-          <div style="display:flex;gap:3px;margin-top:3px;width:100%"><button class="tb" id="btnTplDel" data-tip="Delete the selected template">Del</button><button class="tb" id="btnTplExport" data-tip="Export the selected template as an .aqtpl file">&#10515;</button><button class="tb" id="btnTplImport" data-tip="Import an .aqtpl template file">&#10514;</button></div>
-          </label>
-          <div style="display:flex;gap:4px;margin-top:3px">
-            
-            
-            
-          </div>
-        </div>
+        <div class="secgrp"><h3>Cut &amp; Clear</h3><div class="iconrow"><button class="tool opbtn" data-op="profile" data-tip="Profile Toolpath" title="Profile"><span class="tlabel">Profile</span></button><button class="tool opbtn" data-op="pocket" data-tip="Pocket Toolpath" title="Pocket"><span class="tlabel">Pocket</span></button><button class="tool opbtn" data-op="drill" data-tip="Drilling Toolpath" title="Drill"><span class="tlabel">Drill</span></button><button class="tool opbtn" data-op="chamfer" data-tip="Chamfer Toolpath &#8212; V-bit bevel along an edge" title="Chamfer"><span class="tlabel">Chamfer</span></button></div></div>
+        <div class="secgrp"><h3>V-Bit Carving</h3><div class="iconrow"><button class="tool opbtn" data-op="vcarve" data-tip="V-Carve / Engraving Toolpath" title="V-Carve"><span class="tlabel">V-Carve</span></button><button class="tool opbtn" data-op="engrave" data-tip="Quick Engrave &#8212; V-bit along vectors, sharp corners" title="Quick Engrave"><span class="tlabel">Engrave</span></button><button class="tool opbtn" data-op="inlay" data-tip="Inlay Toolpath" title="Inlay"><span class="tlabel">Inlay</span></button></div></div>
+        <div class="secgrp"><h3>Decorative</h3><div class="iconrow"><button class="tool opbtn" data-op="fluting" data-tip="Fluting Toolpath &#8212; ramped grooves" title="Fluting"><span class="tlabel">Fluting</span></button><button class="tool opbtn" data-op="prism" data-tip="Prism Carving &#8212; raised bevelled shapes" title="Prism"><span class="tlabel">Prism</span></button><button class="tool opbtn" data-op="moulding" data-tip="Moulding Toolpath &#8212; sweep a profile along a rail" title="Moulding"><span class="tlabel">Moulding</span></button></div></div>
+        <div class="secgrp"><h3>Preview &amp; Output</h3><div class="iconrow"><button class="tb iconbtn" id="btnRecalcAll" data-tip="Recompute the backplot for every visible toolpath" data-icon="preview">Preview</button><button class="tb iconbtn" id="btnPostJob" data-tip="Post all toolpaths as one .tap" data-icon="post">Save Toolpaths</button></div></div>
+        <div class="secgrp"><h3>Templates</h3><div class="iconrow"><button class="tb iconbtn" id="btnTplApply" data-tip="Apply the selected toolpath template" data-icon="tplapply">Apply</button><button class="tb iconbtn" id="btnTplSave" data-tip="Save the toolpath list as a template" data-icon="tplsave">Save New</button><button class="tb iconbtn" id="btnTplDel" data-tip="Delete the selected template" data-icon="tpldel">Delete</button><button class="tb iconbtn" id="btnTplExport" data-tip="Export the selected template as an .aqtpl file" data-icon="export">Export</button><button class="tb iconbtn" id="btnTplImport" data-tip="Import an .aqtpl template file" data-icon="import">Import</button></div><div class="optrow"><label data-tip="A saved machining recipe — toolpath settings with no geometry" style="width:100%;margin-top:4px">Template<select id="tplLib" style="flex:1;min-width:0"></select></label></div></div>
       </div>
       <div class="rpane" id="paneCamForm"><div class="tform" data-form="cam"><h4 id="camFormTitle">Profile Toolpath</h4><div class="tfbody">
           <div class="grp">Cutting depths</div>
@@ -698,8 +680,9 @@ body.dark .qrow.picked{background:#3a2a1c}
     <span>Pos <span class="v" id="coords">0, 0 in</span></span>
     <span><span class="v" id="zoomlbl"></span></span>
     <span id="msg" class="v"></span>
-    <button class="tb" id="btnUnits" title="Units: inches / millimetres (the drawing is unchanged)" style="margin-left:auto;font-size:10px;padding:1px 7px">in</button><button class="tb" id="btnTheme" title="Switch to dark mode" style="font-size:10px;padding:1px 7px">☾ Dark</button>
-    <span class="ver" id="appVer" title="Build version">v0.4.0 · build 261031.0806</span>
+    <span class="uisize" style="margin-left:auto"><button class="tb" id="btnUiDown" data-tip="Make the menus, panels and buttons smaller">A&#8722;</button><button class="tb" id="uiPct" data-tip="Interface size. Click to reset to the default">100%</button><button class="tb" id="btnUiUp" data-tip="Make the menus, panels and buttons larger">A+</button></span>
+    <button class="tb" id="btnUnits" title="Units: inches / millimetres (the drawing is unchanged)" style="font-size:10px;padding:1px 7px">in</button><button class="tb" id="btnTheme" title="Switch to dark mode" style="font-size:10px;padding:1px 7px">☾ Dark</button>
+    <span class="ver" id="appVer" title="Build version">v0.4.0 · build 261110.0643</span>
   </div>
 </div>
 <div id="tip"></div>
@@ -19338,6 +19321,128 @@ const CRVPARSE = {
 
 </script>
 <script>
+// ---- dock icon set ---------------------------------------------------------------
+// Full-colour 48x48 pictures, one per command. Each shows what the command DOES: the CAM icons
+// are a cut through real material with the actual cutter in it, the CAD icons the shape with its
+// grab points. Outlines use --ic-ink so they follow light / dark mode; fills come from the shared
+// gradients injected by ICON_DEFS. Every button also gets a text label (see paintIcons).
+const IG=n=>'url(#ig-'+n+')';
+const ICON_GRADS={ blue:['#7cc0f5','#2b7cc9'], sky:['#e0f0fd','#a6cff2'], green:['#7fdca6','#23955b'], amber:['#ffdc7a','#e9a321'],
+  red:['#f7968a','#d33a2e'], purple:['#c4a9f0','#7a4fc9'], teal:['#74dad4','#14918c'], steel:['#f2f5f8','#8f9dad'], slate:['#a7b6c7','#5c6f84'],
+  wood:['#e9c48a','#bd8a47'], woodtop:['#f8e6c4','#e7c78f'], paper:['#ffffff','#dce6f0'], skin:['#ffe0b8','#f0b478'], dark:['#6b4c2e','#3f2b18'] };
+const ICON_DEFS='<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" style="position:absolute" aria-hidden="true"><defs>'+
+  Object.keys(ICON_GRADS).map(n=>'<linearGradient id="ig-'+n+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+ICON_GRADS[n][0]+'"/><stop offset="1" stop-color="'+ICON_GRADS[n][1]+'"/></linearGradient>').join('')+
+  '</defs></svg>';
+const ICON_SVG=(inner,size)=>'<svg class="ic" viewBox="0 0 48 48" width="'+(size||34)+'" height="'+(size||34)+'" fill="none" stroke="var(--ic-ink)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+inner+'</svg>';
+
+// drawing primitives
+const iP=(d,f,x)=>'<path d="'+d+'"'+(f?' fill="'+f+'"':'')+(x?' '+x:'')+'/>';
+const iR=(x,y,w,h,f,e)=>'<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'"'+(f?' fill="'+f+'"':'')+(e?' '+e:'')+'/>';
+const iC=(x,y,r,f,e)=>'<circle cx="'+x+'" cy="'+y+'" r="'+r+'"'+(f?' fill="'+f+'"':'')+(e?' '+e:'')+'/>';
+const iT=(x,y,s,f,t)=>'<text x="'+x+'" y="'+y+'" font-size="'+s+'" font-family="system-ui,Arial,sans-serif" font-weight="800" text-anchor="middle" fill="'+f+'" stroke="none">'+t+'</text>';
+const iH=(x,y)=>iR(x-2.8,y-2.8,5.6,5.6,'#fff','rx="1" stroke="#d9820a" stroke-width="1.7"');   // a grab point on a shape
+const iO=(x,y)=>iC(x,y,3,'#fff','stroke="#d9820a" stroke-width="1.7"');                         // a curve control handle
+const iDash='stroke-dasharray="3.4 3"';
+const iLine=(d,c,w,e)=>iP(d,'','stroke="'+c+'" stroke-width="'+(w||2.4)+'"'+(e?' '+e:''));
+const iBadge=(x,y,c,mark)=>iC(x,y,9.5,IG(c),'stroke="#fff" stroke-width="1.6"')+iLine(mark,'#fff',3);
+const iPlus=(x,y)=>iBadge(x,y,'green','M'+(x-5)+' '+y+' H'+(x+5)+' M'+x+' '+(y-5)+' V'+(y+5));
+// cutters, drawn with the tip at (x, tip)
+const iEndmill=(x,tip,top,w)=>{ top=top==null?2:top; w=w||10; return iR(x-w/2,top,w,tip-top,IG('steel'),'rx="1.5"')+iLine('M'+(x-w/2)+' '+(tip-5)+' L'+(x+w/2)+' '+(tip-11)+' M'+(x-w/2)+' '+(tip-12)+' L'+(x+w/2)+' '+(tip-18),'var(--ic-ink)',1.3); };
+const iVbit=(x,tip,hw,h,top)=>{ top=top==null?2:top; return iR(x-4.5,top,9,tip-h-top,IG('steel'),'rx="1.2"')+iP('M'+(x-hw)+' '+(tip-h)+' H'+(x+hw)+' L'+x+' '+tip+'Z',IG('steel')); };
+const iDoc=iP('M9 4 H30 L40 14 V45 H9 Z',IG('paper'))+iP('M30 4 V14 H40',IG('sky'));
+const iTag=(c,t)=>iR(4,25,33,15,IG(c),'rx="2.5"')+iT(20.5,36.6,11,'#fff',t);
+const iFloppy=iP('M6 6 H36 L42 12 V42 H6 Z',IG('blue'))+iR(15,6,16,11,IG('steel'))+iR(28,8,3,7,'var(--ic-ink)','stroke="none"')+iR(13,26,22,16,IG('paper'))+iLine('M17 31 H31 M17 36.5 H31','var(--ic-ink)',1.4);
+const iClip=iR(9,8,30,37,IG('paper'),'rx="3"')+iR(17,3,14,9,IG('slate'),'rx="2"')+iLine('M15 20 H33 M15 26 H27','#7f90a4',2);
+const iAlign=(guide,dash,a,b)=>iR(a[0],a[1],a[2],a[3],IG('blue'),'rx="1.6"')+iR(b[0],b[1],b[2],b[3],IG('amber'),'rx="1.6"')+iLine(guide,'#d33a2e',3,dash?iDash:'');
+const iThree=(s,c,t)=>iR(s[0],s[1],16,16,IG('blue'),'rx="2"')+iC(c[0],c[1],8,IG('green'))+iP('M'+t[0]+' '+t[1]+' l9 15 h-18 Z',IG('amber'));
+const iCircles=iC(17,24,13,'','opacity=".55"')+iC(31,24,13,'','opacity=".55"');
+const iArrowR=(x,y,len,c)=>iLine('M'+x+' '+y+' H'+(x+len)+' M'+(x+len-4.5)+' '+(y-4.5)+' L'+(x+len)+' '+y+' L'+(x+len-4.5)+' '+(y+4.5),c||'#23955b',3);
+
+const ICONS={
+  // ---- select and view ----
+  select:  iR(17,15,27,27,'rgba(43,124,201,.12)','stroke="#2b7cc9" '+iDash)+iP('M6 4 V33 L13.6 26.4 L18.8 38 L24.6 35.4 L19.4 23.8 H29 Z',IG('blue')),
+  pan:     iP('M16 25 V12 a3.2 3.2 0 0 1 6.4 0 V23 V8.5 a3.2 3.2 0 0 1 6.4 0 V23 V11 a3.2 3.2 0 0 1 6.4 0 V25 V16 a3.2 3.2 0 0 1 6.4 0 V32 c0 8 -6 13 -13.5 13 c-6.5 0 -9.5 -2.5 -13 -8 L7.5 29 c-2 -3.5 2.5 -6.5 5.5 -4 Z',IG('skin')),
+  measure: iLine('M6 7 V19 M42 7 V19','#2b7cc9',2.4)+iLine('M7 13 H41 M12 8.6 L7 13 L12 17.4 M36 8.6 L41 13 L36 17.4','#2b7cc9',2.4)+iR(3,24,42,17,IG('amber'),'rx="2"')+iP('M10 24 V32 M17 24 V36 M24 24 V32 M31 24 V36 M38 24 V32'),
+  fit:     iLine('M5 15 V5 H15 M33 5 H43 V15 M43 33 V43 H33 M15 43 H5 V33','#2b7cc9',3.2)+iP('M24 11 L28 20 L37 20.6 L30 26.6 L32.4 36 L24 31 L15.6 36 L18 26.6 L11 20.6 L20 20 Z',IG('amber')),
+  fitjob:  iLine('M4 13 V4 H13 M35 4 H44 V13 M44 35 V44 H35 M13 44 H4 V35','#2b7cc9',3.2)+iR(11,13,26,22,IG('wood')),
+  // ---- draw shapes ----
+  rect:    iR(6,11,36,26,IG('blue'))+iH(6,11)+iH(42,11)+iH(6,37)+iH(42,37),
+  rrect:   iR(6,11,36,26,IG('blue'),'rx="9"')+iLine('M6 20 A9 9 0 0 1 15 11','#ffdc7a',3.4)+iH(15,11)+iH(6,20),
+  circle:  iC(24,24,19,IG('blue'))+iLine('M24 24 L37.4 10.6','#fff',2.2)+iC(24,24,2.4,'#fff','stroke="none"')+iH(37.4,10.6),
+  ellipse: iP('M3 24 a21 13.5 0 1 0 42 0 a21 13.5 0 1 0 -42 0 Z',IG('blue'))+iLine('M3 24 H45 M24 10.5 V37.5','#fff',1.6,iDash)+iH(45,24)+iH(24,10.5),
+  polygon: iP('M24 4 L41.5 14 V34 L24 44 L6.5 34 V14 Z',IG('blue'))+iH(24,4)+iH(41.5,14)+iH(41.5,34)+iH(24,44)+iH(6.5,34)+iH(6.5,14),
+  star:    iP('M24 3.5 L30.2 17.2 L45 18.8 L34 28.8 L37.2 43.5 L24 36 L10.8 43.5 L14 28.8 L3 18.8 L17.8 17.2 Z',IG('amber')),
+  // ---- draw lines and text ----
+  line:    iLine('M9 39 L39 9','#2b7cc9',4)+iH(9,39)+iH(39,9),
+  polyline:iLine('M6 40 L16 15 L30 31 L42 8','#2b7cc9',3.6)+iH(6,40)+iH(16,15)+iH(30,31)+iH(42,8),
+  bezier:  iLine('M6 39 L13 11 M42 31 L33 9','#8c9cb0',1.7)+iLine('M6 39 C13 11 33 9 42 31','#2b7cc9',3.8)+iH(6,39)+iH(42,31)+iO(13,11)+iO(33,9),
+  arc:     iLine('M24 37 L6 33 M24 37 L42 33','#8c9cb0',1.7,iDash)+iLine('M6 33 A18.6 18.6 0 0 1 42 33','#2b7cc9',4)+iC(24,37,2.6,'#d33a2e','stroke="none"')+iH(6,33)+iH(42,33),
+  text:    '<text x="24" y="37" font-size="33" font-family="Georgia,\'Times New Roman\',serif" font-weight="700" text-anchor="middle" fill="url(#ig-blue)" stroke="var(--ic-ink)" stroke-width="1">Aa</text>',
+  dim:     iP('M6 22 V44 M42 22 V44')+iLine('M8 36 H40 M13.5 31.4 L8 36 L13.5 40.6 M34.5 31.4 L40 36 L34.5 40.6','#d33a2e',2.4)+iR(11,6,26,17,IG('paper'),'rx="2"')+iT(24,19,12.5,'#d33a2e','2.50'),
+  // ---- move, copy, layout ----
+  mirrorh: iP('M20 9 V39 H4 Z',IG('blue'))+iP('M28 9 V39 H44 Z','rgba(43,124,201,.2)','stroke="#2b7cc9" '+iDash)+iLine('M24 3 V45','#d33a2e',2.6,iDash),
+  mirrorv: iP('M9 20 H39 V4 Z',IG('blue'))+iP('M9 28 H39 V44 Z','rgba(43,124,201,.2)','stroke="#2b7cc9" '+iDash)+iLine('M3 24 H45','#d33a2e',2.6,iDash),
+  rotate:  iR(12,20,20,20,'','stroke="#8c9cb0" '+iDash)+iR(14,18,20,20,IG('blue'),'transform="rotate(24 24 28)"')+iLine('M8 16 A21 21 0 0 1 40 16','#23955b',3.2)+iLine('M40 8 L40.6 16.4 L32.4 15.6','#23955b',3.2),
+  rot90:   iR(9,18,26,26,IG('blue'),'rx="2"')+iT(22,35.5,12.5,'#fff','90&#176;')+iLine('M9 11 A17 17 0 0 1 39 21','#23955b',3.2)+iLine('M33.4 18.2 L39.4 22 L43 16','#23955b',3.2),
+  duplicate:iR(4,4,27,27,IG('sky'),'rx="3"')+iR(14,14,30,30,IG('blue'),'rx="3"')+iLine('M29 22 V36 M22 29 H36','#fff',3.4),
+  array:   [[4,4,'amber'],[18,4,'blue'],[32,4,'blue'],[4,18,'blue'],[18,18,'blue'],[32,18,'blue'],[4,32,'blue'],[18,32,'blue'],[32,32,'blue']].map(c=>iR(c[0],c[1],12,12,IG(c[2]),'rx="2"')).join(''),
+  nest:    iR(3,5,42,38,IG('wood'))+iR(7,9,16,13,IG('blue'),'rx="1.5"')+iC(34,16,8,IG('green'))+iP('M7 26 H26 V39 H7 Z',IG('amber'))+iP('M30 39 L37 26 L44 39 Z',IG('red'),'transform="translate(-2 0)"'),
+  // ---- edit ----
+  node:    iLine('M5 37 C13 7 31 7 43 27','#2b7cc9',3.4)+iH(5,37)+iH(43,27)+iR(19.5,10.5,8,8,IG('amber'),'rx="1.2"')+iP('M27 21 V43 L32.4 38.6 L36 46 L40 44.2 L36.4 37 H43 Z',IG('paper')),
+  fillet:  iLine('M8 42 V8 H42','#8c9cb0',2.2,iDash)+iLine('M8 42 V27 A19 19 0 0 1 27 8 H42','#2b7cc9',4.2)+iLine('M27 27 L14 14 M14 21 V14 H21','#d9820a',2.6)+iC(27,27,2.6,'#d9820a','stroke="none"'),
+  trim:    iLine('M9 4 L33 32','var(--ic-ink)',4.6)+iLine('M39 4 L15 32','var(--ic-ink)',4.6)+iLine('M9.6 4.6 L32.6 31.4','#cdd6df',2.2)+iLine('M38.4 4.6 L15.4 31.4','#cdd6df',2.2)+iC(11,38,7,'#fff','stroke="#d33a2e" stroke-width="4"')+iC(37,38,7,'#fff','stroke="#d33a2e" stroke-width="4"'),
+  extend:  iR(38,4,7,40,IG('slate'),'rx="1.5"')+iLine('M4 24 H20','#2b7cc9',4.4)+iLine('M20 24 H34','#23955b',3.4,iDash)+iLine('M28.4 17.6 L35 24 L28.4 30.4','#23955b',3.4)+iH(4.5,24),
+  join:    iLine('M4 42 C13 42 13 27 21 27','#2b7cc9',3.8)+iLine('M44 42 C35 42 35 27 27 27','#23955b',3.8)+iLine('M7 11 H17 M13 6.6 L17.6 11 L13 15.4 M41 11 H31 M35 6.6 L30.4 11 L35 15.4','#d9820a',3)+iC(24,27,5.4,IG('amber'))+iH(4.5,42)+iH(43.5,42),
+  offset:  iR(4,5,40,38,'','rx="9" stroke="#d9820a" stroke-width="2.6" '+iDash)+iR(14,15,20,18,IG('blue'),'rx="2"')+iLine('M34 24 H43 M39.2 20 L43.4 24 L39.2 28','#23955b',2.6),
+  fitcurves:iLine('M4 37 L10 24 L16 31 L22 15 L29 22 L35 11 L44 15','#a3afbd',2.2)+iLine('M4 39 C15 12 30 29 44 9','#2b7cc9',4)+iH(4,39)+iH(44,9),
+  validate:iP('M24 3.5 L41.5 10 V24 C41.5 34.5 33 41.5 24 45 C15 41.5 6.5 34.5 6.5 24 V10 Z',IG('green'))+iLine('M14.5 24 L21.5 31.5 L34 16.5','#fff',4.4),
+  del:     iP('M11 14 L13.4 45 H34.6 L37 14 Z',IG('red'))+iR(5,8.5,38,6,IG('slate'),'rx="2"')+iP('M18 8.5 V4 H30 V8.5')+iLine('M19 21 V38 M24 21 V38 M29 21 V38','#fff',2.2),
+  // ---- combine ----
+  group:   iR(3,3,42,42,'rgba(217,130,10,.1)','stroke="#d9820a" stroke-width="2.4" '+iDash)+iThree([9,9],[32,17],[21,27])+iH(3,3)+iH(45,3)+iH(3,45)+iH(45,45),
+  ungroup: iThree([3,3],[37,11],[24,29])+iLine('M23 20 L9 34 M9 26.6 V34 H16.4','#d33a2e',3),
+  weld:    iP('M24 13.05 A13 13 0 1 1 24 34.95 A13 13 0 1 1 24 13.05 Z',IG('green'))+iLine('M24 13.05 A13 13 0 0 0 24 34.95','#fff',1.6,iDash),
+  subtract:iC(31,24,13,'','stroke="#d33a2e" stroke-width="2.2" '+iDash)+iP('M24 13.05 A13 13 0 1 0 24 34.95 A13 13 0 0 1 24 13.05 Z',IG('blue')),
+  intersect:iCircles+iP('M24 13.05 A13 13 0 0 1 24 34.95 A13 13 0 0 1 24 13.05 Z',IG('amber')),
+  // ---- align ----
+  alignL:  iAlign('M6 3 V45',0,[11,9,31,12],[11,27,19,12]),
+  alignHC: iAlign('M24 3 V45',1,[8,9,32,12],[14,27,20,12]),
+  alignR:  iAlign('M42 3 V45',0,[6,9,31,12],[18,27,19,12]),
+  alignT:  iAlign('M3 6 H45',0,[9,11,12,31],[27,11,12,19]),
+  alignVC: iAlign('M3 24 H45',1,[9,8,12,32],[27,14,12,20]),
+  alignB:  iAlign('M3 42 H45',0,[9,6,12,31],[27,18,12,19]),
+  // ---- file ----
+  'new':   iDoc+iPlus(35.5,36.5),
+  open:    iP('M4 41 V8 H18 L23 13 H41 V21',IG('amber'))+iP('M4 41 L11 21 H47 L40 41 Z',IG('amber')),
+  save:    iFloppy,
+  saveas:  iFloppy+iP('M27 46 L28.6 38.4 L41 26 L47 32 L34.6 44.4 Z',IG('amber'),'stroke="#fff" stroke-width="1.5"'),
+  tracebmp:iR(3,5,29,25,IG('sky'),'rx="2"')+iP('M3 28 L13 15 L20 23 L25 18 L32 26 V30 H3 Z',IG('green'),'stroke="none"')+iC(25,11,3,IG('amber'),'stroke="none"')+iLine('M13 43 C25 43 36 37 44 18','#7a4fc9',3.8)+iH(13,43)+iH(44,18)+iO(33,36),
+  expdxf:  iDoc+iTag('red','DXF')+iArrowR(30,41,15),
+  expsvg:  iDoc+iTag('purple','SVG')+iArrowR(30,41,15),
+  // ---- job, output, templates, clipart ----
+  setup:   iR(13,5,32,29,IG('wood'))+iLine('M13 41 H43 M38.5 36.6 L43 41 L38.5 45.4','#d33a2e',2.8)+iLine('M5 34 V5 M.6 9.5 L5 5 L9.4 9.5','#23955b',2.8)+iC(13,34,3.6,'#d33a2e','stroke="#fff" stroke-width="1.4"'),
+  preview: iP('M2.5 24 C12 7 36 7 45.5 24 C36 41 12 41 2.5 24 Z',IG('sky'))+iC(24,24,10.5,IG('blue'))+iC(24,24,4.4,'#14324f','stroke="none"')+iC(27.4,20.6,2.2,'#fff','stroke="none"'),
+  post:    iDoc+iTag('green','TAP')+iArrowR(30,41,15),
+  tplapply:iClip+iP('M18 30 L18 42 L30 36 Z',IG('green')),
+  tplsave: iClip+iPlus(35.5,36.5),
+  tpldel:  iClip+iBadge(35.5,36.5,'red','M31.5 32.5 L39.5 40.5 M39.5 32.5 L31.5 40.5'),
+  'export':iLine('M6 31 V43 H42 V31','#5c6f84',3.4)+iLine('M24 34 V6 M14 15 L24 5 L34 15','#23955b',4),
+  'import':iLine('M6 31 V43 H42 V31','#5c6f84',3.4)+iLine('M24 5 V33 M14 24 L24 34 L34 24','#2b7cc9',4),
+  clipadd: iP('M21 3.5 L26.4 15.4 L39.4 16.8 L29.8 25.6 L32.6 38.4 L21 31.8 L9.4 38.4 L12.2 25.6 L2.6 16.8 L15.6 15.4 Z',IG('amber'))+iPlus(36.5,37),
+  // ---- toolpath operations: the material, the cutter, and the cut it leaves ----
+  profile: iR(3,12,42,34,IG('wood'))+iR(13,22,20,15,IG('woodtop'),'rx="2"')+iR(8.5,17.5,29,24,'','rx="5" stroke="#d33a2e" stroke-width="3" '+iDash)+iEndmill(37.5,23,1,9),
+  pocket:  iP('M3 20 H12 V34 H36 V20 H45 V46 H3 Z',IG('wood'))+iEndmill(24,34,2,13)+iLine('M4 29 H10 M38 29 H44','#a97a3b',1.3),
+  drill:   iP('M3 20 H45 V46 H3 Z',IG('wood'))+iR(9,20,8,20,IG('dark'))+iR(29,20,8,20,IG('dark'))+iR(29,3,8,25,IG('steel'),'rx="1"')+iP('M29 28 H37 L33 37 Z',IG('steel'))+iLine('M29 11 L37 7 M29 18 L37 14 M29 25 L37 21','var(--ic-ink)',1.3),
+  vcarve:  iP('M3 22 H12 L24 41 L36 22 H45 V46 H3 Z',IG('wood'))+iVbit(24,40,11,17),
+  engrave: iR(3,15,42,31,IG('woodtop'))+iLine('M9 40 L17 22 L25 40 M12.4 33.5 H21.6','#6b4c2e',3.4)+iLine('M25 40 C30 40 35 37 37 32','#d33a2e',2.2,iDash)+iVbit(37,31,6.5,13,1),
+  inlay:   iP('M3 28 H13 L18 40 H30 L35 28 H45 V46 H3 Z',IG('wood'))+iP('M12 4 H36 L30 18 H18 Z',IG('purple'))+iLine('M24 20 V33 M19.6 28.6 L24 33 L28.4 28.6','#23955b',3.2),
+  chamfer: iP('M3 20 H28 L43 35 V46 H3 Z',IG('wood'))+iLine('M28 20 L43 35','#d33a2e',3.4)+iVbit(36,29,10,15,2),
+  fluting: iR(4,4,40,40,IG('wood'))+[13,24,35].map(x=>iP('M'+x+' 8 Q'+(x+5.6)+' 24 '+x+' 40 Q'+(x-5.6)+' 24 '+x+' 8 Z',IG('dark'),'stroke-width="1"')).join(''),
+  prism:   iP('M5 7 H43 L30 24 H18 Z',IG('woodtop'))+iP('M43 7 V41 L30 24 Z',IG('wood'))+iP('M5 41 H43 L30 24 H18 Z',IG('dark'))+iP('M5 7 V41 L18 24 Z',IG('amber'))+iLine('M18 24 H30','var(--ic-ink)',2.4),
+  moulding:iP('M4 44 V27 C10 27 10 17 16 17 C20 17 20 12 24 12 V44 Z',IG('wood'))+iP('M4 27 C10 27 10 17 16 17 C20 17 20 12 24 12 L44 4 C40 4 40 9 36 9 C30 9 30 19 24 19 L4 27 Z',IG('woodtop'))+iP('M24 12 L44 4 V36 L24 44 Z',IG('dark'),'opacity=".9"'),
+};
+
+</script>
+<script>
 /* ===================== Aquamentor CAD/CAM Studio app ===================== */
 'use strict';
 const TAU = Math.PI*2;
@@ -19766,6 +19871,7 @@ const MENU_ACTIONS={
   'recalc':()=>recalcAll(), 'post':()=>postJob(),
   'v2d':()=>setView('2d'), 'v3d':()=>setView('preview'),
   'rulers':()=>{ setRulers(!rulers); syncViewMenu(); }, 'dark':()=>{ setTheme(!darkMode); syncViewMenu(); },
+  'uiup':()=>setUiScale(uiScale+UI_STEP), 'uidown':()=>setUiScale(uiScale-UI_STEP), 'uireset':()=>resetInterface(),
   'fit':()=>fitAll(), 'fitjob':()=>fitJob(),
   'keys':()=>{document.getElementById('keysModal').style.display='block';},
   'selftest':()=>runSelfTest()
@@ -19786,8 +19892,9 @@ function buildHelpIndex(){ const idx=[]; const seen=new Set();
   document.querySelectorAll('.opbtn[data-op]').forEach(b=>add(b.title||b.dataset.op, 'Toolpath operation', ()=>{ openCamForm(b.dataset.op); flashEl(b); }, b.dataset.tip||''));
   document.querySelectorAll('.tform[data-form] h4').forEach(h=>{ const f=h.parentElement.dataset.form; if(f==='cam')return; add(h.textContent.trim(), 'Form', ()=>{ showForm(f,'drawing'); flashEl(h); }); });
   document.querySelectorAll('.ldock .secgrp .tb[id], .rdock .secgrp .tb[id], .rfoot label').forEach(b=>{ const pane=b.closest('.dpane'); const sec=b.closest('.secgrp'); const secName=sec&&sec.querySelector('h3')?sec.querySelector('h3').textContent.trim():'';
-    const label=b.dataset.tip&&b.textContent.trim().length<3?b.dataset.tip:b.textContent.trim(); if(!label)return;
-    add(label, (secName||'Panel'), ()=>{ if(pane){ const tab=pane.id.replace(/^pane/,'').toLowerCase(); setCmdTab(tab); } flashEl(b); }, b.dataset.tip||''); });
+    const text=(b.querySelector('.tlabel')||b).textContent.trim();   // a tile's name, not the words drawn inside its icon
+    const label=b.dataset.tip&&text.length<3?b.dataset.tip:text; if(!label)return;
+    add(label, (secName||'Panel'), ()=>{ if(pane){ const tab=pane.id.replace(/^pane/,'').toLowerCase(); setCmdTab(tab); } if(sec) sec.classList.remove('collapsed'); flashEl(b); }, b.dataset.tip||''); });
   document.querySelectorAll('.dtab').forEach(b=>add(b.textContent.trim()+' tab', 'Left dock', ()=>{ setCmdTab(b.dataset.ctab); flashEl(b); }));
   add('Layers','Left dock',()=>{ setCmdTab('layers'); flashEl(document.getElementById('layerList')); },'layer add rename color delete');
   add('Job Size and Position','Edit menu',()=>{ showForm('job','drawing'); flashEl(document.querySelector('.tform[data-form="job"] h4')); },'material thickness datum origin');
@@ -19856,129 +19963,75 @@ function createFromForm(kind){
   pushHistory(); addShapes([sh]); sel=new Set([sh.id]); render(); syncPanels();
   setMsg('Created '+kind+' · '+CADCORE.ANCHORS[modalAnchor].label+' at '+x.toFixed(3)+', '+y.toFixed(3));
 }
-// ---- tool icon set ------------------------------------------------------------
-// Hand-drawn 24x24 stroke glyphs on one weight, inheriting currentColor so they pick up the
-// button's hover/active state. Each one shows what the tool DOES (profile = an offset path around a
-// shape; pocket = concentric clearing rings; v-carve = a V groove section), rather than a letterform.
-// Icons carry their own colour on the <svg>, so currentColor inside resolves to it and the
-// button's active/hover background still reads underneath.
-const ICON_COL={
-  'new':'#2f7d32','open':'#2f7d32','save':'#2f7d32','tracebmp':'#7b52c9','expdxf':'#b06a00','expsvg':'#b06a00',
-  fit:'#1d6fb8', fitjob:'#1d6fb8',
-  line:'#1d6fb8',polyline:'#1d6fb8',bezier:'#1d6fb8',rect:'#1d6fb8',rrect:'#1d6fb8',circle:'#1d6fb8',
-  ellipse:'#1d6fb8',arc:'#1d6fb8',polygon:'#1d6fb8',star:'#c9971d',text:'#1d6fb8',dim:'#0f8a8a',
-  measure:'#0f8a8a',pan:'#4a6a8a',select:'#7b52c9',
-  mirrorh:'#7b52c9',mirrorv:'#7b52c9',rot90:'#7b52c9',duplicate:'#7b52c9',array:'#7b52c9',nest:'#b8501d',
-  node:'#0f8a8a',fillet:'#0f8a8a',trim:'#c0392b',extend:'#0f8a8a',
-  offset:'#b8501d',join:'#0f8a8a',weld:'#2f7d32',subtract:'#c0392b',intersect:'#1d6fb8',
-  del:'#c0392b',validate:'#2f7d32',
-  alignL:'#4a6a8a',alignHC:'#4a6a8a',alignR:'#4a6a8a',alignT:'#4a6a8a',alignVC:'#4a6a8a',alignB:'#4a6a8a',
-  profile:'#b8501d',pocket:'#1d6fb8',drill:'#2f7d32',vcarve:'#7b52c9',inlay:'#b8901d',chamfer:'#7b52c9',engrave:'#7b52c9',fluting:'#1d6fb8',prism:'#7b52c9',moulding:'#b8501d'
-};
-// Accent hue per icon: elements marked stroke/fill="var(--a)" pick it up, so each glyph reads
-// as two tones instead of one flat colour.
-const ICON_ACC={
-  'new':'#1d6fb8','open':'#c9971d','save':'#1d6fb8','tracebmp':'#1d6fb8','expdxf':'#2f7d32','expsvg':'#2f7d32',
-  fit:'#c9971d', fitjob:'#c9971d',
-  line:'#c9971d',polyline:'#c9971d',bezier:'#c9971d',rect:'#7b52c9',rrect:'#7b52c9',circle:'#7b52c9',
-  ellipse:'#7b52c9',arc:'#c9971d',polygon:'#7b52c9',star:'#b8501d',text:'#c9971d',dim:'#c0392b',
-  measure:'#c9971d',pan:'#1d6fb8',select:'#c9971d',
-  mirrorh:'#1d6fb8',mirrorv:'#1d6fb8',rot90:'#c9971d',duplicate:'#1d6fb8',array:'#1d6fb8',nest:'#2f7d32',
-  node:'#c9971d',fillet:'#c9971d',trim:'#4a6a8a',extend:'#c9971d',
-  offset:'#1d6fb8',join:'#c9971d',weld:'#1d6fb8',subtract:'#c0392b',intersect:'#2f7d32',
-  del:'#c0392b',validate:'#1d6fb8',
-  alignL:'#1d6fb8',alignHC:'#1d6fb8',alignR:'#1d6fb8',alignT:'#1d6fb8',alignVC:'#1d6fb8',alignB:'#1d6fb8',
-  profile:'#1d6fb8',pocket:'#c9971d',drill:'#c0392b',vcarve:'#c9971d',inlay:'#2f7d32',chamfer:'#c9971d',engrave:'#c0392b',fluting:'#c9971d',prism:'#c9971d',moulding:'#2f7d32'
-};
-const ICON_SVG=(inner,name,size)=>'<svg viewBox="0 0 24 24" width="'+(size||28)+'" height="'+(size||28)+'" fill="none" '+
-  'stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" '+
-  'style="color:'+((ICON_COL[name])||'#33414f')+';--a:'+((ICON_ACC[name])||'#c9971d')+'" aria-hidden="true">'+inner+'</svg>';
-const DOT=(x,y)=>'<circle cx="'+x+'" cy="'+y+'" r="1.7" fill="var(--a)" stroke="none"/>';
-const ICONS={
-  select:  '<path d="M6 3 L6 18 L10 14.2 L12.6 20 L15 19 L12.4 13.4 L17.5 13.4 Z" fill="currentColor" stroke="none"/>',
-  node:    '<path d="M4 17 C 8 7, 15 7, 20 13"/><rect x="2.4" y="15.4" width="3.2" height="3.2" fill="currentColor" stroke="none"/><rect x="18.4" y="11.4" width="3.2" height="3.2" fill="currentColor" stroke="none"/><rect x="10.4" y="7.6" width="3.2" height="3.2" fill="none"/>',
-  fillet:  '<path d="M4 20 V11 A7 7 0 0 1 11 4 H20"/><path d="M4 4 H11 M4 4 V11" stroke-dasharray="2 2" opacity=".5"/>',
-  trim:    '<path d="M6.5 3.5 L16.8 16.2"/><path d="M17.5 3.5 L7.2 16.2"/><circle cx="5.6" cy="18.6" r="2.5" fill="var(--a)" fill-opacity=".32" stroke="var(--a)"/><circle cx="18.4" cy="18.6" r="2.5" fill="var(--a)" fill-opacity=".32" stroke="var(--a)"/>',
-  extend:  '<path d="M3 12 H14"/><path d="M11 9 L14.5 12 L11 15"/><path d="M19 5 V19"/>',
-  line:    '<path d="M5.5 18.5 L18.5 5.5"/>'+DOT(5.5,18.5)+DOT(18.5,5.5),
-  polyline:'<path d="M4 18 L9 8.5 L14.5 14 L20 5.5"/>'+DOT(4,18)+DOT(20,5.5),
-  bezier:  '<path d="M4 18 C 8 7, 16 7, 20 13"/><path d="M4 18 L8.5 11" opacity=".5"/><path d="M20 13 L15.5 8" opacity=".5"/>'+DOT(4,18)+DOT(20,13)+DOT(8.5,11)+DOT(15.5,8),
-  rect:    '<rect x="3.5" y="6" width="17" height="12" fill="var(--a)" fill-opacity=".16"/>',
-  rrect:   '<rect x="3.5" y="6" width="17" height="12" rx="3.5" fill="var(--a)" fill-opacity=".16"/>',
-  circle:  '<circle cx="12" cy="12" r="8.2" fill="var(--a)" fill-opacity=".16"/>',
-  ellipse: '<ellipse cx="12" cy="12" rx="9" ry="6" fill="var(--a)" fill-opacity=".16"/>',
-  arc:     '<path d="M3.5 17.5 A 9.5 9.5 0 0 1 20.5 17.5"/>'+DOT(3.5,17.5)+DOT(20.5,17.5),
-  polygon: '<path d="M12 3.4 L20 8 L20 16 L12 20.6 L4 16 L4 8 Z" fill="var(--a)" fill-opacity=".16"/>',
-  star:    '<path d="M12 3 L14.5 9.4 L21.3 9.8 L16 14 L17.8 20.6 L12 16.8 L6.2 20.6 L8 14 L2.7 9.8 L9.5 9.4 Z" fill="currentColor" fill-opacity=".3"/>',
-  text:    '<path d="M4.5 6 H19.5"/><path d="M12 6 V19"/><path d="M9 19 H15"/>',
-  dim:     '<path d="M5 5.5 V13.5 M19 5.5 V13.5"/><path d="M5 18 H19"/><path d="M8 15.6 L5 18 L8 20.4 Z" fill="currentColor"/><path d="M16 15.6 L19 18 L16 20.4 Z" fill="currentColor"/>',
-  measure: '<rect x="2.6" y="9" width="18.8" height="6" rx="1"/><path d="M7 9 V12 M12 9 V13 M17 9 V12"/>',
-  pan:     '<path d="M12 3.5 V20.5 M3.5 12 H20.5"/><path d="M12 3.5 L9.6 6.4 M12 3.5 L14.4 6.4 M12 20.5 L9.6 17.6 M12 20.5 L14.4 17.6 M3.5 12 L6.4 9.6 M3.5 12 L6.4 14.4 M20.5 12 L17.6 9.6 M20.5 12 L17.6 14.4"/>',
-  // toolpath operations
-  profile: '<rect x="7" y="8" width="10" height="8" rx="1" fill="currentColor" fill-opacity=".2"/><rect x="3.6" y="4.6" width="16.8" height="14.8" rx="2.6" stroke-dasharray="3 2.2" stroke="var(--a)"/>',
-  pocket:  '<rect x="3.4" y="5.4" width="17.2" height="13.2" rx="1.4" fill="currentColor" fill-opacity=".16"/><rect x="6.3" y="8.3" width="11.4" height="7.4" rx="1" stroke="var(--a)"/><rect x="9.2" y="11.2" width="5.6" height="1.6" rx=".8" stroke="var(--a)"/>',
-  drill:   '<circle cx="12" cy="12" r="7.6" fill="currentColor" fill-opacity=".14"/><circle cx="12" cy="12" r="2.8" fill="var(--a)" stroke="none"/><path d="M12 1.8 V5 M12 19 V22.2 M1.8 12 H5 M19 12 H22.2" stroke="var(--a)"/>',
-  vcarve:  '<path d="M2.6 7 V17 H21.4 V7 Z" fill="currentColor" fill-opacity=".16"/><path d="M7.4 7 L12 15.6 L16.6 7 Z" fill="var(--a)" fill-opacity=".55" stroke="var(--a)"/>',
-  inlay:   '<path d="M2.8 18.4 V9 H8 L11 13.4 L14 9 H19.2 V18.4 Z" fill="currentColor" fill-opacity=".18"/><path d="M8 5.6 L11 1.6 L14 5.6 Z" fill="var(--a)" fill-opacity=".6" stroke="var(--a)"/>',
-  chamfer: '<path d="M2.6 20 V8.6 L6.2 5 H21.4 V20 Z" fill="currentColor" fill-opacity=".16"/><path d="M2.6 8.6 L6.2 5" stroke="var(--a)" stroke-width="2.4"/><path d="M8 2 L4.4 6.8 L9 7.2 Z" fill="var(--a)" fill-opacity=".6" stroke="var(--a)"/>',
-  engrave: '<path d="M3 17 L9 7 L15 17 L21 7" stroke="var(--a)" stroke-width="2.2"/><path d="M2.6 20.4 H21.4" stroke="currentColor"/>',
-  fluting: '<path d="M4 3 V21 M20 3 V21" stroke="currentColor"/><path d="M9 4.5 Q9 3 9.8 3 Q10.6 3 10.6 4.5 V19.5 Q10.6 21 9.8 21 Q9 21 9 19.5 Z M13.4 4.5 Q13.4 3 14.2 3 Q15 3 15 4.5 V19.5 Q15 21 14.2 21 Q13.4 21 13.4 19.5 Z" fill="var(--a)" fill-opacity=".5" stroke="var(--a)"/>',
-  prism:   '<path d="M2.6 19 H21.4" stroke="currentColor"/><path d="M4 19 L9 7 H15 L20 19 Z" fill="currentColor" fill-opacity=".14"/><path d="M4 19 L9 7 L12 13 L15 7 L20 19 M12 13 V19" stroke="var(--a)"/>',
-  moulding:'<path d="M2.6 19 V9 Q6 9 7 12 Q8.4 16 12 16 Q15.6 16 17 12 Q18 9 21.4 9 V19 Z" fill="currentColor" fill-opacity=".16"/><path d="M2.6 9 Q6 9 7 12 Q8.4 16 12 16 Q15.6 16 17 12 Q18 9 21.4 9" stroke="var(--a)" stroke-width="2"/>',
-  // ---- command buttons (File Operations / View / Transform / Edit / Align / Layout) ----
-  'new':     '<path d="M6 3.2 H14 L18.6 8 V20.8 H6 Z" fill="currentColor" fill-opacity=".12"/><path d="M14 3.2 V8 H18.6" stroke="var(--a)"/><path d="M9 13.4 H15.6 M12.3 10.1 V16.7" stroke="var(--a)"/>',
-  'open':    '<path d="M2.8 18.6 V6.4 H9.4 L11.4 8.8 H17.6 V11"/><path d="M2.8 18.6 L6.2 11 H21.6 L18.2 18.6 Z" fill="var(--a)" fill-opacity=".28" stroke="var(--a)"/>',
-  'save':    '<path d="M4 4.4 H17.2 L20 7.2 V19.6 H4 Z" fill="currentColor" fill-opacity=".12"/><path d="M7.4 4.4 V10 H15.6 V4.4" stroke="var(--a)"/><rect x="7.4" y="13.4" width="8.2" height="6.2" fill="var(--a)" fill-opacity=".3" stroke="var(--a)"/>',
-  'tracebmp':'<rect x="2.8" y="4.6" width="10.6" height="10.6" rx="1"/><path d="M5 12.6 L7.6 9.4 L9.6 11.6 L11.4 9.6" opacity=".65"/><path d="M9.6 20.4 C 13 20.4, 13.6 12.4, 21 12.4"/>'+DOT(9.6,20.4)+DOT(21,12.4),
-  'expdxf':  '<path d="M5 3.4 H12.6 L16.6 7.4 V13"/><path d="M12.6 3.4 V7.4 H16.6"/><path d="M5 3.4 V16.6 H10"/><path d="M13.6 20.2 L17.4 16.4 L21.2 20.2 Z"/><path d="M13.6 20.2 H21.2" opacity=".6"/>',
-  'expsvg':  '<path d="M5 3.4 H12.6 L16.6 7.4 V12"/><path d="M12.6 3.4 V7.4 H16.6"/><path d="M5 3.4 V16.6 H9.4"/><path d="M12 20.4 C 15 14.6, 18.6 20.4, 21.4 15"/>'+DOT(12,20.4)+DOT(21.4,15),
-  'fit':     '<rect x="3.2" y="5.4" width="17.6" height="13.2" rx="1.4" stroke-dasharray="2.6 2"/><path d="M8.6 10 L11.4 12.8 M8.6 14 V10 H12.6"/><path d="M15.4 14 L12.6 11.2 M15.4 10 V14 H11.4"/>',
-  'fitjob':  '<rect x="2.8" y="5" width="18.4" height="14" rx="1.4" stroke-dasharray="2.6 2"/><rect x="7.4" y="9" width="9.2" height="6" fill="currentColor" fill-opacity=".2"/>',
-  'mirrorh': '<path d="M12 2.6 V21.4" stroke-dasharray="2.4 2.2"/><path d="M9.4 6.4 L2.8 12 L9.4 17.6 Z"/><path d="M14.6 6.4 L21.2 12 L14.6 17.6 Z" fill="var(--a)" fill-opacity=".4" stroke="var(--a)"/>',
-  'mirrorv': '<path d="M2.6 12 H21.4" stroke-dasharray="2.4 2.2"/><path d="M6.4 9.4 L12 2.8 L17.6 9.4 Z"/><path d="M6.4 14.6 L12 21.2 L17.6 14.6 Z" fill="var(--a)" fill-opacity=".4" stroke="var(--a)"/>',
-  'rot90':   '<path d="M12 4.2 A7.8 7.8 0 1 1 4.6 14.6"/><path d="M8.4 2.2 L12 4.2 L8.4 6.6"/><rect x="9" y="9" width="6" height="6" fill="currentColor" fill-opacity=".22"/>',
-  'duplicate':'<rect x="3.2" y="7.4" width="11.6" height="11.6" rx="1"/><path d="M7.6 7.4 V4 H20.8 V17.2 H17.4" opacity=".7"/>',
-  'array':   '<rect x="3" y="3" width="6.4" height="6.4" fill="currentColor" fill-opacity=".28"/><rect x="14.6" y="3" width="6.4" height="6.4" fill="var(--a)" fill-opacity=".28" stroke="var(--a)"/><rect x="3" y="14.6" width="6.4" height="6.4" fill="var(--a)" fill-opacity=".28" stroke="var(--a)"/><rect x="14.6" y="14.6" width="6.4" height="6.4" fill="currentColor" fill-opacity=".28"/>',
-  'nest':    '<rect x="2.6" y="4" width="18.8" height="16" rx="1" stroke-dasharray="2.6 2"/><rect x="4.6" y="6" width="7.4" height="5.4" fill="currentColor" fill-opacity=".18"/><circle cx="17" cy="9.2" r="3.2" fill="currentColor" fill-opacity=".18"/><rect x="4.6" y="13.4" width="12" height="4.6" fill="currentColor" fill-opacity=".18"/>',
-  'offset':  '<rect x="7.6" y="8.6" width="8.8" height="6.8" rx="1"/><rect x="3.6" y="4.6" width="16.8" height="14.8" rx="3" stroke-dasharray="3 2.2" opacity=".8"/>',
-  'join':    '<path d="M3 17.4 C 6.4 17.4, 8.4 12, 11.6 12"/><path d="M21 17.4 C 17.6 17.4, 15.6 12, 12.4 12"/>'+DOT(12,12)+DOT(3,17.4)+DOT(21,17.4),
-  'weld':    '<circle cx="9.4" cy="12" r="5.6" fill="currentColor" fill-opacity=".34"/><circle cx="14.6" cy="12" r="5.6" fill="var(--a)" fill-opacity=".34" stroke="var(--a)"/>',
-  'subtract':'<circle cx="9.4" cy="12" r="5.6" fill="#1d6fb8" fill-opacity=".32" stroke="#1d6fb8"/><circle cx="14.6" cy="12" r="5.6" stroke-dasharray="2.4 2" stroke="var(--a)" fill="none"/>',
-  'intersect':'<circle cx="9.5" cy="12" r="5.5"/><circle cx="14.5" cy="12" r="5.5" stroke="var(--a)"/><path d="M12 7.1 A5.5 5.5 0 0 0 12 16.9 A5.5 5.5 0 0 0 12 7.1 Z" fill="var(--a)" fill-opacity=".6" stroke="none"/>',
-  'del':     '<path d="M4.4 6.6 H19.6"/><path d="M9.6 6.6 V4.2 H14.4 V6.6"/><path d="M6.4 6.6 L7.4 20.4 H16.6 L17.6 6.6" fill="currentColor" fill-opacity=".16"/><path d="M10.4 10 V17 M13.6 10 V17"/>',
-  'validate':'<path d="M2.8 16.6 C 6.6 16.6, 8.2 7.4, 12 7.4 C 14.6 7.4, 15.8 11, 17 13" opacity=".9"/><circle cx="16.4" cy="15.6" r="4.6"/><path d="M14.4 15.6 L15.9 17.1 L18.6 13.9"/>',
-  'alignL':  '<path d="M3.6 3.4 V20.6"/><rect x="6.6" y="6" width="13.4" height="4.4" fill="var(--a)" fill-opacity=".28"/><rect x="6.6" y="13.6" width="8.4" height="4.4" fill="currentColor" fill-opacity=".22"/>',
-  'alignR':  '<path d="M20.4 3.4 V20.6"/><rect x="4" y="6" width="13.4" height="4.4" fill="var(--a)" fill-opacity=".28"/><rect x="9" y="13.6" width="8.4" height="4.4" fill="currentColor" fill-opacity=".22"/>',
-  'alignHC': '<path d="M12 3.4 V20.6" stroke-dasharray="2.4 2"/><rect x="5.3" y="6" width="13.4" height="4.4" fill="var(--a)" fill-opacity=".28"/><rect x="7.8" y="13.6" width="8.4" height="4.4" fill="currentColor" fill-opacity=".22"/>',
-  'alignT':  '<path d="M3.4 3.6 H20.6"/><rect x="6" y="6.6" width="4.4" height="13.4" fill="var(--a)" fill-opacity=".28"/><rect x="13.6" y="6.6" width="4.4" height="8.4" fill="currentColor" fill-opacity=".22"/>',
-  'alignB':  '<path d="M3.4 20.4 H20.6"/><rect x="6" y="4" width="4.4" height="13.4" fill="var(--a)" fill-opacity=".28"/><rect x="13.6" y="9" width="4.4" height="8.4" fill="currentColor" fill-opacity=".22"/>',
-  'alignVC': '<path d="M3.4 12 H20.6" stroke-dasharray="2.4 2"/><rect x="6" y="5.3" width="4.4" height="13.4" fill="var(--a)" fill-opacity=".28"/><rect x="13.6" y="7.8" width="4.4" height="8.4" fill="currentColor" fill-opacity=".22"/>',
-};
-// Left-dock command buttons become icon buttons too, the way Aspire lays them out.
-// Their data-tip tooltips carry the naming, so nothing becomes unguessable.
-const ICON_BTNS={ btnNew:'new', btnImport:'open', btnSaveProj:'save', btnTrace:'tracebmp',
-  btnExpDXF:'expdxf', btnExpSVG:'expsvg', btnFit:'fit', btnFitJob:'fitjob',
-  btnMirrorH:'mirrorh', btnMirrorV:'mirrorv', btnRot90:'rot90', btnDup:'duplicate',
-  btnArray:'array', btnNestForm:'nest', btnOffset:'offset', btnJoin:'join', btnUnion:'weld',
-  btnDiff:'subtract', btnInt:'intersect', btnDelete:'del', btnCheckVec:'validate',
-  btnAlignL:'alignL', btnAlignHC:'alignHC', btnAlignR:'alignR',
-  btnAlignT:'alignT', btnAlignVC:'alignVC', btnAlignB:'alignB' };
+// ---- dock tiles ----------------------------------------------------------------
+// Every dock command is an icon tile with its name underneath: the picture comes from ICONS
+// (studio_icons.js), keyed by data-tool / data-op / data-icon; the name is the button's own text.
 function paintIcons(){
-  for(const id in ICON_BTNS){
-    const b=document.getElementById(id), g=ICONS[ICON_BTNS[id]];
-    if(!b||!g) continue;
-    if(!b.dataset.tip && b.textContent.trim()) b.dataset.tip=b.textContent.trim();
-    b.classList.add('iconbtn'); b.innerHTML=ICON_SVG(g, ICON_BTNS[id], 24);
-  }
-  document.querySelectorAll('.tool[data-tool]').forEach(b=>{
-    const g=ICONS[b.dataset.tool]; if(g) b.innerHTML=ICON_SVG(g, b.dataset.tool);
-  });
-  document.querySelectorAll('.opbtn[data-op]').forEach(b=>{
-    const g=ICONS[b.dataset.op]; if(g) b.innerHTML=ICON_SVG(g, b.dataset.op, 30);
+  document.body.insertAdjacentHTML('afterbegin', ICON_DEFS);
+  document.querySelectorAll('.tool[data-tool], .opbtn[data-op], .tb.iconbtn[data-icon]').forEach(b=>{
+    const g=ICONS[b.dataset.tool||b.dataset.op||b.dataset.icon]; if(!g) return;
+    const label=document.createElement('span'); label.className='tlabel'; label.textContent=b.textContent.trim();
+    b.innerHTML=ICON_SVG(g); b.appendChild(label);
   });
 }
+// Click a section bar to fold it; each section remembers its state.
+function initDockSections(){
+  document.querySelectorAll('.secgrp, .selpanel').forEach(sec=>{
+    const h=sec.querySelector(':scope > h3'); if(!h) return;
+    const key='aqcam.fold.'+h.textContent.trim();
+    try{ if(localStorage.getItem(key)==='1') sec.classList.add('collapsed'); }catch(e){}
+    h.onclick=()=>{ const c=sec.classList.toggle('collapsed'); try{ localStorage.setItem(key, c?'1':'0'); }catch(e){} };
+  });
+}
+// ---- interface size + dock widths -------------------------------------------------
+// --ui zooms the chrome only, never the drawing canvas, so canvas coordinates are unaffected.
+// Dock widths are held in unscaled px, so a panel keeps its proportions as the interface grows.
+const UI_DEFAULT=1.1, UI_MIN=0.9, UI_MAX=1.8, UI_STEP=0.1;
+const DOCK={ l:{ key:'aqcam.ldockW', css:'--ldock-w', def:290, min:190 }, r:{ key:'aqcam.rdockW', css:'--rdock-w', def:310, min:220 } };
+const DOCK_MAX=720, STAGE_MIN=320;
+function loadNum(key, dflt){ try{ const v=parseFloat(localStorage.getItem(key)); return isFinite(v)?v:dflt; }catch(e){ return dflt; } }
+function saveNum(key, v){ try{ localStorage.setItem(key, String(v)); }catch(e){} }
+let uiScale=Math.min(UI_MAX, Math.max(UI_MIN, loadNum('aqcam.uiScale', UI_DEFAULT)));
+DOCK.l.w=loadNum(DOCK.l.key, DOCK.l.def); DOCK.r.w=loadNum(DOCK.r.key, DOCK.r.def);
+const dockClamp=(d,w)=>Math.min(DOCK_MAX, Math.max(d.min, w));
+// Narrow window: give up dock width (never below the minimums) so the canvas keeps some room.
+// Saved widths are left alone, so the panels come back when the window does.
+function applyDockLayout(){
+  const room=Math.max(0, window.innerWidth-STAGE_MIN)/uiScale;
+  let l=dockClamp(DOCK.l, DOCK.l.w), r=dockClamp(DOCK.r, DOCK.r.w);
+  const over=l+r-room, sl=l-DOCK.l.min, sr=r-DOCK.r.min;
+  if(over>0 && sl+sr>0){ const k=Math.min(1, over/(sl+sr)); l-=sl*k; r-=sr*k; }
+  const st=document.documentElement.style;
+  st.setProperty('--ui', uiScale); st.setProperty(DOCK.l.css, l+'px'); st.setProperty(DOCK.r.css, r+'px');
+  window.dispatchEvent(new Event('resize'));   // canvas, 3D view and assembly view all re-fit on this
+}
+function setUiScale(v){
+  uiScale=Math.round(Math.min(UI_MAX, Math.max(UI_MIN, v))*100)/100; saveNum('aqcam.uiScale', uiScale);
+  const p=document.getElementById('uiPct'); if(p) p.textContent=Math.round(uiScale*100)+'%';
+  applyDockLayout();
+}
+function resetInterface(){ DOCK.l.w=DOCK.l.def; DOCK.r.w=DOCK.r.def; saveNum(DOCK.l.key,DOCK.l.w); saveNum(DOCK.r.key,DOCK.r.w); setUiScale(UI_DEFAULT); }
+function initDockGrips(){
+  const wireGrip=(el, side)=>{ const d=DOCK[side], other=DOCK[side==='l'?'r':'l']; let raf=0, want=d.w;
+    const widthAt=x=>(side==='l'? x : window.innerWidth-x)/uiScale;
+    el.addEventListener('pointerdown', e=>{ if(e.button!==0) return; e.preventDefault(); el.setPointerCapture(e.pointerId); el.classList.add('drag'); document.body.classList.add('dockdrag'); });
+    el.addEventListener('pointermove', e=>{ if(!el.classList.contains('drag')) return;
+      const room=(window.innerWidth-STAGE_MIN)/uiScale-dockClamp(other, other.w);   // never squeeze the canvas out
+      want=Math.min(Math.max(d.min, room), dockClamp(d, widthAt(e.clientX)));
+      if(!raf) raf=requestAnimationFrame(()=>{ raf=0; d.w=want; applyDockLayout(); }); });
+    const end=()=>{ if(!el.classList.contains('drag')) return; el.classList.remove('drag'); document.body.classList.remove('dockdrag'); saveNum(d.key, want); };
+    el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+    el.addEventListener('dblclick', ()=>{ d.w=want=d.def; saveNum(d.key, d.w); applyDockLayout(); });
+  };
+  wireGrip(document.getElementById('gripL'),'l'); wireGrip(document.getElementById('gripR'),'r');
+  document.getElementById('btnUiUp').onclick=()=>setUiScale(uiScale+UI_STEP);
+  document.getElementById('btnUiDown').onclick=()=>setUiScale(uiScale-UI_STEP);
+  document.getElementById('uiPct').onclick=()=>setUiScale(UI_DEFAULT);
+  window.addEventListener('resize', e=>{ if(e.isTrusted) applyDockLayout(); });   // a real window resize; ours are dispatched
+  setUiScale(uiScale);
+}
 function initCmdDock(){
-  paintIcons();
+  paintIcons(); initDockSections(); initDockGrips();
   const jd=document.getElementById('jobDims'); if(jd) jd.style.whiteSpace='pre';
   document.querySelectorAll('[data-create]').forEach(b=>b.onclick=()=>createFromForm(b.dataset.create));
   // Enter inside a draw form's field = Create (the canvas Enter shortcut is ignored while an input has focus)
