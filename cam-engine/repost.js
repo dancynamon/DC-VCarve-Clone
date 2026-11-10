@@ -32,9 +32,12 @@ function dxfToContours(text) {
   assertDxf(text, 'DXF');
   const ctx = loadDxfParser();
   const polys = [];
-  for (const e of ctx.parseDxf(text)) for (const p of ctx.entityToPolys(e)) polys.push(p);
+  const ents = ctx.parseDxf(text);
+  for (const e of ents) for (const p of ctx.entityToPolys(e)) polys.push(p);
   if (!polys.length) throw new Error('DXF parsed, but it contains no usable vectors');
-  return CAM.assembleContours(C.shapesToContoursInput(C.dxfPolysToShapes(polys)));
+  const contours = CAM.assembleContours(C.shapesToContoursInput(C.dxfPolysToShapes(polys)));
+  contours.report = ents.report;
+  return contours;
 }
 function repost(dxfText, opts) {
   const o = Object.assign({ op: 'profile', name: 'repost', post: 'shopsabre' }, opts || {});
@@ -47,8 +50,9 @@ function repost(dxfText, opts) {
   const job = CAM.orderPasses({ name: o.name, units: 'inch', ops: res.ops });
   const g = CAM.postProcess(job, CAM.POSTS[o.post] || CAM.POSTS.shopsabre);
   const passes = res.ops.reduce((n, op) => n + op.passes.length, 0);
+  const dxfLoss = (contours.report || []).filter(r => r.level !== 'info').map(r => `DXF: ${r.count} ${r.msg}`);
   return { gcode: g, contours: contours.length, closed: contours.filter(c => c.closed).length, passes,
-           warnings: res.warnings, arcs: (g.match(/^G[23] /gm) || []).length, lines: (g.match(/^G1 /gm) || []).length };
+           warnings: dxfLoss.concat(res.warnings), arcs: (g.match(/^G[23] /gm) || []).length, lines: (g.match(/^G1 /gm) || []).length };
 }
 
 // ---- job specs: several ops over hand-picked DXF vectors ----------------------------------------

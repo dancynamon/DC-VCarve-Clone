@@ -64,7 +64,7 @@ function studioParams(op, safeZ) {
 // -> { ops:[{name,p,guids}], report:[{code,level,msg,count,items}] }. Nothing is dropped without being named.
 function toStudioOps(tpd, opts) {
   opts = opts || {};
-  const present = new Set(opts.guids || []), ops = [], notConverted = [], noSelection = [], notes = [], rest = [];
+  const present = new Set(opts.guids || []), open = new Set(opts.openGuids || []), ops = [], notConverted = [], noSelection = [], notes = [], rest = [], openVectors = [];
   const clearDia = {};
   for (const tp of (tpd && tpd.toolpaths) || []) {
     const hadArea = tp.type === 'AreaClearToolpath';
@@ -73,8 +73,16 @@ function toStudioOps(tpd, opts) {
     const w = [];
     let op = null; try { op = toOp(tp, w); } catch (e) { w.push(`${tp.name}: ${e.message}`); }
     if (!op) { notConverted.push((tp.name || '(unnamed)') + (tp.type ? ' [' + tp.type + ']' : '')); continue; }
-    const guids = (tp.selection || []).filter(g => present.has(g));
+    let guids = (tp.selection || []).filter(g => present.has(g));
     if (!guids.length) { noSelection.push(tp.name); continue; }
+    // VCarve cuts an open vector to one side of its line, and the file does not say which. Cutting it on the line would be a quiet
+    // error of a full tool radius, so an inside/outside profile only keeps its closed vectors.
+    if (op.op === 'profile' && op.side !== 'on' && open.size) {
+      const kept = guids.filter(g => !open.has(g));
+      if (kept.length !== guids.length) openVectors.push(tp.name + ' (' + (guids.length - kept.length) + ' open vector' + (guids.length - kept.length > 1 ? 's' : '') + ')');
+      if (!kept.length) continue;
+      guids = kept;
+    }
     if (op.restOf) { rest.push(tp.name); delete op.restOf; delete op.finishWall; }
     const p = studioParams(op, opts.safeZ);
     if (tp.params && tp.params._pkpdDoRaster) p.pocketStyle = 'raster';
@@ -85,6 +93,7 @@ function toStudioOps(tpd, opts) {
   const report = [];
   if (notConverted.length) report.push({ code: 'TOOLPATH_NOT_CONVERTED', level: 'loss', msg: notConverted.length + ' saved toolpath(s) are of a kind this app cannot rebuild and were not imported', count: notConverted.length, items: notConverted.slice(0, 8) });
   if (noSelection.length) report.push({ code: 'TOOLPATH_NO_VECTORS', level: 'loss', msg: noSelection.length + ' saved toolpath(s) were not imported because their vectors are not in the drawing (deleted in VCarve, or on a layer that was not saved)', count: noSelection.length, items: noSelection.slice(0, 8) });
+  if (openVectors.length) report.push({ code: 'TOOLPATH_OPEN_VECTORS', level: 'loss', msg: openVectors.length + ' Outside/Inside profile toolpath(s) lost vectors: an open vector is cut to one side of its line and the file does not record which side, so those vectors were not imported into the toolpath. Reselect them and choose a side', count: openVectors.length, items: openVectors.slice(0, 8) });
   if (rest.length) report.push({ code: 'TOOLPATH_REST_AS_FULL', level: 'warn', msg: rest.length + ' small-tool pocket(s) came in as a full pass of that tool (VCarve only cut what the big tool left), so they will take longer', count: rest.length, items: rest.slice(0, 8) });
   if (notes.length) report.push({ code: 'TOOLPATH_SETTINGS_NOT_CARRIED', level: 'warn', msg: notes.length + ' toolpath setting(s) could not be carried over exactly; review before posting', count: notes.length, items: notes.slice(0, 8) });
   return { ops, report };

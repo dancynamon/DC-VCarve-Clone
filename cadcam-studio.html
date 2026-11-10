@@ -703,7 +703,7 @@ body.dark .qrow.picked{background:#3a2a1c}
     <span><span class="v" id="zoomlbl"></span></span>
     <span id="msg" class="v"></span>
     <button class="tb" id="btnUnits" title="Units: inches / millimetres (the drawing is unchanged)" style="margin-left:auto;font-size:10px;padding:1px 7px">in</button><button class="tb" id="btnTheme" title="Switch to dark mode" style="font-size:10px;padding:1px 7px">☾ Dark</button>
-    <span class="ver" id="appVer" title="Build version">v0.4.0 · build 261109.2251</span>
+    <span class="ver" id="appVer" title="Build version">v0.4.0 · build 261109.2312</span>
   </div>
 </div>
 <div id="tip"></div>
@@ -20451,7 +20451,7 @@ function studioParams(op, safeZ) {
 // -> { ops:[{name,p,guids}], report:[{code,level,msg,count,items}] }. Nothing is dropped without being named.
 function toStudioOps(tpd, opts) {
   opts = opts || {};
-  const present = new Set(opts.guids || []), ops = [], notConverted = [], noSelection = [], notes = [], rest = [];
+  const present = new Set(opts.guids || []), open = new Set(opts.openGuids || []), ops = [], notConverted = [], noSelection = [], notes = [], rest = [], openVectors = [];
   const clearDia = {};
   for (const tp of (tpd && tpd.toolpaths) || []) {
     const hadArea = tp.type === 'AreaClearToolpath';
@@ -20460,8 +20460,16 @@ function toStudioOps(tpd, opts) {
     const w = [];
     let op = null; try { op = toOp(tp, w); } catch (e) { w.push(`${tp.name}: ${e.message}`); }
     if (!op) { notConverted.push((tp.name || '(unnamed)') + (tp.type ? ' [' + tp.type + ']' : '')); continue; }
-    const guids = (tp.selection || []).filter(g => present.has(g));
+    let guids = (tp.selection || []).filter(g => present.has(g));
     if (!guids.length) { noSelection.push(tp.name); continue; }
+    // VCarve cuts an open vector to one side of its line, and the file does not say which. Cutting it on the line would be a quiet
+    // error of a full tool radius, so an inside/outside profile only keeps its closed vectors.
+    if (op.op === 'profile' && op.side !== 'on' && open.size) {
+      const kept = guids.filter(g => !open.has(g));
+      if (kept.length !== guids.length) openVectors.push(tp.name + ' (' + (guids.length - kept.length) + ' open vector' + (guids.length - kept.length > 1 ? 's' : '') + ')');
+      if (!kept.length) continue;
+      guids = kept;
+    }
     if (op.restOf) { rest.push(tp.name); delete op.restOf; delete op.finishWall; }
     const p = studioParams(op, opts.safeZ);
     if (tp.params && tp.params._pkpdDoRaster) p.pocketStyle = 'raster';
@@ -20472,6 +20480,7 @@ function toStudioOps(tpd, opts) {
   const report = [];
   if (notConverted.length) report.push({ code: 'TOOLPATH_NOT_CONVERTED', level: 'loss', msg: notConverted.length + ' saved toolpath(s) are of a kind this app cannot rebuild and were not imported', count: notConverted.length, items: notConverted.slice(0, 8) });
   if (noSelection.length) report.push({ code: 'TOOLPATH_NO_VECTORS', level: 'loss', msg: noSelection.length + ' saved toolpath(s) were not imported because their vectors are not in the drawing (deleted in VCarve, or on a layer that was not saved)', count: noSelection.length, items: noSelection.slice(0, 8) });
+  if (openVectors.length) report.push({ code: 'TOOLPATH_OPEN_VECTORS', level: 'loss', msg: openVectors.length + ' Outside/Inside profile toolpath(s) lost vectors: an open vector is cut to one side of its line and the file does not record which side, so those vectors were not imported into the toolpath. Reselect them and choose a side', count: openVectors.length, items: openVectors.slice(0, 8) });
   if (rest.length) report.push({ code: 'TOOLPATH_REST_AS_FULL', level: 'warn', msg: rest.length + ' small-tool pocket(s) came in as a full pass of that tool (VCarve only cut what the big tool left), so they will take longer', count: rest.length, items: rest.slice(0, 8) });
   if (notes.length) report.push({ code: 'TOOLPATH_SETTINGS_NOT_CARRIED', level: 'warn', msg: notes.length + ' toolpath setting(s) could not be carried over exactly; review before posting', count: notes.length, items: notes.slice(0, 8) });
   return { ops, report };
@@ -21798,7 +21807,8 @@ function importCRV(name, buf, opts){
   addShapes(shapes); doc.sourceName=name;
   // the saved toolpaths, rebuilt as editable toolpaths on the imported vectors
   let tpN=0;
-  if(res.toolpathData&&typeof CRVTP!=='undefined'){ const tr=CRVTP.toStudioOps(res.toolpathData,{guids:[...byGuid.keys()],safeZ:res.safeZ});
+  if(res.toolpathData&&typeof CRVTP!=='undefined'){ const openG=layers.flatMap(L=>(L.contours||[]).filter(c=>!c.closed&&c.guid).map(c=>c.guid));
+    const tr=CRVTP.toStudioOps(res.toolpathData,{guids:[...byGuid.keys()],openGuids:openG,safeZ:res.safeZ});
     for(const o of tr.ops){ const ids=o.guids.flatMap(g=>byGuid.get(g)||[]); const nq=normalizeOp({p:o.p,ids,name:o.name,label:'',visible:true}); opsQueue.push(nq); tpN++; }
     items.push(...tr.report); if(tpN) buildQueueList(); }
   else if(res.toolpathData===null&&typeof CRVTP==='undefined') items.push({code:'TOOLPATHS_NOT_IMPORTED',level:'loss',msg:'This build cannot read saved toolpaths.',count:1});
@@ -22281,12 +22291,13 @@ function camBuild(forFile){ const contours=camContours(); const closedN=contours
 function toolpathSegs(g){ // parse to segments for overlay (tracks Z so the backplot can shade by depth)
   if(/^G21\b/m.test(g)){ const k=1/25.4; return toolpathSegs(g.replace(/G21/,'G20')).map(s=>({x0:s.x0*k,y0:s.y0*k,x1:s.x1*k,y1:s.y1*k,z0:s.z0*k,z1:s.z1*k,rapid:s.rapid})); }   // metric post: back to inches
   const segs=[]; let x=0,y=0,z=0,mode=null;
-  for(const raw of g.split(/\r?\n/)){ const ln=raw.trim().toUpperCase(); if(!ln||ln[0]==='('||ln[0]==='%')continue; const m=ln.match(/^(G[0-3])/); if(m)mode=m[1];
+  for(const raw of g.split(/\r\n|\n|\r/)){ const tk=GCSIM.tokenizeLine(raw); if(tk.junk!=null||tk.unclosed&&!tk.words.length||tk.bare.length||tk.words.some(w=>w.L==='G'&&w.v===53)) continue;   // same reading as the 3D view
+    const ln=raw.replace(/\[[^\]]*(\]|$)|\([^)]*(\)|$)|;.*$/g,' ').trim().toUpperCase(); if(!ln||ln[0]==='%')continue; const m=ln.match(/^(G[0-3])(?!\d)/); if(m)mode=m[1];
     const pv=c=>{const r=ln.match(new RegExp(c+'(-?[\\d.]+)'));return r?+r[1]:null;}; const nx=pv('X'),ny=pv('Y'),ni=pv('I'),nj=pv('J'),nz=pv('Z'); const x0=x,y0=y,z0=z;
     if(nx!=null)x=nx; if(ny!=null)y=ny; if(nz!=null)z=nz;
     if(mode==='G0'){ if(nx!=null||ny!=null) segs.push({x0,y0,x1:x,y1:y,z0,z1:z,rapid:true}); }
     else if(mode==='G1'){ if(nx!=null||ny!=null) segs.push({x0,y0,x1:x,y1:y,z0,z1:z}); }  // ramp/plunge moves carry a Z change → z0!=z1
-    else if((mode==='G2'||mode==='G3')&&ni!=null&&nj!=null){ const cx=x0+ni,cy=y0+nj,r=Math.hypot(ni,nj); let sa=Math.atan2(y0-cy,x0-cx),ea=Math.atan2(y-cy,x-cx);
+    else if((mode==='G2'||mode==='G3')&&(ni!=null||nj!=null)){ const cx=x0+(ni||0),cy=y0+(nj||0),r=Math.hypot(ni||0,nj||0); let sa=Math.atan2(y0-cy,x0-cx),ea=Math.atan2(y-cy,x-cx);
       if(mode==='G2'){if(ea>=sa)ea-=TAU;}else{if(ea<=sa)ea+=TAU;} const n=24; let px=x0,py=y0;
       for(let s=1;s<=n;s++){const a=sa+(ea-sa)*s/n,ax=cx+r*Math.cos(a),ay=cy+r*Math.sin(a); segs.push({x0:px,y0:py,x1:ax,y1:ay,z0:z0+(z-z0)*(s-1)/n,z1:z0+(z-z0)*s/n}); px=ax;py=ay;} } }   // helical: interpolate Z (z0->z) along the arc
   return segs;
@@ -23215,7 +23226,9 @@ function asmThicknessFromName(name, dflt) {
 }
 // DXF text -> {shapes, layers Map, job patch, queue} — the studio's import path plus layer-name defaults
 function asmSheetFromDxf(name, text, thickness) {
-  const polys = []; for (const e of parseDxf(text)) for (const p of entityToPolys(e)) polys.push(p);
+  const ents = parseDxf(text), polys = []; for (const e of ents) for (const p of entityToPolys(e)) polys.push(p);
+  const lost = (ents.report || []).filter(r => r.level === 'loss');
+  if (lost.length) setMsg('WARNING: ' + name + ' did not fully import: ' + lost.map(r => r.count + ' ' + r.msg).join(' · '));
   const shapes = CADCORE.dxfPolysToShapes(polys);
   const names = []; for (const s of shapes) if (names.indexOf(s.layer) < 0) names.push(s.layer);
   const layers = new Map(names.map(n => [n, { visible: true, color: asmLayerColor(n) }]));

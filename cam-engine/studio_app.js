@@ -1314,7 +1314,8 @@ function importCRV(name, buf, opts){
   addShapes(shapes); doc.sourceName=name;
   // the saved toolpaths, rebuilt as editable toolpaths on the imported vectors
   let tpN=0;
-  if(res.toolpathData&&typeof CRVTP!=='undefined'){ const tr=CRVTP.toStudioOps(res.toolpathData,{guids:[...byGuid.keys()],safeZ:res.safeZ});
+  if(res.toolpathData&&typeof CRVTP!=='undefined'){ const openG=layers.flatMap(L=>(L.contours||[]).filter(c=>!c.closed&&c.guid).map(c=>c.guid));
+    const tr=CRVTP.toStudioOps(res.toolpathData,{guids:[...byGuid.keys()],openGuids:openG,safeZ:res.safeZ});
     for(const o of tr.ops){ const ids=o.guids.flatMap(g=>byGuid.get(g)||[]); const nq=normalizeOp({p:o.p,ids,name:o.name,label:'',visible:true}); opsQueue.push(nq); tpN++; }
     items.push(...tr.report); if(tpN) buildQueueList(); }
   else if(res.toolpathData===null&&typeof CRVTP==='undefined') items.push({code:'TOOLPATHS_NOT_IMPORTED',level:'loss',msg:'This build cannot read saved toolpaths.',count:1});
@@ -1797,12 +1798,13 @@ function camBuild(forFile){ const contours=camContours(); const closedN=contours
 function toolpathSegs(g){ // parse to segments for overlay (tracks Z so the backplot can shade by depth)
   if(/^G21\b/m.test(g)){ const k=1/25.4; return toolpathSegs(g.replace(/G21/,'G20')).map(s=>({x0:s.x0*k,y0:s.y0*k,x1:s.x1*k,y1:s.y1*k,z0:s.z0*k,z1:s.z1*k,rapid:s.rapid})); }   // metric post: back to inches
   const segs=[]; let x=0,y=0,z=0,mode=null;
-  for(const raw of g.split(/\r?\n/)){ const ln=raw.trim().toUpperCase(); if(!ln||ln[0]==='('||ln[0]==='%')continue; const m=ln.match(/^(G[0-3])/); if(m)mode=m[1];
+  for(const raw of g.split(/\r\n|\n|\r/)){ const tk=GCSIM.tokenizeLine(raw); if(tk.junk!=null||tk.unclosed&&!tk.words.length||tk.bare.length||tk.words.some(w=>w.L==='G'&&w.v===53)) continue;   // same reading as the 3D view
+    const ln=raw.replace(/\[[^\]]*(\]|$)|\([^)]*(\)|$)|;.*$/g,' ').trim().toUpperCase(); if(!ln||ln[0]==='%')continue; const m=ln.match(/^(G[0-3])(?!\d)/); if(m)mode=m[1];
     const pv=c=>{const r=ln.match(new RegExp(c+'(-?[\\d.]+)'));return r?+r[1]:null;}; const nx=pv('X'),ny=pv('Y'),ni=pv('I'),nj=pv('J'),nz=pv('Z'); const x0=x,y0=y,z0=z;
     if(nx!=null)x=nx; if(ny!=null)y=ny; if(nz!=null)z=nz;
     if(mode==='G0'){ if(nx!=null||ny!=null) segs.push({x0,y0,x1:x,y1:y,z0,z1:z,rapid:true}); }
     else if(mode==='G1'){ if(nx!=null||ny!=null) segs.push({x0,y0,x1:x,y1:y,z0,z1:z}); }  // ramp/plunge moves carry a Z change → z0!=z1
-    else if((mode==='G2'||mode==='G3')&&ni!=null&&nj!=null){ const cx=x0+ni,cy=y0+nj,r=Math.hypot(ni,nj); let sa=Math.atan2(y0-cy,x0-cx),ea=Math.atan2(y-cy,x-cx);
+    else if((mode==='G2'||mode==='G3')&&(ni!=null||nj!=null)){ const cx=x0+(ni||0),cy=y0+(nj||0),r=Math.hypot(ni||0,nj||0); let sa=Math.atan2(y0-cy,x0-cx),ea=Math.atan2(y-cy,x-cx);
       if(mode==='G2'){if(ea>=sa)ea-=TAU;}else{if(ea<=sa)ea+=TAU;} const n=24; let px=x0,py=y0;
       for(let s=1;s<=n;s++){const a=sa+(ea-sa)*s/n,ax=cx+r*Math.cos(a),ay=cy+r*Math.sin(a); segs.push({x0:px,y0:py,x1:ax,y1:ay,z0:z0+(z-z0)*(s-1)/n,z1:z0+(z-z0)*s/n}); px=ax;py=ay;} } }   // helical: interpolate Z (z0->z) along the arc
   return segs;

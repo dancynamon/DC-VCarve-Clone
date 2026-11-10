@@ -315,6 +315,11 @@ ok('toShapes names the contour guids', tp2.layers[0].contours[0].guid && tp2.lay
 const tr3 = vm.runInContext('CRVTP', ctxTP).toStudioOps({ toolpaths: [{ name: 'X', type: 'Fancy', params: {}, tools: [{ toolNum: 1, dia: 0.25, passDepth: 0.1, stepover: 0.1, feed: 10, plunge: 5, rpm: 1000 }], selection: ['aa'] }, { name: 'Y', type: 'Drill', params: { _dpdCutDepth: 0.5 }, tools: [{ toolNum: 1, dia: 0.25, passDepth: 0.1, stepover: 0.1, feed: 10, plunge: 5, rpm: 1000 }], selection: ['missing'] }] }, { guids: ['aa'] });
 ok('toolpaths: an unsupported kind is named as lost', tr3.ops.length === 0 && tr3.report.some(r => r.code === 'TOOLPATH_NOT_CONVERTED' && r.level === 'loss' && r.items[0].indexOf('X') === 0), JSON.stringify(tr3.report));
 ok('toolpaths: a selection with no vectors is named as lost', tr3.report.some(r => r.code === 'TOOLPATH_NO_VECTORS' && r.items[0] === 'Y'), JSON.stringify(tr3.report));
+const op4 = g => ({ name: 'P', type: 'Profile Outside', params: { _ppdCutDepth: 0.5, _mctddDepthValues: '0.25;0.5' }, tools: [{ toolNum: 1, dia: 0.25, passDepth: 0.1, stepover: 0.1, feed: 10, plunge: 5, rpm: 1000 }], selection: g });
+const trO = vm.runInContext('CRVTP', ctxTP).toStudioOps({ toolpaths: [op4(['a', 'b'])] }, { guids: ['a', 'b'], openGuids: ['b'] });
+ok('toolpaths: an open vector is not cut on the line by an outside profile', trO.ops.length === 1 && trO.ops[0].guids.join() === 'a' && trO.report.some(r => r.code === 'TOOLPATH_OPEN_VECTORS' && r.level === 'loss'), JSON.stringify(trO));
+const trO2 = vm.runInContext('CRVTP', ctxTP).toStudioOps({ toolpaths: [op4(['b'])] }, { guids: ['a', 'b'], openGuids: ['b'] });
+ok('toolpaths: all-open is not imported at all', trO2.ops.length === 0 && trO2.report[0].code === 'TOOLPATH_OPEN_VECTORS', JSON.stringify(trO2));
 const clean = parseCrv(bytes('sample.crv'), {});
 ok('a clean file has an empty report', Array.isArray(clean.report) && clean.report.filter(r => r.level !== 'info').length === 0, JSON.stringify(clean.report));
 ok('a bitmap is reported as not imported', parseCrv(bytes('sample-bitmap.crv3d'), {}).report.some(r => r.code === 'BITMAP_NOT_IMPORTED' && r.level === 'loss'));
@@ -325,6 +330,10 @@ if (studio) {
   eIn(studio, 'importCRV("sample-tabs.crv3d", __ab2)');
   ok('studio: the toolpath lands in the list', eIn(studio, 'opsQueue.length') === 1 && eIn(studio, 'opsQueue[0].ids.length') === 1);
   ok('studio: material thickness is applied', Math.abs(eIn(studio, 'job.thickness') - tp2.job.thickness) < 1e-9);
+  const seg = JSON.parse(eIn(studio, 'JSON.stringify(toolpathSegs("[G0 X9 Y9]\\nG0 X1 Y0\\nG1 X2 F10 [X50]\\n"))'));
+  ok('2D backplot honours WinCNC [comments]', seg.length === 2 && Math.max(...seg.map(s => s.x1)) === 2, JSON.stringify(seg));
+  const fc = JSON.parse(eIn(studio, 'JSON.stringify(toolpathSegs("g0x1.5y0\\ng2i2f300\\n"))'));
+  ok('2D backplot draws an I-only full circle', fc.length >= 24 && fc.some(s => s.x1 > 5.4), fc.length);
   ok('studio: the toolpath selection is real shape ids', eIn(studio, 'doc.shapes.some(s=>s.id===opsQueue[0].ids[0])'));
 }
 

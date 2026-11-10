@@ -222,7 +222,7 @@ function auditCrv(u, E) {
     try { const tpd = polys.toolpathData || E.TPD.parseToolpathData(new Uint8Array(cfb.stream('Toolpaths/ToolpathData')), new Set(polys.map(p => p.ent.guid)));
       tpN = tpd.toolpaths.length; tools = [...new Set(tpd.toolpaths.flatMap(t => (t.tools || []).map(x => x.toolNum)))];
       out.tpTypes = [...new Set(tpd.toolpaths.map(t => t.type))];
-      const r = E.ctx.CRVTP.toStudioOps(tpd, { guids: [...new Set(polys.map(p => p.ent.guid))], safeZ: polys.safeZ }); imported = r.ops.length; tpRep = r.report; out.tpImported = imported; out.tpLost = tpN - imported;
+      const r = E.ctx.CRVTP.toStudioOps(tpd, { guids: [...new Set(polys.map(p => p.ent.guid))], openGuids: polys.filter(p => !p.ent.closed).map(p => p.ent.guid), safeZ: polys.safeZ }); imported = r.ops.length; tpRep = r.report; out.tpImported = imported; out.tpLost = tpN - imported;
     } catch (e) { tpErr = e.message.slice(0, 160); }
   }
   out.toolpaths = tpN; out.tools = tools;

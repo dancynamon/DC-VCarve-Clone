@@ -39,6 +39,7 @@ function crv2tap(bytes, opts) {
     op.select = [];
     for (const g of (tp.selection || [])) for (const s of (where[g] || [])) op.select.push(s);
     if (!op.select.length) { warnings.push(`${tp.name}: selection resolved to no vectors`); continue; }
+    if (op.op === 'profile' && op.side !== 'on' && op.select.some(([l, i]) => !index[l][i].closed)) warnings.push(`${tp.name}: open vector(s) in an ${op.side} profile are cut on the line here, but VCarve offsets them to a side the file does not record`);
     ops.push(op);
   }
   const r = repostJob(index, { name: opts.name || 'job', ops });
