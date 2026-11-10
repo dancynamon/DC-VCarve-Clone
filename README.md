@@ -5,7 +5,7 @@ Single self-contained HTML — no install, offline, posts G-code for ShopSabre (
 
 ## Quick start
 ```
-npm test     # 863 checks: CAM (274) + CAD (229) + import (95) + clipart (47) + trace (45) + 3D mesh (44) + playback (44) + PDF (30) + arc-fit (15) + air-cut (30) + smoke (10)
+npm test     # 1390 checks across 19 suites
 npm run build # regenerates cadcam-studio.html from cam-engine/ sources
 open cadcam-studio.html
 ```
@@ -137,6 +137,22 @@ Every `.tap` in `CAD/` has been re-posted this way to `*-aq.tap`; the Vectric or
 untouched beside them. Cut geometry matches the originals to 0.0001" on the straight-cut boards,
 0.0015" on the foam jig and 0.010" on the two pocket roughs (whose finished wall matches to 0.0004").
 Retract and plunge counts now match the Vectric originals exactly, board for board.
+
+## Opening and editing .tap, .dxf and .crv3d files
+Everything that could not be brought in is named in an **Import report** when the file opens (File → Last Import Report… to see it
+again). A file that opens but loses something says what it lost, with counts and examples.
+- **.tap / G-code:** File → Open, then **File → Edit Open G-code…** to move a program in XY, scale feeds or spindle speed, raise
+  safe height, shift the cut depth, change the final pass, remove a tool section, or edit the text by hand. Every edit re-simulates
+  the program and checks it line by line against what the edit promised; if it can't be proved right it is refused and the line is
+  named. Unedited lines stay byte-identical and Save As always writes a new file. Hand edits are not blocked, but a lowered retract
+  or a deeper cut is called out. A retract is never lowered by a structured edit.
+- **.dxf:** $INSUNITS is honoured, curves are true NURBS, INSERTs are expanded including mirrored ones and arrays. Export DXF keeps
+  arcs as arcs and writes the LAYER table; save then reopen reproduces the geometry to within 0.005" (measured worst case on
+  the 166 archive DXFs: 0.0041"), with every layer kept.
+- **.crv / .crv3d:** vectors, layers, material size and thickness, and saved toolpaths import as editable objects. This app cannot
+  write Vectric files: **the original is left unchanged**, and saving writes `.aqcam`, DXF or `.tap`. A Vectric file has no units
+  flag; jobs over 300 are judged from their thickness and flagged, with a one-click reopen in the other units. Outside/Inside
+  profiles on open vectors are not imported, because the file does not say which side they were cut on.
 
 ## Dry-running a job
 `node cam-engine/aircut.js in.tap out.tap [--clearance 0.25] [--band 0.30]` rewrites a posted program

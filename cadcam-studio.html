@@ -703,7 +703,7 @@ body.dark .qrow.picked{background:#3a2a1c}
     <span><span class="v" id="zoomlbl"></span></span>
     <span id="msg" class="v"></span>
     <button class="tb" id="btnUnits" title="Units: inches / millimetres (the drawing is unchanged)" style="margin-left:auto;font-size:10px;padding:1px 7px">in</button><button class="tb" id="btnTheme" title="Switch to dark mode" style="font-size:10px;padding:1px 7px">☾ Dark</button>
-    <span class="ver" id="appVer" title="Build version">v0.4.0 · build 261109.2312</span>
+    <span class="ver" id="appVer" title="Build version">v0.4.0 · build 261109.2316</span>
   </div>
 </div>
 <div id="tip"></div>
@@ -11153,6 +11153,14 @@ function splitLayers(shapes, opts) {
   }
   return { shapes: out, counts, mixed };
 }
+// the loop's points, with runs of a true circle written as bulge arcs (shared with cadcore's main DXF export)
+function dxfVerts(c) {
+  const fit = CAD.dxfLoopVertices(c.pts, !!c.closed);
+  if (!fit.circle) return fit.verts;
+  // a whole circle: this file writes one polyline per loop, so a circle goes out as two half-circle bulges
+  const g = fit.circle;
+  return [{ x: g.cx + g.r, y: g.cy, bulge: 1 }, { x: g.cx - g.r, y: g.cy, bulge: 1 }];
+}
 // DXF with a LAYER table and one LWPOLYLINE per loop, each on its own classified layer (compound shapes are split by loop).
 function toDXFLayered(shapes, opts) {
   opts = opts || {};
@@ -11161,8 +11169,9 @@ function toDXFLayered(shapes, opts) {
   const ent = [];
   for (const c of cls) {
     const name = L[c.kind]; used.add(name);
-    ent.push('0', 'LWPOLYLINE', '8', name, '90', String(c.pts.length), '70', c.closed ? '1' : '0');
-    for (const p of c.pts) ent.push('10', p.x.toFixed(5), '20', p.y.toFixed(5));
+    const fit = dxfVerts(c);
+    ent.push('0', 'LWPOLYLINE', '8', name, '90', String(fit.length), '70', c.closed ? '1' : '0');
+    for (const v of fit) { ent.push('10', v.x.toFixed(6), '20', v.y.toFixed(6)); if (v.bulge) ent.push('42', v.bulge.toFixed(6)); }
   }
   const colors = { [L.outside]: 5, [L.inside]: 1, [L.open]: 3 };
   const tbl = ['0', 'SECTION', '2', 'TABLES', '0', 'TABLE', '2', 'LAYER', '70', String(used.size)];
@@ -17035,7 +17044,7 @@ function requireUnderstood(m, what) {
 
 // ---- word rewriting --------------------------------------------------------------------------------------------
 function decimalsOf(s) { const i = s.indexOf('.'); return i < 0 ? 0 : s.length - i - 1; }
-function fmtLike(orig, v, minDec) { const d = Math.min(8, Math.max(decimalsOf(orig), minDec || 0)); const t = v.toFixed(d); return Number(t) === 0 ? (0).toFixed(d) : t; }
+function fmtLike(orig, v, minDec) { let d = Math.min(8, Math.max(decimalsOf(orig), minDec || 0)); while (d < 6 && Math.abs(Number(v.toFixed(d)) - v) > 5e-5 * Math.max(1, Math.abs(v))) d++; const t = v.toFixed(d); return Number(t) === 0 ? (0).toFixed(d) : t; }
 function decimalsOfDelta(v) { const s = String(Math.abs(v)); if (/e/i.test(s)) return 6; return Math.min(6, decimalsOf(s)); }
 
 function applyEdits(m, edits) {   // edits: [{n, word, text}] -> new text, change list. One word per edit.
@@ -17099,6 +17108,7 @@ function verifyEnds(m, before, afterText, expect, lineMap, what) {
     if (!b) {   // a line can stop being a move when the machine is already where it points (a retract to the height it is already at)
       let pos = null;
       for (let i = 0; i < newP.n && newP.line[i] < newLn; i++) pos = { x: newP.x1[i], y: newP.y1[i], z: newP.z1[i] };
+      if (!pos && want.x == null && want.y == null) continue;   // the program's first Z only sets the height; there is no move to compare
       if (!pos || (want.x != null && Math.abs(pos.x - want.x) > EPS) || (want.y != null && Math.abs(pos.y - want.y) > EPS) || (want.z != null && Math.abs(pos.z - want.z) > EPS))
         refuse('VERIFY_FAILED', ln, what + ': the re-simulation lost the move on this line, so the edit was not applied.');
       continue;
@@ -17136,8 +17146,9 @@ function translate(text, opts) {
   if (!absXY) refuse('NO_ABSOLUTE_XY', null, 'cannot translate: the program never sets an absolute X or Y position.');
   const r = applyEdits(m, edits);
   sameLineCheck(m, r.text, r.changes);
-  const parkSet = new Set(park);
-  verifyEnds(m, text, r.text, (a, ln) => parkSet.has(ln) ? { x: a.x, y: a.y, z: a.z } : { x: a.x + dx, y: a.y + dy, z: a.z, feed: a.feed, tool: a.tool, rpm: a.rpm }, null, 'translate');
+  const parkSet = new Set(park), movedX = new Map(), movedY = new Map(); let sx = false, sy = false;   // does the X/Y this line stands on carry the offset?
+  for (const I of m.info) { if (I.motion && !I.isG53 && I.abs) { const isPark = parkSet.has(I.n + 1); if (I.words.X) sx = !isPark; if (I.words.Y) sy = !isPark; } movedX.set(I.n + 1, sx); movedY.set(I.n + 1, sy); }
+  verifyEnds(m, text, r.text, (a, ln) => ({ x: a.x + (movedX.get(ln) ? dx : 0), y: a.y + (movedY.get(ln) ? dy : 0), z: a.z, feed: a.feed, tool: a.tool, rpm: a.rpm }), null, 'translate');
   return { text: r.text, changes: r.changes, report: report(text, r.text, r.changes), notes: park.length ? ['Park move on line ' + park.join(', ') + ' was left where it is.'] : [] };
 }
 
@@ -17266,11 +17277,15 @@ function raiseSafeHeight(text, opts) {
   if (!edits.length) refuse('WOULD_LOWER', null, 'every retract is already at or above Z' + z + ' (lowest is Z' + lowest.toFixed(4) + '). This tool only raises retracts; lowering one needs a re-post.');
   const r = applyEdits(m, edits);
   sameLineCheck(m, r.text, r.changes);
-  verifyEnds(m, text, r.text, a => ({ x: a.x, y: a.y, feed: a.feed, tool: a.tool, rpm: a.rpm, z: a.kind === GCSIM.RAPID && a.z > 0 && a.z < z - 1e-9 ? z : a.z }), null, 'safe height');
-  const after = GCSIM.parseGcode(r.text);
-  for (let i = 0; i < after.n; i++) if (after.kind[i] === GCSIM.RAPID && (Math.abs(after.x1[i] - after.x0[i]) > 1e-9 || Math.abs(after.y1[i] - after.y0[i]) > 1e-9) && after.z0[i] < 0)
-    refuse('RAPID_IN_STOCK', after.line[i], 'a rapid XY move would run below the surface.');
-  return { text: r.text, changes: r.changes, report: report(text, r.text, r.changes), notes: [] };
+  verifyEnds(m, text, r.text, (a, ln) => { const w = m.info[ln - 1].words; return { x: a.x, y: a.y, feed: a.feed, tool: a.tool, rpm: a.rpm, z: !w.Z ? null : (a.kind === GCSIM.RAPID && a.z > 0 && a.z < z - 1e-9 ? z : a.z) }; }, null, 'safe height');
+  const inStock = p => { let n = 0, first = null; for (let i = 0; i < p.n; i++) if (p.kind[i] === GCSIM.RAPID && (Math.abs(p.x1[i] - p.x0[i]) > 1e-9 || Math.abs(p.y1[i] - p.y0[i]) > 1e-9) && p.z0[i] < 0) { n++; if (first == null) first = p.line[i]; } return { n, first }; };
+  const inA = inStock(GCSIM.parseGcode(text)), after = GCSIM.parseGcode(r.text), inB = inStock(after);
+  if (inB.n > inA.n) refuse('RAPID_IN_STOCK', inB.first, 'a rapid XY move would run below the surface.');
+  const notes = [];
+  if (inB.n) notes.push('WARNING: this program already has ' + inB.n + ' rapid XY move(s) below the surface (first at line ' + inB.first + '). Raising the safe height did not change them.');
+  let low = 0; for (let i = 0; i < after.n; i++) if (after.kind[i] === GCSIM.RAPID && (Math.abs(after.x1[i] - after.x0[i]) > 1e-9 || Math.abs(after.y1[i] - after.y0[i]) > 1e-9) && after.z0[i] >= 0 && after.z0[i] < z - 1e-9) low++;
+  if (low) notes.push('WARNING: ' + low + ' rapid move(s) still travel below Z' + z + ' because the retract before them is a feed move (G1), which this edit leaves alone.');
+  return { text: r.text, changes: r.changes, report: report(text, r.text, r.changes), notes };
 }
 
 // Remove every section cut with opts.tool. The surrounding program keeps working on its own M5/T/S/M3 blocks.
@@ -17300,8 +17315,9 @@ function removeTool(text, opts) {
   verifyEnds(m, text, newText, (a, ln) => { const w = m.info[ln - 1].words; return { x: w.X ? a.x : null, y: w.Y ? a.y : null, z: w.Z ? a.z : null, feed: a.feed, tool: a.tool, rpm: a.rpm }; }, ln => map.has(ln) ? map.get(ln) : null, 'tool removal');
   const after = GCSIM.parseGcode(newText);
   if (!after.n) refuse('WOULD_BE_EMPTY', null, 'nothing would be left to cut.');
-  for (let i = 0; i < after.n; i++) if (after.kind[i] === GCSIM.RAPID && (Math.abs(after.x1[i] - after.x0[i]) > 1e-9 || Math.abs(after.y1[i] - after.y0[i]) > 1e-9) && (after.z0[i] < 0 || after.z1[i] < 0))
-    refuse('RAPID_IN_STOCK', after.line[i], 'removing T' + tool + ' would leave a rapid XY move below the surface.');
+  const countStock = p => { let n = 0, first = null; for (let i = 0; i < p.n; i++) if (p.kind[i] === GCSIM.RAPID && (Math.abs(p.x1[i] - p.x0[i]) > 1e-9 || Math.abs(p.y1[i] - p.y0[i]) > 1e-9) && (p.z0[i] < 0 || p.z1[i] < 0)) { n++; if (first == null) first = p.line[i]; } return { n, first }; };
+  const sA = countStock(GCSIM.parseGcode(text)), sB = countStock(after);
+  if (sB.n > sA.n) refuse('RAPID_IN_STOCK', sB.first, 'removing T' + tool + ' would leave a rapid XY move below the surface.');
   return { text: newText, changes, report: report(text, newText, changes), notes };
 }
 
@@ -22121,8 +22137,9 @@ function gcRun(kind){ if(!PB.file)return; const t=PB.file.text; let r;
     else if(kind==='final') r=TAPEDIT.setFinalDepth(t,{z:gcNum('gcFinal'),maxDepth:gcMaxDepth()});
     else if(kind==='rmtool') r=TAPEDIT.removeTool(t,{tool:+document.getElementById('gcTool').value});
   }catch(err){ gcShowRefusal(err); return; }
+  if((kind==='dz'||kind==='final')&&r.report.after.deepest<-(job.thickness+0.1)) r.notes.push('WARNING: the program now cuts to Z'+r.report.after.deepest.toFixed(4)+', more than 0.1" past the job thickness ('+job.thickness+'). Check it against the real material and spoilboard.');
   gcCommit(r); }
-function gcMaxDepth(){ const j=job.thickness; return j>0?j:undefined; }
+function gcMaxDepth(){ return undefined; }   // the job's thickness is not the program's: a posted program may legitimately cut through into the spoilboard, so depth is reported, not capped
 function gcShowRefusal(err){ document.getElementById('gcReport').innerHTML='<div class="bad">Refused, nothing was changed. '+esc(err.message)+'</div>'; setMsg('G-code edit refused: '+err.message); }
 function gcCommit(r){ PB.file.history.push(PB.file.text); openProgram(PB.file.name, r.text, true); gcSyncTools(); document.getElementById('gcText').value=r.text; gcShowResult(r); }
 function gcShowResult(r){ const rows=r.report.rows.map(a=>'<tr><th>'+esc(a[0])+'</th><td>'+esc(a[1])+'</td><td>'+esc(a[2])+'</td></tr>').join('');

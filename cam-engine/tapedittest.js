@@ -149,6 +149,24 @@ const lineOf = (t, s) => lines(t).findIndex(l => l.indexOf(s) >= 0) + 1;
   const inh = 'T1\nS100\nM3\nF50\nG0 X1 Z1\nG1 Z-1\nG0 Z1\nT2\nG0 X2\nG1 Z-1\nG0 Z1\n';
   ok('a later tool relying on the removed feed is refused', refused(() => E.removeTool(inh, { tool: 1 }), 'VERIFY_FAILED'), whyRefused(() => E.removeTool(inh, { tool: 1 })));
 }
+// ---- what the archive taught us ----
+{
+  // a Z-only line before the first XY move has no XY of its own to translate; a Z after the park stays at the park
+  const a = 'G0 Z0.8\nF10\nG0 X1 Y1\nG1 Z-1\nG0 Z0.8\nG0 X5 Y5\nG0 Z2\n';
+  const r = E.translate(a, { dx: 1 });
+  ok('Z-only line before XY and after park verify cleanly', r.text.split('\n')[2] === 'G0 X2 Y1' && r.text.split('\n')[5] === 'G0 X5 Y5', r.text);
+  const f = E.scaleFeed('G0 X1 Z1\nG1 Z-0.75 F29.9\nG1 X2 F100.0\n', { factor: 0.9 });
+  ok('feed scale keeps enough decimals to be exact', f.text.split('\n')[1] === 'G1 Z-0.75 F26.91', f.text.split('\n')[1]);
+  const g1 = E.raiseSafeHeight('G0 X0 Z0.25\nG1 Z-1 F10\nG1 Z0.25\nG0 X5\nG1 Z-1\nG0 Z0.25\nG0 X0\n', { z: 1 });
+  ok('safe height follows named Z only, and says what still travels low', g1.notes.some(n => /feed move/.test(n)), JSON.stringify(g1.notes));
+  const pre = E.raiseSafeHeight('G0 X0 Z0.5\nG1 Z-1 F10\nG0 X5\nG0 Z0.5\n', { z: 1 });
+  ok('a rapid in stock that was already there does not block the edit, but is named', pre.notes.some(n => /already has/.test(n)), JSON.stringify(pre.notes));
+  const twoZ = 'T1\nZ2\nS100\nM3\nF50\nG0 X1 Z1\nG1 Z-1\nG0 Z1\nM5\nT2\nZ2\nS100\nM3\nF60\nG0 X2\nG1 Z-1\nG0 Z1\n';
+  const rm = E.removeTool(twoZ, { tool: 1 });
+  ok('removing a tool when the next starts with its own Z2', rm.report.after.tools.join() === '2' && !/^T1/m.test(rm.text), rm.text.slice(0, 80));
+  const spin = 'T1\nM3\nS100\nF50\nG0 X1 Z1\nG1 Z-1\nG0 Z1\nT2\nS100\nG0 X2\nG1 Z-1\nG0 Z1\n';
+  ok('removing a tool whose M3 the next tool needs is refused', refused(() => E.removeTool(spin, { tool: 1 }), 'VERIFY_FAILED'), whyRefused(() => E.removeTool(spin, { tool: 1 })));
+}
 // ---- text-level edit ----
 {
   const a = 'G0 X1 Z1\nG1 Z-0.5 F20\nG0 Z1\n';

@@ -1628,8 +1628,9 @@ function gcRun(kind){ if(!PB.file)return; const t=PB.file.text; let r;
     else if(kind==='final') r=TAPEDIT.setFinalDepth(t,{z:gcNum('gcFinal'),maxDepth:gcMaxDepth()});
     else if(kind==='rmtool') r=TAPEDIT.removeTool(t,{tool:+document.getElementById('gcTool').value});
   }catch(err){ gcShowRefusal(err); return; }
+  if((kind==='dz'||kind==='final')&&r.report.after.deepest<-(job.thickness+0.1)) r.notes.push('WARNING: the program now cuts to Z'+r.report.after.deepest.toFixed(4)+', more than 0.1" past the job thickness ('+job.thickness+'). Check it against the real material and spoilboard.');
   gcCommit(r); }
-function gcMaxDepth(){ const j=job.thickness; return j>0?j:undefined; }
+function gcMaxDepth(){ return undefined; }   // the job's thickness is not the program's: a posted program may legitimately cut through into the spoilboard, so depth is reported, not capped
 function gcShowRefusal(err){ document.getElementById('gcReport').innerHTML='<div class="bad">Refused, nothing was changed. '+esc(err.message)+'</div>'; setMsg('G-code edit refused: '+err.message); }
 function gcCommit(r){ PB.file.history.push(PB.file.text); openProgram(PB.file.name, r.text, true); gcSyncTools(); document.getElementById('gcText').value=r.text; gcShowResult(r); }
 function gcShowResult(r){ const rows=r.report.rows.map(a=>'<tr><th>'+esc(a[0])+'</th><td>'+esc(a[1])+'</td><td>'+esc(a[2])+'</td></tr>').join('');

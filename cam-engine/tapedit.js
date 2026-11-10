@@ -116,7 +116,7 @@ function requireUnderstood(m, what) {
 
 // ---- word rewriting --------------------------------------------------------------------------------------------
 function decimalsOf(s) { const i = s.indexOf('.'); return i < 0 ? 0 : s.length - i - 1; }
-function fmtLike(orig, v, minDec) { const d = Math.min(8, Math.max(decimalsOf(orig), minDec || 0)); const t = v.toFixed(d); return Number(t) === 0 ? (0).toFixed(d) : t; }
+function fmtLike(orig, v, minDec) { let d = Math.min(8, Math.max(decimalsOf(orig), minDec || 0)); while (d < 6 && Math.abs(Number(v.toFixed(d)) - v) > 5e-5 * Math.max(1, Math.abs(v))) d++; const t = v.toFixed(d); return Number(t) === 0 ? (0).toFixed(d) : t; }
 function decimalsOfDelta(v) { const s = String(Math.abs(v)); if (/e/i.test(s)) return 6; return Math.min(6, decimalsOf(s)); }
 
 function applyEdits(m, edits) {   // edits: [{n, word, text}] -> new text, change list. One word per edit.
@@ -180,6 +180,7 @@ function verifyEnds(m, before, afterText, expect, lineMap, what) {
     if (!b) {   // a line can stop being a move when the machine is already where it points (a retract to the height it is already at)
       let pos = null;
       for (let i = 0; i < newP.n && newP.line[i] < newLn; i++) pos = { x: newP.x1[i], y: newP.y1[i], z: newP.z1[i] };
+      if (!pos && want.x == null && want.y == null) continue;   // the program's first Z only sets the height; there is no move to compare
       if (!pos || (want.x != null && Math.abs(pos.x - want.x) > EPS) || (want.y != null && Math.abs(pos.y - want.y) > EPS) || (want.z != null && Math.abs(pos.z - want.z) > EPS))
         refuse('VERIFY_FAILED', ln, what + ': the re-simulation lost the move on this line, so the edit was not applied.');
       continue;
@@ -217,8 +218,9 @@ function translate(text, opts) {
   if (!absXY) refuse('NO_ABSOLUTE_XY', null, 'cannot translate: the program never sets an absolute X or Y position.');
   const r = applyEdits(m, edits);
   sameLineCheck(m, r.text, r.changes);
-  const parkSet = new Set(park);
-  verifyEnds(m, text, r.text, (a, ln) => parkSet.has(ln) ? { x: a.x, y: a.y, z: a.z } : { x: a.x + dx, y: a.y + dy, z: a.z, feed: a.feed, tool: a.tool, rpm: a.rpm }, null, 'translate');
+  const parkSet = new Set(park), movedX = new Map(), movedY = new Map(); let sx = false, sy = false;   // does the X/Y this line stands on carry the offset?
+  for (const I of m.info) { if (I.motion && !I.isG53 && I.abs) { const isPark = parkSet.has(I.n + 1); if (I.words.X) sx = !isPark; if (I.words.Y) sy = !isPark; } movedX.set(I.n + 1, sx); movedY.set(I.n + 1, sy); }
+  verifyEnds(m, text, r.text, (a, ln) => ({ x: a.x + (movedX.get(ln) ? dx : 0), y: a.y + (movedY.get(ln) ? dy : 0), z: a.z, feed: a.feed, tool: a.tool, rpm: a.rpm }), null, 'translate');
   return { text: r.text, changes: r.changes, report: report(text, r.text, r.changes), notes: park.length ? ['Park move on line ' + park.join(', ') + ' was left where it is.'] : [] };
 }
 
@@ -347,11 +349,15 @@ function raiseSafeHeight(text, opts) {
   if (!edits.length) refuse('WOULD_LOWER', null, 'every retract is already at or above Z' + z + ' (lowest is Z' + lowest.toFixed(4) + '). This tool only raises retracts; lowering one needs a re-post.');
   const r = applyEdits(m, edits);
   sameLineCheck(m, r.text, r.changes);
-  verifyEnds(m, text, r.text, a => ({ x: a.x, y: a.y, feed: a.feed, tool: a.tool, rpm: a.rpm, z: a.kind === GCSIM.RAPID && a.z > 0 && a.z < z - 1e-9 ? z : a.z }), null, 'safe height');
-  const after = GCSIM.parseGcode(r.text);
-  for (let i = 0; i < after.n; i++) if (after.kind[i] === GCSIM.RAPID && (Math.abs(after.x1[i] - after.x0[i]) > 1e-9 || Math.abs(after.y1[i] - after.y0[i]) > 1e-9) && after.z0[i] < 0)
-    refuse('RAPID_IN_STOCK', after.line[i], 'a rapid XY move would run below the surface.');
-  return { text: r.text, changes: r.changes, report: report(text, r.text, r.changes), notes: [] };
+  verifyEnds(m, text, r.text, (a, ln) => { const w = m.info[ln - 1].words; return { x: a.x, y: a.y, feed: a.feed, tool: a.tool, rpm: a.rpm, z: !w.Z ? null : (a.kind === GCSIM.RAPID && a.z > 0 && a.z < z - 1e-9 ? z : a.z) }; }, null, 'safe height');
+  const inStock = p => { let n = 0, first = null; for (let i = 0; i < p.n; i++) if (p.kind[i] === GCSIM.RAPID && (Math.abs(p.x1[i] - p.x0[i]) > 1e-9 || Math.abs(p.y1[i] - p.y0[i]) > 1e-9) && p.z0[i] < 0) { n++; if (first == null) first = p.line[i]; } return { n, first }; };
+  const inA = inStock(GCSIM.parseGcode(text)), after = GCSIM.parseGcode(r.text), inB = inStock(after);
+  if (inB.n > inA.n) refuse('RAPID_IN_STOCK', inB.first, 'a rapid XY move would run below the surface.');
+  const notes = [];
+  if (inB.n) notes.push('WARNING: this program already has ' + inB.n + ' rapid XY move(s) below the surface (first at line ' + inB.first + '). Raising the safe height did not change them.');
+  let low = 0; for (let i = 0; i < after.n; i++) if (after.kind[i] === GCSIM.RAPID && (Math.abs(after.x1[i] - after.x0[i]) > 1e-9 || Math.abs(after.y1[i] - after.y0[i]) > 1e-9) && after.z0[i] >= 0 && after.z0[i] < z - 1e-9) low++;
+  if (low) notes.push('WARNING: ' + low + ' rapid move(s) still travel below Z' + z + ' because the retract before them is a feed move (G1), which this edit leaves alone.');
+  return { text: r.text, changes: r.changes, report: report(text, r.text, r.changes), notes };
 }
 
 // Remove every section cut with opts.tool. The surrounding program keeps working on its own M5/T/S/M3 blocks.
@@ -381,8 +387,9 @@ function removeTool(text, opts) {
   verifyEnds(m, text, newText, (a, ln) => { const w = m.info[ln - 1].words; return { x: w.X ? a.x : null, y: w.Y ? a.y : null, z: w.Z ? a.z : null, feed: a.feed, tool: a.tool, rpm: a.rpm }; }, ln => map.has(ln) ? map.get(ln) : null, 'tool removal');
   const after = GCSIM.parseGcode(newText);
   if (!after.n) refuse('WOULD_BE_EMPTY', null, 'nothing would be left to cut.');
-  for (let i = 0; i < after.n; i++) if (after.kind[i] === GCSIM.RAPID && (Math.abs(after.x1[i] - after.x0[i]) > 1e-9 || Math.abs(after.y1[i] - after.y0[i]) > 1e-9) && (after.z0[i] < 0 || after.z1[i] < 0))
-    refuse('RAPID_IN_STOCK', after.line[i], 'removing T' + tool + ' would leave a rapid XY move below the surface.');
+  const countStock = p => { let n = 0, first = null; for (let i = 0; i < p.n; i++) if (p.kind[i] === GCSIM.RAPID && (Math.abs(p.x1[i] - p.x0[i]) > 1e-9 || Math.abs(p.y1[i] - p.y0[i]) > 1e-9) && (p.z0[i] < 0 || p.z1[i] < 0)) { n++; if (first == null) first = p.line[i]; } return { n, first }; };
+  const sA = countStock(GCSIM.parseGcode(text)), sB = countStock(after);
+  if (sB.n > sA.n) refuse('RAPID_IN_STOCK', sB.first, 'removing T' + tool + ' would leave a rapid XY move below the surface.');
   return { text: newText, changes, report: report(text, newText, changes), notes };
 }
 

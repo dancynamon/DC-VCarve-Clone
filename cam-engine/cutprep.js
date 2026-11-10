@@ -84,6 +84,14 @@ function splitLayers(shapes, opts) {
   }
   return { shapes: out, counts, mixed };
 }
+// the loop's points, with runs of a true circle written as bulge arcs (shared with cadcore's main DXF export)
+function dxfVerts(c) {
+  const fit = CAD.dxfLoopVertices(c.pts, !!c.closed);
+  if (!fit.circle) return fit.verts;
+  // a whole circle: this file writes one polyline per loop, so a circle goes out as two half-circle bulges
+  const g = fit.circle;
+  return [{ x: g.cx + g.r, y: g.cy, bulge: 1 }, { x: g.cx - g.r, y: g.cy, bulge: 1 }];
+}
 // DXF with a LAYER table and one LWPOLYLINE per loop, each on its own classified layer (compound shapes are split by loop).
 function toDXFLayered(shapes, opts) {
   opts = opts || {};
@@ -92,8 +100,9 @@ function toDXFLayered(shapes, opts) {
   const ent = [];
   for (const c of cls) {
     const name = L[c.kind]; used.add(name);
-    ent.push('0', 'LWPOLYLINE', '8', name, '90', String(c.pts.length), '70', c.closed ? '1' : '0');
-    for (const p of c.pts) ent.push('10', p.x.toFixed(5), '20', p.y.toFixed(5));
+    const fit = dxfVerts(c);
+    ent.push('0', 'LWPOLYLINE', '8', name, '90', String(fit.length), '70', c.closed ? '1' : '0');
+    for (const v of fit) { ent.push('10', v.x.toFixed(6), '20', v.y.toFixed(6)); if (v.bulge) ent.push('42', v.bulge.toFixed(6)); }
   }
   const colors = { [L.outside]: 5, [L.inside]: 1, [L.open]: 3 };
   const tbl = ['0', 'SECTION', '2', 'TABLES', '0', 'TABLE', '2', 'LAYER', '70', String(used.size)];
