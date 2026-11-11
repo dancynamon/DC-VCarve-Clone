@@ -1362,7 +1362,7 @@ function v3Init(){
   v3 = (typeof VIEW3D!=='undefined') ? VIEW3D.create(c) : null;
   if(!v3){ v3Fail=true; setMsg('3D view: WebGL2 unavailable — falling back to the flat preview'); return null; }
   v3Colors();
-  c.addEventListener('dblclick', e=>{ e.preventDefault(); v3.frame(); });
+  c.addEventListener('dblclick', e=>{ e.preventDefault(); v3.frame(PB.jig?JIG_VIEW:undefined); });
   c.addEventListener('contextmenu', e=>e.preventDefault());
   window.addEventListener('pointerup', ()=>c.classList.remove('orbit'));
   return v3;
@@ -1447,6 +1447,9 @@ function runSimInner(){
     if(-b.z0>th+1e-6){ th=-b.z0; note+=' · cuts '+(-b.z0).toFixed(3)+'" deep — stock thickened to match'; }
   }
   const res=parseFloat((document.getElementById('simRes')||{}).value)||0.05;
+  PB.jig=false; document.querySelector('.stage').classList.remove('jig'); jigHover(null);
+  if(jigMode() && !rot && v3Init()){ jigRun(prog, name, res, note); return; }
+  if(v3) v3.setAirCuts(null);
   const stock={ x0, y0, w:x1-x0, h:y1-y0, thickness:th, res };
   // two-sided: carve the other side first, so this side shows where the two meet (holes that go right through)
   if(job.sides===2 && !PB.file){ const other=job.workSide==='top'?'bottom':'top', jo=buildJobProgram(true, other);
@@ -1480,7 +1483,8 @@ function pbSet(T, quiet){
   PB.T=Math.max(0,Math.min(tl.total,T));
   const at=GCSIM.locate(tl, p.n, PB.T);
   PB.carver.seek(at.i, at.u);
-  if(PB.carver.takeDirty() && v3) v3.stockChanged();
+  const dirtyB=PB.carver.takeDirty();
+  if(dirtyB && v3){ if(PB.jig){ v3.boardsChanged(dirtyB); jigPartsSoon(dirtyB); } else v3.stockChanged(); }
   const i=Math.min(at.i, p.n-1), pt=GCSIM.pointAt(p, at.i, at.u);
   if(v3) v3.setProgress(at.i, pt, i>=0?pbToolFor(p.tool[i]):null);
   const prog=document.getElementById('pbProg'); if(prog && document.activeElement!==prog) prog.value=tl.total>0?Math.round(1000*PB.T/tl.total):1000;
@@ -1496,7 +1500,8 @@ function pbReadout(i, pt){
   el.innerHTML='<b>'+kind+'</b> · line '+p.line[i]+'<br>T'+t+' · Ø'+(+(2*tl.radius).toFixed(4))+'" '+shape
     +'<br>S '+(p.rpm[i]?p.rpm[i].toLocaleString()+' rpm':'off')+' · F '+(k===GCSIM.RAPID?'rapid':p.feed[i]+' ipm')
     +'<br>X '+fmtLen(pt[0])+' Y '+fmtLen(pt[1])+' Z '+fmtLen(z)+(uk()===1?'':' mm')
-    +'<br><span class="muted">'+(z<0?(-z).toFixed(3)+'" deep':z.toFixed(3)+'" above top')+'</span>';
+    +'<br><span class="muted">'+(z<0?(-z).toFixed(3)+'" deep':z.toFixed(3)+'" above top')+'</span>'
+    +(PB.jig&&JIGS.airWhy&&JIGS.airWhy.has(i)?'<br><b style="color:#d0312d">AIR CUT — '+_esc(JIGS.airWhy.get(i))+'</b>':'');
   pbSource(p.line[i]);
 }
 function pbSource(line){
@@ -1516,7 +1521,7 @@ function pbSpeed(){ const v=(document.getElementById('pbSpeed')||{}).value; retu
 function pbPlay(){ if(!PB.prog||!PB.prog.n) return;
   if(PB.T>=PB.tl.total-1e-9) pbSet(0);
   PB.playing=true; PB.last=0; document.getElementById('pbPlay').textContent='❚❚ Pause'; if(!PB.raf) PB.raf=requestAnimationFrame(pbTick); }
-function pbPause(){ PB.playing=false; const b=document.getElementById('pbPlay'); if(b) b.textContent='▶ Play'; }
+function pbPause(){ PB.playing=false; if(PB.jig) jigPartsFlush(); const b=document.getElementById('pbPlay'); if(b) b.textContent='▶ Play'; }
 // Jump to the previous / next move that starts a cut after a rapid (a new contour), or a tool change.
 function pbStep(dir){ const p=PB.prog; if(!p||!p.n) return; pbPause();
   let i=GCSIM.locate(PB.tl,p.n,PB.T).i; if(i>=p.n) i=p.n-1;
@@ -1550,6 +1555,110 @@ function pbUI(){
 function openProgram(name, text){
   PB.file={ name, text }; lastGcode=text; toolpaths=toolpathSegs(text); drillMarks=null;
   setView('preview'); if(PB.prog&&PB.prog.warnings.length) setMsg('Opened '+name+' · WARN: '+PB.prog.warnings[0]);
+}
+// ---- board jig stock ----------------------------------------------------------------------------------------
+// The 3D View's Stock dropdown: "Block" (the job's material) or a board jig (jig.js) — the boards that really sit
+// in the fixture, each its own heightfield carved from its own top, on a drawn table with lane fences and the end
+// stop. Opening a program auto-fills the Jig Load from where it cuts (and from a "README - run order.txt" opened
+// with it); Dan can override any lane. Cutting moves over an empty lane or past the end of a 48.5in piece are
+// drawn red and listed. Parts cut free get an alternating tint; hovering one shows its length.
+const JIG_MODE_KEY='aqcam_stockMode';
+const JIG_VIEW=[0.12,1,0.55];   // the whole jig, looking up the lanes from the operator's side
+const JIGS={ mode:(()=>{ try{ return sessionStorage.getItem(JIG_MODE_KEY)||'block'; }catch(e){ return 'block'; } })(),
+  load:null, fileKey:'', readme:null, ro:null, air:null, airWhy:null, parts:[], pend:new Set(), partsT:0, handle:null, manual:false };
+function jigMode(){ return typeof JIG!=='undefined' && !!JIG.PRESETS[JIGS.mode]; }
+function jigPreset(){ return JIG.PRESETS[JIGS.mode]; }
+function jigScene(jig){ const L=[]; for(let k=1;k<=jig.lanes;k++) L.push(JIG.laneX(jig,k));
+  return { x0:L[0].x0-2.2, x1:L[L.length-1].x1+2.2, y0:jig.y0-1.5, y1:jig.y1+0.5, table:jig.table, lanes:L, stopY:jig.y0, railH:0.75, railW:0.75, stopH:0.75 }; }
+function jigAutoFill(prog, name){ const jig=jigPreset();
+  const auto=JIG.autoFill(jig, prog, name, pbToolFor);
+  JIGS.ro=JIGS.readme?JIG.parseRunOrder(JIGS.readme.text, name):null;
+  JIGS.load=JIG.applyRunOrder(jig, auto, JIGS.ro); JIGS.manual=false; }
+function jigSetReadme(name, text, apply){ JIGS.readme={ name, text };
+  if(apply && PB.prog && jigMode()){ JIGS.ro=JIG.parseRunOrder(text, PB.name); JIGS.load=JIG.applyRunOrder(jigPreset(), JIGS.load||JIG.emptyLoad(jigPreset()), JIGS.ro);
+    const T=PB.T; runSim(); pbSet(T); setMsg(JIGS.ro?'README applied: '+(JIGS.ro.title||name):'README loaded — no section for '+PB.name); }
+  else JIGS.fileKey=''; }   // the next program opened fills from it
+function jigRun(prog, name, res, note){
+  const jig=jigPreset(), key=JIGS.mode+'|'+name+'|'+prog.n;
+  if(JIGS.fileKey!==key || !JIGS.load){ jigAutoFill(prog, name); JIGS.fileKey=key; }
+  const pieces=JIG.piecesFor(jig, JIGS.load);
+  PB.jig=true; PB.pieces=pieces;
+  PB.carver=new JIG.JigCarver(CAM, GCSIM, prog, pieces, pbToolFor, res);
+  PB.carver.seek(prog.n, 0); PB.carver.takeDirty(); PB.T=PB.tl.total;
+  document.querySelector('.stage').classList.add('jig');
+  v3Show(true);
+  const info=v3.setBoards(pieces.map((pc,k)=>({ field:PB.carver.fields[k], zTop:pc.zTop, label:pc.label })), jigScene(jig)); v3.resize();
+  const stockKey='jig:'+JIGS.mode; if(stockKey!==PB.stockKey){ v3.frame(JIG_VIEW); PB.stockKey=stockKey; }
+  const toolIdx={}; prog.tools.forEach((t,i)=>toolIdx[t]=i);
+  v3.setPaths(prog,{ lift:0.006, colorOf:t=>TOOL_COLS[(toolIdx[t]||0)%TOOL_COLS.length],
+    cuts:document.getElementById('glLines').checked, rapids:document.getElementById('glRapids').checked });
+  v3.setGhost(document.getElementById('pbGhost').checked); v3.setToolVisible(document.getElementById('pbTool').checked);
+  JIGS.air=JIG.airCuts(jig, prog, JIGS.load, pbToolFor); JIGS.airWhy=new Map(JIGS.air.list.map(a=>[a.i,a.reason]));
+  v3.setAirCuts(prog, JIGS.air.moves);
+  JIGS.parts=[]; JIGS.pend=new Set(pieces.map((p,k)=>k)); jigPartsFlush();
+  simField=null; pbUI(); pbSet(PB.T, true); jigPanel();
+  const nb=pieces.length, nAir=JIGS.air.moves.length;
+  setMsg('3D jig: '+name+' · '+nb+' board'+(nb===1?'':'s')+' in the '+jig.name+' · '+prog.n.toLocaleString()+' moves · '+info.vertices.toLocaleString()+' verts · '+pbFmt(PB.tl.total)+' run time'
+    +(nAir?' · ⚠ '+nAir+' air-cut move'+(nAir===1?'':'s'):'')+(JIGS.ro?' · README section '+JIGS.ro.section+' applied':''));
+  render();
+}
+// Cut-free parts: relabel the boards that changed — at once when paused, at most ~3x a second while playing.
+function jigPartsSoon(idx){ for(const k of idx) JIGS.pend.add(k); if(!PB.playing || performance.now()-JIGS.partsT>300) jigPartsFlush(); }
+function jigPartsFlush(){ if(!PB.jig||!PB.carver||!PB.carver.fields) return; JIGS.partsT=performance.now();
+  for(const k of JIGS.pend){ const f=PB.carver.fields[k]; if(!f) continue; const info=JIG.partsOf(f); JIGS.parts[k]=info; if(v3) v3.setBoardTint(k, info.tint); }
+  JIGS.pend.clear(); }
+function jigPanel(){
+  const jig=jigPreset(), rows=document.getElementById('jigRows'); if(!rows||!jig) return;
+  document.getElementById('jigName').textContent='— '+jig.name;
+  const L=JIGS.load||JIG.emptyLoad(jig), airL=(JIGS.air&&JIGS.air.lanes)||{};
+  let h='';
+  for(let k=1;k<=jig.lanes;k++){ const l=L[k-1];
+    h+='<div class="jigrow'+(airL[k]?' air':'')+'"><b>Lane '+k+'</b><select class="jt" data-lane="'+k+'" data-k="type">'+JIG.TYPES.map(t=>'<option value="'+t+'"'+(l.type===t?' selected':'')+'>'+JIG.TYPE_LABEL[t]+'</option>').join('')+'</select>'
+      +'<select data-lane="'+k+'" data-k="thickness"'+(l.type==='empty'?' disabled':'')+'>'+jig.thicknesses.map(t=>'<option value="'+t+'"'+(l.thickness===t?' selected':'')+'>'+t+'</option>').join('')+'</select></div>'; }
+  rows.innerHTML=h;
+  rows.querySelectorAll('select').forEach(el=>el.onchange=()=>{ const l=JIGS.load[+el.dataset.lane-1];
+    if(el.dataset.k==='type') l.type=el.value; else l.thickness=parseFloat(el.value);
+    JIGS.manual=true; const T=PB.T; runSim(); pbSet(T); });
+  const rd=document.getElementById('jigReadme');
+  rd.innerHTML=!JIGS.readme?'No run-order README — open it with the .tap, or load it here.'
+    : JIGS.ro?'<b>'+_esc(JIGS.readme.name)+'</b>: section '+JIGS.ro.section+' ('+_esc(JIGS.ro.title||'')+')'+(JIGS.manual?' · edited':'')
+    : '<b>'+_esc(JIGS.readme.name)+'</b>: no section for this program';
+  const air=document.getElementById('jigAir');
+  if(!JIGS.air||!JIGS.air.moves.length){ air.innerHTML=PB.prog&&PB.prog.n?'<span class="okm">✓ No air cuts — every cutting move is over a board</span>':''; return; }
+  const sum=JIG.summarizeAir(JIGS.air);
+  air.innerHTML=sum.map((g,n)=>'<button class="w" data-n="'+n+'">⚠ '+g.count+' cutting move'+(g.count===1?'':'s')+': '+_esc(g.reason)+' (line'+(g.line0===g.line1?' '+g.line0:'s '+g.line0+'–'+g.line1)+')</button>').join('');
+  air.querySelectorAll('.w').forEach(b=>b.onclick=()=>{ const g=sum[+b.dataset.n]; pbPause(); pbSet(PB.tl.t0[g.first]+1e-9); });
+}
+// Hover readout: the board and the part under the cursor, with the part's length.
+function jigHover(e){
+  const tip=document.getElementById('jigHover'); if(!tip) return;
+  if(!e||!PB.jig||!v3||e.buttons){ tip.classList.remove('on'); return; }
+  const hit=v3.pickBoard(e.clientX, e.clientY); if(!hit){ tip.classList.remove('on'); return; }
+  const pc=PB.pieces[hit.k], f=PB.carver.fields[hit.k];
+  let info=JIGS.parts[hit.k]; if(!info){ info=JIGS.parts[hit.k]=JIG.partsOf(f); }
+  const part=JIG.partAt(f, info, hit.x, hit.y);
+  let h;
+  if(info.parts.length<=1) h='<b>'+(part?'Uncut':'Kerf')+'</b> · '+fmtIn(pc.h)+' long';
+  else if(part) h='<b>Part '+part.n+' of '+info.parts.length+'</b> · '+fmtIn(part.length)+' long × '+fmtIn(part.width);
+  else h='<b>Kerf</b> (cut through)';
+  tip.innerHTML=h+'<br>'+_esc(pc.label)+' · Y '+hit.y.toFixed(2);
+  tip.style.left=(e.clientX+14)+'px'; tip.style.top=(e.clientY+14)+'px'; tip.classList.add('on');
+}
+function fmtIn(v){ return (Math.round(v*100)/100).toFixed(2)+'in'; }
+function jigInitUI(){
+  const sel=document.getElementById('simStock');
+  if(sel){ if(!JIG.PRESETS[JIGS.mode]) JIGS.mode='block'; sel.value=JIGS.mode;
+    sel.onchange=()=>{ JIGS.mode=sel.value; try{ sessionStorage.setItem(JIG_MODE_KEY, JIGS.mode); }catch(e){}
+      JIGS.fileKey=''; PB.stockKey=''; if(viewMode==='preview'){ const T=PB.T; runSim(); if(PB.prog) pbSet(Math.min(T,PB.tl.total)); } }; }
+  const rf=document.getElementById('jigRefill'); if(rf) rf.onclick=()=>{ if(!PB.prog) return; jigAutoFill(PB.prog, PB.name); const T=PB.T; runSim(); pbSet(T); setMsg('Jig load re-filled from the program'+(JIGS.ro?' and the README':'')); };
+  const rb=document.getElementById('jigReadmeBtn'); if(rb) rb.onclick=async()=>{
+    const take=(n,t)=>jigSetReadme(n,t,true);
+    if(window.showOpenFilePicker){ try{ const o={ types:[{ description:'Run-order README', accept:{ 'text/plain':['.txt'] } }] }; if(JIGS.handle) o.startIn=JIGS.handle;
+        const [h]=await window.showOpenFilePicker(o); const f=await h.getFile(); take(f.name, await f.text()); }catch(err){} return; }
+    const inp=document.createElement('input'); inp.type='file'; inp.accept='.txt'; inp.onchange=()=>{ const f=inp.files[0]; if(f) f.text().then(t=>take(f.name,t)); }; inp.click(); };
+  const c=document.getElementById('gl'); if(c){ let pend=null, raf=0;
+    c.addEventListener('pointermove', e=>{ pend=e; if(!raf) raf=requestAnimationFrame(()=>{ raf=0; jigHover(pend); }); });
+    c.addEventListener('pointerleave', ()=>jigHover(null)); }
 }
 function closeProgram(){ PB.file=null; toolpaths=null; if(viewMode==='preview') runSim(); else render(); setMsg('Closed the program — the 3D view shows the visible toolpaths'); }
 // Shade the heightfield into an offscreen canvas: wood-tone depth ramp + directional hillshade for a carved look.
@@ -1605,9 +1714,19 @@ function handleOpenedFile(f, handle){ const rd=new FileReader();
   else { rd.onload=ev=>importText(f.name,ev.target.result); rd.readAsText(f); } }
 // Open: native picker when available (keeps the handle so Save writes back); falls back to the <input type=file>.
 async function openProjectDialog(){ const fi=document.getElementById('fileInput'); if(!window.showOpenFilePicker){ fi.click(); return; }
-  let hs; try{ hs=await window.showOpenFilePicker({ multiple:false, types:[{ description:'Job, template, clipart, VCarve/Aspire .crv/.crv3d, G-code program, vector or bitmap', accept:{ 'application/json':['.aqcam','.aqtpl','.aqclip'], 'application/octet-stream':['.crv','.crv3d'], 'image/vnd.dxf':['.dxf'], 'image/svg+xml':['.svg'], 'application/pdf':['.pdf'], 'text/plain':['.tap','.nc','.ngc','.gcode','.cnc'], 'image/*':['.png','.jpg','.jpeg','.gif','.bmp','.webp'] } }] }); }
+  let hs; try{ hs=await window.showOpenFilePicker({ multiple:true, types:[{ description:'Job, template, clipart, VCarve/Aspire .crv/.crv3d, G-code program (+ its README - run order.txt), vector or bitmap', accept:{ 'application/json':['.aqcam','.aqtpl','.aqclip'], 'application/octet-stream':['.crv','.crv3d'], 'image/vnd.dxf':['.dxf'], 'image/svg+xml':['.svg'], 'application/pdf':['.pdf'], 'text/plain':['.tap','.nc','.ngc','.gcode','.cnc','.txt'], 'image/*':['.png','.jpg','.jpeg','.gif','.bmp','.webp'] } }] }); }
   catch(err){ if(!(err&&err.name==='AbortError')) fi.click(); return; }
-  const h=hs[0]; handleOpenedFile(await h.getFile(), /\.aqcam$/i.test(h.name)?h:null); }
+  JIGS.handle=hs[0];
+  const files=[]; for(const h of hs) files.push(await h.getFile());
+  const main=hs.find(h=>!isRunOrder(h.name));
+  handleOpenedFiles(files, main&&/\.aqcam$/i.test(main.name)?main:null); }
+// Several files at once (picker, drop): a "README - run order.txt" among them is read first, so the .tap it
+// describes opens with that loading; then the first other file opens as usual.
+function isRunOrder(n){ return /\.txt$/i.test(n) && /readme|run.?order/i.test(n); }
+function handleOpenedFiles(files, handle){
+  files=Array.from(files||[]); const rd=files.find(f=>isRunOrder(f.name)), main=files.find(f=>!isRunOrder(f.name));
+  if(!rd){ if(main) handleOpenedFile(main, handle); return; }
+  const r=new FileReader(); r.onload=ev=>{ jigSetReadme(rd.name, ev.target.result, !main); if(main) handleOpenedFile(main, handle); }; r.readAsText(rd); }
 function applyProject(proj, srcName){
   Object.assign(job,{ type:proj.job.type||'flat', diameter:proj.job.diameter||4, sides:proj.job.sides===2?2:1, flip:proj.job.flip==='v'?'v':'h', workSide:'top' });
   if(job.sides===2){ doc.shapes=proj.shapes.filter(s=>s.side!=='bottom'); doc.other=proj.shapes.filter(s=>s.side==='bottom'); } else { doc.shapes=proj.shapes; doc.other=[]; }
@@ -2519,7 +2638,7 @@ function wire(){
   if(nm){ nm.addEventListener('mousedown',e=>{ if(e.target===nm)hideNewModal(); });
     nm.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); hideNewModal(); newJob(); } else if(e.key==='Escape'){ e.preventDefault(); hideNewModal(); } }); }
   const fi=document.getElementById('fileInput'); document.getElementById('btnImport').onclick=openProjectDialog;
-  fi.onchange=e=>{ const f=e.target.files[0]; if(!f)return; handleOpenedFile(f,null); fi.value=''; };
+  fi.onchange=e=>{ if(!e.target.files.length)return; handleOpenedFiles(e.target.files,null); fi.value=''; };
   on('btnSaveAs',saveProjectAs); setProjectName();
   on('btnRotate',openRotateModal);
   const rs=document.getElementById('rotSnap'); if(rs)rs.onchange=e=>{ grid.rotSnap=Math.max(0.1,parseFloat(e.target.value)||5); };
@@ -2539,6 +2658,7 @@ function wire(){
   on('pbToolsBtn',()=>{ const t=document.getElementById('pbToolsBox'); t.classList.toggle('on'); document.getElementById('pbToolsBtn').classList.toggle('active',t.classList.contains('on')); });
   const pbProg=document.getElementById('pbProg'); if(pbProg) pbProg.oninput=()=>{ pbPause(); if(PB.tl) pbSet(PB.tl.total*(+pbProg.value)/1000); };
   const pbChk=(id,fn)=>{ const el=document.getElementById(id); if(el) el.onchange=()=>fn(el.checked); };
+  jigInitUI();
   pbChk('pbGhost',v=>{ if(v3) v3.setGhost(v); }); pbChk('pbTool',v=>{ if(v3) v3.setToolVisible(v); });
   const pbRapid=document.getElementById('pbRapid'); if(pbRapid) pbRapid.onchange=()=>{ if(PB.prog){ const f=PB.tl.total?PB.T/PB.tl.total:1; PB.tl=GCSIM.timeline(PB.prog,parseFloat(pbRapid.value)||300); pbSet(f*PB.tl.total); } };
   initHelpSearch();
@@ -2556,7 +2676,7 @@ function wire(){
   document.body.addEventListener('dragover',e=>e.preventDefault());
   document.body.addEventListener('drop',e=>{ e.preventDefault(); const f=e.dataTransfer.files[0]; if(!f)return;
     if(/\.(ttf|otf|woff)$/i.test(f.name)){ loadFontFile(f); return; }
-    handleOpenedFile(f,null); });
+    handleOpenedFiles(e.dataTransfer.files,null); });
   window.addEventListener('resize',resize);
   // autosave every 30s (backstop for the on-change debounce) + restore prompt on load
   setInterval(autosaveNow, 30000);

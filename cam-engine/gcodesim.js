@@ -133,9 +133,11 @@ function pointAt(p, i, u) {
 // backwards re-carves from an empty block. `dirty` is the cell box touched since the caller last cleared it.
 // stock.floors (optional, two-sided jobs): per-cell depth at which this side meets the other side's cuts; cells
 // the other side has already cut through start open.
+// stock.zTop (optional, board jigs): the machine Z of this block's top when it is not Z0 — a 1.125" board on a
+// jig zeroed on a 1.5" board has its top at Z -0.375, so a move to Z -0.875 cuts it 0.5 deep.
 function Carver(cam, p, stock, toolFor) {
   this.cam = cam; this.p = p; this.toolFor = toolFor;
-  this.field = cam.stockField(stock);
+  this.field = cam.stockField(stock); this.zTop = stock.zTop || 0;
   if (stock.floors && stock.floors.length === this.field.z.length) {
     const f = this.field; f.floors = stock.floors; this.base = new Float32Array(f.z.length);
     for (let k = 0; k < f.z.length; k++) this.base[k] = f.floors[k] >= -1e-9 ? f.floor : 0;
@@ -162,10 +164,11 @@ Carver.prototype._mark = function (ax, ay, bx, by, r) {
   else { if (i0 < d.i0) d.i0 = i0; if (j0 < d.j0) d.j0 = j0; if (i1 > d.i1) d.i1 = i1; if (j1 > d.j1) d.j1 = j1; }
 };
 Carver.prototype._carve = function (i, ua, ub) {
-  const p = this.p; if (p.kind[i] === RAPID && p.z0[i] >= 0 && p.z1[i] >= 0) return;
-  const ax = p.x0[i] + (p.x1[i] - p.x0[i]) * ua, ay = p.y0[i] + (p.y1[i] - p.y0[i]) * ua, az = p.z0[i] + (p.z1[i] - p.z0[i]) * ua;
-  const bx = p.x0[i] + (p.x1[i] - p.x0[i]) * ub, by = p.y0[i] + (p.y1[i] - p.y0[i]) * ub, bz = p.z0[i] + (p.z1[i] - p.z0[i]) * ub;
-  const k = this.kernel(p.tool[i]);
+  const p = this.p, zt = this.zTop; if (p.z0[i] >= zt && p.z1[i] >= zt) return;   // above this block's top: no cut
+  const ax = p.x0[i] + (p.x1[i] - p.x0[i]) * ua, ay = p.y0[i] + (p.y1[i] - p.y0[i]) * ua, az = p.z0[i] + (p.z1[i] - p.z0[i]) * ua - zt;
+  const bx = p.x0[i] + (p.x1[i] - p.x0[i]) * ub, by = p.y0[i] + (p.y1[i] - p.y0[i]) * ub, bz = p.z0[i] + (p.z1[i] - p.z0[i]) * ub - zt;
+  const k = this.kernel(p.tool[i]), f = this.field, r = (k.rad + 1) * f.res;
+  if (Math.max(ax, bx) + r < f.x0 || Math.min(ax, bx) - r > f.x0 + f.w || Math.max(ay, by) + r < f.y0 || Math.min(ay, by) - r > f.y0 + f.h) return;   // misses the block
   if (this.cam.carveSegment(this.field, k, ax, ay, az, bx, by, bz)) this._mark(ax, ay, bx, by, (k.rad + 1) * this.field.res);
 };
 // Carve so the block shows every move before move i, plus fraction u of move i.
