@@ -135,6 +135,24 @@ body.dark .asmpane{background:#1c212b}
 .pbtool label{margin:0}
 .pbtoolsbox input,.pbtoolsbox select{background:var(--bg-input);border:1px solid var(--btn-bd);color:var(--ink);border-radius:3px;font-family:inherit;font-size:10px;padding:2px 3px}
 .stage.playing3d .glhint.on{display:none}
+.jigbox,.jighover{display:none}
+.stage.playing3d.jig .jigbox{display:block}
+.jigbox{position:absolute;right:10px;top:46px;z-index:23;background:var(--bg-card);border:1px solid var(--bd);border-radius:6px;padding:7px 9px;font-size:10px;color:var(--ink);box-shadow:0 2px 8px rgba(20,40,70,.18);max-height:calc(100% - 120px);overflow:auto;width:268px}
+.jigbox .pbh{font-weight:700;margin-bottom:5px}
+.jigrow{display:flex;align-items:center;gap:5px;margin:3px 0}
+.jigrow b{width:40px}
+.jigrow.air b{color:#d0312d}
+.jigrow select{background:var(--bg-input);border:1px solid var(--btn-bd);color:var(--ink);border-radius:3px;font-family:inherit;font-size:10px;padding:2px 3px}
+.jigrow select.jt{flex:1}
+.jigreadme{margin-top:6px;color:var(--ink-dim);line-height:1.4}
+.jigbtns{display:flex;gap:4px;margin-top:5px}.jigbtns .tb{font-size:10px;padding:2px 7px}
+.jigair{margin-top:6px}
+.jigair .w{display:block;width:100%;text-align:left;background:#fde8e6;border:1px solid #e9a29b;color:#9a1d16;border-radius:4px;padding:3px 6px;margin-top:3px;font:inherit;font-size:10px;cursor:pointer;line-height:1.35}
+.jigair .okm{color:#178a54}
+body.dark .jigair .w{background:#4a1c19;border-color:#8a3a33;color:#ffc9c2}
+.jighover{position:fixed;z-index:60;pointer-events:none;background:rgba(22,36,60,.9);color:#eef4fb;border-radius:5px;padding:4px 8px;font-size:10.5px;line-height:1.4;white-space:nowrap}
+.jighover b{color:#ffd36a}
+.jighover.on{display:block}
 .glhint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:22;display:none;background:rgba(22,36,60,.82);color:#dce8f7;border-radius:5px;padding:4px 10px;font-size:10px;letter-spacing:.2px;pointer-events:none}
 .stage.preview .glhint.on{display:block}
 .viewtabs{position:absolute;top:0;left:0;z-index:20;display:flex;gap:2px;background:var(--bg-card);border:1px solid var(--bd);border-radius:0 0 6px 0;padding:2px;box-shadow:0 2px 8px rgba(20,40,70,.18)}
@@ -343,7 +361,7 @@ body.dark .qrow.picked{background:#3a2a1c}
       <button data-act="keys">Keyboard Shortcuts</button><button data-act="selftest">Run Self-test</button>
       <div class="hver" id="helpVer"></div></div></div>
     <input type="file" id="asmInput" multiple accept=".json,.dxf" style="display:none">
-    <input type="file" id="fileInput" accept=".aqcam,.aqtpl,.aqclip,.crv,.crv3d,.dxf,.svg,.pdf,.png,.jpg,.jpeg,.gif,.bmp,.webp,.tap,.nc,.ngc,.gcode,.cnc" style="display:none">
+    <input type="file" id="fileInput" multiple accept=".txt,.aqcam,.aqtpl,.aqclip,.crv,.crv3d,.dxf,.svg,.pdf,.png,.jpg,.jpeg,.gif,.bmp,.webp,.tap,.nc,.ngc,.gcode,.cnc" style="display:none">
     
     
     
@@ -542,11 +560,16 @@ body.dark .qrow.picked{background:#3a2a1c}
   </div>
 
 <div class="stage"><div class="viewtabs"><button class="vtab active" data-view="2d" data-tip="Edit vectors">2D View</button><button class="vtab" data-view="preview" data-tip="Machining preview of all visible toolpaths">3D View</button><button class="vtab" data-view="asm" data-tip="2D sheet editor + live 3D assembly of every part, side by side">2D + 3D Assembly</button></div>
-    <div class="simctrl" id="simCtrl"><button class="tb" id="simTop" data-tip="Straight-down view (matches 2D)">Top</button><button class="tb" id="simIso" data-tip="3/4 view">Iso</button><button class="tb" id="simFront" data-tip="Low front view">Front</button><span class="sep"></span><label data-tip="Left-drag = pan &#183; Option/Alt-drag (or middle / right button) = orbit &#183; wheel = zoom to cursor &#183; double-click = reframe">Drag = pan · Alt-drag = orbit · Wheel = zoom</label></div>
+    <div class="simctrl" id="simCtrl"><button class="tb" id="simTop" data-tip="Straight-down view (matches 2D)">Top</button><button class="tb" id="simIso" data-tip="3/4 view">Iso</button><button class="tb" id="simFront" data-tip="Low front view">Front</button><span class="sep"></span><label data-tip="What the program cuts: one block of the job's material, or the boards in a jig (remembered for this session)">Stock<select id="simStock"><option value="block">Block</option><option value="lgc6">LGC 6-Board Jig</option></select></label><span class="sep"></span><label data-tip="Left-drag = pan &#183; Option/Alt-drag (or middle / right button) = orbit &#183; wheel = zoom to cursor &#183; double-click = reframe">Drag = pan · Alt-drag = orbit · Wheel = zoom</label></div>
     <div class="restorebar" id="restoreBar"><span id="restoreMsg">Restore last session?</span><button class="tb" id="restoreYes">Restore</button><button class="tb" id="restoreNo">Dismiss</button></div>
     <canvas id="cv"></canvas><canvas id="gl"></canvas><canvas id="hud"></canvas><div class="glhint" id="glHint">drag to pan · Option/Alt-drag (or middle / right button) to orbit · wheel to zoom · double-click to reset</div>
     <div class="asmpane" id="asmPane"><canvas id="asmGl"></canvas><div class="asmbar"><label id="asmSheetWrap" style="display:none" data-tip="The sheet the 2D editor is showing">Sheet <select id="asmSheet"></select></label><span class="sep"></span><button class="tb" id="asmIso" data-tip="3/4 view">Iso</button><button class="tb" id="asmSide" data-tip="Side elevation">Side</button><button class="tb" id="asmTop" data-tip="Plan view">Top</button><button class="tb" id="asmFit" data-tip="Frame the whole assembly">Fit</button></div><div class="asmplay" id="asmPlayBar"><label data-tip="Show the open sheet's toolpaths on its placed parts (they follow flips and bends)"><input type="checkbox" id="asmTp">Toolpaths</label><button class="tb" id="asmRew" data-tip="Back to the start" disabled>⏮</button><button class="tb" id="asmPlay" data-tip="Play / pause the cut" disabled>▶</button><input type="range" id="asmScrub" min="0" max="1000" value="0" disabled data-tip="Scrub through the job"><select id="asmSpeed" data-tip="Playback speed (× real machine time)"><option value="1">1×</option><option value="10">10×</option><option value="30" selected>30×</option><option value="100">100×</option><option value="300">300×</option></select><span class="mono" id="asmTime">—</span></div><div class="asmstat" id="asmStat">3D assembly</div><div class="asmhint">drag = orbit · Shift/right-drag = pan · wheel = zoom · click a part = select it in 2D · double-click = fit</div></div>
     <div class="pbnow" id="pbNow"></div>
+    <div class="jigbox" id="jigBox"><div class="pbh">Jig Load <span class="muted" id="jigName"></span></div><div id="jigRows"></div>
+      <div class="jigreadme" id="jigReadme"></div>
+      <div class="jigbtns"><button class="tb" id="jigReadmeBtn" data-tip="Load the job's &quot;README - run order.txt&quot; (lines like &quot;lanes 1,2 = 9/8&quot; set the thicknesses). You can also open it together with the .tap.">README&#8230;</button><button class="tb" id="jigRefill" data-tip="Guess the load again from where the program cuts (and the README)">Auto-fill</button></div>
+      <div class="jigair" id="jigAir"></div></div>
+    <div class="jighover" id="jigHover"></div>
     <pre class="pbsrc" id="pbSrc"></pre>
     <div class="pbtoolsbox" id="pbToolsBox"><div class="pbh">Tools <span class="muted">— cutter shape for the sim</span></div><div id="pbTools"></div>
       <label data-tip="Rapid (G0) traverse rate used for the run-time estimate">Rapid ipm<input type="number" id="pbRapid" value="300" step="50" min="10" style="width:58px"></label></div>
