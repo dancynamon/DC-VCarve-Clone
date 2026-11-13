@@ -418,7 +418,7 @@ const MENU_ACTIONS={
   'editdims':()=>{ const s=selectedShapes()[0]; if(s) openShapeModal(s); else setMsg('Select one shape first'); },
   'createnum':()=>{ const t=(tool in FORM_CREATE)?tool:'rect'; setTool(t); const f=document.querySelector('.tform[data-form="'+t+'"] input'); if(f){ f.focus(); f.select(); } },
   'helpsearch':()=>openHelpSearch(),
-  'expdxf':()=>exportDXF(), 'expsvg':()=>exportSVG(),
+  'expdxf':()=>exportDXF(), 'expdxfsplit':()=>exportDXFSplit(), 'expsvg':()=>exportSVG(),
   'trace':()=>openTraceModal(),
   'undo':()=>undo(), 'redo':()=>redo(), 'dup':()=>opDuplicate(), 'del':()=>deleteSelected(), 'group':()=>opGroup(), 'ungroup':()=>opUngroup(), 'fitcurves':()=>showForm('fitcurve','drawing'),
   'cut':()=>opCut(), 'copy':()=>opCopy(), 'paste':()=>opPaste(),
@@ -1185,6 +1185,8 @@ function opNest(){
   const visible=doc.shapes.filter(s=>layerVisible(s.layer));
   const targets=sel.size?selectedShapes():visible;
   if(!targets.length)return setMsg('Nothing to nest — draw some shapes first');
+  const stockSel=gv('nestStock');
+  if(stockSel&&stockSel!=='sheet'){ return opNestStock(targets,stockSel,{margin,spacing,allowRotate}); }
   const result=CADCORE.nestShapes(targets,{sheetW,sheetH,margin,spacing,allowRotate});
   if(!result.placements.length)return setMsg('All parts too large for '+sheetW+'"×'+sheetH+'" sheet — check Nest W/H');
   pushHistory();
@@ -1199,6 +1201,18 @@ function opNest(){
   const pct=(result.utilization*100).toFixed(0);
   let m=result.placements.length+' part'+(result.placements.length!==1?'s':'')+' on '+result.sheets+' sheet'+(result.sheets!==1?'s':'')+', '+pct+'% used';
   if(result.unplaced.length)m+=' · WARN: '+result.unplaced.length+' part(s) too large for sheet — excluded';
+  setMsg(m);
+}
+function opNestStock(targets,sel_,o){
+  const H=CUTPREP.HDPE_STOCK, stock=sel_==='b48'?[H.board48]:sel_==='b96'?[H.board96]:[H.board48,H.board96];
+  const res=CUTPREP.nestOnStock(targets,Object.assign({stock,gap:2},o));
+  if(!res.placements.length)return setMsg('No part fits the HDPE stock — check part sizes');
+  pushHistory();
+  for(const pl of res.placements){ const orig=targets[pl.idx]; const placed=CUTPREP.placeShapeOnStock(orig,pl,res.pieces); placed.id=orig.id; placed.layer=orig.layer;
+    const i=doc.shapes.findIndex(s=>s.id===orig.id); if(i>=0)doc.shapes[i]=placed; }
+  sel.clear(); render(); syncPanels();
+  let m=res.placements.length+' parts on '+res.pieces.length+' piece'+(res.pieces.length!==1?'s':'')+' ('+Object.entries(res.byStock).map(([k,v])=>v+'x '+k).join(', ')+'), '+(res.utilization*100).toFixed(0)+'% used';
+  if(res.unplaced.length)m+=' · WARN: '+res.unplaced.length+' part(s) too big for stock — left in place';
   setMsg(m);
 }
 function opOffset(){ const sh=selectedShapes(); if(!sh.length)return setMsg('Select shapes to offset'); let d=unitExpr(prompt('Offset distance ('+unitName()+', + outward, - inward):', uk()===1?'0.25':'6')); if(d==null)return; d/=uk(); pushHistory(); const res=CADCORE.offsetShapes(sh,d); res.forEach(r=>r.layer=activeLayer); addShapes(res); sel=new Set(res.map(r=>r.id)); render(); syncPanels(); }
@@ -1637,6 +1651,10 @@ function applyJobInputs(){ const g=id=>document.getElementById(id);
 function autosaveNow(){ try{ localStorage.setItem(AUTOSAVE_KEY, projectJSON('autosave')); }catch(e){} }
 function scheduleAutosave(){ if(autosaveTimer)clearTimeout(autosaveTimer); autosaveTimer=setTimeout(autosaveNow, 1500); }
 function exportDXF(){ if(!doc.shapes.length)return; download('design.dxf', CADCORE.toDXF(doc.shapes)); }
+// DXF with outside profiles on OUTSIDE_PROFILE and everything contained within a part on INSIDE_CUT
+function exportDXFSplit(){ const sh=doc.shapes.filter(s=>layerVisible(s.layer)); if(!sh.length)return setMsg('Nothing to export');
+  const c=CUTPREP.splitLayers(sh).counts; download('design-split.dxf', CUTPREP.toDXFLayered(sh));
+  setMsg('Split DXF: '+c.outside+' outside, '+c.inside+' inside'+(c.open?(', '+c.open+' open (OPEN_VECTOR)'):'')); }
 function exportSVG(){ if(!doc.shapes.length)return; download('design.svg', CADCORE.toSVG(doc.shapes),'image/svg+xml'); }
 function fitAll(){ if(!doc.shapes.length)return; const b=CADCORE.bboxAll(doc.shapes); const pad=0.5; const w=(b.maxX-b.minX)+2*pad||1,h=(b.maxY-b.minY)+2*pad||1;
   view.ppi=Math.min(cv.width/w, cv.height/h); view.ox=cv.width/2-(b.minX+b.maxX)/2*view.ppi; view.oy=cv.height/2+(b.minY+b.maxY)/2*view.ppi; render(); }
