@@ -1,0 +1,52 @@
+// aqcamclitest.js - the aqcam CLI end to end (from-dxf -> info -> post -> check -> split -> preview), as a subprocess.
+const fs = require('fs'), path = require('path'), os = require('os'), { spawnSync } = require('child_process');
+let pass = 0, fail = 0; const ok = (n, c, x) => { c ? pass++ : (fail++, console.log('  FAIL', n, x === undefined ? '' : JSON.stringify(x))); };
+const CLI = path.join(__dirname, 'aqcam-cli.js'), fx = path.join(__dirname, 'fixtures', 'waterslide-v4.5');
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'aqcam-cli-'));
+const run = (...a) => { const r = spawnSync(process.execPath, [CLI, ...a], { encoding: 'utf8' }); let j = null; try { j = JSON.parse(r.stdout); } catch (e) {} return { code: r.status, out: r.stdout, err: r.stderr, j }; };
+const dxf = path.join(fx, fs.readdirSync(fx).find(n => /1 BASE.*\.dxf$/.test(n)));
+const job = path.join(tmp, 'base.aqcam'), tap = path.join(tmp, 'AM-WS-7236 - 1 BASE - 48.5x97 - 1.5in.tap');
+try {
+  let r = run('from-dxf', dxf, '--out', job);
+  ok('from-dxf exits 0', r.code === 0, r.err);
+  ok('from-dxf builds a toolpath queue from layer names', r.j && r.j.toolpaths.length >= 4 && r.j.layers.includes('OUTSIDE_PROFILE'), r.j);
+  r = run('info', job);
+  ok('info lists toolpaths and the job', r.code === 0 && r.j && r.j.toolpaths.length >= 4 && r.j.job.thickness === 1.5, r.err);
+  r = run('post', job, '--out', tap, '--aircut');
+  ok('post exits 0', r.code === 0, r.err);
+  ok('post wrote the .tap and the air-cut copy', fs.existsSync(tap) && r.j && fs.existsSync(r.j.aircut));
+  ok('post runs the sanity check (clean)', r.j && r.j.sanity && r.j.sanity.ok && r.j.sanity.errors.length === 0, r.j && r.j.sanity);
+  ok('post reports the shop file name ok', r.j && r.j.fileName === 'ok', r.j && r.j.fileName);
+  ok('post stats: two tools, full depth', r.j && r.j.stats.tools.length === 2 && r.j.stats.minZ <= -1.5, r.j && r.j.stats);
+  r = run('post', job, '--out', path.join(tmp, 'job v2.tap'));
+  ok('post flags a bad shop file name without refusing', r.code === 0 && Array.isArray(r.j.fileName) && r.j.fileName.some(e => /version/.test(e)), r.j && r.j.fileName);
+  // a thinner-stock job: same toolpaths now cut 1.5 into 1.0 stock -> refused, nothing written
+  const thin = path.join(tmp, 'thin.aqcam'), P = JSON.parse(fs.readFileSync(job, 'utf8'));
+  (P.job || P.jobDims || {}).thickness = 1.0; fs.writeFileSync(thin, JSON.stringify(P));
+  const thinTap = path.join(tmp, 'thin.tap');
+  r = run('post', thin, '--out', thinTap);
+  ok('post refuses a program that fails sanity', r.code === 1 && !fs.existsSync(thinTap) && /sanity/.test(r.err), r.err.slice(0, 200));
+  r = run('post', thin, '--out', thinTap, '--force');
+  ok('--force writes it anyway and reports the errors', r.code === 0 && fs.existsSync(thinTap) && r.j.sanity.ok === false);
+  r = run('check', tap);
+  ok('check: our program passes', r.code === 0 && r.j.ok && r.j.fileName.ok, r.j);
+  const vt = path.join(fx, fs.readdirSync(fx).find(n => /1 BASE.*\.tap$/.test(n)));
+  r = run('check', vt);
+  ok('check: Vectric program passes sanity, legacy name flagged', r.code === 0 && r.j.ok && !r.j.fileName.ok, r.j && r.j.fileName);
+  const broken = path.join(tmp, 'broken.tap'); fs.writeFileSync(broken, 'G90\nT2\nS24000\nM3\nF100\nG0 X1 Y1 Z0.25\nG1 Z-0.5\nG0 X20 Y20\nM5\n');
+  r = run('check', broken);
+  ok('check: exits 1 on a rapid through material', r.code === 1 && r.j.errors.some(e => /rapid/.test(e)), r.j);
+  const sp = path.join(tmp, 'split.dxf');
+  r = run('split', dxf, '--out', sp);
+  ok('split: counts match the hand layering', r.code === 0 && r.j.counts.outside === 1 && r.j.counts.inside === 16, r.j);
+  ok('split: output DXF has the cut layers and SHEET', /\r\n8\r\nOUTSIDE_PROFILE\r\n/.test(fs.readFileSync(sp, 'utf8')) && /\r\n8\r\nSHEET\r\n/.test(fs.readFileSync(sp, 'utf8')));
+  const svg = path.join(tmp, 'p.svg');
+  r = run('preview', job, '--out', svg);
+  ok('preview writes an SVG', r.code === 0 && /^<svg/.test(fs.readFileSync(svg, 'utf8')));
+  r = run('post', job);
+  ok('missing --out is an error, not a crash', r.code === 1 && /needs --out/.test(r.err), r.err);
+  r = run('bogus');
+  ok('unknown command -> usage, exit 2', r.code === 2 && /usage/.test(r.err));
+} finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+console.log(`\n${pass} passed, ${fail} failed (aqcam CLI)`);
+process.exit(fail ? 1 : 0);

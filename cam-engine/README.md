@@ -104,6 +104,33 @@ The older `gcode-cadcam-260614.html` remains as the import-a-file → CAM/backpl
 
 ---
 
+## ★ NEW: cut-file preparation — `cutprep.js` · `aqcam-cli.js`
+Pure (no DOM) helpers that sit between a drawing and the machine; the studio and the CLI call the same code.
+- **DXF layer split** (`splitLayers` / `toDXFLayered`, studio **File → Export DXF (split inside/outside)**): part outer
+  edges go on `OUTSIDE_PROFILE`, everything inside a part (holes, slots, drills, pockets, engraving) on `INSIDE_CUT`,
+  stray open vectors on `OPEN_VECTOR`. Containment depth decides (0 = part, 1 = hole, 2 = island in a hole = part …).
+  Only through-cuts count as containers: a `POCKET_*` loop never makes what sits in it a hole (drill in a counterbore
+  stays inside, a cap in its shoulder ring stays a part), and a pocket is never put on `OUTSIDE_PROFILE`. Reference
+  layers (`SHEET`, `NOTES`, `*_VECTOR_ONLY`) are left as they are — a sheet outline is not a part. On all four v4.5
+  waterslide DXFs the split reproduces Dan's hand layering exactly (guarded in `cutpreptest.js`).
+- **HDPE stock nesting** (`nestOnStock`, studio Nest form **Stock** = 96in boards / 48in boards / mix): shelf-packs part
+  bounding boxes onto 3.5in-face HDPE boards (48in laid out at the 48.25 worst case), smallest piece that fits first,
+  with per-stock quantity, margin, gap and 90° rotation. `verifyNest` re-checks a result independently.
+- **.tap sanity** (`tapSanity`): static checks before a program goes near the machine — depth past stock + 0.05,
+  G0 XY moves below Z0, cutting with no tool / spindle / feed, arc I/J radius mismatch, G21, NaN, out-of-bounds cuts;
+  warnings for spindle left on, ending below safe Z, high feeds. Dan's Vectric programs pass it.
+  `checkShopFileName` enforces the SHOP-FILES-RULES name `<SKU> - <step#> <PART> - <WxL> - <thickness>in.tap`.
+- **`aqcam-cli.js`** — Claude-made cut files ↔ the studio's `.aqcam`:
+  - `from-dxf sheet.dxf --out job.aqcam [--thickness 1.5] [--w 48.5 --h 97]` — layer-named DXF → project + toolpath queue
+  - `post job.aqcam --out job.tap [--aircut] [--force]` — same path as the studio's Post Job; runs `tapSanity` against
+    the job and **refuses to write** a failing program unless `--force`; reports the file-name rule as a warning
+  - `check job.tap [--thickness 1.5] [--w --h]` — sanity + name check on any .tap, exit 1 on errors
+  - `split part.dxf --out part-split.dxf` — re-layer a plain DXF into outside / inside
+  - `info job.aqcam`, `preview job.aqcam --out job.svg`
+- Tests: `cutpreptest.js` (split, nesting, sanity, names) and `aqcamclitest.js` (the CLI end to end), both in `npm test`.
+
+---
+
 ## ★ NEW: 2D + 3D Assembly view (live) — `assembly.js` · `studio_asm.js` · `glview.js`
 View tab **2D + 3D Assembly** splits the stage: the 2D sheet editor stays on the left, a lit 3D assembly of every part
 is on the right. Edit in 2D (move a hole, resize a pocket, change an outline) and only that part's mesh is rebuilt

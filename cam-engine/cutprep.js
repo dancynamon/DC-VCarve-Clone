@@ -5,7 +5,8 @@
  *       a part (holes, slots, cut-outs, engraving inside a part) goes on a SEPARATE layer (INSIDE_CUT), so the
  *       operator can outside-profile one layer and inside-cut / pocket the other. Layer names match the ones
  *       assembly.js already reads. Containment depth decides: depth 0 = outside, depth 1 = inside (a hole),
- *       depth 2 = an island sitting in a hole = a part again = outside, and so on.
+ *       depth 2 = an island sitting in a hole = a part again = outside, and so on. Only through-cuts count as
+ *       containers (POCKET_* loops are partial depth), and reference layers (SHEET, NOTES, *_VECTOR_ONLY) are left alone.
  *  2. Stock nesting     HDPE_STOCK / nestOnStock / placeShapeOnStock / verifyNest
  *       Packs part bounding boxes onto real stock pieces (48in and 96in HDPE boards, or a 48.5x97 sheet),
  *       preferring the smallest piece that fits, honouring per-piece quantity, margin, spacing and rotation.
@@ -41,15 +42,24 @@ function loopInside(inner, outer) {
   const m = inner.map((p, i) => { const q = inner[(i + 1) % inner.length]; return { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 }; });
   return m.some(p => CAD.pointInPoly(p, outer) && distToPolyEdge(p, outer) > 1e-5) && m.every(p => CAD.pointInPoly(p, outer) || distToPolyEdge(p, outer) <= 1e-5);
 }
-// Loops of the machinable shapes (annotations / dimensions are never machined, skipped).
+// Reference-only layers are never machined and never count as a part: the sheet outline would otherwise contain every
+// part and flip the whole drawing inside-out. Same names assembly.layerRule treats as 'sheet' / 'skip'.
+function isReferenceLayer(name) {
+  const n = String(name == null ? '' : name).toUpperCase().trim();
+  return n === 'SHEET' || /(^|_)VECTOR_ONLY$/.test(n) || ['NOTES', 'NOTE', 'TEXT', 'DIMS', 'DIMENSIONS'].includes(n);
+}
+// Pockets (partial-depth) do not separate material, so they never make what sits in them a hole or an island:
+// a drill in a counterbore is still inside the part, a cap inside its shoulder pocket is still a part.
+function isPartialDepthLayer(name) { return /^POCKET_/i.test(String(name == null ? '' : name).trim()); }
+// Loops of the machinable shapes (annotations / dimensions / reference layers are never machined, skipped).
 function collectLoops(shapes) {
   const loops = [];
   shapes.forEach((s, si) => {
-    if (s.annotation || s.type === 'dim') return;
+    if (s.annotation || s.type === 'dim' || isReferenceLayer(s.layer)) return;
     CAD.flatten(s).forEach((l, li) => {
       if (!l.pts || l.pts.length < 2) return;
       const pts = l.closed ? l.pts.slice(0, l.pts.length > 2 && Math.hypot(l.pts[0].x - l.pts[l.pts.length - 1].x, l.pts[0].y - l.pts[l.pts.length - 1].y) < 1e-9 ? -1 : undefined) : l.pts;
-      loops.push({ si, li, closed: !!l.closed && pts.length >= 3, pts, area: l.closed ? Math.abs(polyArea(pts)) : 0 });
+      loops.push({ si, li, through: !isPartialDepthLayer(s.layer), closed: !!l.closed && pts.length >= 3, pts, area: l.closed ? Math.abs(polyArea(pts)) : 0 });
     });
   });
   return loops;
@@ -57,12 +67,13 @@ function collectLoops(shapes) {
 // -> [{si, li, closed, depth, kind:'outside'|'inside'|'open', layer, parent}]  (parent = index of the immediate container)
 function classifyLoops(shapes) {
   const loops = collectLoops(shapes);
-  const closed = loops.filter(l => l.closed).sort((a, b) => b.area - a.area);
+  const closed = loops.filter(l => l.closed && l.through).sort((a, b) => b.area - a.area);
   for (const l of loops) {
     const containers = closed.filter(c => c !== l && c.area > l.area + EPS && loopInside(l.pts, c.pts));
     l.depth = containers.length;
     l.parent = containers.length ? loops.indexOf(containers[containers.length - 1]) : -1;   // smallest container (sorted big -> small)
-    if (!l.closed) { l.kind = l.depth > 0 ? 'inside' : 'open'; }
+    if (!l.through) { l.kind = 'inside'; }                 // a pocket is never a through profile, wherever it sits
+    else if (!l.closed) { l.kind = l.depth > 0 ? 'inside' : 'open'; }
     else l.kind = (l.depth % 2 === 0) ? 'outside' : 'inside';
     l.layer = l.kind === 'outside' ? LAYER_OUTSIDE : l.kind === 'inside' ? LAYER_INSIDE : LAYER_OPEN;
   }
@@ -96,6 +107,13 @@ function toDXFLayered(shapes, opts) {
     for (const p of c.pts) ent.push('10', p.x.toFixed(5), '20', p.y.toFixed(5));
   }
   const colors = { [L.outside]: 5, [L.inside]: 1, [L.open]: 3 };
+  // reference-only shapes (sheet outline, notes) ride along untouched on their own layer
+  shapes.forEach(s => {
+    if (s.annotation || s.type === 'dim' || !isReferenceLayer(s.layer)) return;
+    for (const l of CAD.flatten(s)) { if (!l.pts || l.pts.length < 2) continue; used.add(s.layer);
+      ent.push('0', 'LWPOLYLINE', '8', s.layer, '90', String(l.pts.length), '70', l.closed ? '1' : '0');
+      for (const p of l.pts) ent.push('10', p.x.toFixed(5), '20', p.y.toFixed(5)); }
+  });
   const tbl = ['0', 'SECTION', '2', 'TABLES', '0', 'TABLE', '2', 'LAYER', '70', String(used.size)];
   for (const n of used) tbl.push('0', 'LAYER', '2', n, '70', '0', '62', String(colors[n] || 7), '6', 'CONTINUOUS');
   tbl.push('0', 'ENDTAB', '0', 'ENDSEC');
@@ -265,6 +283,6 @@ function checkShopFileName(name) {
   return { ok: errs.length === 0, errors: errs };
 }
 
-return { LAYER_OUTSIDE, LAYER_INSIDE, LAYER_OPEN, classifyLoops, splitLayers, toDXFLayered,
+return { LAYER_OUTSIDE, LAYER_INSIDE, LAYER_OPEN, isReferenceLayer, classifyLoops, splitLayers, toDXFLayered,
   HDPE_STOCK, nestOnStock, placeShapeOnStock, verifyNest, tapSanity, checkShopFileName };
 });
