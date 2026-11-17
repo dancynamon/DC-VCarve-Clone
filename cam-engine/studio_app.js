@@ -427,6 +427,7 @@ const MENU_ACTIONS={
   'recalc':()=>recalcAll(), 'post':()=>postJob(),
   'v2d':()=>setView('2d'), 'v3d':()=>openCncEngine(), 'vsim':()=>setView('preview'),
   'rulers':()=>{ setRulers(!rulers); syncViewMenu(); }, 'dark':()=>{ setTheme(!darkMode); syncViewMenu(); },
+  'uiup':()=>setUiScale(uiScale+UI_STEP), 'uidown':()=>setUiScale(uiScale-UI_STEP), 'uireset':()=>resetInterface(),
   'fit':()=>fitAll(), 'fitjob':()=>fitJob(),
   'keys':()=>{document.getElementById('keysModal').style.display='block';},
   'selftest':()=>runSelfTest()
@@ -447,8 +448,9 @@ function buildHelpIndex(){ const idx=[]; const seen=new Set();
   document.querySelectorAll('.opbtn[data-op]').forEach(b=>add(b.title||b.dataset.op, 'Toolpath operation', ()=>{ openCamForm(b.dataset.op); flashEl(b); }, b.dataset.tip||''));
   document.querySelectorAll('.tform[data-form] h4').forEach(h=>{ const f=h.parentElement.dataset.form; if(f==='cam')return; add(h.textContent.trim(), 'Form', ()=>{ showForm(f,'drawing'); flashEl(h); }); });
   document.querySelectorAll('.ldock .secgrp .tb[id], .rdock .secgrp .tb[id], .rfoot label').forEach(b=>{ const pane=b.closest('.dpane'); const sec=b.closest('.secgrp'); const secName=sec&&sec.querySelector('h3')?sec.querySelector('h3').textContent.trim():'';
-    const label=b.dataset.tip&&b.textContent.trim().length<3?b.dataset.tip:b.textContent.trim(); if(!label)return;
-    add(label, (secName||'Panel'), ()=>{ if(pane){ const tab=pane.id.replace(/^pane/,'').toLowerCase(); setCmdTab(tab); } flashEl(b); }, b.dataset.tip||''); });
+    const text=(b.querySelector('.tlabel')||b).textContent.trim();   // a tile's name, not the words drawn inside its icon
+    const label=b.dataset.tip&&text.length<3?b.dataset.tip:text; if(!label)return;
+    add(label, (secName||'Panel'), ()=>{ if(pane){ const tab=pane.id.replace(/^pane/,'').toLowerCase(); setCmdTab(tab); } if(sec) sec.classList.remove('collapsed'); flashEl(b); }, b.dataset.tip||''); });
   document.querySelectorAll('.dtab').forEach(b=>add(b.textContent.trim()+' tab', 'Left dock', ()=>{ setCmdTab(b.dataset.ctab); flashEl(b); }));
   add('Layers','Left dock',()=>{ setCmdTab('layers'); flashEl(document.getElementById('layerList')); },'layer add rename color delete');
   add('Job Size and Position','Edit menu',()=>{ showForm('job','drawing'); flashEl(document.querySelector('.tform[data-form="job"] h4')); },'material thickness datum origin');
@@ -517,129 +519,75 @@ function createFromForm(kind){
   pushHistory(); addShapes([sh]); sel=new Set([sh.id]); render(); syncPanels();
   setMsg('Created '+kind+' · '+CADCORE.ANCHORS[modalAnchor].label+' at '+x.toFixed(3)+', '+y.toFixed(3));
 }
-// ---- tool icon set ------------------------------------------------------------
-// Hand-drawn 24x24 stroke glyphs on one weight, inheriting currentColor so they pick up the
-// button's hover/active state. Each one shows what the tool DOES (profile = an offset path around a
-// shape; pocket = concentric clearing rings; v-carve = a V groove section), rather than a letterform.
-// Icons carry their own colour on the <svg>, so currentColor inside resolves to it and the
-// button's active/hover background still reads underneath.
-const ICON_COL={
-  'new':'#2f7d32','open':'#2f7d32','save':'#2f7d32','tracebmp':'#7b52c9','expdxf':'#b06a00','expsvg':'#b06a00',
-  fit:'#1d6fb8', fitjob:'#1d6fb8',
-  line:'#1d6fb8',polyline:'#1d6fb8',bezier:'#1d6fb8',rect:'#1d6fb8',rrect:'#1d6fb8',circle:'#1d6fb8',
-  ellipse:'#1d6fb8',arc:'#1d6fb8',polygon:'#1d6fb8',star:'#c9971d',text:'#1d6fb8',dim:'#0f8a8a',
-  measure:'#0f8a8a',pan:'#4a6a8a',select:'#7b52c9',
-  mirrorh:'#7b52c9',mirrorv:'#7b52c9',rot90:'#7b52c9',duplicate:'#7b52c9',array:'#7b52c9',nest:'#b8501d',
-  node:'#0f8a8a',fillet:'#0f8a8a',trim:'#c0392b',extend:'#0f8a8a',
-  offset:'#b8501d',join:'#0f8a8a',weld:'#2f7d32',subtract:'#c0392b',intersect:'#1d6fb8',
-  del:'#c0392b',validate:'#2f7d32',
-  alignL:'#4a6a8a',alignHC:'#4a6a8a',alignR:'#4a6a8a',alignT:'#4a6a8a',alignVC:'#4a6a8a',alignB:'#4a6a8a',
-  profile:'#b8501d',pocket:'#1d6fb8',drill:'#2f7d32',vcarve:'#7b52c9',inlay:'#b8901d',chamfer:'#7b52c9',engrave:'#7b52c9',fluting:'#1d6fb8',prism:'#7b52c9',moulding:'#b8501d'
-};
-// Accent hue per icon: elements marked stroke/fill="var(--a)" pick it up, so each glyph reads
-// as two tones instead of one flat colour.
-const ICON_ACC={
-  'new':'#1d6fb8','open':'#c9971d','save':'#1d6fb8','tracebmp':'#1d6fb8','expdxf':'#2f7d32','expsvg':'#2f7d32',
-  fit:'#c9971d', fitjob:'#c9971d',
-  line:'#c9971d',polyline:'#c9971d',bezier:'#c9971d',rect:'#7b52c9',rrect:'#7b52c9',circle:'#7b52c9',
-  ellipse:'#7b52c9',arc:'#c9971d',polygon:'#7b52c9',star:'#b8501d',text:'#c9971d',dim:'#c0392b',
-  measure:'#c9971d',pan:'#1d6fb8',select:'#c9971d',
-  mirrorh:'#1d6fb8',mirrorv:'#1d6fb8',rot90:'#c9971d',duplicate:'#1d6fb8',array:'#1d6fb8',nest:'#2f7d32',
-  node:'#c9971d',fillet:'#c9971d',trim:'#4a6a8a',extend:'#c9971d',
-  offset:'#1d6fb8',join:'#c9971d',weld:'#1d6fb8',subtract:'#c0392b',intersect:'#2f7d32',
-  del:'#c0392b',validate:'#1d6fb8',
-  alignL:'#1d6fb8',alignHC:'#1d6fb8',alignR:'#1d6fb8',alignT:'#1d6fb8',alignVC:'#1d6fb8',alignB:'#1d6fb8',
-  profile:'#1d6fb8',pocket:'#c9971d',drill:'#c0392b',vcarve:'#c9971d',inlay:'#2f7d32',chamfer:'#c9971d',engrave:'#c0392b',fluting:'#c9971d',prism:'#c9971d',moulding:'#2f7d32'
-};
-const ICON_SVG=(inner,name,size)=>'<svg viewBox="0 0 24 24" width="'+(size||28)+'" height="'+(size||28)+'" fill="none" '+
-  'stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" '+
-  'style="color:'+((ICON_COL[name])||'#33414f')+';--a:'+((ICON_ACC[name])||'#c9971d')+'" aria-hidden="true">'+inner+'</svg>';
-const DOT=(x,y)=>'<circle cx="'+x+'" cy="'+y+'" r="1.7" fill="var(--a)" stroke="none"/>';
-const ICONS={
-  select:  '<path d="M6 3 L6 18 L10 14.2 L12.6 20 L15 19 L12.4 13.4 L17.5 13.4 Z" fill="currentColor" stroke="none"/>',
-  node:    '<path d="M4 17 C 8 7, 15 7, 20 13"/><rect x="2.4" y="15.4" width="3.2" height="3.2" fill="currentColor" stroke="none"/><rect x="18.4" y="11.4" width="3.2" height="3.2" fill="currentColor" stroke="none"/><rect x="10.4" y="7.6" width="3.2" height="3.2" fill="none"/>',
-  fillet:  '<path d="M4 20 V11 A7 7 0 0 1 11 4 H20"/><path d="M4 4 H11 M4 4 V11" stroke-dasharray="2 2" opacity=".5"/>',
-  trim:    '<path d="M6.5 3.5 L16.8 16.2"/><path d="M17.5 3.5 L7.2 16.2"/><circle cx="5.6" cy="18.6" r="2.5" fill="var(--a)" fill-opacity=".32" stroke="var(--a)"/><circle cx="18.4" cy="18.6" r="2.5" fill="var(--a)" fill-opacity=".32" stroke="var(--a)"/>',
-  extend:  '<path d="M3 12 H14"/><path d="M11 9 L14.5 12 L11 15"/><path d="M19 5 V19"/>',
-  line:    '<path d="M5.5 18.5 L18.5 5.5"/>'+DOT(5.5,18.5)+DOT(18.5,5.5),
-  polyline:'<path d="M4 18 L9 8.5 L14.5 14 L20 5.5"/>'+DOT(4,18)+DOT(20,5.5),
-  bezier:  '<path d="M4 18 C 8 7, 16 7, 20 13"/><path d="M4 18 L8.5 11" opacity=".5"/><path d="M20 13 L15.5 8" opacity=".5"/>'+DOT(4,18)+DOT(20,13)+DOT(8.5,11)+DOT(15.5,8),
-  rect:    '<rect x="3.5" y="6" width="17" height="12" fill="var(--a)" fill-opacity=".16"/>',
-  rrect:   '<rect x="3.5" y="6" width="17" height="12" rx="3.5" fill="var(--a)" fill-opacity=".16"/>',
-  circle:  '<circle cx="12" cy="12" r="8.2" fill="var(--a)" fill-opacity=".16"/>',
-  ellipse: '<ellipse cx="12" cy="12" rx="9" ry="6" fill="var(--a)" fill-opacity=".16"/>',
-  arc:     '<path d="M3.5 17.5 A 9.5 9.5 0 0 1 20.5 17.5"/>'+DOT(3.5,17.5)+DOT(20.5,17.5),
-  polygon: '<path d="M12 3.4 L20 8 L20 16 L12 20.6 L4 16 L4 8 Z" fill="var(--a)" fill-opacity=".16"/>',
-  star:    '<path d="M12 3 L14.5 9.4 L21.3 9.8 L16 14 L17.8 20.6 L12 16.8 L6.2 20.6 L8 14 L2.7 9.8 L9.5 9.4 Z" fill="currentColor" fill-opacity=".3"/>',
-  text:    '<path d="M4.5 6 H19.5"/><path d="M12 6 V19"/><path d="M9 19 H15"/>',
-  dim:     '<path d="M5 5.5 V13.5 M19 5.5 V13.5"/><path d="M5 18 H19"/><path d="M8 15.6 L5 18 L8 20.4 Z" fill="currentColor"/><path d="M16 15.6 L19 18 L16 20.4 Z" fill="currentColor"/>',
-  measure: '<rect x="2.6" y="9" width="18.8" height="6" rx="1"/><path d="M7 9 V12 M12 9 V13 M17 9 V12"/>',
-  pan:     '<path d="M12 3.5 V20.5 M3.5 12 H20.5"/><path d="M12 3.5 L9.6 6.4 M12 3.5 L14.4 6.4 M12 20.5 L9.6 17.6 M12 20.5 L14.4 17.6 M3.5 12 L6.4 9.6 M3.5 12 L6.4 14.4 M20.5 12 L17.6 9.6 M20.5 12 L17.6 14.4"/>',
-  // toolpath operations
-  profile: '<rect x="7" y="8" width="10" height="8" rx="1" fill="currentColor" fill-opacity=".2"/><rect x="3.6" y="4.6" width="16.8" height="14.8" rx="2.6" stroke-dasharray="3 2.2" stroke="var(--a)"/>',
-  pocket:  '<rect x="3.4" y="5.4" width="17.2" height="13.2" rx="1.4" fill="currentColor" fill-opacity=".16"/><rect x="6.3" y="8.3" width="11.4" height="7.4" rx="1" stroke="var(--a)"/><rect x="9.2" y="11.2" width="5.6" height="1.6" rx=".8" stroke="var(--a)"/>',
-  drill:   '<circle cx="12" cy="12" r="7.6" fill="currentColor" fill-opacity=".14"/><circle cx="12" cy="12" r="2.8" fill="var(--a)" stroke="none"/><path d="M12 1.8 V5 M12 19 V22.2 M1.8 12 H5 M19 12 H22.2" stroke="var(--a)"/>',
-  vcarve:  '<path d="M2.6 7 V17 H21.4 V7 Z" fill="currentColor" fill-opacity=".16"/><path d="M7.4 7 L12 15.6 L16.6 7 Z" fill="var(--a)" fill-opacity=".55" stroke="var(--a)"/>',
-  inlay:   '<path d="M2.8 18.4 V9 H8 L11 13.4 L14 9 H19.2 V18.4 Z" fill="currentColor" fill-opacity=".18"/><path d="M8 5.6 L11 1.6 L14 5.6 Z" fill="var(--a)" fill-opacity=".6" stroke="var(--a)"/>',
-  chamfer: '<path d="M2.6 20 V8.6 L6.2 5 H21.4 V20 Z" fill="currentColor" fill-opacity=".16"/><path d="M2.6 8.6 L6.2 5" stroke="var(--a)" stroke-width="2.4"/><path d="M8 2 L4.4 6.8 L9 7.2 Z" fill="var(--a)" fill-opacity=".6" stroke="var(--a)"/>',
-  engrave: '<path d="M3 17 L9 7 L15 17 L21 7" stroke="var(--a)" stroke-width="2.2"/><path d="M2.6 20.4 H21.4" stroke="currentColor"/>',
-  fluting: '<path d="M4 3 V21 M20 3 V21" stroke="currentColor"/><path d="M9 4.5 Q9 3 9.8 3 Q10.6 3 10.6 4.5 V19.5 Q10.6 21 9.8 21 Q9 21 9 19.5 Z M13.4 4.5 Q13.4 3 14.2 3 Q15 3 15 4.5 V19.5 Q15 21 14.2 21 Q13.4 21 13.4 19.5 Z" fill="var(--a)" fill-opacity=".5" stroke="var(--a)"/>',
-  prism:   '<path d="M2.6 19 H21.4" stroke="currentColor"/><path d="M4 19 L9 7 H15 L20 19 Z" fill="currentColor" fill-opacity=".14"/><path d="M4 19 L9 7 L12 13 L15 7 L20 19 M12 13 V19" stroke="var(--a)"/>',
-  moulding:'<path d="M2.6 19 V9 Q6 9 7 12 Q8.4 16 12 16 Q15.6 16 17 12 Q18 9 21.4 9 V19 Z" fill="currentColor" fill-opacity=".16"/><path d="M2.6 9 Q6 9 7 12 Q8.4 16 12 16 Q15.6 16 17 12 Q18 9 21.4 9" stroke="var(--a)" stroke-width="2"/>',
-  // ---- command buttons (File Operations / View / Transform / Edit / Align / Layout) ----
-  'new':     '<path d="M6 3.2 H14 L18.6 8 V20.8 H6 Z" fill="currentColor" fill-opacity=".12"/><path d="M14 3.2 V8 H18.6" stroke="var(--a)"/><path d="M9 13.4 H15.6 M12.3 10.1 V16.7" stroke="var(--a)"/>',
-  'open':    '<path d="M2.8 18.6 V6.4 H9.4 L11.4 8.8 H17.6 V11"/><path d="M2.8 18.6 L6.2 11 H21.6 L18.2 18.6 Z" fill="var(--a)" fill-opacity=".28" stroke="var(--a)"/>',
-  'save':    '<path d="M4 4.4 H17.2 L20 7.2 V19.6 H4 Z" fill="currentColor" fill-opacity=".12"/><path d="M7.4 4.4 V10 H15.6 V4.4" stroke="var(--a)"/><rect x="7.4" y="13.4" width="8.2" height="6.2" fill="var(--a)" fill-opacity=".3" stroke="var(--a)"/>',
-  'tracebmp':'<rect x="2.8" y="4.6" width="10.6" height="10.6" rx="1"/><path d="M5 12.6 L7.6 9.4 L9.6 11.6 L11.4 9.6" opacity=".65"/><path d="M9.6 20.4 C 13 20.4, 13.6 12.4, 21 12.4"/>'+DOT(9.6,20.4)+DOT(21,12.4),
-  'expdxf':  '<path d="M5 3.4 H12.6 L16.6 7.4 V13"/><path d="M12.6 3.4 V7.4 H16.6"/><path d="M5 3.4 V16.6 H10"/><path d="M13.6 20.2 L17.4 16.4 L21.2 20.2 Z"/><path d="M13.6 20.2 H21.2" opacity=".6"/>',
-  'expsvg':  '<path d="M5 3.4 H12.6 L16.6 7.4 V12"/><path d="M12.6 3.4 V7.4 H16.6"/><path d="M5 3.4 V16.6 H9.4"/><path d="M12 20.4 C 15 14.6, 18.6 20.4, 21.4 15"/>'+DOT(12,20.4)+DOT(21.4,15),
-  'fit':     '<rect x="3.2" y="5.4" width="17.6" height="13.2" rx="1.4" stroke-dasharray="2.6 2"/><path d="M8.6 10 L11.4 12.8 M8.6 14 V10 H12.6"/><path d="M15.4 14 L12.6 11.2 M15.4 10 V14 H11.4"/>',
-  'fitjob':  '<rect x="2.8" y="5" width="18.4" height="14" rx="1.4" stroke-dasharray="2.6 2"/><rect x="7.4" y="9" width="9.2" height="6" fill="currentColor" fill-opacity=".2"/>',
-  'mirrorh': '<path d="M12 2.6 V21.4" stroke-dasharray="2.4 2.2"/><path d="M9.4 6.4 L2.8 12 L9.4 17.6 Z"/><path d="M14.6 6.4 L21.2 12 L14.6 17.6 Z" fill="var(--a)" fill-opacity=".4" stroke="var(--a)"/>',
-  'mirrorv': '<path d="M2.6 12 H21.4" stroke-dasharray="2.4 2.2"/><path d="M6.4 9.4 L12 2.8 L17.6 9.4 Z"/><path d="M6.4 14.6 L12 21.2 L17.6 14.6 Z" fill="var(--a)" fill-opacity=".4" stroke="var(--a)"/>',
-  'rot90':   '<path d="M12 4.2 A7.8 7.8 0 1 1 4.6 14.6"/><path d="M8.4 2.2 L12 4.2 L8.4 6.6"/><rect x="9" y="9" width="6" height="6" fill="currentColor" fill-opacity=".22"/>',
-  'duplicate':'<rect x="3.2" y="7.4" width="11.6" height="11.6" rx="1"/><path d="M7.6 7.4 V4 H20.8 V17.2 H17.4" opacity=".7"/>',
-  'array':   '<rect x="3" y="3" width="6.4" height="6.4" fill="currentColor" fill-opacity=".28"/><rect x="14.6" y="3" width="6.4" height="6.4" fill="var(--a)" fill-opacity=".28" stroke="var(--a)"/><rect x="3" y="14.6" width="6.4" height="6.4" fill="var(--a)" fill-opacity=".28" stroke="var(--a)"/><rect x="14.6" y="14.6" width="6.4" height="6.4" fill="currentColor" fill-opacity=".28"/>',
-  'nest':    '<rect x="2.6" y="4" width="18.8" height="16" rx="1" stroke-dasharray="2.6 2"/><rect x="4.6" y="6" width="7.4" height="5.4" fill="currentColor" fill-opacity=".18"/><circle cx="17" cy="9.2" r="3.2" fill="currentColor" fill-opacity=".18"/><rect x="4.6" y="13.4" width="12" height="4.6" fill="currentColor" fill-opacity=".18"/>',
-  'offset':  '<rect x="7.6" y="8.6" width="8.8" height="6.8" rx="1"/><rect x="3.6" y="4.6" width="16.8" height="14.8" rx="3" stroke-dasharray="3 2.2" opacity=".8"/>',
-  'join':    '<path d="M3 17.4 C 6.4 17.4, 8.4 12, 11.6 12"/><path d="M21 17.4 C 17.6 17.4, 15.6 12, 12.4 12"/>'+DOT(12,12)+DOT(3,17.4)+DOT(21,17.4),
-  'weld':    '<circle cx="9.4" cy="12" r="5.6" fill="currentColor" fill-opacity=".34"/><circle cx="14.6" cy="12" r="5.6" fill="var(--a)" fill-opacity=".34" stroke="var(--a)"/>',
-  'subtract':'<circle cx="9.4" cy="12" r="5.6" fill="#1d6fb8" fill-opacity=".32" stroke="#1d6fb8"/><circle cx="14.6" cy="12" r="5.6" stroke-dasharray="2.4 2" stroke="var(--a)" fill="none"/>',
-  'intersect':'<circle cx="9.5" cy="12" r="5.5"/><circle cx="14.5" cy="12" r="5.5" stroke="var(--a)"/><path d="M12 7.1 A5.5 5.5 0 0 0 12 16.9 A5.5 5.5 0 0 0 12 7.1 Z" fill="var(--a)" fill-opacity=".6" stroke="none"/>',
-  'del':     '<path d="M4.4 6.6 H19.6"/><path d="M9.6 6.6 V4.2 H14.4 V6.6"/><path d="M6.4 6.6 L7.4 20.4 H16.6 L17.6 6.6" fill="currentColor" fill-opacity=".16"/><path d="M10.4 10 V17 M13.6 10 V17"/>',
-  'validate':'<path d="M2.8 16.6 C 6.6 16.6, 8.2 7.4, 12 7.4 C 14.6 7.4, 15.8 11, 17 13" opacity=".9"/><circle cx="16.4" cy="15.6" r="4.6"/><path d="M14.4 15.6 L15.9 17.1 L18.6 13.9"/>',
-  'alignL':  '<path d="M3.6 3.4 V20.6"/><rect x="6.6" y="6" width="13.4" height="4.4" fill="var(--a)" fill-opacity=".28"/><rect x="6.6" y="13.6" width="8.4" height="4.4" fill="currentColor" fill-opacity=".22"/>',
-  'alignR':  '<path d="M20.4 3.4 V20.6"/><rect x="4" y="6" width="13.4" height="4.4" fill="var(--a)" fill-opacity=".28"/><rect x="9" y="13.6" width="8.4" height="4.4" fill="currentColor" fill-opacity=".22"/>',
-  'alignHC': '<path d="M12 3.4 V20.6" stroke-dasharray="2.4 2"/><rect x="5.3" y="6" width="13.4" height="4.4" fill="var(--a)" fill-opacity=".28"/><rect x="7.8" y="13.6" width="8.4" height="4.4" fill="currentColor" fill-opacity=".22"/>',
-  'alignT':  '<path d="M3.4 3.6 H20.6"/><rect x="6" y="6.6" width="4.4" height="13.4" fill="var(--a)" fill-opacity=".28"/><rect x="13.6" y="6.6" width="4.4" height="8.4" fill="currentColor" fill-opacity=".22"/>',
-  'alignB':  '<path d="M3.4 20.4 H20.6"/><rect x="6" y="4" width="4.4" height="13.4" fill="var(--a)" fill-opacity=".28"/><rect x="13.6" y="9" width="4.4" height="8.4" fill="currentColor" fill-opacity=".22"/>',
-  'alignVC': '<path d="M3.4 12 H20.6" stroke-dasharray="2.4 2"/><rect x="6" y="5.3" width="4.4" height="13.4" fill="var(--a)" fill-opacity=".28"/><rect x="13.6" y="7.8" width="4.4" height="8.4" fill="currentColor" fill-opacity=".22"/>',
-};
-// Left-dock command buttons become icon buttons too, the way Aspire lays them out.
-// Their data-tip tooltips carry the naming, so nothing becomes unguessable.
-const ICON_BTNS={ btnNew:'new', btnImport:'open', btnSaveProj:'save', btnTrace:'tracebmp',
-  btnExpDXF:'expdxf', btnExpSVG:'expsvg', btnFit:'fit', btnFitJob:'fitjob',
-  btnMirrorH:'mirrorh', btnMirrorV:'mirrorv', btnRot90:'rot90', btnDup:'duplicate',
-  btnArray:'array', btnNestForm:'nest', btnOffset:'offset', btnJoin:'join', btnUnion:'weld',
-  btnDiff:'subtract', btnInt:'intersect', btnDelete:'del', btnCheckVec:'validate',
-  btnAlignL:'alignL', btnAlignHC:'alignHC', btnAlignR:'alignR',
-  btnAlignT:'alignT', btnAlignVC:'alignVC', btnAlignB:'alignB' };
+// ---- dock tiles ----------------------------------------------------------------
+// Every dock command is an icon tile with its name underneath: the picture comes from ICONS
+// (studio_icons.js), keyed by data-tool / data-op / data-icon; the name is the button's own text.
 function paintIcons(){
-  for(const id in ICON_BTNS){
-    const b=document.getElementById(id), g=ICONS[ICON_BTNS[id]];
-    if(!b||!g) continue;
-    if(!b.dataset.tip && b.textContent.trim()) b.dataset.tip=b.textContent.trim();
-    b.classList.add('iconbtn'); b.innerHTML=ICON_SVG(g, ICON_BTNS[id], 24);
-  }
-  document.querySelectorAll('.tool[data-tool]').forEach(b=>{
-    const g=ICONS[b.dataset.tool]; if(g) b.innerHTML=ICON_SVG(g, b.dataset.tool);
-  });
-  document.querySelectorAll('.opbtn[data-op]').forEach(b=>{
-    const g=ICONS[b.dataset.op]; if(g) b.innerHTML=ICON_SVG(g, b.dataset.op, 30);
+  document.body.insertAdjacentHTML('afterbegin', ICON_DEFS);
+  document.querySelectorAll('.tool[data-tool], .opbtn[data-op], .tb.iconbtn[data-icon]').forEach(b=>{
+    const g=ICONS[b.dataset.tool||b.dataset.op||b.dataset.icon]; if(!g) return;
+    const label=document.createElement('span'); label.className='tlabel'; label.textContent=b.textContent.trim();
+    b.innerHTML=ICON_SVG(g); b.appendChild(label);
   });
 }
+// Click a section bar to fold it; each section remembers its state.
+function initDockSections(){
+  document.querySelectorAll('.secgrp, .selpanel').forEach(sec=>{
+    const h=sec.querySelector(':scope > h3'); if(!h) return;
+    const key='aqcam.fold.'+h.textContent.trim();
+    try{ if(localStorage.getItem(key)==='1') sec.classList.add('collapsed'); }catch(e){}
+    h.onclick=()=>{ const c=sec.classList.toggle('collapsed'); try{ localStorage.setItem(key, c?'1':'0'); }catch(e){} };
+  });
+}
+// ---- interface size + dock widths -------------------------------------------------
+// --ui zooms the chrome only, never the drawing canvas, so canvas coordinates are unaffected.
+// Dock widths are held in unscaled px, so a panel keeps its proportions as the interface grows.
+const UI_DEFAULT=1.1, UI_MIN=0.9, UI_MAX=1.8, UI_STEP=0.1;
+const DOCK={ l:{ key:'aqcam.ldockW', css:'--ldock-w', def:290, min:190 }, r:{ key:'aqcam.rdockW', css:'--rdock-w', def:310, min:220 } };
+const DOCK_MAX=720, STAGE_MIN=320;
+function loadNum(key, dflt){ try{ const v=parseFloat(localStorage.getItem(key)); return isFinite(v)?v:dflt; }catch(e){ return dflt; } }
+function saveNum(key, v){ try{ localStorage.setItem(key, String(v)); }catch(e){} }
+let uiScale=Math.min(UI_MAX, Math.max(UI_MIN, loadNum('aqcam.uiScale', UI_DEFAULT)));
+DOCK.l.w=loadNum(DOCK.l.key, DOCK.l.def); DOCK.r.w=loadNum(DOCK.r.key, DOCK.r.def);
+const dockClamp=(d,w)=>Math.min(DOCK_MAX, Math.max(d.min, w));
+// Narrow window: give up dock width (never below the minimums) so the canvas keeps some room.
+// Saved widths are left alone, so the panels come back when the window does.
+function applyDockLayout(){
+  const room=Math.max(0, window.innerWidth-STAGE_MIN)/uiScale;
+  let l=dockClamp(DOCK.l, DOCK.l.w), r=dockClamp(DOCK.r, DOCK.r.w);
+  const over=l+r-room, sl=l-DOCK.l.min, sr=r-DOCK.r.min;
+  if(over>0 && sl+sr>0){ const k=Math.min(1, over/(sl+sr)); l-=sl*k; r-=sr*k; }
+  const st=document.documentElement.style;
+  st.setProperty('--ui', uiScale); st.setProperty(DOCK.l.css, l+'px'); st.setProperty(DOCK.r.css, r+'px');
+  window.dispatchEvent(new Event('resize'));   // canvas, 3D view and assembly view all re-fit on this
+}
+function setUiScale(v){
+  uiScale=Math.round(Math.min(UI_MAX, Math.max(UI_MIN, v))*100)/100; saveNum('aqcam.uiScale', uiScale);
+  const p=document.getElementById('uiPct'); if(p) p.textContent=Math.round(uiScale*100)+'%';
+  applyDockLayout();
+}
+function resetInterface(){ DOCK.l.w=DOCK.l.def; DOCK.r.w=DOCK.r.def; saveNum(DOCK.l.key,DOCK.l.w); saveNum(DOCK.r.key,DOCK.r.w); setUiScale(UI_DEFAULT); }
+function initDockGrips(){
+  const wireGrip=(el, side)=>{ const d=DOCK[side], other=DOCK[side==='l'?'r':'l']; let raf=0, want=d.w;
+    const widthAt=x=>(side==='l'? x : window.innerWidth-x)/uiScale;
+    el.addEventListener('pointerdown', e=>{ if(e.button!==0) return; e.preventDefault(); el.setPointerCapture(e.pointerId); el.classList.add('drag'); document.body.classList.add('dockdrag'); });
+    el.addEventListener('pointermove', e=>{ if(!el.classList.contains('drag')) return;
+      const room=(window.innerWidth-STAGE_MIN)/uiScale-dockClamp(other, other.w);   // never squeeze the canvas out
+      want=Math.min(Math.max(d.min, room), dockClamp(d, widthAt(e.clientX)));
+      if(!raf) raf=requestAnimationFrame(()=>{ raf=0; d.w=want; applyDockLayout(); }); });
+    const end=()=>{ if(!el.classList.contains('drag')) return; el.classList.remove('drag'); document.body.classList.remove('dockdrag'); saveNum(d.key, want); };
+    el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+    el.addEventListener('dblclick', ()=>{ d.w=want=d.def; saveNum(d.key, d.w); applyDockLayout(); });
+  };
+  wireGrip(document.getElementById('gripL'),'l'); wireGrip(document.getElementById('gripR'),'r');
+  document.getElementById('btnUiUp').onclick=()=>setUiScale(uiScale+UI_STEP);
+  document.getElementById('btnUiDown').onclick=()=>setUiScale(uiScale-UI_STEP);
+  document.getElementById('uiPct').onclick=()=>setUiScale(UI_DEFAULT);
+  window.addEventListener('resize', e=>{ if(e.isTrusted) applyDockLayout(); });   // a real window resize; ours are dispatched
+  setUiScale(uiScale);
+}
 function initCmdDock(){
-  paintIcons();
+  paintIcons(); initDockSections(); initDockGrips();
   const jd=document.getElementById('jobDims'); if(jd) jd.style.whiteSpace='pre';
   document.querySelectorAll('[data-create]').forEach(b=>b.onclick=()=>createFromForm(b.dataset.create));
   // Enter inside a draw form's field = Create (the canvas Enter shortcut is ignored while an input has focus)
@@ -1303,9 +1251,9 @@ function importPDF(name, buf){
 function importCRV(name, buf, opts){
   if(typeof CRVPARSE==='undefined'){ setMsg('Cannot open '+name+': the .crv reader (cam-engine/crvparse.js) is not in this build — add it and run npm run build'); return; }
   opts=opts||{};
-  let res; try{ res=CRVPARSE.toShapes(new Uint8Array(buf), { tol:0.002, units:opts.units||SETTINGS.importUnits, strictAnchors:SETTINGS.strictAnchors&&!opts.skipAnchorCheck }); }
-  catch(err){ const m=err.notCrvFile?(name+' is not a Vectric file (the contents do not match its .crv/.crv3d extension). '+err.message):err.message;
-    showFileReport(name,[{code:err.anchorMismatch?'ANCHOR_MISMATCH':'OPEN_FAILED',level:'loss',msg:m,count:1}],err.anchorMismatch?{failed:true,action:{label:'Open Anyway',fn:()=>importCRV(name,buf,Object.assign({},opts,{skipAnchorCheck:true}))}}:{failed:true}); setMsg('Could not open '+name+': '+m); return; }
+  let res; try{ res=CRVPARSE.toShapes(new Uint8Array(buf), { tol:0.002, units:opts.units||SETTINGS.importUnits, strictAnchors:SETTINGS.anchorCheck }); }
+  catch(err){ const m=err.notCrvFile?(name+' is not a Vectric file (the contents do not match its .crv/.crv3d extension). '+err.message):err.anchorMismatch?(name+' was refused. '+err.message.replace(/^CRV: /,'')):err.message;
+    showFileReport(name,[{code:err.anchorMismatch?'ANCHOR_MISMATCH':'OPEN_FAILED',level:'loss',msg:m,count:1}],{failed:true}); setMsg('Could not open '+name+': '+m); return; }
   // res: { job:{w,h,thickness}|null, unitsSource, layers:[{name, color?, contours:[{pts:[{x,y}], closed, guid, tabs}]}], report, toolpathData, safeZ }
   const layers=(res&&res.layers)||[]; const shapes=[]; const byGuid=new Map();
   for(const L of layers){ const lname=(L.name||'0').trim()||'0';
@@ -1416,7 +1364,7 @@ function v3Init(){
   v3 = (typeof VIEW3D!=='undefined') ? VIEW3D.create(c) : null;
   if(!v3){ v3Fail=true; setMsg('3D view: WebGL2 unavailable — falling back to the flat preview'); return null; }
   v3Colors();
-  c.addEventListener('dblclick', e=>{ e.preventDefault(); v3.frame(); });
+  c.addEventListener('dblclick', e=>{ e.preventDefault(); v3.frame(PB.jig?JIG_VIEW:undefined); });
   c.addEventListener('contextmenu', e=>e.preventDefault());
   window.addEventListener('pointerup', ()=>c.classList.remove('orbit'));
   return v3;
@@ -1501,6 +1449,9 @@ function runSimInner(){
     if(-b.z0>th+1e-6){ th=-b.z0; note+=' · cuts '+(-b.z0).toFixed(3)+'" deep — stock thickened to match'; }
   }
   const res=parseFloat((document.getElementById('simRes')||{}).value)||0.05;
+  PB.jig=false; document.querySelector('.stage').classList.remove('jig'); jigHover(null);
+  if(jigMode() && !rot && v3Init()){ jigRun(prog, name, res, note); return; }
+  if(v3) v3.setAirCuts(null);
   const stock={ x0, y0, w:x1-x0, h:y1-y0, thickness:th, res };
   // two-sided: carve the other side first, so this side shows where the two meet (holes that go right through)
   if(job.sides===2 && !PB.file){ const other=job.workSide==='top'?'bottom':'top', jo=buildJobProgram(true, other);
@@ -1534,7 +1485,8 @@ function pbSet(T, quiet){
   PB.T=Math.max(0,Math.min(tl.total,T));
   const at=GCSIM.locate(tl, p.n, PB.T);
   PB.carver.seek(at.i, at.u);
-  if(PB.carver.takeDirty() && v3) v3.stockChanged();
+  const dirtyB=PB.carver.takeDirty();
+  if(dirtyB && v3){ if(PB.jig){ v3.boardsChanged(dirtyB); jigPartsSoon(dirtyB); } else v3.stockChanged(); }
   const i=Math.min(at.i, p.n-1), pt=GCSIM.pointAt(p, at.i, at.u);
   if(v3) v3.setProgress(at.i, pt, i>=0?pbToolFor(p.tool[i]):null);
   const prog=document.getElementById('pbProg'); if(prog && document.activeElement!==prog) prog.value=tl.total>0?Math.round(1000*PB.T/tl.total):1000;
@@ -1550,7 +1502,8 @@ function pbReadout(i, pt){
   el.innerHTML='<b>'+kind+'</b> · line '+p.line[i]+'<br>T'+t+' · Ø'+(+(2*tl.radius).toFixed(4))+'" '+shape
     +'<br>S '+(p.rpm[i]?p.rpm[i].toLocaleString()+' rpm':'off')+' · F '+(k===GCSIM.RAPID?'rapid':p.feed[i]+' ipm')
     +'<br>X '+fmtLen(pt[0])+' Y '+fmtLen(pt[1])+' Z '+fmtLen(z)+(uk()===1?'':' mm')
-    +'<br><span class="muted">'+(z<0?(-z).toFixed(3)+'" deep':z.toFixed(3)+'" above top')+'</span>';
+    +'<br><span class="muted">'+(z<0?(-z).toFixed(3)+'" deep':z.toFixed(3)+'" above top')+'</span>'
+    +(PB.jig&&JIGS.airWhy&&JIGS.airWhy.has(i)?'<br><b style="color:#d0312d">AIR CUT — '+_esc(JIGS.airWhy.get(i))+'</b>':'');
   pbSource(p.line[i]);
 }
 function pbSource(line){
@@ -1570,7 +1523,7 @@ function pbSpeed(){ const v=(document.getElementById('pbSpeed')||{}).value; retu
 function pbPlay(){ if(!PB.prog||!PB.prog.n) return;
   if(PB.T>=PB.tl.total-1e-9) pbSet(0);
   PB.playing=true; PB.last=0; document.getElementById('pbPlay').textContent='❚❚ Pause'; if(!PB.raf) PB.raf=requestAnimationFrame(pbTick); }
-function pbPause(){ PB.playing=false; const b=document.getElementById('pbPlay'); if(b) b.textContent='▶ Play'; }
+function pbPause(){ PB.playing=false; if(PB.jig) jigPartsFlush(); const b=document.getElementById('pbPlay'); if(b) b.textContent='▶ Play'; }
 // Jump to the previous / next move that starts a cut after a rapid (a new contour), or a tool change.
 function pbStep(dir){ const p=PB.prog; if(!p||!p.n) return; pbPause();
   let i=GCSIM.locate(PB.tl,p.n,PB.T).i; if(i>=p.n) i=p.n-1;
@@ -1710,6 +1663,110 @@ async function gcSaveAs(){ if(!PB.file||gcTextPending())return; const base=PB.fi
   if(window.claude&&typeof window.claude.use==='function'){ download(n,PB.file.text,'text/plain'); return; }
   downloadViaLink(n,bytes,'text/plain'); setMsg('Saved '+n+' to your Downloads folder'); }
 
+// ---- board jig stock ----------------------------------------------------------------------------------------
+// The 3D View's Stock dropdown: "Block" (the job's material) or a board jig (jig.js) — the boards that really sit
+// in the fixture, each its own heightfield carved from its own top, on a drawn table with lane fences and the end
+// stop. Opening a program auto-fills the Jig Load from where it cuts (and from a "README - run order.txt" opened
+// with it); Dan can override any lane. Cutting moves over an empty lane or past the end of a 48.5in piece are
+// drawn red and listed. Parts cut free get an alternating tint; hovering one shows its length.
+const JIG_MODE_KEY='aqcam_stockMode';
+const JIG_VIEW=[0.12,1,0.55];   // the whole jig, looking up the lanes from the operator's side
+const JIGS={ mode:(()=>{ try{ return sessionStorage.getItem(JIG_MODE_KEY)||'block'; }catch(e){ return 'block'; } })(),
+  load:null, fileKey:'', readme:null, ro:null, air:null, airWhy:null, parts:[], pend:new Set(), partsT:0, handle:null, manual:false };
+function jigMode(){ return typeof JIG!=='undefined' && !!JIG.PRESETS[JIGS.mode]; }
+function jigPreset(){ return JIG.PRESETS[JIGS.mode]; }
+function jigScene(jig){ const L=[]; for(let k=1;k<=jig.lanes;k++) L.push(JIG.laneX(jig,k));
+  return { x0:L[0].x0-2.2, x1:L[L.length-1].x1+2.2, y0:jig.y0-1.5, y1:jig.y1+0.5, table:jig.table, lanes:L, stopY:jig.y0, railH:0.75, railW:0.75, stopH:0.75 }; }
+function jigAutoFill(prog, name){ const jig=jigPreset();
+  const auto=JIG.autoFill(jig, prog, name, pbToolFor);
+  JIGS.ro=JIGS.readme?JIG.parseRunOrder(JIGS.readme.text, name):null;
+  JIGS.load=JIG.applyRunOrder(jig, auto, JIGS.ro); JIGS.manual=false; }
+function jigSetReadme(name, text, apply){ JIGS.readme={ name, text };
+  if(apply && PB.prog && jigMode()){ JIGS.ro=JIG.parseRunOrder(text, PB.name); JIGS.load=JIG.applyRunOrder(jigPreset(), JIGS.load||JIG.emptyLoad(jigPreset()), JIGS.ro);
+    const T=PB.T; runSim(); pbSet(T); setMsg(JIGS.ro?'README applied: '+(JIGS.ro.title||name):'README loaded — no section for '+PB.name); }
+  else JIGS.fileKey=''; }   // the next program opened fills from it
+function jigRun(prog, name, res, note){
+  const jig=jigPreset(), key=JIGS.mode+'|'+name+'|'+prog.n;
+  if(JIGS.fileKey!==key || !JIGS.load){ jigAutoFill(prog, name); JIGS.fileKey=key; }
+  const pieces=JIG.piecesFor(jig, JIGS.load);
+  PB.jig=true; PB.pieces=pieces;
+  PB.carver=new JIG.JigCarver(CAM, GCSIM, prog, pieces, pbToolFor, res);
+  PB.carver.seek(prog.n, 0); PB.carver.takeDirty(); PB.T=PB.tl.total;
+  document.querySelector('.stage').classList.add('jig');
+  v3Show(true);
+  const info=v3.setBoards(pieces.map((pc,k)=>({ field:PB.carver.fields[k], zTop:pc.zTop, label:pc.label })), jigScene(jig)); v3.resize();
+  const stockKey='jig:'+JIGS.mode; if(stockKey!==PB.stockKey){ v3.frame(JIG_VIEW); PB.stockKey=stockKey; }
+  const toolIdx={}; prog.tools.forEach((t,i)=>toolIdx[t]=i);
+  v3.setPaths(prog,{ lift:0.006, colorOf:t=>TOOL_COLS[(toolIdx[t]||0)%TOOL_COLS.length],
+    cuts:document.getElementById('glLines').checked, rapids:document.getElementById('glRapids').checked });
+  v3.setGhost(document.getElementById('pbGhost').checked); v3.setToolVisible(document.getElementById('pbTool').checked);
+  JIGS.air=JIG.airCuts(jig, prog, JIGS.load, pbToolFor); JIGS.airWhy=new Map(JIGS.air.list.map(a=>[a.i,a.reason]));
+  v3.setAirCuts(prog, JIGS.air.moves);
+  JIGS.parts=[]; JIGS.pend=new Set(pieces.map((p,k)=>k)); jigPartsFlush();
+  simField=null; pbUI(); pbSet(PB.T, true); jigPanel();
+  const nb=pieces.length, nAir=JIGS.air.moves.length;
+  setMsg('3D jig: '+name+' · '+nb+' board'+(nb===1?'':'s')+' in the '+jig.name+' · '+prog.n.toLocaleString()+' moves · '+info.vertices.toLocaleString()+' verts · '+pbFmt(PB.tl.total)+' run time'
+    +(nAir?' · ⚠ '+nAir+' air-cut move'+(nAir===1?'':'s'):'')+(JIGS.ro?' · README section '+JIGS.ro.section+' applied':''));
+  render();
+}
+// Cut-free parts: relabel the boards that changed — at once when paused, at most ~3x a second while playing.
+function jigPartsSoon(idx){ for(const k of idx) JIGS.pend.add(k); if(!PB.playing || performance.now()-JIGS.partsT>300) jigPartsFlush(); }
+function jigPartsFlush(){ if(!PB.jig||!PB.carver||!PB.carver.fields) return; JIGS.partsT=performance.now();
+  for(const k of JIGS.pend){ const f=PB.carver.fields[k]; if(!f) continue; const info=JIG.partsOf(f); JIGS.parts[k]=info; if(v3) v3.setBoardTint(k, info.tint); }
+  JIGS.pend.clear(); }
+function jigPanel(){
+  const jig=jigPreset(), rows=document.getElementById('jigRows'); if(!rows||!jig) return;
+  document.getElementById('jigName').textContent='— '+jig.name;
+  const L=JIGS.load||JIG.emptyLoad(jig), airL=(JIGS.air&&JIGS.air.lanes)||{};
+  let h='';
+  for(let k=1;k<=jig.lanes;k++){ const l=L[k-1];
+    h+='<div class="jigrow'+(airL[k]?' air':'')+'"><b>Lane '+k+'</b><select class="jt" data-lane="'+k+'" data-k="type">'+JIG.TYPES.map(t=>'<option value="'+t+'"'+(l.type===t?' selected':'')+'>'+JIG.TYPE_LABEL[t]+'</option>').join('')+'</select>'
+      +'<select data-lane="'+k+'" data-k="thickness"'+(l.type==='empty'?' disabled':'')+'>'+jig.thicknesses.map(t=>'<option value="'+t+'"'+(l.thickness===t?' selected':'')+'>'+t+'</option>').join('')+'</select></div>'; }
+  rows.innerHTML=h;
+  rows.querySelectorAll('select').forEach(el=>el.onchange=()=>{ const l=JIGS.load[+el.dataset.lane-1];
+    if(el.dataset.k==='type') l.type=el.value; else l.thickness=parseFloat(el.value);
+    JIGS.manual=true; const T=PB.T; runSim(); pbSet(T); });
+  const rd=document.getElementById('jigReadme');
+  rd.innerHTML=!JIGS.readme?'No run-order README — open it with the .tap, or load it here.'
+    : JIGS.ro?'<b>'+_esc(JIGS.readme.name)+'</b>: section '+JIGS.ro.section+' ('+_esc(JIGS.ro.title||'')+')'+(JIGS.manual?' · edited':'')
+    : '<b>'+_esc(JIGS.readme.name)+'</b>: no section for this program';
+  const air=document.getElementById('jigAir');
+  if(!JIGS.air||!JIGS.air.moves.length){ air.innerHTML=PB.prog&&PB.prog.n?'<span class="okm">✓ No air cuts — every cutting move is over a board</span>':''; return; }
+  const sum=JIG.summarizeAir(JIGS.air);
+  air.innerHTML=sum.map((g,n)=>'<button class="w" data-n="'+n+'">⚠ '+g.count+' cutting move'+(g.count===1?'':'s')+': '+_esc(g.reason)+' (line'+(g.line0===g.line1?' '+g.line0:'s '+g.line0+'–'+g.line1)+')</button>').join('');
+  air.querySelectorAll('.w').forEach(b=>b.onclick=()=>{ const g=sum[+b.dataset.n]; pbPause(); pbSet(PB.tl.t0[g.first]+1e-9); });
+}
+// Hover readout: the board and the part under the cursor, with the part's length.
+function jigHover(e){
+  const tip=document.getElementById('jigHover'); if(!tip) return;
+  if(!e||!PB.jig||!v3||e.buttons){ tip.classList.remove('on'); return; }
+  const hit=v3.pickBoard(e.clientX, e.clientY); if(!hit){ tip.classList.remove('on'); return; }
+  const pc=PB.pieces[hit.k], f=PB.carver.fields[hit.k];
+  let info=JIGS.parts[hit.k]; if(!info){ info=JIGS.parts[hit.k]=JIG.partsOf(f); }
+  const part=JIG.partAt(f, info, hit.x, hit.y);
+  let h;
+  if(info.parts.length<=1) h='<b>'+(part?'Uncut':'Kerf')+'</b> · '+fmtIn(pc.h)+' long';
+  else if(part) h='<b>Part '+part.n+' of '+info.parts.length+'</b> · '+fmtIn(part.length)+' long × '+fmtIn(part.width);
+  else h='<b>Kerf</b> (cut through)';
+  tip.innerHTML=h+'<br>'+_esc(pc.label)+' · Y '+hit.y.toFixed(2);
+  tip.style.left=(e.clientX+14)+'px'; tip.style.top=(e.clientY+14)+'px'; tip.classList.add('on');
+}
+function fmtIn(v){ return (Math.round(v*100)/100).toFixed(2)+'in'; }
+function jigInitUI(){
+  const sel=document.getElementById('simStock');
+  if(sel){ if(!JIG.PRESETS[JIGS.mode]) JIGS.mode='block'; sel.value=JIGS.mode;
+    sel.onchange=()=>{ JIGS.mode=sel.value; try{ sessionStorage.setItem(JIG_MODE_KEY, JIGS.mode); }catch(e){}
+      JIGS.fileKey=''; PB.stockKey=''; if(viewMode==='preview'){ const T=PB.T; runSim(); if(PB.prog) pbSet(Math.min(T,PB.tl.total)); } }; }
+  const rf=document.getElementById('jigRefill'); if(rf) rf.onclick=()=>{ if(!PB.prog) return; jigAutoFill(PB.prog, PB.name); const T=PB.T; runSim(); pbSet(T); setMsg('Jig load re-filled from the program'+(JIGS.ro?' and the README':'')); };
+  const rb=document.getElementById('jigReadmeBtn'); if(rb) rb.onclick=async()=>{
+    const take=(n,t)=>jigSetReadme(n,t,true);
+    if(window.showOpenFilePicker){ try{ const o={ types:[{ description:'Run-order README', accept:{ 'text/plain':['.txt'] } }] }; if(JIGS.handle) o.startIn=JIGS.handle;
+        const [h]=await window.showOpenFilePicker(o); const f=await h.getFile(); take(f.name, await f.text()); }catch(err){} return; }
+    const inp=document.createElement('input'); inp.type='file'; inp.accept='.txt'; inp.onchange=()=>{ const f=inp.files[0]; if(f) f.text().then(t=>take(f.name,t)); }; inp.click(); };
+  const c=document.getElementById('gl'); if(c){ let pend=null, raf=0;
+    c.addEventListener('pointermove', e=>{ pend=e; if(!raf) raf=requestAnimationFrame(()=>{ raf=0; jigHover(pend); }); });
+    c.addEventListener('pointerleave', ()=>jigHover(null)); }
+}
 function closeProgram(){ PB.file=null; toolpaths=null; scheduleCncPush(); if(viewMode==='preview') runSim(); else render(); setMsg('Closed the program — the 3D view shows the visible toolpaths'); }
 // Shade the heightfield into an offscreen canvas: wood-tone depth ramp + directional hillshade for a carved look.
 function shadeHeightfield(field, r){
@@ -1749,14 +1806,14 @@ function fileSave(){ return programIsCurrent()?gcSave():saveProject(); }
 function fileSaveAs(){ return programIsCurrent()?gcSaveAs():saveProjectAs(); }
 // ---- Settings ----
 const SETTINGS_KEY='aqcam.settings';
-const SETTINGS=(function(){ const d={importUnits:'auto',strictAnchors:false,tableW:60,tableH:120}; try{ const s=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'); if(s.tableW>0) d.tableW=+s.tableW; if(s.tableH>0) d.tableH=+s.tableH; if(['auto','inch','mm'].indexOf(s.importUnits)>=0) d.importUnits=s.importUnits; d.strictAnchors=s.strictAnchors===true; }catch(e){} return d; })();
+const SETTINGS=(function(){ const d={importUnits:'auto',anchorCheck:true,tableW:60,tableH:120}; try{ const s=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}'); if(s.tableW>0) d.tableW=+s.tableW; if(s.tableH>0) d.tableH=+s.tableH; if(['auto','inch','mm'].indexOf(s.importUnits)>=0) d.importUnits=s.importUnits; d.anchorCheck=s.anchorCheck!==false; }catch(e){} return d; })();
 function persistSettings(){ try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(SETTINGS)); }catch(e){} }
-function openSettings(){ closeMenus(); const g=id=>document.getElementById(id); g('setDisplayUnits').value=job.units==='mm'?'mm':'in'; g('setImportUnits').value=SETTINGS.importUnits; g('setStrictAnchors').checked=SETTINGS.strictAnchors; g('setTableW').value=SETTINGS.tableW; g('setTableH').value=SETTINGS.tableH; g('settingsModal').style.display='block'; }
+function openSettings(){ closeMenus(); const g=id=>document.getElementById(id); g('setDisplayUnits').value=job.units==='mm'?'mm':'in'; g('setImportUnits').value=SETTINGS.importUnits; g('setStrictAnchors').checked=SETTINGS.anchorCheck; g('setTableW').value=SETTINGS.tableW; g('setTableH').value=SETTINGS.tableH; g('settingsModal').style.display='block'; }
 function wireSettings(){ const g=id=>document.getElementById(id), close=()=>{ g('settingsModal').style.display='none'; }; g('settingsX').onclick=close; g('settingsOk').onclick=close;
   g('setDisplayUnits').onchange=e=>setUnits(e.target.value);
   const tbl=(key,id)=>{ g(id).onchange=e=>{ const v=parseFloat(e.target.value); if(!(v>0)){ e.target.value=SETTINGS[key]; return; } SETTINGS[key]=v; persistSettings(); scheduleCncPush(); }; }; tbl('tableW','setTableW'); tbl('tableH','setTableH');
   g('setImportUnits').onchange=e=>{ SETTINGS.importUnits=e.target.value; persistSettings(); setMsg('Units of opened files: '+e.target.selectedOptions[0].textContent+'. Applies to the next file you open.'); };
-  g('setStrictAnchors').onchange=e=>{ SETTINGS.strictAnchors=e.target.checked; persistSettings(); setMsg('Anchor check '+(e.target.checked?'on':'off')+'. Applies to the next file you open.'); }; }
+  g('setStrictAnchors').onchange=e=>{ SETTINGS.anchorCheck=e.target.checked; persistSettings(); setMsg('Anchor check '+(e.target.checked?'on':'off')+'. Applies to the next file you open.'); }; }
 function setProjectName(name){ if(name) projectFile.name=name; document.title=projectFile.name.replace(/\.aqcam$/i,'')+' — Aquamentor CAD/CAM'; }
 // A handle from the Open dialog or a drop starts read-only, so this is where the browser asks once for permission to change the file.
 async function writeHandle(handle, data){
@@ -1796,9 +1853,19 @@ function handleOpenedFile(f, handle){ const rd=new FileReader();
   else { rd.onload=ev=>importText(f.name,ev.target.result,handle); rd.readAsText(f); } }
 // Open: native picker when available (keeps the handle so Save writes back); falls back to the <input type=file>.
 async function openProjectDialog(){ const fi=document.getElementById('fileInput'); if(!window.showOpenFilePicker){ fi.click(); return; }
-  let hs; try{ hs=await window.showOpenFilePicker({ multiple:false, types:[{ description:'Job, template, clipart, VCarve/Aspire .crv/.crv3d, G-code program, vector or bitmap', accept:{ 'application/json':['.aqcam','.aqtpl','.aqclip'], 'application/octet-stream':['.crv','.crv3d'], 'image/vnd.dxf':['.dxf'], 'image/svg+xml':['.svg'], 'application/pdf':['.pdf'], 'text/plain':['.tap','.nc','.ngc','.gcode','.cnc'], 'image/*':['.png','.jpg','.jpeg','.gif','.bmp','.webp'] } }] }); }
+  let hs; try{ hs=await window.showOpenFilePicker({ multiple:true, types:[{ description:'Job, template, clipart, VCarve/Aspire .crv/.crv3d, G-code program (+ its README - run order.txt), vector or bitmap', accept:{ 'application/json':['.aqcam','.aqtpl','.aqclip'], 'application/octet-stream':['.crv','.crv3d'], 'image/vnd.dxf':['.dxf'], 'image/svg+xml':['.svg'], 'application/pdf':['.pdf'], 'text/plain':['.tap','.nc','.ngc','.gcode','.cnc','.txt'], 'image/*':['.png','.jpg','.jpeg','.gif','.bmp','.webp'] } }] }); }
   catch(err){ if(!(err&&err.name==='AbortError')) fi.click(); return; }
-  const h=hs[0]; handleOpenedFile(await h.getFile(), h); }
+  JIGS.handle=hs[0];
+  const files=[]; for(const h of hs) files.push(await h.getFile());
+  const main=hs.find(h=>!isRunOrder(h.name));
+  handleOpenedFiles(files, main||null); }   // the handle lets Save write back to the file that was opened
+// Several files at once (picker, drop): a "README - run order.txt" among them is read first, so the .tap it
+// describes opens with that loading; then the first other file opens as usual.
+function isRunOrder(n){ return /\.txt$/i.test(n) && /readme|run.?order/i.test(n); }
+function handleOpenedFiles(files, handle){
+  files=Array.from(files||[]); const rd=files.find(f=>isRunOrder(f.name)), main=files.find(f=>!isRunOrder(f.name));
+  if(!rd){ if(main) handleOpenedFile(main, handle); return; }
+  const r=new FileReader(); r.onload=ev=>{ jigSetReadme(rd.name, ev.target.result, !main); if(main) handleOpenedFile(main, handle); }; r.readAsText(rd); }
 function applyProject(proj, srcName){
   Object.assign(job,{ type:proj.job.type||'flat', diameter:proj.job.diameter||4, sides:proj.job.sides===2?2:1, flip:proj.job.flip==='v'?'v':'h', workSide:'top' });
   if(job.sides===2){ doc.shapes=proj.shapes.filter(s=>s.side!=='bottom'); doc.other=proj.shapes.filter(s=>s.side==='bottom'); } else { doc.shapes=proj.shapes; doc.other=[]; }
@@ -2719,7 +2786,7 @@ function wire(){
   if(nm){ nm.addEventListener('mousedown',e=>{ if(e.target===nm)hideNewModal(); });
     nm.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); hideNewModal(); newJob(); } else if(e.key==='Escape'){ e.preventDefault(); hideNewModal(); } }); }
   const fi=document.getElementById('fileInput'); document.getElementById('btnImport').onclick=openProjectDialog;
-  fi.onchange=e=>{ const f=e.target.files[0]; if(!f)return; handleOpenedFile(f,null); fi.value=''; };
+  fi.onchange=e=>{ if(!e.target.files.length)return; handleOpenedFiles(e.target.files,null); fi.value=''; };
   on('btnSaveAs',fileSaveAs); setProjectName();
   on('btnRotate',openRotateModal);
   const rs=document.getElementById('rotSnap'); if(rs)rs.onchange=e=>{ grid.rotSnap=Math.max(0.1,parseFloat(e.target.value)||5); };
@@ -2739,6 +2806,7 @@ function wire(){
   on('pbToolsBtn',()=>{ const t=document.getElementById('pbToolsBox'); t.classList.toggle('on'); document.getElementById('pbToolsBtn').classList.toggle('active',t.classList.contains('on')); });
   const pbProg=document.getElementById('pbProg'); if(pbProg) pbProg.oninput=()=>{ pbPause(); if(PB.tl) pbSet(PB.tl.total*(+pbProg.value)/1000); };
   const pbChk=(id,fn)=>{ const el=document.getElementById(id); if(el) el.onchange=()=>fn(el.checked); };
+  jigInitUI();
   pbChk('pbGhost',v=>{ if(v3) v3.setGhost(v); }); pbChk('pbTool',v=>{ if(v3) v3.setToolVisible(v); });
   const pbRapid=document.getElementById('pbRapid'); if(pbRapid) pbRapid.onchange=()=>{ if(PB.prog){ const f=PB.tl.total?PB.T/PB.tl.total:1; PB.tl=GCSIM.timeline(PB.prog,parseFloat(pbRapid.value)||300); pbSet(f*PB.tl.total); } };
   initHelpSearch();
@@ -2756,6 +2824,7 @@ function wire(){
   document.body.addEventListener('dragover',e=>e.preventDefault());
   document.body.addEventListener('drop',e=>{ e.preventDefault(); const f=e.dataTransfer.files[0]; if(!f)return;
     if(/\.(ttf|otf|woff)$/i.test(f.name)){ loadFontFile(f); return; }
+    if(e.dataTransfer.files.length>1){ handleOpenedFiles(e.dataTransfer.files,null); return; }   // a program dropped with its run-order README
     // The handle lets Save write back to a dropped file; it has to be requested before this event ends.
     const it=[...(e.dataTransfer.items||[])].find(i=>i.kind==='file'), hp=it&&it.getAsFileSystemHandle?it.getAsFileSystemHandle():null;
     Promise.resolve(hp).catch(()=>null).then(h=>handleOpenedFile(f,h&&h.kind==='file'?h:null)); });

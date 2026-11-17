@@ -49,8 +49,37 @@ try {
   const fx = path.join(__dirname, 'fixtures', 'waterslide-v4.5'); const f = fs.readdirSync(fx).find(n => /1 BASE.*\.dxf$/.test(n));
   if (f) { const parse = dp.parseDxf;
     const ents = parse(fs.readFileSync(path.join(fx, f), 'utf8')); const polys = []; (Array.isArray(ents) ? ents : []).forEach(e => { const pp = (dp.entityToPolys ? dp.entityToPolys(e) : []); pp.forEach(q => polys.push(q)); });
-    if (polys.length) { const sh = C.dxfPolysToShapes(polys); const k = P.splitLayers(sh); ok('fixture DXF: has outside and inside loops', k.counts.outside > 0 && k.counts.inside > 0, k.counts); ok('fixture DXF: every shape on a split layer', k.shapes.every(s => ['OUTSIDE_PROFILE', 'INSIDE_CUT', 'OPEN_VECTOR'].includes(s.layer))); }
+    if (polys.length) { const sh = C.dxfPolysToShapes(polys); const k = P.splitLayers(sh); ok('fixture DXF: has outside and inside loops', k.counts.outside > 0 && k.counts.inside > 0, k.counts); ok('fixture DXF: every shape on a split layer (or left on its reference layer)', k.shapes.every(s => ['OUTSIDE_PROFILE', 'INSIDE_CUT', 'OPEN_VECTOR'].includes(s.layer) || P.isReferenceLayer(s.layer))); }
     else ok('fixture DXF parsed (skipped, no polys API)', true); }
+}
+
+// reference layers and partial-depth pockets
+{
+  const sheet = Object.assign(C.mkRect(0, 0, 48.5, 97), { layer: 'SHEET' });
+  const pa = C.mkRect(2, 2, 10, 10), ho = C.mkCircle({ x: 7, y: 7 }, 1);
+  const k = P.splitLayers([sheet, pa, ho]);
+  ok('SHEET outline is not a part (parts stay outside)', k.shapes[1].layer === 'OUTSIDE_PROFILE' && k.shapes[2].layer === 'INSIDE_CUT', k.shapes.map(s => s.layer));
+  ok('SHEET keeps its layer', k.shapes[0].layer === 'SHEET');
+  ok('NOTES / *_VECTOR_ONLY ignored', ['NOTES', 'CAP_CENTER_0.50_VECTOR_ONLY'].every(n => P.isReferenceLayer(n)) && !P.isReferenceLayer('OUTSIDE_PROFILE'));
+  const cb = Object.assign(C.mkCircle({ x: 7, y: 7 }, 1), { layer: 'POCKET_2.00D_0.50DEEP' }), dr = Object.assign(C.mkCircle({ x: 7, y: 7 }, 0.19), { layer: 'DRILL_0.375_THRU' });
+  const k2 = P.splitLayers([pa, cb, dr]);
+  ok('drill in a counterbore pocket is still INSIDE', k2.shapes[2].layer === 'INSIDE_CUT', k2.shapes.map(s => s.layer));
+  const ring = Object.assign(C.mkCircle({ x: 30, y: 30 }, 1.33), { layer: 'POCKET_2.66D_1.00DEEP' }), cap = C.mkCircle({ x: 30, y: 30 }, 1.07);
+  const k3 = P.splitLayers([ring, cap]);
+  ok('cap inside its shoulder pocket is still a part (OUTSIDE)', k3.shapes[1].layer === 'OUTSIDE_PROFILE', k3.shapes.map(s => s.layer));
+  ok('free-standing pocket never becomes an OUTSIDE profile', k3.shapes[0].layer === 'INSIDE_CUT');
+  const dx = P.toDXFLayered([sheet, pa, ho]);
+  ok('layered DXF carries the SHEET outline on SHEET', dx.includes('\r\n8\r\nSHEET\r\n') && /LAYER\r\n70\r\n3/.test(dx));
+}
+// ground truth: Dan's hand-layered waterslide DXFs. Split must agree with his OUTSIDE_PROFILE / everything-else-inside choice.
+{
+  const { loadDxfShapes } = require('./asmtap.js'), fx = path.join(__dirname, 'fixtures', 'waterslide-v4.5');
+  for (const f of fs.readdirSync(fx).filter(n => /\.dxf$/i.test(n))) {
+    const sh = loadDxfShapes(path.join(fx, f)), k = P.splitLayers(sh);
+    const want = s => P.isReferenceLayer(s.layer) ? s.layer : s.layer === 'OUTSIDE_PROFILE' ? 'OUTSIDE_PROFILE' : 'INSIDE_CUT';
+    const bad = sh.map((s, i) => [s.layer, k.shapes[i].layer, want(s)]).filter(x => x[1] !== x[2]);
+    ok('fixture split matches hand layering: ' + f.slice(24, 50), bad.length === 0, bad.slice(0, 4));
+  }
 }
 
 // ---------- 2. stock nesting ----------

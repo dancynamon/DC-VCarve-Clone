@@ -13,7 +13,7 @@ So an update is live once it is merged to `main`. Changes to the launcher or ins
 
 ## Quick start
 ```
-npm test     # 1459 checks across 20 suites
+npm test     # 1462 checks across 20 suites
 npm run build # regenerates cadcam-studio.html from cam-engine/ sources
 open cadcam-studio.html
 ```
@@ -164,8 +164,8 @@ again). A file that opens but loses something says what it lost, with counts and
   flag; jobs over 300 are judged from their thickness and flagged, with a one-click reopen in the other units. Outside/Inside
   profiles on open vectors are not imported, because the file does not say which side they were cut on.
 - **Settings → Units and File Import:** display units; units of opened `.crv`, `.crv3d` and `.dxf` files (automatic, always inches, always
-  millimetres, flagged whenever it differs from the file); and the Vectric anchor check (off by default, on refuses a file whose saved
-  anchors all disagree with its drawing, with an Open Anyway button).
+  millimetres, flagged whenever it differs from the file); and the Vectric anchor check (on by default: a file whose saved anchors all
+  disagree with its drawing is refused and nothing is imported).
 
 ## Double-click and the 3D engine window
 `tools/mac/install.sh` installs **Aquamentor CADCAM.app** and makes it the Mac's default for `.tap`, `.dxf`, `.crv3d` and `.crv`. A file opened
@@ -188,7 +188,7 @@ retract move below N up to it; the park height and the travel envelope are uncha
 
 ## Layout
 - `cadcam-studio.html` — built app (run `npm run build` to regenerate).
-- `cam-engine/` — sources: `cadcore.js` (CAD), `camcore.js` (CAM), `studio_app.js` (UI), `studio_shell.html` (markup/CSS), `dxfparse.js`, `pdfparse.js` (vendored — see below), `bitmaptrace.js`, `clipart.js`, `repost.js`, `build.js`, `package/clipper.js`, tests, ShopSabre `.pp`, roadmap README.
+- `cam-engine/` — sources: `cadcore.js` (CAD), `camcore.js` (CAM), `studio_app.js` (UI), `studio_icons.js` (dock icons), `studio_shell.html` (markup/CSS), `dxfparse.js`, `pdfparse.js` (vendored — see below), `bitmaptrace.js`, `clipart.js`, `repost.js`, `build.js`, `package/clipper.js`, tests, ShopSabre `.pp`, roadmap README.
 - **Vendored from aquamentor-vector-studio:** `cam-engine/pdfparse.js` (PDF/.ai import, with `pdfparse.test.js` + `pdfparse.golden.json`) and `cam-engine/package/clipper.js` are copies of the canonical files in vector-studio, pinned by sha256 in `cam-engine/VENDORED`. Don't edit them here: fix vector-studio, then `tools/sync-pdfparse.sh [path/to/aquamentor-vector-studio]`. `npm test` (`vendortest.js`) fails if a copy drifts from its pin or from the built `cadcam-studio.html`.
 
 ## Roadmap

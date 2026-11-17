@@ -46,14 +46,18 @@ function create(canvas, opts) {
   controls.addEventListener('change', () => { dirty = true; });
 
   const lin = (rgb) => new THREE.Color().setRGB(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255, THREE.SRGBColorSpace);
-  const U = {
+  const noLab = new THREE.DataTexture(new Uint8Array([0]), 1, 1, THREE.RedFormat, THREE.UnsignedByteType); noLab.unpackAlignment = 1; noLab.needsUpdate = true;
+  // colour uniforms are shared by every stock mesh; the heightfield ones are per mesh (a jig has one per board)
+  const COL = { uTop: { value: lin([56, 67, 245]) }, uDeep: { value: lin([14, 18, 104]) }, uFloorCol: { value: lin([196, 170, 128]) }, uSide: { value: lin([40, 50, 200]) } };
+  const perMesh = () => Object.assign({
     uHeight: { value: null }, uTexel: { value: new THREE.Vector2(1, 1) }, uCell: { value: new THREE.Vector2(0.05, 0.05) },
-    uDepth: { value: 1 }, uFloor: { value: -1 }, uWrap: { value: 0 }, uOy: { value: 0 },
-    uTop: { value: lin([56, 67, 245]) }, uDeep: { value: lin([14, 18, 104]) }, uFloorCol: { value: lin([196, 170, 128]) }, uSide: { value: lin([40, 50, 200]) }
-  };
-  const stockMat = new THREE.MeshStandardMaterial({ roughness: 0.78, metalness: 0, envMapIntensity: 0.35, side: THREE.DoubleSide });
-  stockMat.onBeforeCompile = sh => {
-    Object.assign(sh.uniforms, U);
+    uDepth: { value: 1 }, uFloor: { value: -1 }, uWrap: { value: 0 }, uOy: { value: 0 }, uLab: { value: noLab }, uLabOn: { value: 0 } }, COL);
+  const U = perMesh();
+  const stockMats = new Set();
+  function makeStockMat(Uset) {
+    const m = new THREE.MeshStandardMaterial({ roughness: 0.78, metalness: 0, envMapIntensity: 0.35, side: THREE.DoubleSide });
+    m.onBeforeCompile = sh => {
+    Object.assign(sh.uniforms, Uset);
     sh.vertexShader = 'attribute float aKind;\nattribute float aDisp;\nattribute vec2 aH;\nuniform sampler2D uHeight;\nuniform float uWrap, uOy;\nvarying vec2 vH;\nvarying float vKind, vTh;\n' +
       sh.vertexShader
         .replace('#include <beginnormal_vertex>',
@@ -62,11 +66,15 @@ function create(canvas, opts) {
         .replace('#include <begin_vertex>',
           '#include <begin_vertex>\nvH = aH; vKind = aKind;\nif (aDisp > 0.5) transformed.y = texture(uHeight, aH).r;\n' +
           'if (uWrap > 0.0) { float rr = uWrap + transformed.y; transformed = vec3(position.x, rr * cos(th), -rr * sin(th)); }');
-    sh.fragmentShader = 'uniform sampler2D uHeight;\nuniform vec2 uTexel, uCell;\nuniform float uDepth, uFloor, uWrap;\nuniform vec3 uTop, uDeep, uFloorCol, uSide;\nvarying vec2 vH;\nvarying float vKind, vTh;\n' +
+    sh.fragmentShader = 'uniform sampler2D uHeight, uLab;\nuniform vec2 uTexel, uCell;\nuniform float uDepth, uFloor, uWrap, uLabOn;\nuniform vec3 uTop, uDeep, uFloorCol, uSide;\nvarying vec2 vH;\nvarying float vKind, vTh;\n' +
       sh.fragmentShader
         .replace('#include <color_fragment>',
           '#include <color_fragment>\nif (vKind > 0.5) { float h0 = texture(uHeight, vH).r;\n' +
-          '  vec3 c = mix(uTop, uDeep, clamp(-h0 / uDepth, 0.0, 1.0));\n  if (h0 <= uFloor + 1e-4) c = uFloorCol;\n  diffuseColor.rgb = c; }\nelse diffuseColor.rgb = uSide;')
+          '  vec3 c = mix(uTop, uDeep, clamp(-h0 / uDepth, 0.0, 1.0));\n' +
+          // cut-free parts: a subtle alternating tint per part (label texture: 0 none, 1..3)
+          '  if (uLabOn > 0.5) { float l = floor(texture(uLab, vH).r * 255.0 + 0.5);\n' +
+          '    if (l > 0.5 && l < 1.5) c = mix(c, vec3(1.0, 0.78, 0.25), 0.30); else if (l > 1.5 && l < 2.5) c = mix(c, vec3(0.15, 0.85, 0.75), 0.30); else if (l > 2.5) c = mix(c, vec3(0.95, 0.95, 1.0), 0.30); }\n' +
+          '  if (h0 <= uFloor + 1e-4) c = uFloorCol;\n  diffuseColor.rgb = c; }\nelse diffuseColor.rgb = uSide;')
         .replace('#include <normal_fragment_begin>',
           '#include <normal_fragment_begin>\nif (vKind > 0.5) {\n' +
           '  float hL = texture(uHeight, vH - vec2(uTexel.x, 0.0)).r, hR = texture(uHeight, vH + vec2(uTexel.x, 0.0)).r;\n' +
@@ -74,7 +82,13 @@ function create(canvas, opts) {
           '  vec3 nW = normalize(vec3(-(hR - hL) / (2.0 * uCell.x), 1.0, (hU - hD) / (2.0 * uCell.y)));\n' +
           '  if (uWrap > 0.0) nW = vec3(nW.x, nW.y * cos(vTh) + nW.z * sin(vTh), -nW.y * sin(vTh) + nW.z * cos(vTh));\n' +
           '  normal = normalize((viewMatrix * vec4(nW, 0.0)).xyz);\n}');
-  };
+    };
+    stockMats.add(m); applyGhost(m);
+    return m;
+  }
+  let ghost = false;
+  function applyGhost(m) { m.transparent = ghost; m.opacity = ghost ? 0.35 : 1; m.depthWrite = !ghost; m.needsUpdate = true; }
+  const stockMat = makeStockMat(U);
 
   let dirty = true, active = false, raf = 0;
   let stock = null, field = null, tex = null, ctr = { x: 0, y: 0 }, size = 10;
@@ -82,15 +96,28 @@ function create(canvas, opts) {
 
   // ---------- stock ----------
   // opts.wrap: cylinder radius for a rotary job (the field's h is the circumference, its thickness the radius)
+  function heightTex(f) {
+    const t = new THREE.DataTexture(f.z, f.nx, f.ny, THREE.RedFormat, THREE.FloatType);
+    t.minFilter = t.magFilter = THREE.NearestFilter; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.needsUpdate = true; return t;
+  }
+  function bindField(Uset, f, t) {
+    Uset.uHeight.value = t; Uset.uTexel.value.set(1 / f.nx, 1 / f.ny); Uset.uCell.value.set(f.res, f.res);
+    Uset.uDepth.value = Math.abs(f.thickness) || 1; Uset.uFloor.value = f.floor;
+  }
   function setStock(f, opts) {
+    clearBoards();
     if (stock) { scene.remove(stock); stock.geometry.dispose(); }
     if (tex) tex.dispose();
     wrapR = (opts && opts.wrap > 0) ? opts.wrap : 0; U.uWrap.value = wrapR; U.uOy.value = f.h / 2;
     field = f; ctr = { x: f.x0 + f.w / 2, y: f.y0 + f.h / 2 }; size = Math.max(f.w, f.h, f.thickness * 4);
-    tex = new THREE.DataTexture(f.z, f.nx, f.ny, THREE.RedFormat, THREE.FloatType);
-    tex.minFilter = tex.magFilter = THREE.NearestFilter; tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping; tex.needsUpdate = true;
-    U.uHeight.value = tex; U.uTexel.value.set(1 / f.nx, 1 / f.ny); U.uCell.value.set(f.res, f.res);
-    U.uDepth.value = Math.abs(f.thickness) || 1; U.uFloor.value = f.floor;
+    tex = heightTex(f); bindField(U, f, tex);
+    const r = stockGeometry(f, wrapR);
+    stock = new THREE.Mesh(r.geo, stockMat); stock.frustumCulled = false; scene.add(stock);
+    dirty = true;
+    return { vertices: r.vertices, step: r.step };
+  }
+  // The stock mesh for a field: a grid displaced by the heightfield texture, walls round it, a base.
+  function stockGeometry(f, wrapR) {
     // grid: at most ~1.5M vertices; the per-pixel normal keeps full detail either way
     const step = Math.max(1, Math.ceil(Math.sqrt((f.nx * f.ny) / 1500000)));
     const gx = Math.ceil(f.nx / step) + 1, gy = Math.ceil(f.ny / step) + 1;
@@ -130,11 +157,100 @@ function create(canvas, opts) {
     geo.setAttribute('aH', new THREE.BufferAttribute(aH, 2)); geo.setAttribute('aKind', new THREE.BufferAttribute(aKind, 1)); geo.setAttribute('aDisp', new THREE.BufferAttribute(aDisp, 1));
     geo.setIndex(new THREE.BufferAttribute(v > 65535 ? Uint32Array.from(idx) : Uint16Array.from(idx), 1));
     geo.boundingBox = wrapR ? new THREE.Box3(new THREE.Vector3(-ox, -wrapR, -wrapR), new THREE.Vector3(ox, wrapR, wrapR)) : new THREE.Box3(new THREE.Vector3(-ox, f.floor, -oy), new THREE.Vector3(ox, 0, oy)); geo.boundingSphere = geo.boundingBox.getBoundingSphere(new THREE.Sphere());
-    stock = new THREE.Mesh(geo, stockMat); stock.frustumCulled = false; scene.add(stock);
-    dirty = true;
-    return { vertices: v, step: step };
+    return { geo: geo, vertices: v, step: step };
   }
   function stockChanged() { if (tex) { tex.needsUpdate = true; dirty = true; } }
+
+  // ---------- board jig: one heightfield per board, on a drawn fixture ----------
+  // boards: [{ field, zTop, label }] (field from camcore stockField, zTop = machine Z of the board's top).
+  // jig: { x0, x1, y0, y1, table, lanes: [{x0, x1}], stopY, rails } — drawn as the table, the fences between
+  // the lanes and the end stop; gaps between boards show the jig, not material.
+  let boards = [], jigGroup = null;
+  const jigMat = { table: new THREE.MeshStandardMaterial({ color: 0xc9b48a, roughness: 0.9, metalness: 0, envMapIntensity: 0.25 }),
+    rail: new THREE.MeshStandardMaterial({ color: 0x7d8792, roughness: 0.45, metalness: 0.55, envMapIntensity: 0.6 }),
+    stop: new THREE.MeshStandardMaterial({ color: 0xd2492a, roughness: 0.5, metalness: 0.2, envMapIntensity: 0.5 }) };
+  function clearBoards() {
+    for (const b of boards) { scene.remove(b.mesh); b.mesh.geometry.dispose(); b.tex.dispose(); if (b.lab) b.lab.dispose(); stockMats.delete(b.mesh.material); b.mesh.material.dispose(); }
+    boards = [];
+    if (jigGroup) { scene.remove(jigGroup); jigGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); }); jigGroup = null; }
+  }
+  function setBoards(list, jig) {
+    clearBoards();
+    if (stock) { scene.remove(stock); stock.geometry.dispose(); stock = null; }
+    if (tex) { tex.dispose(); tex = null; }
+    wrapR = 0; U.uWrap.value = 0;
+    const W0 = jig ? jig.x0 : Math.min.apply(null, list.map(b => b.field.x0)), W1 = jig ? jig.x1 : Math.max.apply(null, list.map(b => b.field.x0 + b.field.w));
+    const H0 = jig ? jig.y0 : Math.min.apply(null, list.map(b => b.field.y0)), H1 = jig ? jig.y1 : Math.max.apply(null, list.map(b => b.field.y0 + b.field.h));
+    const T = jig ? -jig.table : 1.5;
+    ctr = { x: (W0 + W1) / 2, y: (H0 + H1) / 2 };
+    // `field` drives framing: the whole jig, top at Z0, down to the table
+    field = { x0: W0, y0: H0, w: W1 - W0, h: H1 - H0, thickness: T, floor: -T, jig: true };
+    let verts = 0;
+    for (const b of list) {
+      const f = b.field, Ub = perMesh(), t = heightTex(f); bindField(Ub, f, t);
+      const lab = new THREE.DataTexture(new Uint8Array(f.nx * f.ny), f.nx, f.ny, THREE.RedFormat, THREE.UnsignedByteType);
+      lab.minFilter = lab.magFilter = THREE.NearestFilter; lab.unpackAlignment = 1; lab.needsUpdate = true; Ub.uLab.value = lab;   // 1-byte rows are not 4-aligned
+      const r = stockGeometry(f, 0); verts += r.vertices;
+      const mesh = new THREE.Mesh(r.geo, makeStockMat(Ub)); mesh.frustumCulled = false;
+      mesh.position.set(f.x0 + f.w / 2 - ctr.x, b.zTop, -(f.y0 + f.h / 2 - ctr.y));
+      scene.add(mesh);
+      boards.push({ mesh: mesh, tex: t, lab: lab, U: Ub, field: f, zTop: b.zTop, label: b.label });
+    }
+    if (jig) buildJig(jig);
+    dirty = true;
+    return { vertices: verts, boards: boards.length };
+  }
+  function buildJig(j) {
+    jigGroup = new THREE.Group();
+    const box = (x0, x1, y0, y1, z0, z1, m) => { const g = new THREE.BoxGeometry(x1 - x0, z1 - z0, y1 - y0);
+      const o = new THREE.Mesh(g, m); o.position.set((x0 + x1) / 2 - ctr.x, (z0 + z1) / 2, -((y0 + y1) / 2 - ctr.y)); jigGroup.add(o); return o; };
+    const tz = j.table - 0.004;   // a hair under the boards' bottoms, so a cut-through shows the table without z-fighting
+    box(j.x0 - 1, j.x1 + 1, j.y0 - 2, j.y1 + 1.5, tz - 0.75, tz, jigMat.table);
+    const rh = j.railH != null ? j.railH : 0.75, rw = j.railW != null ? j.railW : 0.75;
+    // fences between the lanes (and outside the outer lanes), lower than the thinnest board so a profile never hits them
+    const L = j.lanes; const gaps = [];
+    if (L.length) { gaps.push([L[0].x0 - 1.0 - rw / 2]); for (let k = 0; k + 1 < L.length; k++) gaps.push([(L[k].x1 + L[k + 1].x0) / 2]); gaps.push([L[L.length - 1].x1 + 1.0 + rw / 2]); }
+    for (const g of gaps) box(g[0] - rw / 2, g[0] + rw / 2, j.stopY, j.y1, j.table, j.table + rh, jigMat.rail);
+    // the end stop every board loads against
+    box(gaps.length ? gaps[0][0] - rw / 2 : j.x0, gaps.length ? gaps[gaps.length - 1][0] + rw / 2 : j.x1, j.stopY - 0.75, j.stopY, j.table, j.table + (j.stopH || 0.75), jigMat.stop);
+    scene.add(jigGroup);
+  }
+  function boardsChanged(idx) { for (const k of (idx || boards.map((b, i) => i))) if (boards[k]) boards[k].tex.needsUpdate = true; dirty = true; }
+  // per-cell part tint (0 none, 1..3) for board k
+  function setBoardTint(k, tint) {
+    const b = boards[k]; if (!b) return;
+    const on = !!tint && tint.some(v => v > 0);
+    if (on) { b.lab.image.data.set(tint); b.lab.needsUpdate = true; }
+    b.U.uLabOn.value = on ? 1 : 0; dirty = true;
+  }
+  // The board under a screen point: { k, x, y } in machine units (the ray meets each board's top plane), or null.
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+  function pickBoard(clientX, clientY) {
+    if (!boards.length) return null;
+    const r = canvas.getBoundingClientRect(); ndc.set(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    let best = null;
+    boards.forEach((b, k) => {
+      const pl = new THREE.Plane(new THREE.Vector3(0, 1, 0), -b.zTop), hit = new THREE.Vector3();
+      if (!ray.ray.intersectPlane(pl, hit)) return;
+      const x = hit.x + ctr.x, y = ctr.y - hit.z, f = b.field;
+      if (x < f.x0 || x > f.x0 + f.w || y < f.y0 || y > f.y0 + f.h) return;
+      const d = hit.distanceTo(ray.ray.origin); if (!best || d < best.d) best = { k: k, x: x, y: y, d: d };
+    });
+    return best;
+  }
+
+  // ---------- air-cut overlay: cutting moves that run over no material, drawn red on top ----------
+  let air = null;
+  function setAirCuts(p, moves) {
+    if (air) { scene.remove(air); air.geometry.dispose(); air.material.dispose(); air = null; }
+    if (!p || !moves || !moves.length) { dirty = true; return; }
+    const pos = new Float32Array(moves.length * 6);
+    moves.forEach((i, n) => { pos.set(W(p.x0[i], p.y0[i], p.z0[i], 0.01), 6 * n); pos.set(W(p.x1[i], p.y1[i], p.z1[i], 0.01), 6 * n + 3); });
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    air = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xff2020, depthTest: false, transparent: true, opacity: 0.95 }));
+    air.renderOrder = 5; air.frustumCulled = false; scene.add(air); dirty = true;
+  }
 
   // ---------- toolpaths ----------
   const W = (x, y, z, lift) => { if (wrapR) { const th = (y - field.y0) / wrapR, r = wrapR + z + (lift || 0); return [x - ctr.x, r * Math.cos(th), -r * Math.sin(th)]; }
@@ -223,12 +339,12 @@ function create(canvas, opts) {
 
   // ---------- look ----------
   function setColors(c) {
-    if (c.top) U.uTop.value = lin(c.top); if (c.deep) U.uDeep.value = lin(c.deep); if (c.floor) U.uFloorCol.value = lin(c.floor);
-    if (c.side) U.uSide.value = lin(c.side);
+    if (c.top) COL.uTop.value = lin(c.top); if (c.deep) COL.uDeep.value = lin(c.deep); if (c.floor) COL.uFloorCol.value = lin(c.floor);
+    if (c.side) COL.uSide.value = lin(c.side);
     if (c.background) canvas.style.background = c.background;
     dirty = true;
   }
-  function setGhost(on) { stockMat.transparent = !!on; stockMat.opacity = on ? 0.35 : 1; stockMat.depthWrite = !on; stockMat.needsUpdate = true; dirty = true; }
+  function setGhost(on) { ghost = !!on; stockMats.forEach(applyGhost); dirty = true; }
 
   // ---------- camera ----------
   function resize() {
@@ -268,7 +384,7 @@ function create(canvas, opts) {
   function draw() { dirty = true; if (!active) renderer.render(scene, camera); }
 
   return { THREE: THREE, renderer: renderer, camera: camera, controls: controls, scene: scene,
-    setStock: setStock, stockChanged: stockChanged, setPaths: setPaths, clearPaths: clearPaths, setPathVisibility: setPathVisibility,
+    setStock: setStock, stockChanged: stockChanged, setBoards: setBoards, boardsChanged: boardsChanged, setBoardTint: setBoardTint, pickBoard: pickBoard, setAirCuts: setAirCuts, setPaths: setPaths, clearPaths: clearPaths, setPathVisibility: setPathVisibility,
     setProgress: setProgress, setToolVisible: setToolVisible, setColors: setColors, setGhost: setGhost,
     resize: resize, frame: frame, preset: preset, setActive: setActive, draw: draw,
     get field() { return field; } };
