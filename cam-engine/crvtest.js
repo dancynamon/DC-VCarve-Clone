@@ -356,9 +356,11 @@ function staleAnchors(file) {
 }
 const stale = staleAnchors('sample-points.crv3d');
 ok('anchors: the test fixture was really altered', stale.n >= 4, stale.n);
-ok('anchors: with the check off, the file opens and it is noted', parseCrv(stale.out, {}).report.some(r => r.code === 'STALE_ANCHORS' && r.level === 'info'));
-let anchorErr = null; try { parseCrv(stale.out, { strictAnchors: true }); } catch (e) { anchorErr = e; }
-ok('anchors: with the check on, the file is refused and says why', anchorErr && anchorErr.anchorMismatch === true && /anchor/.test(anchorErr.message), anchorErr && anchorErr.message);
+ok('anchors: with the check off, the file opens and it is noted', parseCrv(stale.out, { strictAnchors: false }).report.some(r => r.code === 'STALE_ANCHORS' && r.level === 'info'));
+let anchorErr = null; try { parseCrv(stale.out, {}); } catch (e) { anchorErr = e; }
+ok('anchors: by default the file is refused and says why', anchorErr && anchorErr.anchorMismatch === true && /cannot be trusted/.test(anchorErr.message) && /5\.\d{4}|as much as \d/.test(anchorErr.message) && /Nothing was imported/.test(anchorErr.message), anchorErr && anchorErr.message);
+{ let e2 = null; try { vm.runInContext('CRVPARSE', ctxTP).toShapes(stale.out, { tol: 0.002 }); } catch (e) { e2 = e; }
+  ok('anchors: toShapes, the path every tool uses, refuses too', e2 && e2.anchorMismatch === true, e2 && e2.message); }
 ok('anchors: with the check on, a good file still opens', parseCrv(bytes('sample-points.crv3d'), { strictAnchors: true }).length > 0);
 
 // --- Save and Save As: what gets overwritten and what does not ---
@@ -367,7 +369,7 @@ async function saveChecks() {
   const mkHandle = name => ({ name, kind: 'file', writes: [], data: null, async createWritable() { const h = this; return { async write(d) { h.data = d; h.writes.push(d); }, async close() {} }; } });
   const dxfT = (extra, u) => ['0', 'SECTION', '2', 'HEADER', '9', '$INSUNITS', '70', String(u || 1), '0', 'ENDSEC', '0', 'SECTION', '2', 'ENTITIES', '0', 'LINE', '8', 'L1', '10', '0', '20', '0', '11', '4', '21', '0'].concat(extra || [], ['0', 'ENDSEC', '0', 'EOF']).join('\n');
   const textEnt = ['0', 'TEXT', '8', 'L1', '10', '1', '20', '1', '40', '1', '1', 'HELLO'];
-  const reset = () => eIn(studio, 'newJob();PB.file=null;document.getElementById("gcModal").style.display="none";SETTINGS.importUnits="auto";SETTINGS.strictAnchors=false;');
+  const reset = () => eIn(studio, 'newJob();PB.file=null;document.getElementById("gcModal").style.display="none";SETTINGS.importUnits="auto";SETTINGS.anchorCheck=true;');
   let picked = null, pickH = null; studio.showSaveFilePicker = async o => { picked = o; return pickH; };
   const open = (name, text, h) => { studio.__t = text; studio.__h = h; eIn(studio, 'importText(' + JSON.stringify(name) + ',__t,__h)'); };
   const save = () => eIn(studio, 'fileSave()'), saveAs = () => eIn(studio, 'fileSaveAs()');
@@ -426,11 +428,13 @@ async function saveChecks() {
   ok('settings: the report offers the other units', eIn(studio, '!!lastReport.opts.action'));
   reset(); eIn(studio, 'SETTINGS.importUnits="mm"'); open('m.dxf', dxfT(), mkHandle('m.dxf'));
   ok('settings: units apply to a DXF open, which is then not overwritten', Math.abs(eIn(studio, 'CADCORE.bbox(doc.shapes[0]).maxX') - 4 / 25.4) < 1e-6 && !!eIn(studio, 'projectFile.why'));
-  reset(); eIn(studio, 'SETTINGS.strictAnchors=true'); studio.__st = stale.out.buffer.slice(stale.out.byteOffset, stale.out.byteOffset + stale.out.byteLength);
+  reset(); studio.__st = stale.out.buffer.slice(stale.out.byteOffset, stale.out.byteOffset + stale.out.byteLength);
   eIn(studio, 'importCRV("st.crv3d",__st)');
   ok('settings: anchor check on refuses in the studio', eIn(studio, 'doc.shapes.length') === 0 && eIn(studio, 'lastReport.items[0].code') === 'ANCHOR_MISMATCH');
-  eIn(studio, 'lastReport.opts.action.fn()');
-  ok('settings: Open Anyway opens it', eIn(studio, 'doc.shapes.length') > 0);
+  ok('settings: the refusal names the file, the distrust and that nothing came in', /^st\.crv3d was refused\./.test(eIn(studio, 'lastReport.items[0].msg')) && /cannot be trusted/.test(eIn(studio, 'lastReport.items[0].msg')) && /Nothing was imported/.test(eIn(studio, 'lastReport.items[0].msg')), eIn(studio, 'lastReport.items[0].msg'));
+  ok('settings: a refused file offers no way to open it anyway', !eIn(studio, 'lastReport.opts.action'));
+  eIn(studio, 'SETTINGS.anchorCheck=false;importCRV("st.crv3d",__st)');
+  ok('settings: with the check switched off in Settings it opens', eIn(studio, 'doc.shapes.length') > 0);
   reset();
 }
 saveChecks().catch(e => ok('save checks ran', false, e.stack)).then(() => {
