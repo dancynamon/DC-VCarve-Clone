@@ -250,7 +250,7 @@ function studioContext() {
   ctx.window = ctx; ctx.self = ctx; ctx.globalThis = ctx;
   vm.createContext(ctx);
   const order = ['package/clipper.js', 'package/opentype.js', 'camcore.js', 'cadcore.js', 'cutprep.js', 'dxfparse.js',
-                 'pdfparse.js', 'tpdparse.js', 'crvparse.js', 'crvtoolpaths.js', 'bitmaptrace.js', 'clipart.js', 'gcodesim.js', 'tapedit.js', 'assembly.js', 'studio_icons.js', 'studio_app.js'];
+                 'pdfparse.js', 'tpdparse.js', 'crvparse.js', 'crvtoolpaths.js', 'bitmaptrace.js', 'clipart.js', 'gcodesim.js', 'jig.js', 'tapedit.js', 'assembly.js', 'studio_icons.js', 'studio_app.js'];
   for (const f of order) vm.runInContext(fs.readFileSync(path.join(__dirname, f), 'utf8'), ctx, { filename: f });
   return ctx;
 }
