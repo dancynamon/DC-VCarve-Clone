@@ -201,7 +201,7 @@ ok('text: postProcess produces g-code', gT.length > 0 && /G90/.test(gT), gT.leng
 function studioContext() {
   const mkEl = tag => {
     const el = {
-      tagName: String(tag || 'div').toUpperCase(), style: {}, dataset: {}, children: [],
+      tagName: String(tag || 'div').toUpperCase(), style: { setProperty() {}, removeProperty() {} }, dataset: {}, children: [],
       value: '', checked: false, textContent: '', _html: '', width: 800, height: 600, scrollTop: 0,
       // innerHTML='' is how the panels clear themselves before a rebuild — mirror that on children
       // so a row count means "rows the panel is showing now", not "rows ever appended".
@@ -210,7 +210,7 @@ function studioContext() {
       classList: { add() {}, remove() {}, toggle() {}, contains() { return false; } },
       appendChild(c) { this.children.push(c); return c; }, insertBefore(c) { this.children.push(c); return c; },
       removeChild() {}, remove() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent() {},
-      setAttribute() {}, getAttribute() { return null; }, focus() {}, click() {}, closest() { return null; },
+      setAttribute() {}, getAttribute() { return null; }, focus() {}, click() {}, closest() { return null; }, insertAdjacentHTML() {},
       contains() { return false; }, querySelector() { return mkEl('input'); }, querySelectorAll() { return [mkEl('button'), mkEl('button'), mkEl('button')]; },
       getBoundingClientRect() { return { left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600 }; },
       getContext() {
@@ -238,19 +238,19 @@ function studioContext() {
     requestAnimationFrame: () => 0, TextDecoder, TextEncoder, parseFloat, parseInt, isNaN, isFinite,
     localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
     // studio_app.js wraps every length field's native `value` property, so the stub needs the real thing's shape.
-    MutationObserver: function () { this.observe = () => {}; this.disconnect = () => {}; },
+    MutationObserver: function () { this.observe = () => {}; this.disconnect = () => {}; }, Event: function (t) { this.type = t; },
     HTMLInputElement: (() => { function H() {} Object.defineProperty(H.prototype, 'value', { get() { return this._v === undefined ? '' : this._v; }, set(v) { this._v = v; }, configurable: true }); return H; })(),
     navigator: { userAgent: 'node' }, location: { href: 'file:///studio' }, performance: { now: () => Date.now() },
     Blob: function () {}, URL: { createObjectURL: () => 'blob:', revokeObjectURL() {} }, FileReader: function () {},
     Image: function () {}, alert() {}, prompt: () => null, confirm: () => true,
     matchMedia: () => ({ matches: false, addListener() {} }),
-    addEventListener() {}, removeEventListener() {}, innerWidth: 1200, innerHeight: 800, devicePixelRatio: 1,
+    addEventListener() {}, removeEventListener() {}, dispatchEvent() {}, innerWidth: 1200, innerHeight: 800, devicePixelRatio: 1,
     getComputedStyle: () => ({ getPropertyValue: () => '' })
   };
   ctx.window = ctx; ctx.self = ctx; ctx.globalThis = ctx;
   vm.createContext(ctx);
   const order = ['package/clipper.js', 'package/opentype.js', 'camcore.js', 'cadcore.js', 'cutprep.js', 'dxfparse.js',
-                 'pdfparse.js', 'tpdparse.js', 'crvparse.js', 'crvtoolpaths.js', 'bitmaptrace.js', 'clipart.js', 'gcodesim.js', 'tapedit.js', 'assembly.js', 'studio_app.js'];
+                 'pdfparse.js', 'tpdparse.js', 'crvparse.js', 'crvtoolpaths.js', 'bitmaptrace.js', 'clipart.js', 'gcodesim.js', 'tapedit.js', 'assembly.js', 'studio_icons.js', 'studio_app.js'];
   for (const f of order) vm.runInContext(fs.readFileSync(path.join(__dirname, f), 'utf8'), ctx, { filename: f });
   return ctx;
 }
