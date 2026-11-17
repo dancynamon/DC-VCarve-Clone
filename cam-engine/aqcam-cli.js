@@ -4,14 +4,21 @@
 //   node cam-engine/aqcam-cli.js from-dxf sheet.dxf --out job.aqcam [--thickness 1.5] [--w 48.5 --h 97] [--name N]
 //        Layer-named DXF (OUTSIDE_PROFILE / INSIDE_CUT / DRILL_<d>_THRU / POCKET_<D>D_<d>DEEP / SHEET / NOTES)
 //        -> .aqcam with the vectors AND Dan's toolpath queue (assembly.jobFromLayers), ready to open, edit, save.
-//   node cam-engine/aqcam-cli.js post job.aqcam --out job.tap [--aircut]
+//   node cam-engine/aqcam-cli.js post job.aqcam --out job.tap [--aircut] [--force]
 //        .aqcam (as Claude wrote it or as Dan saved it from the studio) -> .tap. Same code path as the
 //        studio's Post Job: every toolpath (hidden ones included), visible layers only, ShopSabre post, arcs on.
+//        The program is run through cutprep.tapSanity (job thickness + sheet bounds) before it is written;
+//        a program with sanity errors is NOT written unless --force. The shop file-name rule is reported as a warning.
+//   node cam-engine/aqcam-cli.js check job.tap [--thickness 1.5] [--w 48.5 --h 97]
+//        Static sanity check of any .tap (ours or Vectric's) + the shop file-name rule. Exit 1 on errors.
+//   node cam-engine/aqcam-cli.js split part.dxf --out part-split.dxf
+//        Re-layer a DXF: outer profiles -> OUTSIDE_PROFILE, everything inside a part -> INSIDE_CUT, stray open -> OPEN_VECTOR.
 //   node cam-engine/aqcam-cli.js info job.aqcam         toolpath list, tools, layers, shape counts (JSON)
 //   node cam-engine/aqcam-cli.js preview job.aqcam --out job.svg   vectors + posted toolpath, top view
 const fs = require('fs'), path = require('path');
 const CAM = require('./camcore.js'), C = require('./cadcore.js'), A = require('./assembly.js');
 const { loadDxfShapes } = require('./asmtap.js');
+const CP = require('./cutprep.js');
 
 const KIND_COLOR = { profile: '#1b2b3f', inside: '#0000ff', drill: '#c000c0', pocket: '#00a000', sheet: '#b0b0b0', skip: '#808080', unknown: '#e0c000' };
 
@@ -53,7 +60,25 @@ function post(file) {
   const queue = proj.opsQueue.map(q => Object.assign({}, q, { visible: true }));
   const r = A.postQueue(CAM, queue, contoursFor(proj), { arcs: true });
   if (!r.gcode) throw new Error('Job produced no cuttable passes');
-  return { gcode: r.gcode, ops: r.ops, warnings: r.warnings, proj };
+  return { gcode: r.gcode, ops: r.ops, warnings: r.warnings, proj, sanity: sanityFor(r.gcode, proj.job) };
+}
+
+// cutprep.tapSanity against the job: stock thickness, and the sheet plus one inch all round (tool radius / leads)
+function sanityFor(gcode, job, o) {
+  o = o || {}; const J = job || {}, w = +o.w || J.w || 48.5, h = +o.h || J.h || 97;
+  return CP.tapSanity(gcode, { thickness: +o.thickness || J.thickness || 1.5, bounds: { minX: -1, minY: -1, maxX: w + 1, maxY: h + 1 } });
+}
+
+function check(file, o) {
+  const s = sanityFor(fs.readFileSync(file, 'utf8'), null, o || {});
+  const name = CP.checkShopFileName(path.basename(file));
+  return { file, ok: s.ok, errors: s.errors, warnings: s.warnings, stats: s.stats, fileName: name };
+}
+
+function split(file) {
+  const shapes = loadDxfShapes(file);
+  if (!shapes.length) throw new Error('DXF has no usable vectors: ' + file);
+  return { dxf: CP.toDXFLayered(shapes), counts: CP.splitLayers(shapes).counts };
 }
 
 function stats(g) {
@@ -106,24 +131,39 @@ if (require.main === module) {
   const opt = k => { const i = args.indexOf(k); return i >= 0 ? args.splice(i, 2)[1] : null; };
   const flag = k => { const i = args.indexOf(k); if (i >= 0) { args.splice(i, 1); return true; } return false; };
   const cmd = args.shift();
+  const outOpt = () => { const o = opt('--out'); if (!o) throw new Error(cmd + ' needs --out <file>'); return o; };
   try {
     if (cmd === 'from-dxf') {
-      const out = opt('--out'), o = { thickness: opt('--thickness'), w: opt('--w'), h: opt('--h'), name: opt('--name') };
+      const out = outOpt(), o = { thickness: opt('--thickness'), w: opt('--w'), h: opt('--h'), name: opt('--name') };
       const r = fromDxf(args[0], o); fs.writeFileSync(out, r.text);
       console.log(JSON.stringify({ wrote: out, shapes: r.shapes, layers: r.layers, toolpaths: r.queue.map(q => q.name + ' · T' + q.p.toolNum + ' · ' + q.p.cutDepth + '"'), skipped: r.skipped }, null, 1));
     } else if (cmd === 'post') {
-      const out = opt('--out'), air = flag('--aircut');
-      const r = post(args[0]); fs.writeFileSync(out, r.gcode);
-      const res = { wrote: out, ops: r.ops.length, warnings: r.warnings, stats: stats(r.gcode) };
+      const out = outOpt(), air = flag('--aircut'), force = flag('--force');
+      const r = post(args[0]);
+      const nameChk = CP.checkShopFileName(path.basename(out));
+      if (!r.sanity.ok && !force) {
+        console.error(JSON.stringify({ refused: out, sanityErrors: r.sanity.errors, sanityWarnings: r.sanity.warnings }, null, 1));
+        throw new Error('posted program failed the .tap sanity check — not written (use --force to write anyway)');
+      }
+      fs.writeFileSync(out, r.gcode);
+      const res = { wrote: out, ops: r.ops.length, warnings: r.warnings, stats: stats(r.gcode),
+        sanity: { ok: r.sanity.ok, errors: r.sanity.errors, warnings: r.sanity.warnings },
+        fileName: nameChk.ok ? 'ok' : nameChk.errors };
       if (air) { const ao = out.replace(/\.tap$/i, '') + '-AIRCUT.tap'; fs.writeFileSync(ao, aircut(r.gcode)); res.aircut = ao; }
       console.log(JSON.stringify(res, null, 1));
+    } else if (cmd === 'check') {
+      const r = check(args[0], { thickness: opt('--thickness'), w: opt('--w'), h: opt('--h') });
+      console.log(JSON.stringify(r, null, 1)); if (!r.ok) process.exit(1);
+    } else if (cmd === 'split') {
+      const out = outOpt(); const r = split(args[0]); fs.writeFileSync(out, r.dxf);
+      console.log(JSON.stringify({ wrote: out, counts: r.counts }, null, 1));
     } else if (cmd === 'info') {
       const p = loadProject(args[0]);
       console.log(JSON.stringify({ name: p.meta.name, job: p.job, layers: p.layers.map(l => l.name + (l.visible ? '' : ' (hidden)')), shapes: p.shapes.length,
         toolpaths: p.opsQueue.map((q, i) => (i + 1) + '. ' + (q.name || q.label) + ' · ' + q.p.op + ' T' + q.p.toolNum + ' Ø' + q.p.toolDia + ' · ' + q.p.cutDepth + '" · ' + (q.sel ? 'layers ' + q.sel.layers.join(',') : (q.ids.length ? q.ids.length + ' sel' : 'all'))) }, null, 1));
     } else if (cmd === 'preview') {
-      const out = opt('--out'); const r = post(args[0]); fs.writeFileSync(out, preview(r.proj, r.gcode)); console.log('wrote ' + out);
-    } else { console.error('usage: aqcam-cli.js from-dxf|post|info|preview ... (see header)'); process.exit(2); }
+      const out = outOpt(); const r = post(args[0]); fs.writeFileSync(out, preview(r.proj, r.gcode)); console.log('wrote ' + out);
+    } else { console.error('usage: aqcam-cli.js from-dxf|post|check|split|info|preview ... (see header)'); process.exit(2); }
   } catch (e) { console.error('ERROR: ' + e.message); process.exit(1); }
 }
-module.exports = { fromDxf, post, stats, preview, contoursFor };
+module.exports = { fromDxf, post, stats, preview, contoursFor, sanityFor, check, split };
