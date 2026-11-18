@@ -48,10 +48,14 @@ with open(path, "wb") as f: plistlib.dump(p, f)
 EOF
 codesign --force --deep -s - "$APP"
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP"
+PROBE="$(mktemp -d)"
 for ext in tap dxf crv3d crv; do
   duti -s "$ID" "com.aquamentor.$ext" all   # by the type declared above: duti cannot set a default by extension on this macOS
-  printf '%s -> %s\n' ".$ext" "$(duti -x "$ext" | head -1)"
+  # Ask macOS which app opens a real file. "duti -x" answers for whichever app declared the extension first, which is not what Finder uses.
+  : > "$PROBE/probe.$ext"
+  printf '%s -> %s\n' ".$ext" "$(osascript -l JavaScript -e 'ObjC.import("AppKit"); function run(a){ const u=$.NSWorkspace.sharedWorkspace.URLForApplicationToOpenURL($.NSURL.fileURLWithPath(a[0])); return u.isNil()?"no app":ObjC.unwrap(u.lastPathComponent); }' "$PROBE/probe.$ext")"
 done
+rm -r "$PROBE"
 
 # Keep the app's server (and its update check) running, so the installed app can start from the Dock at any time.
 AGENT="$HOME/Library/LaunchAgents/com.aquamentor.cadcam-server.plist"
