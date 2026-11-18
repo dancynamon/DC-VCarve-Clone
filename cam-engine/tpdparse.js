@@ -13,6 +13,8 @@
 //   It ALSO holds Vectric's computed path (point lists). We never read that: the recipe only.
 // Everything is anchored on structure we can verify; anything that does not parse is reported, not guessed.
 
+(function (root) {
+'use strict';
 function u32(b, o) { return b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24) >>> 0; }
 function f64(b, o) { return new DataView(b.buffer, b.byteOffset + o, 8).getFloat64(0, true); }
 function i32(b, o) { return new DataView(b.buffer, b.byteOffset + o, 4).getInt32(0, true); }
@@ -110,4 +112,7 @@ function parseToolpathData(b, vectorGuids) {
   return { toolpaths: merged, counts: { params: params.length, tools: tools.length, headers: headers.length, selections: sels.length } };
 }
 
-if (typeof module !== 'undefined') module.exports = { parseToolpathData, parseParams, parseTools, allCStrings };
+const api = { parseToolpathData, parseParams, parseTools, allCStrings };
+if (typeof module !== 'undefined' && module.exports) module.exports = api;
+root.TPDPARSE = api;
+})(typeof self !== 'undefined' ? self : this);

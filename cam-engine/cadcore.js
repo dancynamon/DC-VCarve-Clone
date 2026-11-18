@@ -332,7 +332,8 @@ function dxfPolysToShapes(dxfPolys) {
   for (const p of dxfPolys) {
     if (p.type === 'TEXT' || p.type === 'DIMENSION') continue;
     if (!p.pts || p.pts.length < 2) continue;
-    const closed = p.type === 'CIRCLE' || p.type === 'ELLIPSE' || (p.ent && p.ent.closed);
+    // ELLIPSE says for itself: a full one is closed, a partial one (an arc of an ellipse) stays open
+    const closed = p.closed != null ? p.closed : p.type === 'CIRCLE' || (p.ent && p.ent.closed);
     out.push(mkPoly(p.pts, !!closed, p.layer || '0'));
   }
   return out;
@@ -348,21 +349,79 @@ function defaultLayerColor(name) { const n = String(name || '').toUpperCase();
 // Register every layer used by imported DXF polys in a layers Map (name -> {visible,color}). Colour = the first
 // entity ACI colour found on that layer, else the name default. Existing layers are left untouched.
 // Returns the layer names used, in first-seen order.
-function registerDxfLayers(layers, polys) { const used = [], aci = new Map();
+function registerDxfLayers(layers, polys, layerTable) { const used = [], aci = new Map();
   for (const p of polys) { const l = p.layer || '0'; if (!aci.has(l)) { used.push(l); aci.set(l, null); }
     if (aci.get(l) == null && p.ent && p.ent.color != null) aci.set(l, aciToHex(p.ent.color)); }
-  for (const l of used) if (!layers.has(l)) layers.set(l, { visible: true, color: aci.get(l) || defaultLayerColor(l) });
+  for (const l of used) { if (layers.has(l)) continue; const t = layerTable && layerTable[l];
+    layers.set(l, { visible: !(t && (t.off || t.frozen)), color: (t && aciToHex(t.color)) || aci.get(l) || defaultLayerColor(l) }); }
   return used; }
 
 // ---------- export ----------
-function toDXF(shapes) {
-  const L = ['0','SECTION','2','ENTITIES'];
-  for (const s of shapes) for (const loop of flatten(s)) {
-    L.push('0','LWPOLYLINE','8', s.layer||'0','90', String(loop.pts.length),'70', loop.closed?'1':'0');
-    for (const p of loop.pts) { L.push('10', p.x.toFixed(5),'20', p.y.toFixed(5)); }
+// A loop as DXF vertices with bulges: runs of points on one circle become a single true arc, so a re-import (and the machine)
+// sees arcs rather than chords. Only runs that look like a tessellated curve qualify: the points lie on the circle, their chords
+// are even, and the chord sag is what an import tessellation produces (DXF_ARC_MAX_SAG). Anything else stays as straight lines.
+const DXF_ARC_FIT_TOL = 0.0002, DXF_ARC_MAX_SAG = 0.0045, DXF_ARC_MIN_PTS = 4;
+function dxfCircle3(a, b, c) {
+  const d = 2 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y));
+  if (Math.abs(d) < 1e-12) return null;
+  const sa = a.x * a.x + a.y * a.y, sb = b.x * b.x + b.y * b.y, sc = c.x * c.x + c.y * c.y;
+  const cx = (sa * (b.y - c.y) + sb * (c.y - a.y) + sc * (a.y - b.y)) / d, cy = (sa * (c.x - b.x) + sb * (a.x - c.x) + sc * (b.x - a.x)) / d;
+  return { cx, cy, r: Math.hypot(a.x - cx, a.y - cy) };
+}
+// signed sweep of pts[i..j] about a circle; null if it is not one consistent direction or the run is not arc-like
+function dxfRunArc(pts, i, j) {
+  if (j - i + 1 < DXF_ARC_MIN_PTS) return null;
+  const c = dxfCircle3(pts[i], pts[(i + j) >> 1], pts[j]); if (!c || c.r > 1e5 || c.r < 1e-4) return null;
+  let sweep = 0, sign = 0, maxC = 0, minC = Infinity;
+  for (let k = i; k <= j; k++) { if (Math.abs(Math.hypot(pts[k].x - c.cx, pts[k].y - c.cy) - c.r) > DXF_ARC_FIT_TOL) return null;
+    if (k > i) { const a0 = Math.atan2(pts[k - 1].y - c.cy, pts[k - 1].x - c.cx), a1 = Math.atan2(pts[k].y - c.cy, pts[k].x - c.cx); let d = a1 - a0; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
+      if (Math.abs(d) < 1e-9) return null; const s = d > 0 ? 1 : -1; if (sign && s !== sign) return null; sign = s; sweep += d;
+      const ch = Math.hypot(pts[k].x - pts[k - 1].x, pts[k].y - pts[k - 1].y); if (ch > maxC) maxC = ch; if (ch < minC) minC = ch;
+      if (c.r * (1 - Math.cos(d / 2)) > DXF_ARC_MAX_SAG) return null; } }
+  if (maxC > minC * 1.7 + 1e-9) return null;
+  if (Math.abs(sweep) >= 2 * Math.PI - 1e-6) return null;
+  return { c, sweep };
+}
+function dxfLoopVertices(ptsIn, closed) {
+  const pts = ptsIn.slice();
+  if (closed && pts.length > 2 && Math.hypot(pts[0].x - pts[pts.length - 1].x, pts[0].y - pts[pts.length - 1].y) < 1e-9) pts.pop();
+  const n = pts.length;
+  // a whole circle is one CIRCLE entity
+  if (closed && n >= 8) { const c = dxfCircle3(pts[0], pts[n >> 2], pts[n >> 1]);
+    if (c && pts.every(p => Math.abs(Math.hypot(p.x - c.cx, p.y - c.cy) - c.r) <= DXF_ARC_FIT_TOL) && c.r * (1 - Math.cos(Math.PI / n)) <= DXF_ARC_MAX_SAG) return { circle: c }; }
+  const seq = closed ? pts.concat([pts[0]]) : pts, verts = [];
+  for (let i = 0; i < seq.length - 1;) {
+    let best = null, bestJ = i + 1;
+    for (let j = Math.min(seq.length - 1, i + 3); j < seq.length; j++) { const a = dxfRunArc(seq, i, j); if (a) { best = a; bestJ = j; } else if (best) break; }
+    verts.push({ x: seq[i].x, y: seq[i].y, bulge: best ? Math.tan(best.sweep / 4) : 0 });
+    i = bestJ;
   }
-  L.push('0','ENDSEC','0','EOF');
-  return L.join('\r\n');
+  if (!closed) verts.push({ x: seq[seq.length - 1].x, y: seq[seq.length - 1].y, bulge: 0 });
+  return { verts };
+}
+const ACI_NEAR = [[1, 255, 0, 0], [2, 224, 192, 0], [3, 0, 160, 0], [4, 0, 176, 176], [5, 0, 0, 255], [6, 192, 0, 192], [7, 27, 43, 63], [8, 128, 128, 128], [9, 176, 176, 176]];
+function hexToAci(hex) { const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(hex || '')); if (!m) return 7; const r = parseInt(m[1], 16), g = parseInt(m[2], 16), b = parseInt(m[3], 16);
+  let best = 7, bd = Infinity; for (const [a, R, G, B] of ACI_NEAR) { const d = (r - R) * (r - R) + (g - G) * (g - G) + (b - B) * (b - B); if (d < bd) { bd = d; best = a; } } return best; }
+// DXF for re-import or VCarve: a LAYER table (colours from `opts.layers`, the studio's Map of name -> {color}), true arcs where the
+// vector is one, six decimals, inches declared. Curves that are not arcs stay as line segments, so a re-import is within the fit
+// tolerances above: 0.0045" at most off the source curve, and normally 0.0002".
+function toDXF(shapes, opts) {
+  opts = opts || {};
+  const ent = [], used = new Set(), f = v => v.toFixed(6);
+  for (const s of shapes) for (const loop of flatten(s)) {
+    const layer = s.layer || '0'; used.add(layer);
+    const fit = dxfLoopVertices(loop.pts, !!loop.closed);
+    if (fit.circle) { ent.push('0', 'CIRCLE', '8', layer, '10', f(fit.circle.cx), '20', f(fit.circle.cy), '40', f(fit.circle.r)); continue; }
+    ent.push('0', 'LWPOLYLINE', '8', layer, '90', String(fit.verts.length), '70', loop.closed ? '1' : '0');
+    for (const v of fit.verts) { ent.push('10', f(v.x), '20', f(v.y)); if (v.bulge) ent.push('42', f(v.bulge)); }
+  }
+  if (opts.layers) for (const k of opts.layers.keys()) used.add(k);
+  const color = n => { const l = opts.layers && opts.layers.get(n); return l ? hexToAci(l.color) : 7; };
+  const head = ['0', 'SECTION', '2', 'HEADER', '9', '$INSUNITS', '70', '1', '0', 'ENDSEC'];
+  const tbl = ['0', 'SECTION', '2', 'TABLES', '0', 'TABLE', '2', 'LAYER', '70', String(used.size)];
+  for (const n of used) tbl.push('0', 'LAYER', '2', n, '70', '0', '62', String(color(n)), '6', 'CONTINUOUS');
+  tbl.push('0', 'ENDTAB', '0', 'ENDSEC');
+  return head.concat(tbl, ['0', 'SECTION', '2', 'ENTITIES'], ent, ['0', 'ENDSEC', '0', 'EOF']).join('\r\n');
 }
 function toSVG(shapes) {
   const b = bboxAll(shapes); const W = (b.maxX-b.minX)||1, H = (b.maxY-b.minY)||1;
@@ -1161,7 +1220,7 @@ return {
   translate, rotate, scale, mirror,
   offsetShapes, booleanOp,
   nestShapes, placeShape,
-  svgToShapes, svgPathToShapes, dxfPolysToShapes, toDXF, toSVG, saveFilename,
+  svgToShapes, svgPathToShapes, dxfPolysToShapes, toDXF, toSVG, saveFilename, dxfLoopVertices, hexToAci,
   textShapes, outlineTextShapes, FONT, measureText, clone, shapesToContoursInput,
   mkDimension, dimensionGeometry, dimValue, fmtDimValue, syncDimension, DIM_STYLES, DIM_DEFAULTS,
   primParams, applyPrimParams, fitShapeTo, fitPrimTo,
