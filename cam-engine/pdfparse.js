@@ -202,6 +202,380 @@ const PDFPARSE = (() => {
 
   // ---- content-stream interpreter ----
   // Emits {cmds (device space, y-up), fill, stroke, fillRule?} into out[].
+
+  // ---- Vector Studio only: color spaces, functions, shadings, images. CAD/CAM never reaches these. ----
+  function tokensOf(t) {   // PDF object text -> nested tokens: names keep '/', refs become {ref:n}, arrays are arrays, dicts stay {dict:text}
+    let i = 0;
+    function val() {
+      while (i < t.length && isWS(t[i])) i++;
+      if (i >= t.length) return undefined;
+      const c = t[i];
+      if (c === '[') { i++; const a = []; for (;;) { while (i < t.length && isWS(t[i])) i++; if (i >= t.length || t[i] === ']') { i++; return a; } const v = val(); if (v === undefined) return a; a.push(v); } }
+      if (c === '<' && t[i + 1] === '<') { const st = i; let d = 1; i += 2; while (i < t.length && d > 0) { if (t[i] === '<' && t[i + 1] === '<') { d++; i += 2; } else if (t[i] === '>' && t[i + 1] === '>') { d--; i += 2; } else i++; } return { dict: t.slice(st, i) }; }
+      if (c === '<') { const st = ++i; while (i < t.length && t[i] !== '>') i++; const h = t.slice(st, i++).replace(/\s/g, ''); let o = ''; for (let k = 0; k < h.length; k += 2) o += String.fromCharCode(parseInt(h.substr(k, 2).padEnd(2, '0'), 16)); return { str: o }; }
+      if (c === '(') { const st = ++i; let d = 1, o = ''; while (i < t.length && d > 0) { const ch = t[i++]; if (ch === '\\') { const e = t[i++]; if (/[0-7]/.test(e)) { let oc = e; while (oc.length < 3 && /[0-7]/.test(t[i])) oc += t[i++]; o += String.fromCharCode(parseInt(oc, 8)); } else o += ({ n: '\n', r: '\r', t: '\t', b: '\b', f: '\f' })[e] || e; continue; } if (ch === '(') d++; else if (ch === ')' && --d === 0) break; o += ch; } return { str: o, st }; }
+      if (c === '/') { const st = i++; while (i < t.length && !isDelim(t[i]) && !isWS(t[i])) i++; return t.slice(st, i); }
+      if (c === ']' || c === '>') { i++; return val(); }
+      const st = i; while (i < t.length && !isDelim(t[i]) && !isWS(t[i])) i++;
+      const w = t.slice(st, i);
+      if (w === '') { i++; return val(); }
+      const num = +w;
+      if (!isNaN(num)) {
+        const m = /^\s+(\d+)\s+R\b/.exec(t.slice(i, i + 24));
+        if (m) { i += m[0].length; return { ref: num }; }
+        return num;
+      }
+      return w;
+    }
+    return val();
+  }
+  function deref(v, objs) {   // {ref} -> token value of that object
+    let guard = 0;
+    while (v && v.ref != null && guard++ < 16) { const o = objs[v.ref]; if (!o) return null; v = tokensOf(o.dictStr); if (v && typeof v === 'object' && v.dict != null) v.obj = o; }
+    return v;
+  }
+  function dictGet(d, key, objs) {   // value of /key in a dict token or text (key match is exact), dereferenced once
+    const text = typeof d === 'string' ? d : d && d.dict;
+    if (!text) return undefined;
+    const t = text.replace(/^\s*<</, '').replace(/>>\s*$/, '');
+    let i = 0, depth = 0;
+    while (i < t.length) {
+      const c = t[i];
+      if (c === '(') { let e = 1; i++; while (i < t.length && e > 0) { if (t[i] === '\\') i++; else if (t[i] === '(') e++; else if (t[i] === ')') e--; i++; } continue; }
+      if (c === '[' || (c === '<' && t[i + 1] === '<')) { depth++; i += c === '[' ? 1 : 2; continue; }
+      if (c === ']' || (c === '>' && t[i + 1] === '>')) { depth--; i += c === ']' ? 1 : 2; continue; }
+      if (c === '/' && depth === 0) {
+        const st = ++i; while (i < t.length && !isDelim(t[i]) && !isWS(t[i])) i++;
+        if (t.slice(st, i) === key) { return deref(tokensOf(t.slice(i)), objs); }
+        // skip this key's value
+        while (i < t.length && isWS(t[i])) i++;
+        if (t[i] === '/') { i++; while (i < t.length && !isDelim(t[i]) && !isWS(t[i])) i++; }
+        continue;
+      }
+      i++;
+    }
+    return undefined;
+  }
+  function resLookup(resDict, cat, name, objs) { const c = resDict && dictGet(resDict, cat, objs); return c && dictGet(c, name, objs); }
+
+  function evalPS(toks, input) {   // Type 4 calculator function
+    const st = input.slice();
+    function run(prog) {
+      for (let i = 0; i < prog.length; i++) {
+        const t = prog[i];
+        if (typeof t === 'number') { st.push(t); continue; }
+        if (Array.isArray(t)) { const n = prog[i + 1]; if (n === 'if') { if (st.pop()) run(t); i++; } else if (Array.isArray(n) && prog[i + 2] === 'ifelse') { run(st.pop() ? t : n); i += 2; } continue; }
+        const a = () => st.pop();
+        switch (t) {
+          case 'dup': st.push(st[st.length - 1]); break; case 'pop': a(); break;
+          case 'exch': { const y = a(), x = a(); st.push(y, x); break; }
+          case 'index': { const n = a(); st.push(st[st.length - 1 - n]); break; }
+          case 'copy': { const n = a(); st.push(...st.slice(st.length - n)); break; }
+          case 'roll': { let j = a(); const n = a(); if (n > 0) { const part = st.splice(st.length - n, n); j = ((j % n) + n) % n; st.push(...part.slice(n - j), ...part.slice(0, n - j)); } break; }
+          case 'add': { const y = a(); st.push(a() + y); break; } case 'sub': { const y = a(); st.push(a() - y); break; }
+          case 'mul': { const y = a(); st.push(a() * y); break; } case 'div': { const y = a(); st.push(y ? a() / y : (a(), 0)); break; }
+          case 'neg': st.push(-a()); break; case 'abs': st.push(Math.abs(a())); break; case 'sqrt': st.push(Math.sqrt(a())); break;
+          case 'exp': { const y = a(); st.push(Math.pow(a(), y)); break; }
+          case 'gt': { const y = a(); st.push(a() > y); break; } case 'lt': { const y = a(); st.push(a() < y); break; }
+          case 'ge': { const y = a(); st.push(a() >= y); break; } case 'le': { const y = a(); st.push(a() <= y); break; }
+          case 'eq': { const y = a(); st.push(a() === y); break; } case 'ne': { const y = a(); st.push(a() !== y); break; }
+          case 'and': { const y = a(); st.push(a() & y); break; } case 'or': { const y = a(); st.push(a() | y); break; }
+          case 'not': st.push(!a()); break; case 'true': st.push(true); break; case 'false': st.push(false); break;
+          case 'floor': st.push(Math.floor(a())); break; case 'ceiling': st.push(Math.ceil(a())); break;
+          case 'round': st.push(Math.round(a())); break; case 'truncate': st.push(Math.trunc(a())); break;
+          default: break;
+        }
+      }
+    }
+    run(toks);
+    return st.map(Number);
+  }
+  function parsePSProg(s) {   // "{ dup 0.5 mul }" -> nested arrays
+    const w = s.replace(/[{}]/g, ' $& ').trim().split(/\s+/);
+    let i = 0;
+    function block() { const o = []; while (i < w.length) { const t = w[i++]; if (t === '{') o.push(block()); else if (t === '}') return o; else o.push(isNaN(+t) ? t : +t); } return o; }
+    const top = block();
+    return Array.isArray(top[0]) ? top[0] : top;
+  }
+  function makeFunction(v, objs, u8) {   // -> f(number[]) -> number[]
+    if (Array.isArray(v)) { const fs = v.map(x => makeFunction(deref(x, objs), objs, u8)); return x => [].concat(...fs.map(f => f(x))); }
+    v = deref(v, objs);
+    if (!v || !v.dict) return null;
+    const type = dictGet(v, 'FunctionType', objs);
+    const domain = (dictGet(v, 'Domain', objs) || [0, 1]).map(Number);
+    const clampIn = x => x.map((val, i) => Math.max(domain[2 * i] != null ? domain[2 * i] : 0, Math.min(domain[2 * i + 1] != null ? domain[2 * i + 1] : 1, val)));
+    if (type === 2) {
+      const c0 = dictGet(v, 'C0', objs) || [0], c1 = dictGet(v, 'C1', objs) || [1], N = dictGet(v, 'N', objs) || 1;
+      return x => { const t = Math.pow(clampIn(x)[0], N); return c0.map((a, i) => a + t * (c1[i] - a)); };
+    }
+    if (type === 3) {
+      const fns = (dictGet(v, 'Functions', objs) || []).map(f => makeFunction(deref(f, objs), objs, u8));
+      const bounds = (dictGet(v, 'Bounds', objs) || []).map(Number), enc = (dictGet(v, 'Encode', objs) || []).map(Number);
+      return x => {
+        const t = clampIn(x)[0];
+        let k = 0; while (k < bounds.length && t >= bounds[k]) k++;
+        k = Math.min(k, fns.length - 1);
+        const lo = k === 0 ? domain[0] : bounds[k - 1], hi = k === bounds.length ? domain[1] : bounds[k];
+        const e0 = enc[2 * k], e1 = enc[2 * k + 1];
+        return fns[k]([hi === lo ? e0 : e0 + (t - lo) * (e1 - e0) / (hi - lo)]);
+      };
+    }
+    const o = v.obj;
+    if (type === 4 && o) {
+      const prog = parsePSProg(getStreamContent(o, u8) || '');
+      return x => evalPS(prog, clampIn(x));
+    }
+    if (type === 0 && o) {
+      const size = dictGet(v, 'Size', objs), bps = dictGet(v, 'BitsPerSample', objs), range = dictGet(v, 'Range', objs).map(Number);
+      const nOut = range.length / 2, nIn = size.length;
+      const enc = dictGet(v, 'Encode', objs) || [].concat(...size.map(n => [0, n - 1]));
+      const dec = dictGet(v, 'Decode', objs) || range;
+      const raw = decodeBytes(u8.subarray(o.dataStart, o.dataEnd), o.filter);
+      if (!raw) return null;
+      const maxv = Math.pow(2, bps) - 1;
+      const sample = idx => { let pos = idx * bps, val = 0; for (let b = 0; b < bps; b += 8 - (pos + b) % 8 > bps - b ? bps - b : 8 - (pos + b) % 8) { const p = pos + b, take = Math.min(8 - p % 8, bps - b); val = val * Math.pow(2, take) + ((raw[p >> 3] >> (8 - p % 8 - take)) & ((1 << take) - 1)); } return val; };
+      return x => {
+        const inp = clampIn(x);
+        let idx0 = 0, mul = 1, frac = 0, step = 0;
+        inp.forEach((val, i) => {
+          const d0 = domain[2 * i], d1 = domain[2 * i + 1];
+          let e = enc[2 * i] + (val - d0) * (enc[2 * i + 1] - enc[2 * i]) / ((d1 - d0) || 1);
+          e = Math.max(0, Math.min(size[i] - 1, e));
+          const fl = i === 0 ? Math.floor(e) : Math.round(e);
+          if (i === 0) { frac = e - fl; step = fl < size[0] - 1 ? nOut : 0; }
+          idx0 += fl * mul; mul *= size[i];
+        });
+        void nIn;
+        const out = [];
+        for (let j = 0; j < nOut; j++) {
+          const a = sample(idx0 * nOut + j), b = step ? sample(idx0 * nOut + j + step) : a;
+          out.push(dec[2 * j] + (a + (b - a) * frac) * (dec[2 * j + 1] - dec[2 * j]) / maxv);
+        }
+        return out;
+      };
+    }
+    return null;
+  }
+  function labHex(c) {
+    const fy = (c[0] + 16) / 116, fx = fy + c[1] / 500, fz = fy - c[2] / 200;
+    const g = t => t > 6 / 29 ? t * t * t : 3 * 36 / 841 * (t - 4 / 29);
+    const X = 0.9505 * g(fx), Y = g(fy), Z = 1.089 * g(fz);
+    const gam = v => { v = Math.max(0, v); return v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055; };
+    return rgbHex(gam(3.2406 * X - 1.5372 * Y - 0.4986 * Z), gam(-0.9689 * X + 1.8758 * Y + 0.0415 * Z), gam(0.0557 * X - 0.204 * Y + 1.057 * Z));
+  }
+  const CS_GRAY = { n: 1, hex: c => rgbHex(c[0], c[0], c[0]), init: [0] };
+  const CS_RGB = { n: 3, hex: c => rgbHex(c[0], c[1], c[2]), init: [0, 0, 0] };
+  const CS_CMYK = { n: 4, hex: c => cmykHex(c[0], c[1], c[2], c[3]), init: [0, 0, 0, 1] };
+  function parseCS(v, objs, u8, res, depth) {
+    depth = depth || 0;
+    v = deref(v, objs);
+    if (depth > 6 || v == null) return CS_GRAY;
+    if (typeof v === 'string') {
+      switch (v) {
+        case '/DeviceGray': case '/G': case '/CalGray': return CS_GRAY;
+        case '/DeviceRGB': case '/RGB': case '/CalRGB': return CS_RGB;
+        case '/DeviceCMYK': case '/CMYK': return CS_CMYK;
+        case '/Pattern': return { n: 0, pattern: true, hex: () => '#808080', init: [] };
+        default: { const r = resLookup(res, 'ColorSpace', v.slice(1), objs); return r ? parseCS(r, objs, u8, res, depth + 1) : CS_GRAY; }
+      }
+    }
+    if (!Array.isArray(v)) return CS_GRAY;
+    const kind = v[0];
+    if (kind === '/ICCBased') {
+      const st = deref(v[1], objs);
+      const N = st && dictGet(st, 'N', objs);
+      if (N === 3 && st.obj) { // the profile says whether these three numbers are RGB or Lab
+        const prof = getStreamContent(st.obj, u8);
+        if (prof && prof.slice(16, 20) === 'Lab ') return { n: 3, hex: labHex, init: [0, 0, 0], lab: true };
+      }
+      return N === 4 ? CS_CMYK : N === 1 ? CS_GRAY : CS_RGB;
+    }
+    if (kind === '/CalRGB') return CS_RGB;
+    if (kind === '/CalGray') return CS_GRAY;
+    if (kind === '/Lab') return { n: 3, hex: labHex, init: [0, 0, 0], lab: true };
+    if (kind === '/Pattern') return { n: 0, pattern: true, base: v[1] ? parseCS(v[1], objs, u8, res, depth + 1) : null, hex: () => '#808080', init: [] };
+    if (kind === '/Separation' || kind === '/DeviceN') {
+      const names = kind === '/Separation' ? [v[1]] : deref(v[1], objs) || [];
+      const alt = parseCS(v[2], objs, u8, res, depth + 1);
+      const fn = makeFunction(v[3], objs, u8);
+      const n = kind === '/Separation' ? 1 : names.length;
+      return { n, init: new Array(n).fill(1), spot: names[0] && String(names[0]).slice(1), hex: c => { const o = fn ? fn(c) : null; return o ? alt.hex(o) : '#808080'; } };
+    }
+    if (kind === '/Indexed' || kind === '/I') {
+      const base = parseCS(v[1], objs, u8, res, depth + 1);
+      let tab = deref(v[3], objs), bytes = null;
+      if (tab && tab.str != null) { bytes = new Uint8Array(tab.str.length); for (let i = 0; i < tab.str.length; i++) bytes[i] = tab.str.charCodeAt(i) & 255; }
+      else if (tab && tab.obj) bytes = decodeBytes(u8.subarray(tab.obj.dataStart, tab.obj.dataEnd), tab.obj.filter);
+      return { n: 1, init: [0], indexed: true, base, bytes, hex: c => base.hex(indexedComps(base, bytes, c[0])) };
+    }
+    return CS_GRAY;
+  }
+  function indexedComps(base, bytes, i) {
+    const out = [];
+    for (let k = 0; k < base.n; k++) out.push(bytes ? (bytes[i * base.n + k] || 0) / 255 : 0);
+    return out;
+  }
+  function decodeBytes(raw, filter, stopAtImage) {
+    let data = raw;
+    for (const f of (filter || '').match(/[A-Za-z0-9]+/g) || []) {
+      if (f === 'FlateDecode' || f === 'Fl') data = Uint8Array.from(pdfInflate(data));
+      else if (f === 'ASCII85Decode' || f === 'A85') data = Uint8Array.from(ascii85(data));
+      else if (f === 'ASCIIHexDecode' || f === 'AHx') { const h = u8str(data).replace(/[^0-9a-fA-F]/g, ''); const o = new Uint8Array(h.length >> 1); for (let i = 0; i < o.length; i++) o[i] = parseInt(h.substr(i * 2, 2), 16); data = o; }
+      else if (f === 'RunLengthDecode' || f === 'RL') { const o = []; for (let i = 0; i < data.length;) { const n = data[i++]; if (n === 128) break; if (n < 128) { for (let k = 0; k <= n; k++) o.push(data[i++]); } else { const b = data[i++]; for (let k = 0; k < 257 - n; k++) o.push(b); } } data = Uint8Array.from(o); }
+      else if (stopAtImage && (f === 'DCTDecode' || f === 'DCT')) return { jpeg: data };
+      else return null;
+    }
+    return data;
+  }
+  function unpredict(d, parms, objs) {
+    const pred = parms && dictGet(parms, 'Predictor', objs);
+    if (!pred || pred < 10) return d;
+    const colors = dictGet(parms, 'Colors', objs) || 1, bpc = dictGet(parms, 'BitsPerComponent', objs) || 8, cols = dictGet(parms, 'Columns', objs) || 1;
+    const bpp = Math.max(1, (colors * bpc) >> 3), row = Math.ceil(colors * bpc * cols / 8);
+    const rows = Math.floor(d.length / (row + 1)), out = new Uint8Array(rows * row);
+    for (let y = 0; y < rows; y++) {
+      const t = d[y * (row + 1)], src = y * (row + 1) + 1, dst = y * row;
+      for (let x = 0; x < row; x++) {
+        const a = x >= bpp ? out[dst + x - bpp] : 0, b = y ? out[dst - row + x] : 0, c = (x >= bpp && y) ? out[dst - row + x - bpp] : 0;
+        let p = 0;
+        if (t === 1) p = a; else if (t === 2) p = b; else if (t === 3) p = (a + b) >> 1;
+        else if (t === 4) { const q = a + b - c, pa = Math.abs(q - a), pb = Math.abs(q - b), pc = Math.abs(q - c); p = pa <= pb && pa <= pc ? a : pb <= pc ? b : c; }
+        out[dst + x] = (d[src + x] + p) & 255;
+      }
+    }
+    return out;
+  }
+  function b64(u8) { let s = ''; const CH = 0x6000; for (let i = 0; i < u8.length; i += CH) s += String.fromCharCode.apply(null, u8.subarray(i, i + CH)); return typeof btoa !== 'undefined' ? btoa(s) : Buffer.from(s, 'latin1').toString('base64'); }
+  let CRCT = null;
+  function crc(u8) { if (!CRCT) { CRCT = new Int32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; CRCT[n] = c; } } let c = -1; for (let i = 0; i < u8.length; i++) c = CRCT[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ -1) >>> 0; }
+  function encodePNG(rgba, w, h) {   // stored (uncompressed) PNG: pure and fast; the app recompresses through a canvas
+    const rowLen = w * 4 + 1, raw = new Uint8Array(rowLen * h);
+    for (let y = 0; y < h; y++) raw.set(rgba.subarray(y * w * 4, (y + 1) * w * 4), y * rowLen + 1);
+    const nblocks = Math.max(1, Math.ceil(raw.length / 65535)), z = new Uint8Array(2 + raw.length + nblocks * 5 + 4);
+    z[0] = 0x78; z[1] = 1;
+    let p = 2, a = 1, b = 0;
+    for (let i = 0; i < raw.length; i++) { a = (a + raw[i]) % 65521; b = (b + a) % 65521; }
+    for (let k = 0; k < nblocks; k++) { const st = k * 65535, n = Math.min(65535, raw.length - st); z[p++] = k === nblocks - 1 ? 1 : 0; z[p++] = n & 255; z[p++] = n >> 8; z[p++] = ~n & 255; z[p++] = (~n >> 8) & 255; z.set(raw.subarray(st, st + n), p); p += n; }
+    z[p++] = b >> 8; z[p++] = b & 255; z[p++] = a >> 8; z[p++] = a & 255;
+    const chunk = (type, data) => { const o = new Uint8Array(12 + data.length), L = data.length; o[0] = L >>> 24; o[1] = L >>> 16; o[2] = L >>> 8; o[3] = L; for (let i = 0; i < 4; i++) o[4 + i] = type.charCodeAt(i); o.set(data, 8); const c = crc(o.subarray(4, 8 + L)); o[8 + L] = c >>> 24; o[9 + L] = c >>> 16; o[10 + L] = c >>> 8; o[11 + L] = c; return o; };
+    const ihdr = new Uint8Array([w >>> 24, w >>> 16, w >>> 8, w, h >>> 24, h >>> 16, h >>> 8, h, 8, 6, 0, 0, 0]);
+    const parts = [new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', z.subarray(0, p)), chunk('IEND', new Uint8Array(0))];
+    const all = new Uint8Array(parts.reduce((n, x) => n + x.length, 0));
+    let q = 0; for (const x of parts) { all.set(x, q); q += x.length; }
+    return 'data:image/png;base64,' + b64(all);
+  }
+  function maskAlpha(o, objs, u8, tw, th) {   // /SMask or stencil /Mask image -> alpha sampled at tw x th
+    if (!o || !o.dictStr) return null;
+    const d = '<<' + o.dictStr.replace(/^\s*<</, '').replace(/>>\s*$/, '') + '>>';
+    const w = dictGet(d, 'Width', objs), h = dictGet(d, 'Height', objs), bpc = dictGet(d, 'BitsPerComponent', objs) || 1;
+    const isStencil = dictGet(d, 'ImageMask', objs) === 'true' || dictGet(d, 'ImageMask', objs) === true;
+    const dec = dictGet(d, 'Decode', objs);
+    let raw = decodeBytes(u8.subarray(o.dataStart, o.dataEnd), o.filter);
+    if (!raw) return null;
+    raw = unpredict(raw, dictGet(d, 'DecodeParms', objs), objs);
+    const row = Math.ceil(w * bpc / 8), out = new Uint8Array(tw * th);
+    let invert = dec && dec[0] > dec[1];
+    if (isStencil) invert = !invert; // a stencil's 0 bits paint
+    for (let y = 0; y < th; y++) for (let x = 0; x < tw; x++) {
+      const sx = Math.floor(x * w / tw), sy = Math.floor(y * h / th);
+      let v;
+      if (bpc === 8) v = raw[sy * row + sx]; else { const bit = sx * bpc; v = ((raw[sy * row + (bit >> 3)] >> (8 - (bit & 7) - bpc)) & ((1 << bpc) - 1)) * 255 / ((1 << bpc) - 1); }
+      out[y * tw + x] = invert ? 255 - v : v;
+    }
+    return out;
+  }
+  // Image dict + data -> { w, h, dataURL }, or null when it cannot be decoded here.
+  function decodeImage(dict, bytes, cs, objs, u8, res, fillHex, o) {
+    const w = dictGet(dict, 'Width', objs) || dictGet(dict, 'W', objs), h = dictGet(dict, 'Height', objs) || dictGet(dict, 'H', objs);
+    if (!(w > 0 && h > 0) || !bytes) return null;
+    const stencilV = dictGet(dict, 'ImageMask', objs) != null ? dictGet(dict, 'ImageMask', objs) : dictGet(dict, 'IM', objs);
+    const stencil = stencilV === 'true' || stencilV === true;
+    let bpc = dictGet(dict, 'BitsPerComponent', objs) || dictGet(dict, 'BPC', objs) || (stencil ? 1 : 8);
+    if (bytes.jpeg) {
+      if (!dictGet(dict, 'SMask', objs)) return { w, h, dataURL: 'data:image/jpeg;base64,' + b64(bytes.jpeg) };
+      return { w, h, dataURL: 'data:image/jpeg;base64,' + b64(bytes.jpeg), maskOnly: true };
+    }
+    const parms = dictGet(dict, 'DecodeParms', objs) || dictGet(dict, 'DP', objs);
+    const d = unpredict(bytes, parms, objs);
+    const rgba = new Uint8Array(w * h * 4);
+    const dec = dictGet(dict, 'Decode', objs) || dictGet(dict, 'D', objs);
+    if (stencil) {
+      const row = (w + 7) >> 3, inv = dec && dec[0] > dec[1];
+      const n = parseInt(fillHex.slice(1), 16), r = n >> 16 & 255, g = n >> 8 & 255, b = n & 255;
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const bit = (d[y * row + (x >> 3)] >> (7 - (x & 7))) & 1, on = inv ? bit === 1 : bit === 0, q = (y * w + x) * 4;
+        rgba[q] = r; rgba[q + 1] = g; rgba[q + 2] = b; rgba[q + 3] = on ? 255 : 0;
+      }
+      return { w, h, dataURL: encodePNG(rgba, w, h) };
+    }
+    const n = cs.n, row = Math.ceil(w * n * bpc / 8), maxv = (1 << bpc) - 1;
+    const scale = cs.lab ? null : (i, v) => { const lo = dec ? dec[2 * i] : 0, hi = dec ? dec[2 * i + 1] : 1; return lo + v * (hi - lo) / maxv; };
+    const cache = new Map();
+    const comps = new Array(n);
+    for (let y = 0; y < h; y++) {
+      const rowStart = y * row;
+      for (let x = 0; x < w; x++) {
+        let key = 0;
+        for (let i = 0; i < n; i++) {
+          let v;
+          if (bpc === 8) v = d[rowStart + x * n + i];
+          else if (bpc === 16) v = d[rowStart + (x * n + i) * 2];
+          else { const bit = (x * n + i) * bpc; v = (d[rowStart + (bit >> 3)] >> (8 - (bit & 7) - bpc)) & maxv; }
+          key = key * 256 + (v || 0);
+          comps[i] = v || 0;
+        }
+        let px = cache.get(key);
+        if (px === undefined) {
+          let hex;
+          if (cs.indexed) hex = cs.hex([comps[0]]);
+          else if (bpc === 16) hex = cs.hex(comps.map(v => v / 255));
+          else if (cs.lab) hex = cs.hex([comps[0] * 100 / 255, comps[1] - 128, comps[2] - 128]);
+          else hex = cs.hex(comps.map((v, i) => scale(i, v)));
+          px = parseInt(hex.slice(1), 16);
+          if (cache.size < 2000000) cache.set(key, px);
+        }
+        const q = (y * w + x) * 4;
+        rgba[q] = px >> 16 & 255; rgba[q + 1] = px >> 8 & 255; rgba[q + 2] = px & 255; rgba[q + 3] = 255;
+      }
+    }
+    if (o) {
+      const sm = /\/SMask\s+(\d+)\s+\d+\s+R/.exec(o.dictStr), mk = /\/Mask\s+(\d+)\s+\d+\s+R/.exec(o.dictStr);
+      const a = sm ? maskAlpha(objs[+sm[1]], objs, u8, w, h) : mk ? maskAlpha(objs[+mk[1]], objs, u8, w, h) : null;
+      if (a) for (let i = 0; i < a.length; i++) rgba[i * 4 + 3] = a[i];
+    }
+    return { w, h, dataURL: encodePNG(rgba, w, h) };
+  }
+  // Shading dict -> device-independent gradient (coords still in the shading's space).
+  function parseShading(v, objs, u8, res) {
+    v = deref(v, objs);
+    if (!v || !v.dict) return null;
+    const t = dictGet(v, 'ShadingType', objs);
+    if (t !== 2 && t !== 3) return null;
+    const coords = (dictGet(v, 'Coords', objs) || []).map(Number);
+    const fn = makeFunction(dictGet(v, 'Function', objs), objs, u8);
+    const cs = parseCS(dictGet(v, 'ColorSpace', objs), objs, u8, res);
+    if (!fn) return null;
+    const dom = dictGet(v, 'Domain', objs) || [0, 1];
+    const stops = [];
+    const N = 12;
+    for (let i = 0; i <= N; i++) {
+      const u = i / N;
+      stops.push([u, cs.hex(fn([dom[0] + u * (dom[1] - dom[0])]))]);
+    }
+    const g = t === 2
+      ? { type: 'linear', x1: coords[0], y1: coords[1], x2: coords[2], y2: coords[3], stops }
+      : { type: 'radial', x1: coords[0], y1: coords[1], r1: coords[2], x2: coords[3], y2: coords[4], r2: coords[5], stops };
+    return g;
+  }
+  function xfGrad(g, m) {
+    const p1 = [m[0] * g.x1 + m[2] * g.y1 + m[4], m[1] * g.x1 + m[3] * g.y1 + m[5]];
+    const p2 = [m[0] * g.x2 + m[2] * g.y2 + m[4], m[1] * g.x2 + m[3] * g.y2 + m[5]];
+    const k = Math.sqrt(Math.abs(m[0] * m[3] - m[1] * m[2])) || 1;
+    const o = { ...g, x1: p1[0], y1: p1[1], x2: p2[0], y2: p2[1] };
+    if (g.type === 'radial') { o.r1 = g.r1 * k; o.r2 = g.r2 * k; }
+    return o;
+  }
+
   function interpret(s, out, ctx) {
     ctx = ctx || {};
     const n = s.length;
@@ -212,7 +586,14 @@ const PDFPARSE = (() => {
       fill: ctx.baseFill || '#000000',
       stroke: ctx.baseStroke || '#000000',
       lw: ctx.baseLW != null ? ctx.baseLW : 1,
+      fillA: ctx.baseFillA != null ? ctx.baseFillA : 1, strokeA: ctx.baseStrokeA != null ? ctx.baseStrokeA : 1,
+      clips: ctx.baseClips || [], fillCS: ctx.baseFillCS || CS_GRAY, strokeCS: ctx.baseStrokeCS || CS_GRAY, fillGrad: ctx.baseFillGrad || null,
+      cap: 0, join: 0, miter: 10, dash: null,
     };
+    const studio = !!ctx.studio;
+    const res = ctx.resourcesDict || null;
+    let pendingClip = null, lastNames = [];
+    const mcStack = ctx.baseMC ? ctx.baseMC.slice() : [];
     const gstack = [], ops = [], strs = [];
     let subs = [], sub = null, cur = null, start = null, lastName = null;
     // text state (BT..ET)
@@ -266,15 +647,98 @@ const PDFPARSE = (() => {
           stroke: stroke ? { color: gs.stroke, w } : null,
         };
         if (evenodd) shape.fillRule = 'evenodd';
+        if (studio) {
+          if (fill && stroke ? gs.fillA < 1 : fill ? gs.fillA < 1 : gs.strokeA < 1) shape.opacity = fill ? gs.fillA : gs.strokeA;
+          if (fill && gs.fillGrad) shape.grad = gs.fillGrad;
+          if (stroke) {
+            const st = shape.stroke;
+            if (gs.cap) st.cap = gs.cap === 1 ? 'round' : 'square';
+            if (gs.join) st.join = gs.join === 1 ? 'round' : 'bevel';
+            if (gs.miter !== 10) st.miter = gs.miter;
+            if (gs.dash && gs.dash.length) st.dash = gs.dash.map(v => v * scaleF());
+          }
+          if (gs.clips.length) shape.clip = gs.clips;
+          const oc = mcStack.filter(Boolean).pop();
+          if (oc) shape.layerName = oc;
+        }
         out.push(shape);
       }
+      applyPendingClip();
       clearPath();
+    }
+    function applyPendingClip() {
+      if (!studio || !pendingClip) { pendingClip = null; return; }
+      const cmds = [];
+      for (const sp of subs) { if (sp.cmds.length >= 2) { cmds.push(...sp.cmds); cmds.push(['Z']); } }
+      if (cmds.length) gs.clips = gs.clips.concat([{ id: ++ctx.stats.clipId, cmds, rule: pendingClip }]);
+      pendingClip = null;
+    }
+    function paintShading(name) {
+      const g = parseShading(resLookup(res, 'Shading', name, ctx.objs), ctx.objs, ctx.u8, res);
+      if (!g) { if (ctx.stats) ctx.stats.unsupported = (ctx.stats.unsupported || 0) + 1; return; }
+      const top = gs.clips[gs.clips.length - 1];
+      if (!top) return;
+      const shape = { cmds: top.cmds, fill: g.stops[0][1], stroke: null, grad: xfGrad(g, gs.ctm), clip: gs.clips.slice(0, -1) };
+      if (top.rule === 'evenodd') shape.fillRule = 'evenodd';
+      if (gs.fillA < 1) shape.opacity = gs.fillA;
+      if (!shape.clip.length) delete shape.clip;
+      out.push(shape);
+    }
+    function setPattern(name, stroke) {
+      const p = resLookup(res, 'Pattern', name, ctx.objs);
+      let g = null;
+      if (p && dictGet(p, 'PatternType', ctx.objs) === 2) {
+        g = parseShading(dictGet(p, 'Shading', ctx.objs), ctx.objs, ctx.u8, res);
+        if (g) { const M = (dictGet(p, 'Matrix', ctx.objs) || [1, 0, 0, 1, 0, 0]).map(Number); g = xfGrad(g, mat(M, ctx.baseCTM || [1, 0, 0, 1, 0, 0])); }
+      }
+      if (!g) { if (ctx.stats) ctx.stats.unsupported = (ctx.stats.unsupported || 0) + 1; }
+      if (stroke) { gs.stroke = g ? g.stops[g.stops.length >> 1][1] : '#808080'; return; }
+      gs.fill = g ? g.stops[g.stops.length >> 1][1] : '#808080';
+      gs.fillGrad = g;
+    }
+    function setColor(stroke) {
+      const cs = stroke ? gs.strokeCS : gs.fillCS;
+      const nums = ops.filter(v => typeof v === 'number');
+      if (cs.pattern) { if (lastName) setPattern(lastName, stroke); return; }
+      const hex = cs.hex(nums.length >= cs.n ? nums.slice(-cs.n) : nums.concat(new Array(cs.n - nums.length).fill(0)));
+      if (stroke) gs.stroke = hex; else { gs.fill = hex; gs.fillGrad = null; }
+    }
+    function setSpace(stroke) {
+      const cs = parseCS('/' + lastName, ctx.objs, ctx.u8, res);
+      if (stroke) { gs.strokeCS = cs; gs.stroke = cs.pattern ? gs.stroke : cs.hex(cs.init); }
+      else { gs.fillCS = cs; gs.fillGrad = null; if (!cs.pattern) gs.fill = cs.hex(cs.init); }
+    }
+    function applyExtG(name) {
+      const e = resLookup(res, 'ExtGState', name, ctx.objs);
+      if (!e) return;
+      const ca = dictGet(e, 'ca', ctx.objs), CA = dictGet(e, 'CA', ctx.objs), LW = dictGet(e, 'LW', ctx.objs);
+      if (typeof ca === 'number') gs.fillA = ca * (ctx.alphaMul != null ? ctx.alphaMul : 1);
+      if (typeof CA === 'number') gs.strokeA = CA * (ctx.alphaMul != null ? ctx.alphaMul : 1);
+      if (dictGet(e, 'SMask', ctx.objs) && dictGet(e, 'SMask', ctx.objs) !== '/None') ctx.stats.unsupported = (ctx.stats.unsupported || 0) + 1;
+      if (typeof LW === 'number') gs.lw = LW;
+    }
+    function emitImage(dictObj, o, bytes) {
+      const cs = parseCS(dictGet(dictObj, 'ColorSpace', ctx.objs) != null ? dictGet(dictObj, 'ColorSpace', ctx.objs) : dictGet(dictObj, 'CS', ctx.objs), ctx.objs, ctx.u8, res);
+      let img = null;
+      try { img = decodeImage(dictObj, bytes, cs, ctx.objs, ctx.u8, res, gs.fill, o); } catch (e) { img = null; }
+      if (!img) { ctx.stats.imagesSkipped = (ctx.stats.imagesSkipped || 0) + 1; return; }
+      const shape = { type: 'image', dataURL: img.dataURL, pxW: img.w, pxH: img.h, _dev: gs.ctm.slice() };
+      if (gs.fillA < 1) shape.opacity = gs.fillA;
+      if (gs.clips.length) shape.clip = gs.clips;
+      const oc = mcStack.filter(Boolean).pop();
+      if (oc) shape.layerName = oc;
+      out.push(shape);
     }
     function doXObject(name) {
       if (!name || !ctx.objs) return;
       const on = xobjMap[name];
       if (on == null || (ctx.seen && ctx.seen[on])) return;
       const o = ctx.objs[on];
+      if (studio && o && /\/Subtype\s*\/Image\b/.test(o.dictStr)) {
+        const d = '<<' + o.dictStr.replace(/^\s*<</, '').replace(/>>\s*$/, '') + '>>';
+        emitImage(d, o, decodeBytes(ctx.u8.subarray(o.dataStart, o.dataEnd), o.filter, true));
+        return;
+      }
       if (!o || !/\/Subtype\s*\/Form\b/.test(o.dictStr)) return;
       const content = getStreamContent(o, ctx.u8);
       if (!content) return;
@@ -287,24 +751,55 @@ const PDFPARSE = (() => {
         objs: ctx.objs, u8: ctx.u8, baseCTM: mat(M, gs.ctm),
         baseFill: gs.fill, baseStroke: gs.stroke, baseLW: gs.lw,
         xobjMap: xobjectMap(childRes, ctx.objs), resourcesDict: childRes, seen: seen2, stats: ctx.stats,
+        studio, baseFillA: gs.fillA, baseStrokeA: gs.strokeA, baseClips: gs.clips, baseMC: mcStack, alphaMul: gs.fillA, baseFillCS: gs.fillCS, baseStrokeCS: gs.strokeCS, baseFillGrad: gs.fillGrad,
       });
+    }
+
+    function inlineImage(i0) {
+      const idAt = s.indexOf('ID', i0);
+      const end = skipInlineImage(s, i0);
+      if (idAt < 0) return end;
+      const dict = '<<' + s.slice(i0, idAt) + '>>';
+      let st = idAt + 2; if (isWS(s[st])) st++;
+      let en = end - 2; while (en > st && isWS(s[en - 1])) en--;
+      const data = new Uint8Array(en - st);
+      for (let k = st; k < en; k++) data[k - st] = s.charCodeAt(k) & 255;
+      const f = dictGet(dict, 'F', ctx.objs) != null ? dictGet(dict, 'F', ctx.objs) : dictGet(dict, 'Filter', ctx.objs);
+      const flt = f == null ? '' : Array.isArray(f) ? f.join(' ') : String(f);
+      let bytes = null;
+      try { bytes = decodeBytes(data, flt.replace(/\//g, ' '), true); } catch (e) { bytes = null; }
+      emitImage(dict, null, bytes);
+      return end;
     }
 
     function dispatch(op) {
       switch (op) {
-        case 'q': gstack.push({ ctm: gs.ctm.slice(), fill: gs.fill, stroke: gs.stroke, lw: gs.lw }); break;
+        case 'q': gstack.push({ ...gs, ctm: gs.ctm.slice() }); break;
         case 'Q': if (gstack.length) gs = gstack.pop(); break;
         case 'cm': { const a = ops.slice(-6); if (a.length === 6) gs.ctm = mat(a, gs.ctm); break; }
         case 'w': gs.lw = +ops[ops.length - 1] || 0; break;
         // color
-        case 'rg': { const a = ops.slice(-3); gs.fill = rgbHex(a[0], a[1], a[2]); break; }
-        case 'RG': { const a = ops.slice(-3); gs.stroke = rgbHex(a[0], a[1], a[2]); break; }
-        case 'g': { const v = ops[ops.length - 1]; gs.fill = rgbHex(v, v, v); break; }
-        case 'G': { const v = ops[ops.length - 1]; gs.stroke = rgbHex(v, v, v); break; }
-        case 'k': { const a = ops.slice(-4); gs.fill = cmykHex(a[0], a[1], a[2], a[3]); break; }
-        case 'K': { const a = ops.slice(-4); gs.stroke = cmykHex(a[0], a[1], a[2], a[3]); break; }
-        case 'sc': case 'scn': gs.fill = scColor(ops); break;
-        case 'SC': case 'SCN': gs.stroke = scColor(ops); break;
+        case 'rg': { const a = ops.slice(-3); gs.fill = rgbHex(a[0], a[1], a[2]); gs.fillCS = CS_RGB; gs.fillGrad = null; break; }
+        case 'RG': { const a = ops.slice(-3); gs.stroke = rgbHex(a[0], a[1], a[2]); gs.strokeCS = CS_RGB; break; }
+        case 'g': { const v = ops[ops.length - 1]; gs.fill = rgbHex(v, v, v); gs.fillCS = CS_GRAY; gs.fillGrad = null; break; }
+        case 'G': { const v = ops[ops.length - 1]; gs.stroke = rgbHex(v, v, v); gs.strokeCS = CS_GRAY; break; }
+        case 'k': { const a = ops.slice(-4); gs.fill = cmykHex(a[0], a[1], a[2], a[3]); gs.fillCS = CS_CMYK; gs.fillGrad = null; break; }
+        case 'K': { const a = ops.slice(-4); gs.stroke = cmykHex(a[0], a[1], a[2], a[3]); gs.strokeCS = CS_CMYK; break; }
+        case 'sc': case 'scn': if (studio) setColor(false); else gs.fill = scColor(ops); break;
+        case 'SC': case 'SCN': if (studio) setColor(true); else gs.stroke = scColor(ops); break;
+        case 'cs': if (studio) setSpace(false); break;
+        case 'CS': if (studio) setSpace(true); break;
+        case 'gs': if (studio && lastName) applyExtG(lastName); break;
+        case 'sh': if (studio && lastName) paintShading(lastName); break;
+        case 'W': if (studio) pendingClip = 'nonzero'; break;
+        case 'W*': if (studio) pendingClip = 'evenodd'; break;
+        case 'J': gs.cap = +ops[ops.length - 1] || 0; break;
+        case 'j': gs.join = +ops[ops.length - 1] || 0; break;
+        case 'M': gs.miter = +ops[ops.length - 1] || 10; break;
+        case 'd': if (studio) gs.dash = ctx.lastDash || null; break;
+        case 'BDC': if (studio) { const p = lastName && resLookup(res, 'Properties', lastName, ctx.objs); const nm = p && dictGet(p, 'Type', ctx.objs) === '/OCG' ? dictGet(p, 'Name', ctx.objs) : null; mcStack.push(nm && nm.str != null ? nm.str : null); } break;
+        case 'BMC': if (studio) mcStack.push(null); break;
+        case 'EMC': if (studio) mcStack.pop(); break;
         // path construction
         case 'm': { const a = ops.slice(-2); newsub(a[0], a[1]); break; }
         case 'l': { const a = ops.slice(-2); lineTo(a[0], a[1]); break; }
@@ -322,7 +817,7 @@ const PDFPARSE = (() => {
         case 'B*': emit(true, true, true, true); break;
         case 'b': closepath(); emit(true, true, false, true); break;
         case 'b*': closepath(); emit(true, true, true, true); break;
-        case 'n': clearPath(); break;
+        case 'n': applyPendingClip(); clearPath(); break;
         case 'Do': doXObject(lastName); break;
         // text
         case 'BT': tm = [1, 0, 0, 1, 0, 0]; tlm = tm.slice(); break;
@@ -337,7 +832,7 @@ const PDFPARSE = (() => {
         case 'TJ': emitText(strs[strs.length - 1]); break;
         case "'": tlm = mat([1, 0, 0, 1, 0, -leading], tlm); tm = tlm.slice(); emitText(strs[strs.length - 1]); break;
         case '"': tlm = mat([1, 0, 0, 1, 0, -leading], tlm); tm = tlm.slice(); emitText(strs[strs.length - 1]); break;
-        case 'BI': i = skipInlineImage(s, i); break;
+        case 'BI': if (studio) i = inlineImage(i); else i = skipInlineImage(s, i); break;
         default: break;
       }
       ops.length = 0; strs.length = 0; lastName = null;
@@ -353,11 +848,13 @@ const PDFPARSE = (() => {
         i++; while (i < n && s[i] !== '>') i++; i++; ops.push(0); continue;
       }
       if (ch === '[') {
+        const arrStart = i;
         i++; let combined = '';
         while (i < n && s[i] !== ']') {
           if (s[i] === '(') { const st = i + 1; let d = 1; i++; while (i < n && d > 0) { const c = s[i++]; if (c === '\\') i++; else if (c === '(') d++; else if (c === ')') d--; } combined += decodePdfStr(s.slice(st, i - 1)); }
           else i++;
         }
+        if (studio) { const nums = s.slice(arrStart + 1, i).trim().split(/\s+/).map(Number).filter(v => !isNaN(v)); ctx.lastDash = nums; }
         i++; strs.push(combined); ops.push(0); continue;
       }
       if (ch === ']' || ch === '{' || ch === '}' || ch === ')') { i++; continue; }
@@ -524,28 +1021,30 @@ const PDFPARSE = (() => {
 
   // Interpret `pages` into raw device-space shapes (y-up, points). Falls back to the
   // filter-agnostic stream scan when the pages yield nothing (e.g. pages packed in an ObjStm).
-  function interpretPages(whole, objs, u8, pages, raw, stats) {
+  function interpretPages(whole, objs, u8, pages, raw, stats, studio) {
     for (const pg of pages) {
       const resDict = dictAfter(pg.dictStr, 'Resources', objs);
       const xmap = xobjectMap(resDict, objs);
       const cs = pageContents(pg, objs, u8);
-      if (cs) { try { interpret(cs, raw, { objs, u8, resourcesDict: resDict, xobjMap: xmap, seen: {}, stats }); } catch (e) {} }
+      if (cs) { try { interpret(cs, raw, { objs, u8, resourcesDict: resDict, xobjMap: xmap, seen: {}, stats, studio }); } catch (e) { if (studio) stats.error = e.message; } }
     }
     if (raw.length === 0 && stats.text === 0) heuristicScan(whole, u8, raw, stats);   // text-only pages did parse: don't rescan (double count)
   }
 
   // ---- Vector Studio entry: Uint8Array -> {w, h, shapes, pageCount, hasLiveText, textShows} ----
   // First page only. Shapes are in document points, y-down, origin at page top-left.
-  function parsePDFDoc(u8) {
+  // opts.studio: full graphics state (clips, spot colors, gradients, images, layers); opts.page picks a page (0-based).
+  function parsePDFDoc(u8, opts) {
+    opts = opts || {};
     const whole = u8str(u8);
     const objs = scanObjects(whole, u8);
     const raw = [];
-    const stats = { text: 0 };
+    const stats = { text: 0, clipId: 0 };
     const pages = pageList(objs, whole);
-    const pg = pages[0] || null;
+    const pg = pages[opts.page || 0] || null;
     const mb = mediaBoxOf(pg, objs, whole);
     const W = mb[2] - mb[0], H = mb[3] - mb[1];
-    interpretPages(whole, objs, u8, pg ? [pg] : [], raw, stats);
+    interpretPages(whole, objs, u8, pg ? [pg] : [], raw, stats, !!opts.studio);
     // device space (y-up, MediaBox origin) -> doc space (y-down, top-left origin)
     const flip = [1, 0, 0, -1, -mb[0], H + mb[1]];       // device -> doc
     const negY = [1, 0, 0, -1, 0, 0];                    // fillText local (y-up glyphs) fix
@@ -556,17 +1055,30 @@ const PDFPARSE = (() => {
         return { type: 'text', text: s.text, size: s.size, font: 'Helvetica', fill: s.fill,
           stroke: null, opacity: 1, matrix, w: null };
       }
-      return {
-        ...s,
-        cmds: s.cmds.map(c => {
-          if (c[0] === 'Z') return ['Z'];
-          const o = [c[0]];
-          for (let i = 1; i + 1 <= c.length; i += 2) o.push(c[i] - mb[0], H - (c[i + 1] - mb[1]));
-          return o;
-        }),
-      };
+      if (s.type === 'image') {
+        const { _dev, ...rest } = s;
+        // unit square (y-down, row 0 on top) -> doc
+        return { ...rest, matrix: mat([1, 0, 0, -1, 0, 1], mat(_dev, flip)), clip: flipClips(s.clip) };
+      }
+      const o = { ...s, cmds: flipCmds(s.cmds) };
+      if (o.grad) o.grad = xfGrad(o.grad, flip);
+      if (o.clip) o.clip = flipClips(o.clip);
+      return o;
     });
-    return { w: W, h: H, shapes, pageCount: pages.length, hasLiveText: stats.text > 0, textShows: stats.text };
+    function flipCmds(cmds) {
+      return cmds.map(c => {
+        if (c[0] === 'Z') return ['Z'];
+        const o = [c[0]];
+        for (let i = 1; i + 1 <= c.length; i += 2) o.push(c[i] - mb[0], H - (c[i + 1] - mb[1]));
+        return o;
+      });
+    }
+    function flipClips(list) {
+      if (!list) return undefined;
+      return list.map(c => { if (!c._doc) c._doc = { id: c.id, rule: c.rule, cmds: flipCmds(c.cmds) }; return c._doc; });
+    }
+    return { w: W, h: H, shapes, pageCount: pages.length, hasLiveText: stats.text > 0, textShows: stats.text,
+      imagesSkipped: stats.imagesSkipped || 0, unsupported: stats.unsupported || 0 };
   }
 
   // ---- CAD/CAM entry: Uint8Array -> Array of {pts, closed} loops (inches, y-up) ----
