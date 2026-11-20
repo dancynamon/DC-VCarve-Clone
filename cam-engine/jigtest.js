@@ -172,7 +172,11 @@ function prog(cuts, depth) {
   else {
     const lib = JSON.parse(fs.readFileSync(path.join(__dirname, 'shoptools.json'), 'utf8'));
     const toolFor = t => { const e = lib[t]; return e ? { type: e.type === 'ball' ? 'ball' : 'flat', radius: e.dia / 2 } : { type: 'flat', radius: 0.125 }; };
-    const rd = fs.readFileSync(path.join(D, 'README - run order.txt'), 'utf8');
+    // Dan re-runs jobs: an older run moves into an "Archive - ..." subfolder with its own README. Each file is read with the
+    // README beside it, and a file found in neither place is skipped rather than failed.
+    const dirs = [D].concat(fs.readdirSync(D).filter(n => /^Archive/i.test(n)).map(n => path.join(D, n)));
+    const where = f => dirs.find(d => fs.existsSync(path.join(d, f)) && fs.existsSync(path.join(d, 'README - run order.txt')));
+    const readme = d => fs.readFileSync(path.join(d, 'README - run order.txt'), 'utf8');
     const want = {
       'AM-LGC-50 - 1 LEGS + LONG STEP - 3.5x97 - MIXED.tap': 'full1.125,full1.125,full1.5,full1.5,full1.125,full1.125',
       'AM-LGC-60 - 2 LEGS + SEAT - 3.5x97 - MIXED.tap': 'full1.5,full1.5,full1.125,full1.125,full1.5,empty',
@@ -180,21 +184,26 @@ function prog(cuts, depth) {
       'AM-LGC-60 - 5 TOP STEP RAILS - 48.5in pieces - 1.5in.tap': 'empty,ab1.5,empty,empty,empty,empty'
     };
     for (const f of Object.keys(want)) {
-      const p = S.parseGcode(fs.readFileSync(path.join(D, f), 'utf8'));
-      const L = J.applyRunOrder(jig, J.autoFill(jig, p, f, toolFor), J.parseRunOrder(rd, f));
+      const d = where(f); if (!d) { console.log('  (skipped: ' + f + ' not on this machine)'); continue; }
+      const p = S.parseGcode(fs.readFileSync(path.join(d, f), 'utf8'));
+      const L = J.applyRunOrder(jig, J.autoFill(jig, p, f, toolFor), J.parseRunOrder(readme(d), f));
       const got = L.map(l => l.type + (l.type === 'empty' ? '' : l.thickness)).join();
       ok('real file loads as the README says: ' + f, got === want[f], got);
       ok('no air cuts in a correctly loaded real file: ' + f, J.airCuts(jig, p, L, toolFor).moves.length === 0);
     }
     // 60 #2: the rear-leg pockets on the 9/8 boards (lanes 3,4) land 0.5in deep
-    const f2 = 'AM-LGC-60 - 2 LEGS + SEAT - 3.5x97 - MIXED.tap', p2 = S.parseGcode(fs.readFileSync(path.join(D, f2), 'utf8'));
-    const L2 = J.applyRunOrder(jig, J.autoFill(jig, p2, f2, toolFor), J.parseRunOrder(rd, f2));
+    const f2 = 'AM-LGC-60 - 2 LEGS + SEAT - 3.5x97 - MIXED.tap', d2 = where(f2);
+    if (!d2) console.log('  (skipped: ' + f2 + ' not on this machine)');
+    else {
+    const p2 = S.parseGcode(fs.readFileSync(path.join(d2, f2), 'utf8'));
+    const L2 = J.applyRunOrder(jig, J.autoFill(jig, p2, f2, toolFor), J.parseRunOrder(readme(d2), f2));
     const pcs = J.piecesFor(jig, L2), k3 = pcs.findIndex(pc => pc.lane === 3);
     const jc = new J.JigCarver(CAM, S, p2, [pcs[k3]], toolFor, 0.05); jc.seek(p2.n, 0);
     const fz = jc.fields[0].z, depths = {}; for (const v of fz) if (v < -0.01 && v > jc.fields[0].floor + 1e-3) { const d = (-v).toFixed(2); depths[d] = (depths[d] || 0) + 1; }
     const top = Object.keys(depths).sort((a, b) => depths[b] - depths[a])[0];
     ok('60 #2 pockets on the 1.125 boards land 0.5in deep', top === '0.50', JSON.stringify(depths));
     ok('60 #2 lane 3 ends up as separate parts', J.partsOf(jc.fields[0]).parts.length >= 2);
+    }
   }
 }
 
