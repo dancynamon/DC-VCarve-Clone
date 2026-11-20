@@ -122,6 +122,9 @@ function analyze(index, taps, opts) {
       } else if (!v.closed) {
         const a = deep[0], va = v.pts[0], vb = v.pts[v.pts.length - 1];
         reverse = Math.hypot(a.x - vb.x, a.y - vb.y) < Math.hypot(a.x - va.x, a.y - va.y);
+        // `side` above was measured against the vector as drawn. camcore reverses the vector first and
+        // then takes left/right along the reversed travel, so a reversed cut sits on the other hand.
+        if (reverse && side !== 'on') side = side === 'left' ? 'right' : 'left';
       }
       // lead: travel at the start before the pass settles onto the offset
       let leadLen = 0, leadArc = false;
@@ -131,11 +134,27 @@ function analyze(index, taps, opts) {
       for (const p of all) { const up = p.z > zmin + 0.01 && p.z < -1e-4;
         if (up) { if (!run) run = { a: p.along, z: p.z }; run.b = p.along; } else if (run) { runs.push(run); run = null; } }
       if (run) runs.push(run);
-      const tabRuns = runs.filter(t => t.b - t.a > 0.05);
+      let tabRuns = runs.filter(t => t.b - t.a > 0.05);
+      // The sampled runs above are only good to the sample step. Read each tab's true ends, and the
+      // point at its middle, straight off the feed moves, so the tab can be put back where Vectric had it.
+      const exact = []; { let acc = 0, cur = null;
+        for (const s of ps) { const L = Math.hypot(s.x1 - s.x0, s.y1 - s.y0);
+          const up = L > 1e-6 && Math.min(s.z0, s.z1) > zmin + 0.01 && Math.max(s.z0, s.z1) < -1e-4;
+          if (up) { if (!cur) cur = { a: acc, z: s.z0, segs: [] }; cur.segs.push({ s, at: acc, L }); cur.b = acc + L; }
+          else if (cur && L > 1e-6) { exact.push(cur); cur = null; }
+          acc += L; }
+        if (cur) exact.push(cur); }
+      const exactRuns = exact.filter(t => t.b - t.a > 0.05);
+      let tabPoints = null;
+      if (exactRuns.length && exactRuns.length === tabRuns.length) {
+        tabRuns = exactRuns;
+        tabPoints = exactRuns.map(t => { const m = (t.a + t.b) / 2, g = t.segs.find(q => m <= q.at + q.L + 1e-9) || t.segs[t.segs.length - 1], k = (m - g.at) / g.L;
+          return { x: r4(g.s.x0 + (g.s.x1 - g.s.x0) * k), y: r4(g.s.y0 + (g.s.y1 - g.s.y0) * k) }; });
+      }
       hits.push({ blk, kind: 'profile', v, side, toolDia: side === 'on' ? null : r4(2 * off), climb, reverse,
                   depth: zmin, leadLen: leadLen > 0.02 ? r4(leadLen) : 0, leadType: leadLen > 0.02 ? (leadArc ? 'arc' : 'line') : 'none',
                   tabs: tabRuns.length ? { count: tabRuns.length, length: r4(pct(tabRuns.map(t => t.b - t.a), 0.5)), height: r4(pct(tabRuns.map(t => t.z), 0.5) - zmin) } : null,
-                  pass: pi, spread: best.spread });
+                  tabPoints, pass: pi, spread: best.spread });
     });
   }
   return { hits, unmatched, blocks, vecs };
@@ -197,7 +216,11 @@ function buildSpec(an, meta) {
           leadType: h.leadType, leadLen: h.leadLen || 0.25, ...(h.tabs ? { tabs: h.tabs } : {}) };
     const k = JSON.stringify([b.file, op]);
     if (!groups.has(k)) groups.set(k, { ...op, label: `${b.file} T${b.tool} ${op.op}${op.side ? ' ' + op.side : ''}`, _file: b.file, select: [] });
-    groups.get(k).select.push(h.reverse ? [h.v.layer, h.v.i, { reverse: true }] : [h.v.layer, h.v.i]);
+    // per-vector overrides: travel direction, and where Vectric's tabs sat on this vector
+    const over = {};
+    if (h.reverse) over.reverse = true;
+    if (h.tabs && h.tabPoints) over.tabs = Object.assign({}, h.tabs, { points: h.tabPoints });
+    groups.get(k).select.push(Object.keys(over).length ? [h.v.layer, h.v.i, over] : [h.v.layer, h.v.i]);
   }
   const ops = [...groups.values()];
   const byFile = {};

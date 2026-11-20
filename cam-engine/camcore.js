@@ -136,13 +136,16 @@ function withTabs(loop, count, tabLen, closed, points){
   const half=Math.min(tabLen, total/count*0.9)/2;
   const iv=centers.map(c=>[c-half,c+half]);
   function inTab(pos){for(const [s,e] of iv){let a=((s%total)+total)%total,b=((e%total)+total)%total;if(a<=b){if(pos>=a&&pos<=b)return true;}else{if(pos>=a||pos<=b)return true;}}return false;}
+  const edges=[]; for(const [s,e] of iv){ edges.push(((s%total)+total)%total, ((e%total)+total)%total); }
   const out=[]; let acc=0;
   for(let i=0;i<last;i++){
     const a=loop[i],b=loop[(i+1)%n],L=segLen[i];
     out.push({x:a.x,y:a.y,tab:inTab(acc)});
-    const steps=Math.max(1,Math.ceil(L/0.02));
-    for(let s=1;s<steps;s++){
-      const t=s/steps,pos=acc+L*t,cur=inTab(pos),prev=inTab(acc+L*(s-1)/steps);
+    // break the segment exactly where a tab starts or ends (stepping along it in 0.02" slices put
+    // every tab end on a 0.02" grid, up to 0.02" away from where the tab was asked for)
+    const cuts=edges.filter(e=>e>acc+1e-9&&e<acc+L-1e-9).sort((p,q)=>p-q);
+    for(const pos of cuts){
+      const t=(pos-acc)/L,cur=inTab(pos+1e-7),prev=inTab(pos-1e-7);
       if(cur!==prev) out.push({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,tab:cur});
     }
     acc+=L;

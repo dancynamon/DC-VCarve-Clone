@@ -258,6 +258,8 @@ CAD/CAM HTML from cam-engine."
   judged with the tool's radius (`shoptools.json`, else the diameter measured from the job), so pocket ring order or
   arc-vs-line output pass and a moved wall, missing tab, extra pass or overcut fail. Where Vectric's own chord sags off
   the CRV offset and ours is on it, the job passes with a "Vectric chord error" note. `taptest.js` holds the must-fail cases.
+- **Parity gate (`paritytest.js`, in `npm test`)**: runs that same pipeline over the real VCarve jobs banked in
+  `fixtures/parity/` and fails if a job that matched Vectric stops matching. See `fixtures/parity/README.md`.
 - Unsupported (reported PARTIAL): 3D/ramped roundover passes (T10 surfacing), raster clearing, V-carve recovery.
 - Engine fixes found by this: on-the-line cut of a closed vector skipped its closing edge; arc fit could bow 0.01" across
   a long straight run (`ARC_UNEVEN_SAG`).

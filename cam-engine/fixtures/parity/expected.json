@@ -1,0 +1,20 @@
+{
+ "lgc-50-board-1": "PASS",
+ "lgc-50-board-2": "PASS",
+ "lgc-50-board-3": "FAIL",
+ "lgc-50-board-4": "FAIL",
+ "lgc-50-board-5": "PASS",
+ "lgc-72-board-1": "PASS",
+ "lgc-72-board-2": "FAIL",
+ "lgc-72-board-3": "PASS",
+ "lgc-72-board-4": "FAIL",
+ "lgc-72-board-5": "FAIL",
+ "lgc-72-board-6": "FAIL",
+ "lgc-72-board-7": "PARTIAL",
+ "lgc-72-board-8": "PARTIAL",
+ "lgc-72-board-9": "FAIL",
+ "lgc-72-board-10": "FAIL",
+ "lgc-72-board-11": "PASS",
+ "print-jig-20-piece-foam": "PASS",
+ "xrt-50": "UNPAIRED"
+}

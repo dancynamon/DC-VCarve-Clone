@@ -716,7 +716,7 @@ body.dark .qrow.picked{background:#3a2a1c}
     <span id="msg" class="v"></span>
     <span class="uisize" style="margin-left:auto"><button class="tb" id="btnUiDown" data-tip="Make the menus, panels and buttons smaller">A&#8722;</button><button class="tb" id="uiPct" data-tip="Interface size. Click to reset to the default">100%</button><button class="tb" id="btnUiUp" data-tip="Make the menus, panels and buttons larger">A+</button></span>
     <button class="tb" id="btnUnits" title="Units: inches / millimetres (the drawing is unchanged)" style="font-size:11px;padding:1px 7px">in</button>
-    <span class="ver" id="appVer" title="Build version">v0.5.0 · build 261119.1319</span>
+    <span class="ver" id="appVer" title="Build version">v0.5.0 · build 261119.2044</span>
   </div>
 </div>
 <div id="tip"></div>
@@ -8640,13 +8640,16 @@ function withTabs(loop, count, tabLen, closed, points){
   const half=Math.min(tabLen, total/count*0.9)/2;
   const iv=centers.map(c=>[c-half,c+half]);
   function inTab(pos){for(const [s,e] of iv){let a=((s%total)+total)%total,b=((e%total)+total)%total;if(a<=b){if(pos>=a&&pos<=b)return true;}else{if(pos>=a||pos<=b)return true;}}return false;}
+  const edges=[]; for(const [s,e] of iv){ edges.push(((s%total)+total)%total, ((e%total)+total)%total); }
   const out=[]; let acc=0;
   for(let i=0;i<last;i++){
     const a=loop[i],b=loop[(i+1)%n],L=segLen[i];
     out.push({x:a.x,y:a.y,tab:inTab(acc)});
-    const steps=Math.max(1,Math.ceil(L/0.02));
-    for(let s=1;s<steps;s++){
-      const t=s/steps,pos=acc+L*t,cur=inTab(pos),prev=inTab(acc+L*(s-1)/steps);
+    // break the segment exactly where a tab starts or ends (stepping along it in 0.02" slices put
+    // every tab end on a 0.02" grid, up to 0.02" away from where the tab was asked for)
+    const cuts=edges.filter(e=>e>acc+1e-9&&e<acc+L-1e-9).sort((p,q)=>p-q);
+    for(const pos of cuts){
+      const t=(pos-acc)/L,cur=inTab(pos+1e-7),prev=inTab(pos-1e-7);
       if(cur!==prev) out.push({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,tab:cur});
     }
     acc+=L;
