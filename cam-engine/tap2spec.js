@@ -92,7 +92,7 @@ function analyze(index, taps, opts) {
       const all = sample(ps, Math.max(0.02, xyLen / 1500)), deep = all.filter(p => Math.abs(p.z - zmin) < 1e-4 || true);
       const total = all[all.length - 1].along;
       const pb = bboxOf(all);
-      let best = null;
+      let best = null; const cands = [];
       for (const v of vecs) {
         if (v.bb[0] > pb[2] + 1 || v.bb[2] < pb[0] - 1 || v.bb[1] > pb[3] + 1 || v.bb[3] < pb[1] - 1) continue;
         const ds = deep.map(p => distToPoly(p.x, p.y, v.pts, v.closed).d);
@@ -100,7 +100,20 @@ function analyze(index, taps, opts) {
         const body = ds.filter((d, k) => deep[k].along > 0.5 && deep[k].along < total - 0.5);
         const use = body.length > 10 ? body : ds;
         const med = pct(use, 0.5), spread = pct(use, 0.98) - pct(use, 0.02);
+        cands.push({ v, med, spread, ds });
         if (!best || spread + Math.abs(med) * 1e-3 < best.spread + Math.abs(best.med) * 1e-3) best = { v, med, spread, ds };
+      }
+      // Parallel open vectors all sit at a constant offset from a straight cut, so spread alone cannot
+      // tell them apart (a bevel line 0.115" away scores the same as the real one 0.1875" away). The
+      // real one also starts and stops where the cut does: prefer the candidate whose ends line up.
+      if (best && best.spread <= 0.004 && !best.v.closed) {
+        const endErr = c => { const P = c.v.pts, a = deep[0], b = deep[deep.length - 1];
+          const e = q => Math.min(Math.hypot(q.x - a.x, q.y - a.y), Math.hypot(q.x - b.x, q.y - b.y));
+          const along = d => Math.sqrt(Math.max(0, d * d - c.med * c.med));   // how far past (or short of) the cut's end, along the cut
+          return Math.max(along(e(P[0])), along(e(P[P.length - 1]))); };
+        const ties = cands.filter(c => !c.v.closed && c.spread <= best.spread + 0.002);
+        if (ties.length > 1) { const be = endErr(best), alt = ties.map(c => ({ c, e: endErr(c) })).sort((p, q) => p.e - q.e)[0];
+          if (alt.e < be - 0.003) best = alt.c; }
       }
       if (!best || best.spread > 0.004) {
         const pk = matchPocket(all, vecs, pb);
@@ -122,6 +135,9 @@ function analyze(index, taps, opts) {
       } else if (!v.closed) {
         const a = deep[0], va = v.pts[0], vb = v.pts[v.pts.length - 1];
         reverse = Math.hypot(a.x - vb.x, a.y - vb.y) < Math.hypot(a.x - va.x, a.y - va.y);
+        // `side` above was measured against the vector as drawn. camcore reverses the vector first and
+        // then takes left/right along the reversed travel, so a reversed cut sits on the other hand.
+        if (reverse && side !== 'on') side = side === 'left' ? 'right' : 'left';
       }
       // lead: travel at the start before the pass settles onto the offset
       let leadLen = 0, leadArc = false;
@@ -131,11 +147,27 @@ function analyze(index, taps, opts) {
       for (const p of all) { const up = p.z > zmin + 0.01 && p.z < -1e-4;
         if (up) { if (!run) run = { a: p.along, z: p.z }; run.b = p.along; } else if (run) { runs.push(run); run = null; } }
       if (run) runs.push(run);
-      const tabRuns = runs.filter(t => t.b - t.a > 0.05);
+      let tabRuns = runs.filter(t => t.b - t.a > 0.05);
+      // The sampled runs above are only good to the sample step. Read each tab's true ends, and the
+      // point at its middle, straight off the feed moves, so the tab can be put back where Vectric had it.
+      const exact = []; { let acc = 0, cur = null;
+        for (const s of ps) { const L = Math.hypot(s.x1 - s.x0, s.y1 - s.y0);
+          const up = L > 1e-6 && Math.min(s.z0, s.z1) > zmin + 0.01 && Math.max(s.z0, s.z1) < -1e-4;
+          if (up) { if (!cur) cur = { a: acc, z: s.z0, segs: [] }; cur.segs.push({ s, at: acc, L }); cur.b = acc + L; }
+          else if (cur && L > 1e-6) { exact.push(cur); cur = null; }
+          acc += L; }
+        if (cur) exact.push(cur); }
+      const exactRuns = exact.filter(t => t.b - t.a > 0.05);
+      let tabPoints = null;
+      if (exactRuns.length && exactRuns.length === tabRuns.length) {
+        tabRuns = exactRuns;
+        tabPoints = exactRuns.map(t => { const m = (t.a + t.b) / 2, g = t.segs.find(q => m <= q.at + q.L + 1e-9) || t.segs[t.segs.length - 1], k = (m - g.at) / g.L;
+          return { x: r4(g.s.x0 + (g.s.x1 - g.s.x0) * k), y: r4(g.s.y0 + (g.s.y1 - g.s.y0) * k), len: r4(t.b - t.a) }; });
+      }
       hits.push({ blk, kind: 'profile', v, side, toolDia: side === 'on' ? null : r4(2 * off), climb, reverse,
                   depth: zmin, leadLen: leadLen > 0.02 ? r4(leadLen) : 0, leadType: leadLen > 0.02 ? (leadArc ? 'arc' : 'line') : 'none',
                   tabs: tabRuns.length ? { count: tabRuns.length, length: r4(pct(tabRuns.map(t => t.b - t.a), 0.5)), height: r4(pct(tabRuns.map(t => t.z), 0.5) - zmin) } : null,
-                  pass: pi, spread: best.spread });
+                  tabPoints, pass: pi, spread: best.spread });
     });
   }
   return { hits, unmatched, blocks, vecs };
@@ -197,7 +229,11 @@ function buildSpec(an, meta) {
           leadType: h.leadType, leadLen: h.leadLen || 0.25, ...(h.tabs ? { tabs: h.tabs } : {}) };
     const k = JSON.stringify([b.file, op]);
     if (!groups.has(k)) groups.set(k, { ...op, label: `${b.file} T${b.tool} ${op.op}${op.side ? ' ' + op.side : ''}`, _file: b.file, select: [] });
-    groups.get(k).select.push(h.reverse ? [h.v.layer, h.v.i, { reverse: true }] : [h.v.layer, h.v.i]);
+    // per-vector overrides: travel direction, and where Vectric's tabs sat on this vector
+    const over = {};
+    if (h.reverse) over.reverse = true;
+    if (h.tabs && h.tabPoints) over.tabs = Object.assign({}, h.tabs, { points: h.tabPoints });
+    groups.get(k).select.push(Object.keys(over).length ? [h.v.layer, h.v.i, over] : [h.v.layer, h.v.i]);
   }
   const ops = [...groups.values()];
   const byFile = {};
