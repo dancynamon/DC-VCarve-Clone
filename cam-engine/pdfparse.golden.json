@@ -121,21 +121,21 @@
  },
  "mat_48x24_evans_spot+color.pdf": {
   "vectors": {
-   "loops": 1075,
-   "closed": 1075,
-   "pts": 170368,
+   "loops": 538,
+   "closed": 538,
+   "pts": 102530,
    "text": 0,
-   "digest": "2797e1ab",
-   "why": "old copies never returned: an [/ASCII85Decode /FlateDecode] image stream went into the inflater, which looped forever past end of input"
+   "digest": "d6c4d7fd",
+   "why": "object streams: page tree in an ObjStm is now read, so the page is interpreted through its form XObjects (Do, with their matrices) instead of the fallback scan that ran each of the 87 form streams on its own and counted the art twice"
   },
   "doc": {
-   "shapes": 1001,
-   "w": 612,
-   "h": 792,
+   "shapes": 464,
+   "w": 3420,
+   "h": 1692,
    "text": 0,
-   "colors": 6,
-   "digest": "f1c793f9",
-   "why": "old copies never returned: an [/ASCII85Decode /FlateDecode] image stream went into the inflater, which looped forever past end of input"
+   "colors": 5,
+   "digest": "1944876d",
+   "why": "object streams: page tree in an ObjStm is now read, so the page is interpreted through its form XObjects (Do, with their matrices) instead of the fallback scan that ran each of the 87 form streams on its own and counted the art twice; real MediaBox 3420 x 1692"
   }
  },
  "mat_wsa6152_plate_source.pdf": {
@@ -200,12 +200,12 @@
   },
   "doc": {
    "shapes": 348,
-   "w": 612,
-   "h": 792,
+   "w": 849.6,
+   "h": 1440,
    "text": 0,
    "colors": 7,
-   "digest": "c9a7d7c0",
-   "why": "old copies never returned: an [/ASCII85Decode /FlateDecode] image stream went into the inflater, which looped forever past end of input"
+   "digest": "d277a19e",
+   "why": "object streams: the page tree sits in an ObjStm, which is now read, so the real MediaBox replaces the 612 x 792 fallback (same shapes, y offset by the height difference)"
   }
  },
  "ref_mainst_kickboard_yellow_spot+color.pdf": {
@@ -219,12 +219,12 @@
   },
   "doc": {
    "shapes": 174,
-   "w": 612,
-   "h": 792,
+   "w": 849.6,
+   "h": 1440,
    "text": 0,
    "colors": 8,
-   "digest": "ae542c86",
-   "why": "old copies never returned: an [/ASCII85Decode /FlateDecode] image stream went into the inflater, which looped forever past end of input"
+   "digest": "1d7f6f5b",
+   "why": "object streams: the page tree sits in an ObjStm, which is now read, so the real MediaBox replaces the 612 x 792 fallback (same shapes, y offset by the height difference)"
   }
  },
  "ref_manny_xrt50_aug_apd_spot+color.pdf": {
@@ -237,11 +237,12 @@
   },
   "doc": {
    "shapes": 1410,
-   "w": 612,
-   "h": 792,
+   "w": 3114,
+   "h": 414,
    "text": 6,
    "colors": 6,
-   "digest": "27369b0c"
+   "digest": "f325ea0a",
+   "why": "object streams: the page tree sits in an ObjStm, which is now read, so the real MediaBox replaces the 612 x 792 fallback (same shapes, y offset by the height difference)"
   }
  },
  "saf_angelfish_v3_side1_spot+color.pdf": {

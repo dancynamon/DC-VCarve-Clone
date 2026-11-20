@@ -11,7 +11,7 @@
 //    [{pts, closed}] loops in inches, y-up (PDF device space / 72). Live text is not cuttable,
 //    so it is only counted (`.hasLiveText`, `.textShows`) for the UI to say "outline the fonts".
 // Modern .ai files are PDF-compatible, so this reads them too. Known gaps: clip regions as
-// geometry, inline images, filters other than Flate/ASCII85, objects packed in object streams (ObjStm).
+// geometry, inline images, filters other than Flate/ASCII85.
 // Pure — no DOM. In node: require; in browser: window.PDFPARSE via build concat. The bare
 // globals parsePDFVectors/pdfInflate at the bottom are what cadcam's bundle and vm tests call.
 const PDFPARSE = (() => {
@@ -912,6 +912,23 @@ const PDFPARSE = (() => {
         if (es >= 0) re.lastIndex = es + 9;
       } else dictStr = whole.slice(objStart, boundary);
       objs[num] = { num, dictStr, hasStream, dataStart, dataEnd, filter };
+    }
+    // Objects packed in object streams (PDF 1.5 /ObjStm; cairo / rsvg and modern Illustrator put the page tree
+    // and resources there): unpack them, so the page, its MediaBox and its resources are found like any other.
+    for (const k of Object.keys(objs)) {
+      const o = objs[k];
+      if (!o.hasStream || !/\/Type\s*\/ObjStm\b/.test(o.dictStr)) continue;
+      const nM = o.dictStr.match(/\/N\s+(\d+)/), fM = o.dictStr.match(/\/First\s+(\d+)/);
+      let body = null;
+      try { body = decodeStream(u8.subarray(o.dataStart, o.dataEnd), o.filter); } catch (e) { body = null; }
+      if (!nM || !fM || !body) continue;
+      const N = parseInt(nM[1], 10), first = parseInt(fM[1], 10);
+      const head = body.slice(0, first).trim().split(/\s+/).map(v => parseInt(v, 10));
+      for (let i = 0; i < N && 2 * i + 1 < head.length; i++) {
+        const num = head[2 * i], off = head[2 * i + 1], end = (i + 1 < N && 2 * i + 3 < head.length) ? head[2 * i + 3] : body.length - first;
+        if (!isFinite(num) || !isFinite(off) || objs[num]) continue;      // an object written in the open wins
+        objs[num] = { num, dictStr: body.slice(first + off, first + end), hasStream: false, dataStart: -1, dataEnd: -1, filter: '' };
+      }
     }
     return objs;
   }
