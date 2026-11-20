@@ -134,7 +134,9 @@ function withTabs(loop, count, tabLen, closed, points){
       centers.push(at); }
   } else for(let k=0;k<count;k++) centers.push((k+0.5)/count*total);
   const half=Math.min(tabLen, total/count*0.9)/2;
-  const iv=centers.map(c=>[c-half,c+half]);
+  // a placed tab may carry its own length (`len`): VCarve measures a tab along the drawn vector, so on
+  // the offset path the same tab is shorter inside a curve and longer outside it
+  const iv=centers.map((c,k)=>{ const own=points&&points.length&&points[k]&&points[k].len>0?Math.min(points[k].len,total/count*0.9)/2:half; return [c-own,c+own]; });
   function inTab(pos){for(const [s,e] of iv){let a=((s%total)+total)%total,b=((e%total)+total)%total;if(a<=b){if(pos>=a&&pos<=b)return true;}else{if(pos>=a||pos<=b)return true;}}return false;}
   const edges=[]; for(const [s,e] of iv){ edges.push(((s%total)+total)%total, ((e%total)+total)%total); }
   const out=[]; let acc=0;

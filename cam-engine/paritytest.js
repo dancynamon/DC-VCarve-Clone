@@ -49,5 +49,5 @@ for (const n of names) {
 }
 for (const n of Object.keys(expected)) if (!got[n]) { fail++; console.log(`  FAIL ${n}: listed in expected.json but the fixture is gone`); }
 
-console.log(`\n${pass} of ${names.length} real VCarve jobs match Vectric within 0.005" · ${gaps} known gaps · ${promote} to promote · ${fail} failed`);
+console.log(`\n${pass + promote} of ${names.length} real VCarve jobs match Vectric within 0.005" · ${gaps} known gaps · ${promote} to promote · ${fail} failed`);
 process.exit(fail ? 1 : 0);

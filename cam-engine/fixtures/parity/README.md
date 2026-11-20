@@ -37,5 +37,11 @@ match VCarve's defaults.
 
 ## Where the jobs stand
 
-See `expected.json` and the output of `paritytest.js` for the current list and the reason for each
-gap. `xrt-50` has only a DXF, so it has no CRV to re-post from and is listed `UNPAIRED`.
+`expected.json` and the output of `paritytest.js` hold the current list. The known gaps:
+
+- **`lgc-72-board-7`, `lgc-72-board-8`** (`PARTIAL`): after the 1/8" tool runs the pocket wall, VCarve
+  adds four small corner clean-up loops with it. `tap2spec.js` does not recognise those loops, so the
+  recipe is incomplete and the job is not re-posted. By geometry the wall pass has already cleared
+  those corners (the 3/8" pocket tool leaves nothing farther than 0.062" from a wall there), so the
+  loops cut air; our rest machining leaves them out for that reason.
+- **`xrt-50`** (`UNPAIRED`): the folder has only a DXF, so there is no CRV to re-post from.

@@ -92,7 +92,7 @@ function analyze(index, taps, opts) {
       const all = sample(ps, Math.max(0.02, xyLen / 1500)), deep = all.filter(p => Math.abs(p.z - zmin) < 1e-4 || true);
       const total = all[all.length - 1].along;
       const pb = bboxOf(all);
-      let best = null;
+      let best = null; const cands = [];
       for (const v of vecs) {
         if (v.bb[0] > pb[2] + 1 || v.bb[2] < pb[0] - 1 || v.bb[1] > pb[3] + 1 || v.bb[3] < pb[1] - 1) continue;
         const ds = deep.map(p => distToPoly(p.x, p.y, v.pts, v.closed).d);
@@ -100,7 +100,20 @@ function analyze(index, taps, opts) {
         const body = ds.filter((d, k) => deep[k].along > 0.5 && deep[k].along < total - 0.5);
         const use = body.length > 10 ? body : ds;
         const med = pct(use, 0.5), spread = pct(use, 0.98) - pct(use, 0.02);
+        cands.push({ v, med, spread, ds });
         if (!best || spread + Math.abs(med) * 1e-3 < best.spread + Math.abs(best.med) * 1e-3) best = { v, med, spread, ds };
+      }
+      // Parallel open vectors all sit at a constant offset from a straight cut, so spread alone cannot
+      // tell them apart (a bevel line 0.115" away scores the same as the real one 0.1875" away). The
+      // real one also starts and stops where the cut does: prefer the candidate whose ends line up.
+      if (best && best.spread <= 0.004 && !best.v.closed) {
+        const endErr = c => { const P = c.v.pts, a = deep[0], b = deep[deep.length - 1];
+          const e = q => Math.min(Math.hypot(q.x - a.x, q.y - a.y), Math.hypot(q.x - b.x, q.y - b.y));
+          const along = d => Math.sqrt(Math.max(0, d * d - c.med * c.med));   // how far past (or short of) the cut's end, along the cut
+          return Math.max(along(e(P[0])), along(e(P[P.length - 1]))); };
+        const ties = cands.filter(c => !c.v.closed && c.spread <= best.spread + 0.002);
+        if (ties.length > 1) { const be = endErr(best), alt = ties.map(c => ({ c, e: endErr(c) })).sort((p, q) => p.e - q.e)[0];
+          if (alt.e < be - 0.003) best = alt.c; }
       }
       if (!best || best.spread > 0.004) {
         const pk = matchPocket(all, vecs, pb);
@@ -149,7 +162,7 @@ function analyze(index, taps, opts) {
       if (exactRuns.length && exactRuns.length === tabRuns.length) {
         tabRuns = exactRuns;
         tabPoints = exactRuns.map(t => { const m = (t.a + t.b) / 2, g = t.segs.find(q => m <= q.at + q.L + 1e-9) || t.segs[t.segs.length - 1], k = (m - g.at) / g.L;
-          return { x: r4(g.s.x0 + (g.s.x1 - g.s.x0) * k), y: r4(g.s.y0 + (g.s.y1 - g.s.y0) * k) }; });
+          return { x: r4(g.s.x0 + (g.s.x1 - g.s.x0) * k), y: r4(g.s.y0 + (g.s.y1 - g.s.y0) * k), len: r4(t.b - t.a) }; });
       }
       hits.push({ blk, kind: 'profile', v, side, toolDia: side === 'on' ? null : r4(2 * off), climb, reverse,
                   depth: zmin, leadLen: leadLen > 0.02 ? r4(leadLen) : 0, leadType: leadLen > 0.02 ? (leadArc ? 'arc' : 'line') : 'none',
